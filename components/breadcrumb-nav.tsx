@@ -90,21 +90,23 @@ export function BreadcrumbNav() {
     
     // 根据当前页面和URL参数构建动态路径
     if (pathname === '/preview' && appId) {
-      // Preview页面：显示 Home > [App Name] > Preview
+      // Preview页面：显示 Home > [App Name]
       if (appName) {
         breadcrumbs.push({
           label: appName,
-          icon: FileText,
-          href: `/connected-list?id=${appId}`,
-          isLast: false
+          icon: Eye,
+          href: undefined, // 当前页面，不可点击
+          isLast: true
+        })
+      } else {
+        // 如果没有应用名称，显示默认的Preview
+        breadcrumbs.push({
+          label: 'Preview',
+          icon: Eye,
+          href: undefined, // 当前页面，不可点击
+          isLast: true
         })
       }
-      breadcrumbs.push({
-        label: 'Preview',
-        icon: Eye,
-        href: undefined, // 当前页面，不可点击
-        isLast: true
-      })
     } else if (pathname === '/overview' && appId) {
       // Overview页面：显示 Home > Generate > [App Name] > Overview
       breadcrumbs.push({
