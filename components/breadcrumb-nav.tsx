@@ -1,9 +1,10 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { useState } from "react"
 import { 
   Zap, 
   Home,
@@ -19,6 +20,8 @@ import {
 
 export function BreadcrumbNav() {
   const pathname = usePathname()
+  const router = useRouter()
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
   
   // 解析路径
   const pathSegments = pathname.split('/').filter(Boolean)
@@ -67,35 +70,63 @@ export function BreadcrumbNav() {
     }
   }
 
+  // 检查是否在 preview 页面
+  const isPreviewPage = pathname.startsWith('/preview')
+
   return (
-    <div className="flex items-center gap-1 text-sm text-gray-700 mb-6">
-      {/* Home Icon */}
-      <Link href="/" className="flex items-center gap-1 hover:text-gray-900">
-        <Zap className="size-4 text-green-500" />
-      </Link>
-      
-      {/* Breadcrumb Items */}
-      {breadcrumbs.map((item, index) => (
-        <div key={index} className="flex items-center gap-1">
-          <span className="text-gray-400">/</span>
-          {item.isLast ? (
-            <div className="flex items-center gap-2">
-              <item.icon className="size-4" />
-              <span className="font-medium text-gray-900">{item.label}</span>
-              {item.label === 'Versions' && (
-                <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-200">
-                  Production
-                </Badge>
-              )}
-            </div>
-          ) : (
-            <Link href={item.href || '#'} className="flex items-center gap-2 hover:text-gray-900">
-              <item.icon className="size-4" />
-              <span className="font-medium">{item.label}</span>
-            </Link>
-          )}
+    <div className="flex items-center justify-between mb-6">
+      {/* 左侧面包屑导航 */}
+      <div className="flex items-center gap-1 text-sm text-gray-700">
+        {/* Home Icon */}
+        <Link href="/" className="flex items-center gap-1 hover:text-gray-900">
+          <Zap className="size-4 text-green-500" />
+        </Link>
+        
+        {/* Breadcrumb Items */}
+        {breadcrumbs.map((item, index) => (
+          <div key={index} className="flex items-center gap-1">
+            <span className="text-gray-400">/</span>
+            {item.isLast ? (
+              <div className="flex items-center gap-2">
+                <item.icon className="size-4" />
+                <span className="font-medium text-gray-900">{item.label}</span>
+                {item.label === 'Versions' && (
+                  <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-200">
+                    Production
+                  </Badge>
+                )}
+              </div>
+            ) : (
+              <Link href={item.href || '#'} className="flex items-center gap-2 hover:text-gray-900">
+                <item.icon className="size-4" />
+                <span className="font-medium">{item.label}</span>
+              </Link>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* 右侧按钮组 - 只在 preview 页面显示 */}
+      {isPreviewPage && (
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 px-3"
+            onClick={() => setIsSaveDialogOpen(true)}
+          >
+            Save
+          </Button>
+          <Button
+            size="sm"
+            variant="default"
+            className="h-8 px-3"
+            onClick={() => router.push("/publish")}
+          >
+            Publish
+          </Button>
         </div>
-      ))}
+      )}
     </div>
   )
 }

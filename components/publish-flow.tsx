@@ -57,7 +57,7 @@ export function PublishFlow() {
       <div className="min-h-screen bg-background">
         {/* Top navigation removed for a cleaner publish success view */}
 
-        <main className="container mx-auto px-4 py-6 max-w-2xl">
+        <main className="container mx-auto px-4 py-12 max-w-2xl">
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="size-16 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center mb-4">
@@ -132,9 +132,9 @@ export function PublishFlow() {
 
               <div className="flex gap-3">
                 <Button variant="outline" asChild>
-                  <Link href="/">Return to home</Link>
+                  <Link href="/">Return to h</Link>
                 </Button>
-                <Button>View App Details</Button>
+                <Button>View GPTApp Details</Button>
               </div>
             </CardContent>
           </Card>
@@ -147,7 +147,7 @@ export function PublishFlow() {
     <div className="min-h-screen bg-background">
       {/* Top navigation removed on publish page */}
 
-      <main className="container mx-auto px-4 py-6 max-w-2xl">
+      <main className="container mx-auto px-4 py-12 max-w-2xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Publish</h1>
           <p className="text-muted-foreground">Name your GPTApp
