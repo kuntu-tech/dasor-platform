@@ -18,6 +18,7 @@ import {
   DollarSign,
   ShoppingCart,
   Trash2,
+  RefreshCcw,
 } from "lucide-react"
 import { ThumbsUp, ThumbsDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -439,6 +440,32 @@ export function PreviewEditor() {
     router.push("/save-success")
   }
 
+  // 处理刷新操作 - 跳转到连接页面并传递连接信息
+  const handleReAnalyse = () => {
+    // 显示确认弹窗
+    const confirmed = confirm('您确定要重新连接数据库吗？这将返回连接页面并自动填充之前的连接信息。')
+    
+    if (confirmed) {
+      // 确保在客户端环境中执行
+      if (typeof window !== 'undefined') {
+        // 从 localStorage 获取之前保存的连接信息
+        const connectionUrl = localStorage.getItem('connectionUrl') || ''
+        const apiKey = localStorage.getItem('apiKey') || ''
+        
+        // 将连接信息编码为 URL 参数
+        const params = new URLSearchParams()
+        if (connectionUrl) params.set('url', connectionUrl)
+        if (apiKey) params.set('apiKey', apiKey)
+        
+        // 跳转到连接页面
+        router.push(`/connect?${params.toString()}`)
+      } else {
+        // 服务器端环境，直接跳转到连接页面
+        router.push('/connect')
+      }
+    }
+  }
+
   const renderPreview = () => {
     if (isPreviewUpdating) {
       return (
@@ -712,7 +739,15 @@ export function PreviewEditor() {
         <ResizablePanel defaultSize={(panelLayout && panelLayout[0]) || 24} minSize={16} maxSize={40} className="flex flex-col" style={{ backgroundColor: '#F2F2F7' }}>
           <div className="px-4 py-3 flex items-center justify-between">
             <h2 className="font-medium text-lg" style={{ color: '#8E8E93' }}>Commercial questions</h2>
-          
+            <Button
+              size="sm"
+              variant="default"
+              className="h-8 px-3 text-xs font-semibold shadow-sm hover:shadow ring-1 ring-primary/20"
+              onClick={handleReAnalyse}
+            >
+              <RefreshCcw className="size-3 mr-1" />
+              ReAnalyse
+            </Button>
           </div>
           <div className="flex-1 overflow-y-auto pt-0 px-3 pb-3">
             {currentApp.features.map((feature) => {
@@ -833,7 +868,7 @@ export function PreviewEditor() {
                     <Sparkles className="size-8" />
                   </div>
                   <h3 className="text-lg font-semibold mb-2"></h3>
-                  <p className="text-sm">点击左侧感兴趣的问题查看答案</p>
+                  <p className="text-sm">点击左侧感兴趣的问题查看回答</p>
                 </div>
               </div>
             )}

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { 
   Zap, 
   Home,
@@ -28,6 +28,7 @@ export function BreadcrumbNav() {
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
   const [appName, setAppName] = useState("")
   const [appDescription, setAppDescription] = useState("")
+  const [isConnectResultsStep, setIsConnectResultsStep] = useState(false)
   
   // 解析路径
   const pathSegments = pathname.split('/').filter(Boolean)
@@ -78,6 +79,33 @@ export function BreadcrumbNav() {
 
   // 检查是否在 preview 页面
   const isPreviewPage = pathname.startsWith('/preview')
+  
+  // 检查是否在 connect 页面的 results 步骤
+  useEffect(() => {
+    const checkConnectResultsStep = () => {
+      const connectResultsStep = localStorage.getItem('connectResultsStep')
+      setIsConnectResultsStep(connectResultsStep === 'true')
+    }
+    
+    checkConnectResultsStep()
+    
+    // 监听 localStorage 变化
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'connectResultsStep') {
+        checkConnectResultsStep()
+      }
+    }
+    
+    window.addEventListener('storage', handleStorageChange)
+    
+    // 定期检查（因为 localStorage 事件可能不会在同一标签页触发）
+    const interval = setInterval(checkConnectResultsStep, 100)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(interval)
+    }
+  }, [pathname])
 
   // 处理保存应用
   const handleSaveApp = () => {
@@ -132,8 +160,8 @@ export function BreadcrumbNav() {
         ))}
       </div>
 
-      {/* 右侧按钮组 - 只在 preview 页面显示 */}
-      {isPreviewPage && (
+      {/* 右侧按钮组 - 在 preview 页面和 connect results 步骤显示 */}
+      {(isPreviewPage || (pathname.startsWith('/connect') && isConnectResultsStep)) && (
         <div className="flex items-center gap-2">
           <Button
             size="sm"
