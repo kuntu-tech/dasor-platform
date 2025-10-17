@@ -227,10 +227,6 @@ export function PreviewEditor() {
   }
 
   useEffect(() => {
-    // 重置加载状态
-    setIsPreviewUpdating(false)
-    setIsSearchProcessing(false)
-    
     const stored = localStorage.getItem("currentApp")
     if (stored) {
       try {
