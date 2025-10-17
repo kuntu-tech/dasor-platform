@@ -752,10 +752,11 @@ export function PreviewEditor() {
                     }}
                   >
                     <div className="flex items-center gap-3">
-                      {/* SF Symbols style bookmark icon */}
+                      {/* Business opportunity coin icon */}
                       <div className="flex-shrink-0 w-4 h-4">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                          <path d="M3 2.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-.794.404L8 10.118l-4.706 3.786A.5.5 0 0 1 3 13.5v-11z"/>
+                          <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1"/>
+                          <path d="M4 6h8v4H4V6zm2 1v2h4V7H6z"/>
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
