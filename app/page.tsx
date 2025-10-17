@@ -119,7 +119,7 @@ export default function DashboardPage() {
         
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredApps.map(app => (
-              <Card key={app.id} className="hover:shadow-sm transition-shadow cursor-pointer" onClick={() => router.push(`/preview?id=${app.id}`)}>
+              <Card key={app.id} className="hover:shadow-sm transition-shadow cursor-pointer" onClick={() => router.push(`/preview?id=${app.id}&appName=${encodeURIComponent(app.name)}`)}>
                 <CardContent className="px-4 py-0.5">
                   <div className="flex items-start justify-between">
                     <div className="min-w-0">

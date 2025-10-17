@@ -111,7 +111,7 @@ s total</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" asChild>
-                          <Link href={`/preview?id=${app.id}`}>
+                          <Link href={`/preview?id=${app.id}&appName=${encodeURIComponent(app.name)}`}>
                             <ExternalLink className="mr-1.5 size-4" />
                             Edit
                           </Link>
