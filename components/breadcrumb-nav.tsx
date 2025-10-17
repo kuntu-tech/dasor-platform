@@ -4,6 +4,10 @@ import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useState } from "react"
 import { 
   Zap, 
@@ -22,6 +26,8 @@ export function BreadcrumbNav() {
   const pathname = usePathname()
   const router = useRouter()
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
+  const [appName, setAppName] = useState("")
+  const [appDescription, setAppDescription] = useState("")
   
   // 解析路径
   const pathSegments = pathname.split('/').filter(Boolean)
@@ -72,6 +78,26 @@ export function BreadcrumbNav() {
 
   // 检查是否在 preview 页面
   const isPreviewPage = pathname.startsWith('/preview')
+
+  // 处理保存应用
+  const handleSaveApp = () => {
+    if (!appName.trim()) {
+      return // 如果名称为空则不保存
+    }
+    
+    // 关闭对话框
+    setIsSaveDialogOpen(false)
+    
+    // 跳转到保存成功页面
+    router.push("/save-success")
+  }
+
+  // 处理取消保存
+  const handleCancelSave = () => {
+    setIsSaveDialogOpen(false)
+    setAppName("")
+    setAppDescription("")
+  }
 
   return (
     <div className="flex items-center justify-between mb-6">
@@ -127,6 +153,53 @@ export function BreadcrumbNav() {
           </Button>
         </div>
       )}
+
+      {/* Save Dialog */}
+      <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Save Application</DialogTitle>
+            <DialogDescription>
+              Please enter the application's name and description to save your application configuration.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="app-name">Application Name *</Label>
+              <Input
+                id="app-name"
+                placeholder="Please enter application name"
+                value={appName}
+                onChange={(e) => setAppName(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="app-description">Application Description</Label>
+              <Textarea
+                id="app-description"
+                placeholder="Please enter application description (optional)"
+                value={appDescription}
+                onChange={(e) => setAppDescription(e.target.value)}
+                className="w-full min-h-[80px]"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelSave}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveApp}
+              disabled={!appName.trim()}
+            >
+              Save Application
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
