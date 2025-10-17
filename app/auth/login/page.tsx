@@ -2,19 +2,29 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff } from "lucide-react"
+import Prism from "@/components/Prism"
 
 export default function LoginPage() {
+  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
 
+  const handleLogin = () => {
+    // 简单的登录逻辑，直接跳转到首页
+    router.push("/")
+  }
+
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-white flex">
+      {/* Left Side - Login Form */}
+      <div className="w-1/2 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8">
           <div className="flex items-center gap-2">
@@ -23,7 +33,7 @@ export default function LoginPage() {
               <div className="w-3 h-3 bg-gray-600 rounded-full"></div>
               <div className="w-3 h-3 bg-gray-600 rounded-full"></div>
             </div>
-            <span className="text-2xl font-bold text-gray-900">replit</span>
+            <span className="text-2xl font-bold text-gray-900">Datail</span>
           </div>
         </div>
 
@@ -82,7 +92,10 @@ export default function LoginPage() {
             </div>
 
             {/* Log In Button */}
-            <Button className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-medium text-base">
+            <Button 
+              onClick={handleLogin}
+              className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-medium text-base"
+            >
               Log In
             </Button>
 
@@ -97,7 +110,7 @@ export default function LoginPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px bg-gray-300"></div>
-                <span className="text-sm text-gray-500">Or Use SSO login</span>
+                <span className="text-sm text-gray-500">Or</span>
                 <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center">
                   <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                 </div>
@@ -112,21 +125,12 @@ export default function LoginPage() {
                 <Button variant="outline" className="w-full h-12 border-gray-300 hover:bg-gray-50 text-gray-700 font-medium">
                   Continue with GitHub
                 </Button>
-                <Button variant="outline" className="w-full h-12 border-gray-300 hover:bg-gray-50 text-gray-700 font-medium">
-                  Continue with X
-                </Button>
-                <Button variant="outline" className="w-full h-12 border-gray-300 hover:bg-gray-50 text-gray-700 font-medium">
-                  Continue with Facebook
-                </Button>
-                <Button variant="outline" className="w-full h-12 border-gray-300 hover:bg-gray-50 text-gray-700 font-medium">
-                  Continue with Apple
-                </Button>
               </div>
             </div>
 
             {/* Sign Up Link */}
             <div className="text-center pt-4">
-              <span className="text-sm text-gray-600">New to Replit? </span>
+              <span className="text-sm text-gray-600">New to Datail? </span>
               <Button variant="link" asChild className="text-sm text-gray-600 hover:text-gray-800 p-0 h-auto font-medium">
                 <Link href="/auth/register">Sign up</Link>
               </Button>
@@ -153,6 +157,34 @@ export default function LoginPage() {
                 apply.
               </p>
             </div>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      {/* Right Side - Text Display with Prism Background */}
+      <div className="w-1/2 relative">
+        <Prism 
+          height={3.5}
+          baseWidth={5.5}
+          animationType="3drotate"
+          glow={1}
+          noise={0.3}
+          transparent={true}
+          scale={2.5}
+          hueShift={0}
+          colorFrequency={1}
+          hoverStrength={2}
+          inertia={0.05}
+          bloom={1}
+          suspendWhenOffscreen={true}
+          timeScale={0.8}
+        />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
+              Data to app, <span className="text-blue-500">fast</span>
+            </h1>
           </div>
         </div>
       </div>

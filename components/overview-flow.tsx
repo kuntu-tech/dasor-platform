@@ -90,9 +90,7 @@ export function OverviewFlow() {
   }
 
   const handlePreview = (appId: string) => {
-    const app = generatedApps.find(app => app.id === appId)
-    const appName = app ? encodeURIComponent(app.name) : ''
-    router.push(`/preview?id=${appId}&appName=${appName}`)
+    router.push(`/preview?id=${appId}`)
   }
 
   const handlePublishSelected = () => {
