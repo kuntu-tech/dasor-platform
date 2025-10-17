@@ -138,7 +138,7 @@ export function GenerateFlow() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-12 max-w-4xl">
         <div className="mb-12 text-center">
-          <h1 className="text-3xl font-bold mb-2">Generating Your Applicationpp
+          <h1 className="text-3xl font-bold mb-2">Generating Your App
 </h1>
           <p className="text-muted-foreground">
             AI is creating your Applicationpp

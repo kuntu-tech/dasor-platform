@@ -56,6 +56,26 @@ export function ConnectFlow() {
   const [dataValidationError, setDataValidationError] = useState<string | null>(null)
   const [hasValidated, setHasValidated] = useState<boolean>(false)
 
+  // 从 URL 参数自动填充连接信息
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParam = searchParams?.get("url")
+      const apiKeyParam = searchParams?.get("apiKey")
+      
+      if (urlParam) {
+        setConnectionUrl(urlParam)
+        // 同时保存到 localStorage
+        localStorage.setItem('connectionUrl', urlParam)
+      }
+      
+      if (apiKeyParam) {
+        setApiKey(apiKeyParam)
+        // 同时保存到 localStorage
+        localStorage.setItem('apiKey', apiKeyParam)
+      }
+    }
+  }, [searchParams])
+
   // 简化的数据库验证函数 - 支持测试用的 URL 和 API Key
   const performRealDatabaseValidation = async (url: string, key: string): Promise<void> => {
     // 测试用的有效组合
@@ -122,6 +142,10 @@ export function ConnectFlow() {
         ])
       }
       setStep("results")
+      // Set localStorage flag to indicate we're in results step
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('connectResultsStep', 'true')
+      }
       return
     }
 
@@ -394,12 +418,23 @@ export function ConnectFlow() {
             return a.implementationDifficulty - b.implementationDifficulty
           }))
           setStep("results")
+          // Set localStorage flag to indicate we're in results step
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('connectResultsStep', 'true')
+          }
         }
       }, 1900) // 缩短为原来的一半以加快分析过程
 
       return () => clearInterval(interval)
     }
   }, [step, searchParams])
+
+  // Clear localStorage flag when step changes away from results
+  useEffect(() => {
+    if (step !== "results" && typeof window !== 'undefined') {
+      localStorage.removeItem('connectResultsStep')
+    }
+  }, [step])
 
   const handleConnect = async () => {
     if (!connectionUrl) return
@@ -684,6 +719,10 @@ export function ConnectFlow() {
 
       setAnalysisResults(sorted)
       setStep("results")
+      // Set localStorage flag to indicate we're in results step
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('connectResultsStep', 'true')
+      }
     }, 500)
     } else {
       // 如果未验证过，进行真实验证
@@ -1010,6 +1049,10 @@ export function ConnectFlow() {
       setAnalysisResults((prev) => [...prev, newIdea])
       setPendingChatInput("")
       setStep("results")
+      // Set localStorage flag to indicate we're in results step
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('connectResultsStep', 'true')
+      }
     }, 500)
   }
 
@@ -1205,11 +1248,14 @@ export function ConnectFlow() {
         )}
 
         {step === "analyzing" && (
+          <>
+          <div className="mb-12 text-center">
+            <h1 className="text-3xl font-bold mb-2">Analyzing Your Data</h1>
+            <p className="text-muted-foreground">AI is analyzing your data and validating your data</p>
+          </div>
           <div className="flex items-center justify-center min-h-[60vh]">
           <Card className="max-w-2xl mx-auto w-full">
-            <CardHeader>
-              <CardTitle>AI is Analyzing Your Database</CardTitle>
-            </CardHeader>
+           
             <CardContent className="space-y-6 py-8">
               <div className="flex items-start gap-4">
                 <div className="mt-1">
@@ -1452,6 +1498,7 @@ export function ConnectFlow() {
             </CardContent>
           </Card>
           </div>
+          </>
         )}
 
         {step === "results" && analysisResults.length > 0 && (
@@ -1477,15 +1524,15 @@ export function ConnectFlow() {
                     </div>
                     <div className="col-span-3 flex items-center gap-2">
                       <Target className="size-4" />
-                      Solvable Problems
+                      Solvable Problem
                     </div>
                     <div className="col-span-4 flex items-center gap-2">
                       <TrendingUp className="size-4" />
-                      Market Value Estimation
+                      Market Value 
                     </div>
                     <div className="col-span-2 flex items-center gap-2">
                       <Wrench className="size-4" />
-                      Implementation Method
+                      Implementation 
                     </div>
                   </div>
 
@@ -1555,7 +1602,9 @@ export function ConnectFlow() {
                     const selectedIds = Array.from(selectedItems)
                     const selectedResults = analysisResults.filter((r) => selectedIds.includes(r.id))
                     // Store in localStorage for the generate page to access
-                    localStorage.setItem("selectedProblems", JSON.stringify(selectedResults))
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem("selectedProblems", JSON.stringify(selectedResults))
+                    }
                     router.push("/generate")
                   }}
                   disabled={selectedItems.size === 0}

@@ -18,6 +18,17 @@ import {
   Calendar
 } from "lucide-react"
 import { Trash2 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog"
 
 type AppItem = {
   id: string
@@ -78,8 +89,7 @@ export default function DashboardPage() {
         {/* 主标题区 */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-semibold">MyApps</h1>
-            <p className="text-sm text-muted-foreground">{filteredApps.length} apps</p>
+            <h1 className="text-2xl font-semibold">Gomberg Lambino's Workspace</h1>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -130,22 +140,29 @@ export default function DashboardPage() {
                       <p className="text-sm text-muted-foreground line-clamp-2">{app.description}</p>
                     </div>
                     {app.status === "Published" ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); }}>
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild onClick={(e) => { e.stopPropagation(); }}>
-                            <Link href={`/app/${app.id}/versions`}>Versions</Link>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDelete(app.id) }}>
-                        <Trash2 className="size-4 text-destructive" />
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/app/${app.id}/versions`) }}>
+                        <MoreHorizontal className="size-4" />
                       </Button>
+                    ) : (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); }}>
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete this app?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently remove the draft from your workspace.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); handleDelete(app.id) }}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     )}
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -193,22 +210,29 @@ export default function DashboardPage() {
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           {app.status === "Published" ? (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); }}>
-                                  <MoreHorizontal className="size-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild onClick={(e) => { e.stopPropagation(); }}>
-                                  <Link href={`/app/${app.id}/versions`}>Versions</Link>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          ) : (
-                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDelete(app.id) }}>
-                              <Trash2 className="size-4 text-destructive" />
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); router.push(`/app/${app.id}/versions`) }}>
+                              <MoreHorizontal className="size-4" />
                             </Button>
+                          ) : (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); }}>
+                                  <Trash2 className="size-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete this app?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently remove the draft from your workspace.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={(e) => { e.stopPropagation(); handleDelete(app.id) }}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           )}
                         </div>
                       </TableCell>

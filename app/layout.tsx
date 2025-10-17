@@ -49,7 +49,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
         <ConditionalSidebar>
           <ConditionalBreadcrumb />
           <Suspense fallback={null}>{children}</Suspense>
