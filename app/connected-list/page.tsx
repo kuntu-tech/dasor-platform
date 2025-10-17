@@ -13,7 +13,7 @@ import {
   CheckCircle2, 
   ArrowRight, 
   Plus,
-  ReAnalyseCw,
+  RefreshCw,
   Trash2,
   Settings,
   Users,
@@ -125,7 +125,7 @@ export default function ConnectedListPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <ReAnalyseCw className="size-8 animate-spin text-primary" />
+          <RefreshCw className="size-8 animate-spin text-primary" />
           <p className="text-muted-foreground">Loading connected data sources...</p>
         </div>
       </div>

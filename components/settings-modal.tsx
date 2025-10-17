@@ -195,74 +195,9 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
           </div>
           <CardDescription>For more projects and usage</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-                </div>
-                <span className="text-sm font-medium">New UI Generations</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">67.69 / 100</span>
-                <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="w-2/3 h-full bg-blue-600 rounded-full"></div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Infinity className="size-4 text-green-600" />
-                <span className="text-sm font-medium">UI Inspirations</span>
-              </div>
-              <span className="text-sm text-green-600 font-medium">unlimited</span>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Infinity className="size-4 text-green-600" />
-                <span className="text-sm font-medium">SVG Logo Searches</span>
-              </div>
-              <span className="text-sm text-green-600 font-medium">unlimited</span>
-            </div>
-          </div>
-        </CardContent>
+       
       </Card>
 
-      {/* Upgrade to Pro Plus */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="text-lg">Upgrade to Pro Plus</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">$40 per month</p>
-              <p className="text-sm text-muted-foreground">For power users</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">View all plans</Button>
-              <Button size="sm">Upgrade plan</Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Check className="size-4 text-green-600" />
-              <span className="text-sm">200 credits per month</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="size-4 text-green-600" />
-              <span className="text-sm">Everything from Pro</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="size-4 text-green-600" />
-              <span className="text-sm">Early access to new features</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Payment History */}
       <Card>
