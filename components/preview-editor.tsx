@@ -62,7 +62,12 @@ export function PreviewEditor() {
   const [rightPanelLeft, setRightPanelLeft] = useState<number>(256)
   const [panelLayout, setPanelLayout] = useState<number[] | null>(null)
 
-  const [searchHistory, setSearchHistory] = useState<Array<{ role: "user" | "assistant"; content: string }>>([])
+  const [searchHistory, setSearchHistory] = useState<Array<{ 
+    role: "user" | "assistant"; 
+    content: string;
+    type?: "text" | "chart" | "image";
+    data?: any;
+  }>>([])
   
   // Save dialog states
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
@@ -70,6 +75,156 @@ export function PreviewEditor() {
     name: "",
     description: ""
   })
+
+  // Predefined question texts for each feature
+  const getQuestionText = (featureName: string) => {
+    const questionMap: Record<string, string> = {
+      "Product Catalog and Inventory Display": "请显示产品目录和库存情况",
+      "User Feedback Collection and Analysis": "请分析用户反馈数据",
+      "A/B Testing Results Analysis": "请展示A/B测试结果分析",
+      "Target User Segmentation": "请进行目标用户分群分析",
+      "User Journey Visualization": "请展示用户旅程可视化",
+      "User Churn Early Warning System": "请分析用户流失预警情况",
+      "Feature Usage Statistics": "请显示功能使用统计数据",
+      "Competitor Feature Comparison Analysis": "请进行竞品功能对比分析",
+      "Product Roadmap Priority Ranking": "请展示产品路线图优先级排序",
+      "New Feature Adoption Rate Prediction": "请预测新功能采用率"
+    }
+    return questionMap[featureName] || `请提供关于${featureName}的信息`
+  }
+
+  // Render different types of cards
+  const renderCard = (item: { role: "user" | "assistant"; content: string; type?: "text" | "chart" | "image"; data?: any }) => {
+    if (item.role === "user") {
+      return (
+        <div className="flex justify-end">
+          <div className="max-w-[70%] rounded-lg p-3 text-gray-800" style={{ backgroundColor: '#F4F4F4' }}>
+            <p className="text-sm">{item.content}</p>
+          </div>
+        </div>
+      )
+    }
+
+    // Assistant response cards
+    if (item.type === "chart") {
+      const getChartInfo = (chartType: string) => {
+        switch (chartType) {
+          case "sales-trend":
+            return { title: "销售趋势图", value: "¥128,450 (+12.5%)", icon: TrendingUp }
+          case "ab-test":
+            return { title: "A/B测试结果", value: "转化率提升15%", icon: TrendingUp }
+          case "user-segments":
+            return { title: "用户分群图", value: "3个主要群体", icon: Users }
+          case "inventory-status":
+            return { title: "库存状态图", value: "357个SKU", icon: ShoppingCart }
+          case "feedback-analysis":
+            return { title: "反馈分析图", value: "满意度4.2分", icon: TrendingUp }
+          case "user-journey":
+            return { title: "用户旅程图", value: "5个关键节点", icon: Users }
+          case "campaign-performance":
+            return { title: "活动效果图", value: "销量增长23%", icon: TrendingUp }
+          case "recommendation-performance":
+            return { title: "推荐效果图", value: "准确率提升18%", icon: TrendingUp }
+          case "price-comparison":
+            return { title: "价格对比图", value: "竞争优势明显", icon: TrendingUp }
+          default:
+            return { title: "数据分析图", value: "分析完成", icon: TrendingUp }
+        }
+      }
+      
+      const chartInfo = getChartInfo(item.data?.chartType || "")
+      const IconComponent = chartInfo.icon
+      
+      return (
+        <div className="flex justify-start">
+          <Card className="max-w-[85%] p-4 shadow-sm border">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-sm font-medium text-muted-foreground">数据图表</span>
+              </div>
+              <div className="h-48 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg flex items-center justify-center border-2 border-dashed border-blue-200">
+                <div className="text-center">
+                  <IconComponent className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                  <p className="text-sm text-blue-600 font-medium">{chartInfo.title}</p>
+                  <p className="text-xs text-blue-500 mt-1">{chartInfo.value}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">{item.content}</p>
+            </div>
+          </Card>
+        </div>
+      )
+    }
+
+    if (item.type === "image") {
+      const getImageInfo = (imageType: string) => {
+        switch (imageType) {
+          case "user-segmentation":
+            return { title: "用户分群图", value: "3个主要群体", icon: Users }
+          case "user-journey":
+            return { title: "用户旅程图", value: "5个关键节点", icon: Users }
+          case "sales-analysis":
+            return { title: "销售分析图", value: "¥128,450", icon: TrendingUp }
+          case "product-catalog":
+            return { title: "产品目录图", value: "357个SKU", icon: ShoppingCart }
+          case "feedback-visualization":
+            return { title: "反馈可视化", value: "满意度4.2分", icon: TrendingUp }
+          case "ab-test-results":
+            return { title: "A/B测试图", value: "转化率提升15%", icon: TrendingUp }
+          case "promotional-analysis":
+            return { title: "促销分析图", value: "销量增长23%", icon: TrendingUp }
+          case "recommendation-engine":
+            return { title: "推荐引擎图", value: "准确率提升18%", icon: TrendingUp }
+          case "competitive-pricing":
+            return { title: "价格对比图", value: "竞争优势明显", icon: TrendingUp }
+          default:
+            return { title: "数据可视化", value: "分析完成", icon: Users }
+        }
+      }
+      
+      const imageInfo = getImageInfo(item.data?.imageType || "")
+      const IconComponent = imageInfo.icon
+      
+      return (
+        <div className="flex justify-start">
+          <Card className="max-w-[85%] p-4 shadow-sm border">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-medium text-muted-foreground">可视化图表</span>
+              </div>
+              <div className="h-48 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg flex items-center justify-center border-2 border-dashed border-green-200">
+                <div className="text-center">
+                  <IconComponent className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                  <p className="text-sm text-green-600 font-medium">{imageInfo.title}</p>
+                  <p className="text-xs text-green-500 mt-1">{imageInfo.value}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">{item.content}</p>
+            </div>
+          </Card>
+        </div>
+      )
+    }
+
+    // Default text card
+    return (
+      <div className="flex justify-start">
+        <Card className="max-w-[85%] p-4 shadow-sm border">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+              <span className="text-sm font-medium text-muted-foreground">分析报告</span>
+            </div>
+            <div className="prose prose-sm max-w-none">
+              <p className="text-sm leading-relaxed whitespace-pre-line">{item.content}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+    )
+  }
 
   useEffect(() => {
     const stored = localStorage.getItem("currentApp")
@@ -134,13 +289,104 @@ export function PreviewEditor() {
     // Add user message to search history (for middle preview area)
     setSearchHistory((prev) => [...prev, { role: "user", content: userMessage }])
 
+    // Generate context-aware response with random card type
+    const generateResponse = (question: string) => {
+      // 定义所有可能的卡片类型
+      const cardTypes = ["text", "chart", "image"] as const
+      
+      // 随机选择一个卡片类型
+      const randomType = cardTypes[Math.floor(Math.random() * cardTypes.length)]
+      
+      // 根据问题类型生成内容，但随机分配展示形式
+      if (question.includes("功能使用统计")) {
+        return {
+          content: "销售趋势分析显示持续增长，转化率需要关注优化。",
+          type: randomType,
+          data: randomType === "chart" ? { chartType: "sales-trend" } : 
+                randomType === "image" ? { imageType: "sales-analysis" } : undefined
+        }
+      } else if (question.includes("用户分群")) {
+        return {
+          content: "用户分群分析完成，识别出3个主要用户群体。",
+          type: randomType,
+          data: randomType === "chart" ? { chartType: "user-segments" } : 
+                randomType === "image" ? { imageType: "user-segmentation" } : undefined
+        }
+      } else if (question.includes("产品目录和库存")) {
+        const textContent = "**产品目录统计**\n• 电子产品类：156个SKU\n• 服装类：89个SKU\n• 食品类：67个SKU\n• 家居用品：45个SKU\n\n**库存状态**\n• 正常库存：89%\n• 库存不足：8%\n• 缺货：3%\n\n需要查看具体的产品详情吗？"
+        const shortContent = "产品目录和库存分析完成，共357个SKU，库存健康度良好。"
+        
+        return {
+          content: randomType === "text" ? textContent : shortContent,
+          type: randomType,
+          data: randomType === "chart" ? { chartType: "inventory-status" } : 
+                randomType === "image" ? { imageType: "product-catalog" } : undefined
+        }
+      } else if (question.includes("用户反馈")) {
+        const textContent = "**反馈统计**\n• 本月收到反馈：1,247条\n• 满意度评分：4.2/5.0\n• 响应时间：平均2.3小时\n\n**主要反馈类型**\n• 产品质量：35%\n• 配送服务：28%\n• 客服体验：20%\n• 网站功能：17%\n\n**改进建议**\n• 优化配送时效\n• 增强产品描述\n• 改进搜索功能"
+        const shortContent = "用户反馈分析完成，满意度4.2分，主要关注产品质量和配送服务。"
+        
+        return {
+          content: randomType === "text" ? textContent : shortContent,
+          type: randomType,
+          data: randomType === "chart" ? { chartType: "feedback-analysis" } : 
+                randomType === "image" ? { imageType: "feedback-visualization" } : undefined
+        }
+      } else if (question.includes("A/B测试")) {
+        return {
+          content: "A/B测试结果分析完成，新版本转化率提升15%。",
+          type: randomType,
+          data: randomType === "chart" ? { chartType: "ab-test" } : 
+                randomType === "image" ? { imageType: "ab-test-results" } : undefined
+        }
+      } else if (question.includes("用户旅程")) {
+        return {
+          content: "用户旅程可视化分析显示关键转化节点。",
+          type: randomType,
+          data: randomType === "chart" ? { chartType: "user-journey" } : 
+                randomType === "image" ? { imageType: "user-journey" } : undefined
+        }
+      } else if (question.includes("促销活动")) {
+        return {
+          content: "促销活动效果分析完成，活动期间销量增长23%。",
+          type: randomType,
+          data: randomType === "chart" ? { chartType: "campaign-performance" } : 
+                randomType === "image" ? { imageType: "promotional-analysis" } : undefined
+        }
+      } else if (question.includes("产品推荐")) {
+        return {
+          content: "产品推荐引擎分析完成，推荐准确率提升18%。",
+          type: randomType,
+          data: randomType === "chart" ? { chartType: "recommendation-performance" } : 
+                randomType === "image" ? { imageType: "recommendation-engine" } : undefined
+        }
+      } else if (question.includes("价格竞争力")) {
+        return {
+          content: "价格竞争力分析完成，与竞品相比价格优势明显。",
+          type: randomType,
+          data: randomType === "chart" ? { chartType: "price-comparison" } : 
+                randomType === "image" ? { imageType: "competitive-pricing" } : undefined
+        }
+      } else {
+        return {
+          content: "好的，我已经为您分析了相关数据。根据您的问题，我提供了相应的分析结果。如果您需要更详细的信息或有其他问题，请随时告诉我。",
+          type: randomType,
+          data: randomType === "chart" ? { chartType: "general-analysis" } : 
+                randomType === "image" ? { imageType: "data-visualization" } : undefined
+        }
+      }
+    }
+
     setTimeout(() => {
       // Add assistant response to search history (for middle preview area)
+      const response = generateResponse(userMessage)
       setSearchHistory((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "Good, I have updated the application's style and content. You can see the latest preview effects in the middle. Do you need any other adjustments?",
+          content: response.content,
+          type: response.type,
+          data: response.data
         },
       ])
       setIsSearchProcessing(false)
@@ -463,29 +709,62 @@ export function PreviewEditor() {
           }}
           className="w-full h-full"
         >
-        <ResizablePanel defaultSize={(panelLayout && panelLayout[0]) || 24} minSize={16} maxSize={40} className="flex flex-col bg-muted/30">
-          <div className="px-4 py-2">
-            <h2 className="font-semibold text-2xl text-muted-foreground mb-1">Commercial questions</h2>
+        <ResizablePanel defaultSize={(panelLayout && panelLayout[0]) || 24} minSize={16} maxSize={40} className="flex flex-col" style={{ backgroundColor: '#F2F2F7' }}>
+          <div className="px-4 py-3 flex items-center justify-between">
+            <h2 className="font-medium text-lg" style={{ color: '#8E8E93' }}>Commercial questions</h2>
+          
           </div>
-          <div className="flex-1 overflow-y-auto pt-0 px-2 pb-2">
+          <div className="flex-1 overflow-y-auto pt-0 px-3 pb-3">
             {currentApp.features.map((feature) => {
               const isSelected = feature.id === selectedFeatureId
 
               return (
                 <div key={feature.id} className="relative">
                   <button
-                    onClick={() => setSelectedFeatureId(feature.id)}
+                    onClick={() => {
+                      // Auto-fill the input with predefined question text
+                      const questionText = getQuestionText(feature.name)
+                      setSearchMessage(questionText)
+                      
+                      // Focus the input after auto-filling
+                      setTimeout(() => {
+                        const input = document.querySelector('input[placeholder="Search webpage"]') as HTMLInputElement
+                        if (input) {
+                          input.focus()
+                          input.select() // Select the text so user can easily edit it
+                        }
+                      }, 100)
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault()
                       setContextMenuFeatureId(feature.id)
                     }}
-                    className={`w-full text-left p-4 rounded-lg mb-3 transition-colors ${
-                      isSelected ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                    }`}
+                    className="w-full text-left p-3 rounded-md mb-2 transition-all duration-200 hover:bg-blue-50/50"
+                    style={{
+                      backgroundColor: 'transparent',
+                      color: '#8E8E93'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = '#007AFF'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = '#8E8E93'
+                    }}
                   >
-                    <div className="flex items-start gap-2">
+                    <div className="flex items-center gap-3">
+                      {/* SF Symbols style bookmark icon */}
+                      <div className="flex-shrink-0 w-4 h-4">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                          <path d="M3 2.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-.794.404L8 10.118l-4.706 3.786A.5.5 0 0 1 3 13.5v-11z"/>
+                        </svg>
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{feature.name}</div>
+                        <div className="font-normal text-sm truncate leading-relaxed" style={{ 
+                          fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
+                          letterSpacing: '-0.01em'
+                        }}>
+                          {feature.name}
+                        </div>
                       </div>
                     </div>
                   </button>
@@ -521,81 +800,42 @@ export function PreviewEditor() {
           className="h-full bg-muted/30 overflow-y-auto relative leading-[0rem] px-0.5 pt-0"
           style={{ height: `calc(100vh - ${inputBarHeight + INPUT_BAR_BOTTOM_OFFSET}px)`, width: "calc(100% - 20px)" }}
         >
-          {/* Right-pane toolbar: Preview / Save / Publish */}
-          <div className="sticky top-0 z-40 bg-muted/30 py-2">
-            <div className="max-w-4xl mx-auto px-2">
-              <div className="flex items-center justify-between">
-                {/* Left: Preview */}
-                <div className="inline-flex items-center gap-2 rounded-lg bg-transparent p-1">
-                  <Button size="sm" variant="ghost" className="h-8 px-3 border-2 border-blue-500 bg-transparent text-blue-600">Preview</Button>
-                </div>
-                {/* Right: Save / Publish */}
-                <div className="inline-flex items-center gap-2 rounded-lg bg-transparent p-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 px-3 border-0"
-                    onClick={() => setIsSaveDialogOpen(true)}
-                  >
-                    Save
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="h-8 px-3 border-0"
-                    onClick={() => router.push("/publish")}
-                  >
-                    Publish
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
 
           <div
             className="max-w-4xl mx-auto"
             style={{ paddingBottom: inputBarHeight + INPUT_BAR_BOTTOM_OFFSET + 16 }}
           >
             {searchHistory.length > 0 && (
-              <div className="mb-6 space-y-3">
+              <div className="mb-6 space-y-4">
                 {searchHistory.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div
-                      className={`max-w-[70%] rounded-lg p-3 leading-[0em] border-none ${
-                        msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-background border shadow-sm"
-                      }`}
-                    >
-                      <p className="text-sm">{msg.content}</p>
-                    </div>
+                  <div key={i}>
+                    {renderCard(msg)}
                   </div>
                 ))}
                 {isSearchProcessing && (
                   <div className="flex justify-start">
-                    <div className="bg-background border shadow-sm rounded-lg p-3">
-                      <Loader2 className="size-4 animate-spin" />
-                    </div>
+                    <Card className="p-4 shadow-sm border">
+                      <div className="flex items-center gap-3">
+                        <Loader2 className="size-4 animate-spin text-primary" />
+                        <span className="text-sm text-muted-foreground">正在分析数据...</span>
+                      </div>
+                    </Card>
                   </div>
                 )}
               </div>
             )}
 
-            <div className="relative pb-12">
-              {renderPreview()}
-              <div className="absolute bottom-2 left-2 flex items-center gap-2">
-                <button
-                  aria-label="Like preview"
-                  className="size-9 rounded-full border border-border bg-background shadow hover:bg-muted flex items-center justify-center"
-                >
-                  <ThumbsUp className="size-4" />
-                </button>
-                <button
-                  aria-label="Dislike preview"
-                  className="size-9 rounded-full border border-border bg-background shadow hover:bg-muted flex items-center justify-center"
-                >
-                  <ThumbsDown className="size-4" />
-                </button>
+            {searchHistory.length === 0 && (
+              <div className="relative pb-12 flex items-center justify-center min-h-[400px]">
+                <div className="text-center text-muted-foreground">
+                  <div className="size-16 rounded-full bg-muted/50 flex items-center justify-center mb-4 mx-auto">
+                    <Sparkles className="size-8" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2"></h3>
+                  <p className="text-sm">点击左侧感兴趣的问题查看答案</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="fixed bottom-2 right-0 px-8 z-50" ref={inputBarRef} style={{ left: `${rightPanelLeft}px` }}>
