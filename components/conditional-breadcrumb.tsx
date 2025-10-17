@@ -6,8 +6,8 @@ import { BreadcrumbNav } from "./breadcrumb-nav"
 export function ConditionalBreadcrumb() {
   const pathname = usePathname()
   
-  // 只在非首页显示面包屑导航
-  if (pathname === "/") {
+  // 在首页和认证页面不显示面包屑导航
+  if (pathname === "/" || pathname.startsWith("/auth/")) {
     return null
   }
 

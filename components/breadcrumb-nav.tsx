@@ -1,6 +1,6 @@
 "use client"
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -25,36 +25,9 @@ import {
 export function BreadcrumbNav() {
   const pathname = usePathname()
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
-  const [saveAppName, setSaveAppName] = useState("")
+  const [appName, setAppName] = useState("")
   const [appDescription, setAppDescription] = useState("")
-  
-  // 获取URL参数
-  const appId = searchParams.get('id')
-  const appNameParam = searchParams.get('appName')
-  const fromPage = searchParams.get('from')
-  
-  // 如果没有appName参数，尝试从localStorage获取
-  const getAppName = () => {
-    if (appNameParam) return appNameParam
-    if (appId) {
-      try {
-        const stored = localStorage.getItem("currentApp")
-        if (stored) {
-          const app = JSON.parse(stored)
-          if (app.id === appId) {
-            return app.name
-          }
-        }
-      } catch (e) {
-        console.error("Failed to parse current app", e)
-      }
-    }
-    return null
-  }
-  
-  const appName = getAppName()
   
   // 解析路径
   const pathSegments = pathname.split('/').filter(Boolean)
@@ -76,119 +49,39 @@ export function BreadcrumbNav() {
     'save-success': { label: 'Save Success', icon: FileText, href: '/save-success' }
   }
 
-  // 构建智能面包屑
-  const buildSmartBreadcrumbs = () => {
-    const breadcrumbs = []
+  // 构建面包屑
+  const breadcrumbs = []
+  let currentPath = ''
+  
+  for (let i = 0; i < pathSegments.length; i++) {
+    const segment = pathSegments[i]
+    currentPath += `/${segment}`
     
-    // 总是从Home开始
-    breadcrumbs.push({
-      label: 'Home',
-      icon: Home,
-      href: '/',
-      isLast: false
-    })
-    
-    // 根据当前页面和URL参数构建动态路径
-    if (pathname === '/preview' && appId) {
-      // Preview页面：显示 Home > [App Name]
-      if (appName) {
-        breadcrumbs.push({
-          label: appName,
-          icon: Eye,
-          href: undefined, // 当前页面，不可点击
-          isLast: true
-        })
-      } else {
-        // 如果没有应用名称，显示默认的Preview
-        breadcrumbs.push({
-          label: 'Preview',
-          icon: Eye,
-          href: undefined, // 当前页面，不可点击
-          isLast: true
-        })
-      }
-    } else if (pathname === '/overview' && appId) {
-      // Overview页面：显示 Home > Generate > [App Name] > Overview
+    const pathInfo = pathMap[segment]
+    if (pathInfo) {
       breadcrumbs.push({
-        label: 'Generate',
-        icon: Cog,
-        href: '/generate',
-        isLast: false
-      })
-      if (appName) {
-        breadcrumbs.push({
-          label: appName,
-          icon: FileText,
-          href: `/overview?id=${appId}`,
-          isLast: false
-        })
-      }
-      breadcrumbs.push({
-        label: 'Overview',
-        icon: BarChart3,
-        href: undefined, // 当前页面，不可点击
-        isLast: true
-      })
-    } else if (pathname === '/publish' && appId) {
-      // Publish页面：显示 Home > Generate > [App Name] > Overview > Preview > Publish
-      breadcrumbs.push({
-        label: 'Generate',
-        icon: Cog,
-        href: '/generate',
-        isLast: false
-      })
-      if (appName) {
-        breadcrumbs.push({
-          label: appName,
-          icon: FileText,
-          href: `/overview?id=${appId}`,
-          isLast: false
-        })
-      }
-      breadcrumbs.push({
-        label: 'Overview',
-        icon: BarChart3,
-        href: `/overview?id=${appId}`,
-        isLast: false
-      })
-      breadcrumbs.push({
-        label: 'Preview',
-        icon: Eye,
-        href: `/preview?id=${appId}`,
-        isLast: false
-      })
-      breadcrumbs.push({
-        label: 'Publish',
-        icon: Upload,
-        href: undefined, // 当前页面，不可点击
-        isLast: true
+        label: pathInfo.label,
+        icon: pathInfo.icon,
+        href: i === pathSegments.length - 1 ? undefined : (pathInfo.href || currentPath),
+        isLast: i === pathSegments.length - 1
       })
     } else {
-      // 其他页面使用默认映射
-      for (let i = 0; i < pathSegments.length; i++) {
-        const segment = pathSegments[i]
-        if (pathMap[segment]) {
-          breadcrumbs.push({
-            label: pathMap[segment].label,
-            icon: pathMap[segment].icon,
-            href: i === pathSegments.length - 1 ? undefined : (pathMap[segment].href || `/${segment}`),
-            isLast: i === pathSegments.length - 1
-          })
-        }
-      }
+      // 对于动态路由参数，显示原始值
+      breadcrumbs.push({
+        label: segment,
+        icon: FileText,
+        href: i === pathSegments.length - 1 ? undefined : currentPath,
+        isLast: i === pathSegments.length - 1
+      })
     }
-    
-    return breadcrumbs
   }
-  
-  const breadcrumbs = buildSmartBreadcrumbs()
 
   // 检查是否在 preview 页面
   const isPreviewPage = pathname.startsWith('/preview')
 
   // 处理保存应用
   const handleSaveApp = () => {
-    if (!saveAppName.trim()) {
+    if (!appName.trim()) {
       return // 如果名称为空则不保存
     }
     
@@ -202,7 +95,7 @@ export function BreadcrumbNav() {
   // 处理取消保存
   const handleCancelSave = () => {
     setIsSaveDialogOpen(false)
-    setSaveAppName("")
+    setAppName("")
     setAppDescription("")
   }
 
@@ -210,10 +103,15 @@ export function BreadcrumbNav() {
     <div className="flex items-center justify-between mb-6">
       {/* 左侧面包屑导航 */}
       <div className="flex items-center gap-1 text-sm text-gray-700">
+        {/* Home Icon */}
+        <Link href="/" className="flex items-center gap-1 hover:text-gray-900">
+          <Zap className="size-4 text-green-500" />
+        </Link>
+        
         {/* Breadcrumb Items */}
         {breadcrumbs.map((item, index) => (
           <div key={index} className="flex items-center gap-1">
-            {index > 0 && <span className="text-gray-400">/</span>}
+            <span className="text-gray-400">/</span>
             {item.isLast ? (
               <div className="flex items-center gap-2">
                 <item.icon className="size-4" />
@@ -272,8 +170,8 @@ export function BreadcrumbNav() {
               <Input
                 id="app-name"
                 placeholder="Please enter application name"
-                value={saveAppName}
-                onChange={(e) => setSaveAppName(e.target.value)}
+                value={appName}
+                onChange={(e) => setAppName(e.target.value)}
                 className="w-full"
               />
             </div>
@@ -295,7 +193,7 @@ export function BreadcrumbNav() {
             </Button>
             <Button 
               onClick={handleSaveApp}
-              disabled={!saveAppName.trim()}
+              disabled={!appName.trim()}
             >
               Save Application
             </Button>
