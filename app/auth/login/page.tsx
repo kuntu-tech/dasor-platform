@@ -15,9 +15,24 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { signInWithGoogle, loading } = useAuth();
-  const handleLogin = () => {
-    console.log("login");
+  const { signInWithGoogle, signInWithEmail, loading } = useAuth();
+  const [error, setError] = useState("");
+
+  const handleEmailLogin = async () => {
+    if (!email || !password) {
+      setError("请输入邮箱和密码");
+      return;
+    }
+
+    try {
+      setError("");
+      await signInWithEmail(email, password).then(() => {
+        router.push("/");
+      });
+    } catch (error: any) {
+      console.error("登录失败:", error);
+      setError("登录失败，请检查邮箱和密码");
+    }
   };
 
   return (
@@ -99,8 +114,16 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {/* Error Message */}
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-600">{error}</p>
+                </div>
+              )}
+
               {/* Log In Button */}
               <Button
+                onClick={handleEmailLogin}
                 className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-medium text-base"
                 disabled={loading}
               >
@@ -111,9 +134,10 @@ export default function LoginPage() {
               <div className="text-center">
                 <Button
                   variant="link"
+                  asChild
                   className="text-sm text-gray-600 hover:text-gray-800 p-0 h-auto"
                 >
-                  Forgot password?
+                  <Link href="/auth/forgot-password">Forgot password?</Link>
                 </Button>
               </div>
 

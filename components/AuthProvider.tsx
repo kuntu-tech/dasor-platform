@@ -9,6 +9,12 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (
+    email: string,
+    password: string,
+    fullName?: string
+  ) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -40,6 +46,81 @@ function printUserInfo(user: User, context: string) {
   console.log("=====================================\n");
 }
 
+// 用户处理状态跟踪，避免重复处理
+const processedUsers = new Set<string>();
+
+// 检查并保存新用户信息到users表
+async function checkAndSaveNewUser(user: User, context: string = "unknown") {
+  try {
+    // 避免重复处理同一个用户
+    if (processedUsers.has(user.id)) {
+      console.log(`⏭️ 用户 ${user.id} 已处理过，跳过 ${context}`);
+      return;
+    }
+
+    console.log(`🔍 检查用户是否为新用户 (${context})...`);
+
+    // 检查用户是否已存在于users表中
+    const { data: existingUser, error: checkError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("provider_user_id", user.id)
+      .single();
+
+    if (checkError && checkError.code !== "PGRST116") {
+      console.log("❌ 检查用户存在性时出错:", checkError);
+      return;
+    }
+
+    // 如果用户已存在，只更新最后登录时间
+    if (existingUser) {
+      console.log("👤 用户已存在，更新最后登录时间");
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({
+          last_login_at: new Date().toISOString(),
+        })
+        .eq("provider_user_id", user.id);
+
+      if (updateError) {
+        console.log("❌ 更新用户登录时间失败:", updateError);
+      } else {
+        console.log("✅ 用户登录时间更新成功");
+      }
+    } else {
+      // 如果是新用户，创建用户记录
+      console.log("🆕 检测到新用户，开始创建用户记录...");
+
+      const userData = {
+        provider_user_id: user.id,
+        email: user.email,
+        name: user.user_metadata?.full_name || user.user_metadata?.name,
+        avatar_url:
+          user.user_metadata?.avatar_url || user.user_metadata?.picture,
+        auth_provider: user.app_metadata?.provider || "email",
+        last_login_at: new Date().toISOString(),
+      };
+
+      console.log("📝 新用户数据:", userData);
+
+      const { error: insertError } = await supabase
+        .from("users")
+        .insert([userData]);
+
+      if (insertError) {
+        console.log("❌ 创建新用户失败:", insertError);
+      } else {
+        console.log("✅ 新用户创建成功！");
+      }
+    }
+
+    // 标记用户已处理
+    processedUsers.add(user.id);
+  } catch (error) {
+    console.log("❌ 检查并保存用户信息时发生错误:", error);
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -56,10 +137,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       setLoading(false);
 
-      // 如果已有会话，打印用户信息
-      // if (session?.user) {
-      //   printUserInfo(session.user, "初始会话");
-      // }
+      // 如果已有会话，打印用户信息并检查是否为新用户
+      if (session?.user) {
+        printUserInfo(session.user, "初始会话");
+        await checkAndSaveNewUser(session.user, "初始会话");
+      }
     };
 
     getInitialSession();
@@ -68,20 +150,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-      (event: string, session: Session | null) => {
+      async (event: string, session: Session | null) => {
         console.log("认证状态变化:", event, session);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // 登录成功后打印用户信息
+        // 登录成功后打印用户信息并检查是否为新用户
         if (event === "SIGNED_IN" && session?.user) {
           printUserInfo(session.user, "登录成功");
+          // 检查并保存新用户信息
+          await checkAndSaveNewUser(session.user, "登录成功");
         }
 
-        // 登出时打印信息
+        // 登出时打印信息并清理处理状态
         if (event === "SIGNED_OUT") {
           console.log("用户已登出");
+          // 清理处理状态，允许下次登录时重新处理
+          processedUsers.clear();
         }
       }
     );
@@ -102,13 +188,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       });
       if (error) {
-        console.error("❌ Google登录错误:", error);
+        console.log("❌ Google登录错误:", error);
         throw error;
       }
 
       console.log("✅ OAuth请求发送成功，等待重定向...");
     } catch (error) {
-      console.error("❌ Google登录失败:", error);
+      console.log("❌ Google登录失败:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signInWithEmail = async (email: string, password: string) => {
+    setLoading(true);
+    console.log("🔐 开始邮箱登录流程...");
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.log("❌ 邮箱登录错误:", error);
+        setLoading(false);
+        throw error;
+      }
+
+      console.log("✅ 邮箱登录成功:", data);
+      // 登录成功，状态会通过 onAuthStateChange 自动更新
+    } catch (error) {
+      console.log("❌ 邮箱登录失败:", error);
+      setLoading(false);
+      alert((error as any).message);
+    }
+  };
+
+  const signUpWithEmail = async (
+    email: string,
+    password: string,
+    fullName?: string
+  ) => {
+    setLoading(true);
+    console.log("📝 开始邮箱注册流程...");
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName || "",
+          },
+        },
+      });
+
+      if (error) {
+        console.log("❌ 邮箱注册错误:", error);
+        throw error;
+      }
+
+      console.log("✅ 邮箱注册成功:", data);
+
+      if (data.user && !data.session) {
+        console.log("📧 请检查邮箱验证链接");
+      }
+    } catch (error) {
+      console.log("❌ 邮箱注册失败:", error);
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -121,12 +269,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error("❌ 登出错误:", error);
+        console.log("❌ 登出错误:", error);
         throw error;
       }
       console.log("✅ 登出成功");
     } catch (error) {
-      console.error("❌ 登出失败:", error);
+      console.log("❌ 登出失败:", error);
     } finally {
       setLoading(false);
     }
@@ -137,6 +285,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     loading,
     signInWithGoogle,
+    signInWithEmail,
+    signUpWithEmail,
     signOut,
   };
 
