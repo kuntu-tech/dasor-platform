@@ -1,7 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // Supabase配置
-// 注意：在生产环境中，这些应该从环境变量中获取
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://your-project.supabase.co";
 const supabaseAnonKey =
@@ -9,11 +8,25 @@ const supabaseAnonKey =
 const supabaseServiceKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY || "your-service-role-key";
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// 单例模式，避免创建多个客户端实例
+let supabaseInstance: SupabaseClient | null = null;
+let supabaseAdminInstance: SupabaseClient | null = null;
 
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+export const supabase = (() => {
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return supabaseInstance;
+})();
+
+export const supabaseAdmin = (() => {
+  if (!supabaseAdminInstance) {
+    supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+  }
+  return supabaseAdminInstance;
+})();

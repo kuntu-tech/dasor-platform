@@ -39,7 +39,13 @@ export function ConditionalSidebar({
   const router = useRouter();
 
   // 公开页面路径（不需要认证的页面）
-  const publicPaths = ["/auth/login", "/auth/register", "/auth/callback"];
+  const publicPaths = [
+    "/auth/login",
+    "/auth/register",
+    "/auth/callback",
+    "/auth/forgot-password",
+    "/auth/reset-password",
+  ];
   const isPublicPage = publicPaths.includes(pathname);
 
   // 如果是公开页面，直接显示内容，不显示侧边栏

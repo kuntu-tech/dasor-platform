@@ -14,9 +14,16 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const pathname = usePathname();
 
   // 不需要认证的页面路径
-  const publicPaths = ["/auth/login", "/auth/register", "/auth/callback"];
+  const publicPaths = [
+    "/auth/login",
+    "/auth/register",
+    "/auth/callback",
+    "/auth/forgot-password",
+    "/auth/reset-password",
+  ];
 
   useEffect(() => {
+    console.log("loading", loading);
     // 如果正在加载，等待加载完成
     if (loading) return;
 
