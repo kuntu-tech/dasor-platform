@@ -33,21 +33,26 @@ import {
   MoreHorizontal,
   ArrowRight,
   Calendar,
+  Info,
 } from "lucide-react";
 import { Trash2 } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 type AppItem = {
   id: string;
   name: string;
   description: string;
-  status: "Published" | "Draft";
-  database: {
-    url: string;
-    apiKey: string;
+  status: "published" | "draft";
+  data_connections: {
+    connection_info: {
+      supabase_url: string;
+      anno_public_key: string;
+    };
   };
-  featureCount: number;
+
+  features: number;
   createdAt: string;
-  lastEditedAt: string;
-  publishedAt: string;
+  updated_at: string;
+  published_at: string;
   visits: number;
 };
 
@@ -55,82 +60,142 @@ export default function DashboardPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"list" | "grid">("list");
-  const getUsers = async () => {
-    const res = await fetch("/api/users");
-    const data = await res.json();
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "published" | "draft"
+  >("all");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { user, session } = useAuth();
+
+  const getApps = async () => {
+    const queryParams = new URLSearchParams();
+
+    if (user?.id) {
+      console.log(user);
+      queryParams.append("user_id", user.id);
+    }
+
+    // 添加时间戳防止缓存
+    queryParams.append("_t", Date.now().toString());
+
+    const response = await fetch(`/api/apps?${queryParams.toString()}`);
+    const data = await response.json();
     console.log(data);
+    setAppItems(data.data);
     return data;
   };
   useEffect(() => {
-    getUsers();
-  }, []);
+    if (user) {
+      getApps();
+    }
+  }, [user]);
 
-  const initialApps: AppItem[] = [
-    {
-      id: "app-1",
-      name: "E-commerce Operations Assistant",
-      description:
-        "Includes user behavior analysis, sales dashboard, inventory queries and more",
-      database: {
-        url: "https://supabase.com/project/production",
-        apiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      },
-      featureCount: 5,
-      status: "Published",
-      createdAt: "2025-10-01",
-      lastEditedAt: "2025-10-10",
-      publishedAt: "2025-10-11",
-      visits: 1234,
-    },
-    {
-      id: "app-2",
-      name: "Data Analytics Platform",
-      description: "Multi-dimensional data analysis and visualization toolkit",
-      database: {
-        url: "https://supabase.com/project/analytics",
-        apiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      },
-      featureCount: 8,
-      status: "Published",
-      createdAt: "2025-10-03",
-      lastEditedAt: "2025-10-08",
-      publishedAt: "2025-10-09",
-      visits: 856,
-    },
-    {
-      id: "app-3",
-      name: "Customer Management System",
-      description:
-        "Customer information queries, behavior tracking, value assessment",
-      database: {
-        url: "https://supabase.com/project/crm",
-        apiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      },
-      featureCount: 6,
-      status: "Draft",
-      createdAt: "2025-10-02",
-      lastEditedAt: "2025-10-05",
-      publishedAt: "-",
-      visits: 0,
-    },
-  ];
-  const [appItems, setAppItems] = useState<AppItem[]>(initialApps);
+  // const initialApps: AppItem[] = [
+  //   {
+  //     id: "app-1",
+  //     name: "E-commerce Operations Assistant",
+  //     description:
+  //       "Includes user behavior analysis, sales dashboard, inventory queries and more",
+  //     database: {
+  //       url: "https://supabase.com/project/production",
+  //       apiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  //     },
+  //     features: 5,
+  //     status: "published",
+  //     createdAt: "2025-10-01",
+  //     lastEditedAt: "2025-10-10",
+  //     publishedAt: "2025-10-11",
+  //     visits: 1234,
+  //   },
+  //   {
+  //     id: "app-2",
+  //     name: "Data Analytics Platform",
+  //     description: "Multi-dimensional data analysis and visualization toolkit",
+  //     database: {
+  //       url: "https://supabase.com/project/analytics",
+  //       apiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  //     },
+  //     features: 8,
+  //     status: "published",
+  //     createdAt: "2025-10-03",
+  //     lastEditedAt: "2025-10-08",
+  //     publishedAt: "2025-10-09",
+  //     visits: 856,
+  //   },
+  //   {
+  //     id: "app-3",
+  //     name: "Customer Management System",
+  //     description:
+  //       "Customer information queries, behavior tracking, value assessment",
+  //     database: {
+  //       url: "https://supabase.com/project/crm",
+  //       apiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  //     },
+  //     features: 6,
+  //     status: "draft",
+  //     createdAt: "2025-10-02",
+  //     lastEditedAt: "2025-10-05",
+  //     publishedAt: "-",
+  //     visits: 0,
+  //   },
+  // ];
+  const [appItems, setAppItems] = useState<AppItem[]>([]);
 
-  const handleDelete = (id: string) => {
-    setAppItems((prev) => prev.filter((a) => a.id !== id));
+  const handleDelete = async (id: string) => {
+    // 确认删除
+    if (!confirm("确定要删除这个应用吗？此操作不可撤销。")) {
+      return;
+    }
+
+    setDeletingId(id);
+
+    try {
+      // 调用后端API删除应用
+      const response = await fetch(`/api/apps/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token && {
+            Authorization: `Bearer ${session.access_token}`,
+          }),
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "删除应用失败");
+      }
+
+      // 删除成功后重新获取数据，确保数据同步
+      await getApps();
+
+      console.log("应用删除成功");
+    } catch (error) {
+      console.error("删除应用失败:", error);
+      alert(`删除失败: ${error instanceof Error ? error.message : "未知错误"}`);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const filteredApps = useMemo(() => {
+    let filtered = appItems;
+
+    // 状态筛选
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((app) => app.status === statusFilter);
+    }
+
+    // 搜索筛选 - 只筛选name字段
     const q = query.trim().toLowerCase();
-    if (!q) return appItems;
-    return appItems.filter(
-      (a) =>
-        a.name.toLowerCase().includes(q) ||
-        a.description.toLowerCase().includes(q) ||
-        a.database.url.toLowerCase().includes(q) ||
-        a.database.apiKey.toLowerCase().includes(q)
-    );
-  }, [query, appItems]);
+    if (q) {
+      filtered = filtered.filter((a) => {
+        // 只匹配name字段
+        return a.name.toLowerCase().includes(q);
+      });
+    }
+
+    return filtered;
+  }, [appItems, query, statusFilter]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -167,17 +232,50 @@ export default function DashboardPage() {
                 className="pl-9 w-72"
               />
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9">
-                  <Filter className="size-4 mr-1" />
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9">
+                    <Filter className="size-4 mr-1" />
+                    {statusFilter === "all"
+                      ? "All Status"
+                      : statusFilter === "published"
+                      ? "Published"
+                      : "Draft"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem
+                    onClick={() => setStatusFilter("all")}
+                    className={statusFilter === "all" ? "bg-accent" : ""}
+                  >
+                    All Status
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setStatusFilter("published")}
+                    className={statusFilter === "published" ? "bg-accent" : ""}
+                  >
+                    Published
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setStatusFilter("draft")}
+                    className={statusFilter === "draft" ? "bg-accent" : ""}
+                  >
+                    Draft
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {statusFilter !== "all" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setStatusFilter("all")}
+                  className="h-9 text-xs"
+                >
+                  Clear Filter
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuItem>Published</DropdownMenuItem>
-                <DropdownMenuItem>Draft</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              )}
+            </div>
             <div className="flex items-center rounded-md border border-border p-1">
               <Button
                 variant={view === "grid" ? "default" : "ghost"}
@@ -214,7 +312,7 @@ export default function DashboardPage() {
                           <h3 className="font-semibold truncate">{app.name}</h3>
                           <span
                             className={`px-2 py-0.5 rounded-full text-xs ${
-                              app.status === "Published"
+                              app.status === "published"
                                 ? "bg-green-100 text-green-700"
                                 : "bg-gray-100 text-gray-700"
                             }`}
@@ -226,71 +324,112 @@ export default function DashboardPage() {
                           {app.description}
                         </p>
                       </div>
-                      {app.status === "Published" ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                              }}
-                            >
-                              <MoreHorizontal className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              asChild
-                              onClick={(e) => {
-                                e.stopPropagation();
-                              }}
-                            >
-                              <Link href={`/app/${app.id}/versions`}>
-                                Versions
-                              </Link>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      {app.status === "published" ? (
+                        // <DropdownMenu>
+                        //   <DropdownMenuTrigger asChild>
+                        //     <Button
+                        //       variant="ghost"
+                        //       size="icon"
+                        //       onClick={(e) => {
+                        //         e.stopPropagation();
+                        //       }}
+                        //     >
+                        //       <MoreHorizontal className="size-4" />
+                        //     </Button>
+                        //   </DropdownMenuTrigger>
+                        //   <DropdownMenuContent align="end">
+                        //     <DropdownMenuItem
+                        //       asChild
+                        //       onClick={(e) => {
+                        //         e.stopPropagation();
+                        //       }}
+                        //     >
+                        //       <Link href={`/app/${app.id}/versions`}>
+                        //         Versions
+                        //       </Link>
+                        //     </DropdownMenuItem>
+                        //   </DropdownMenuContent>
+                        // </DropdownMenu>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={deletingId === app.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/preview?id=${app.id}`);
+                          }}
+                        >
+                          <Info className="size-4 text-blue-600" />
+                        </Button>
                       ) : (
                         <Button
                           variant="ghost"
                           size="icon"
+                          disabled={deletingId === app.id}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDelete(app.id);
                           }}
                         >
-                          <Trash2 className="size-4 text-destructive" />
+                          {deletingId === app.id ? (
+                            <div className="size-4 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
+                          ) : (
+                            <Trash2 className="size-4 text-destructive" />
+                          )}
                         </Button>
                       )}
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       <div className="truncate">
                         <span className="text-foreground/80">URL: </span>
-                        <span className="font-mono">{app.database.url}</span>
+                        <span className="font-mono">
+                          {app.data_connections.connection_info.supabase_url}
+                        </span>
+                      </div>
+                      <div className="truncate">
+                        <span className="text-foreground/80">
+                          ConnectionId:{" "}
+                        </span>
+                        {/* <span className="font-mono">
+                          {app.data_connections.id}
+                        </span> */}
                       </div>
                       <div className="truncate text-right md:text-left">
                         <span className="text-foreground/80">
                           FeaturesNum:{" "}
                         </span>
-                        <span className="tabular-nums">{app.featureCount}</span>
+                        <span className="tabular-nums">{app.features}</span>
                       </div>
                       <div className="truncate">
                         <span className="text-foreground/80">API Key: </span>
-                        <span className="font-mono">{app.database.apiKey}</span>
+                        <span className="font-mono">
+                          {app.data_connections.connection_info.anno_public_key}
+                        </span>
                       </div>
                       <div className="truncate">
                         <span className="text-foreground/80">
                           Last Edit Date:{" "}
                         </span>
-                        <span className="tabular-nums">{app.lastEditedAt}</span>
+                        <span className="tabular-nums">
+                          {app.updated_at
+                            ? new Date(app.updated_at).toLocaleDateString(
+                                "en-CA"
+                              )
+                            : "-"}
+                        </span>
                       </div>
                       <div className="truncate">
                         <span className="text-foreground/80">
                           Published Date:{" "}
                         </span>
-                        <span className="tabular-nums">{app.publishedAt}</span>
+                        <span className="tabular-nums">
+                          {app.published_at
+                            ? new Date(app.published_at).toLocaleDateString(
+                                "en-CA"
+                              )
+                            : "-"}
+                        </span>
                       </div>
                     </div>
                   </CardContent>
@@ -330,7 +469,7 @@ export default function DashboardPage() {
                       <TableCell>
                         <span
                           className={`px-2 py-0.5 rounded-full text-xs ${
-                            app.status === "Published"
+                            app.status === "published"
                               ? "bg-green-100 text-green-700"
                               : "bg-gray-100 text-gray-700"
                           }`}
@@ -338,62 +477,84 @@ export default function DashboardPage() {
                           {app.status}
                         </span>
                       </TableCell>
-                      <TableCell className="text-muted-foreground truncate max-w-[360px]">
+                      <TableCell className="text-muted-foreground truncate max-w-[260px]">
                         {app.description}
                       </TableCell>
                       <TableCell className="truncate text-xs text-muted-foreground">
-                        {app.database.url}
+                        {app.data_connections.connection_info.supabase_url}
                       </TableCell>
-                      <TableCell className="truncate text-xs text-muted-foreground font-mono">
-                        {app.database.apiKey}
+                      <TableCell className="truncate text-xs text-muted-foreground font-mono max-w-[260px]">
+                        {app.data_connections.connection_info.anno_public_key}
                       </TableCell>
                       <TableCell className="text-center tabular-nums">
-                        {app.featureCount}
+                        {app.features}
                       </TableCell>
                       <TableCell className="tabular-nums">
-                        {app.lastEditedAt}
+                        {app.updated_at
+                          ? new Date(app.updated_at).toLocaleDateString("en-CA")
+                          : "-"}
                       </TableCell>
                       <TableCell className="tabular-nums">
-                        {app.publishedAt}
+                        {app.published_at
+                          ? new Date(app.published_at).toLocaleDateString(
+                              "en-CA"
+                            )
+                          : "-"}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {app.status === "Published" ? (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                  }}
-                                >
-                                  <MoreHorizontal className="size-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  asChild
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                  }}
-                                >
-                                  <Link href={`/app/${app.id}/versions`}>
-                                    Versions
-                                  </Link>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                          {app.status === "published" ? (
+                            // <DropdownMenu>
+                            //   <DropdownMenuTrigger asChild>
+                            //     <Button
+                            //       variant="ghost"
+                            //       size="icon"
+                            //       onClick={(e) => {
+                            //         e.stopPropagation();
+                            //       }}
+                            //     >
+                            //       <MoreHorizontal className="size-4" />
+                            //     </Button>
+                            //   </DropdownMenuTrigger>
+                            //   <DropdownMenuContent align="end">
+                            //     <DropdownMenuItem
+                            //       asChild
+                            //       onClick={(e) => {
+                            //         e.stopPropagation();
+                            //       }}
+                            //     >
+                            //       <Link href={`/app/${app.id}/versions`}>
+                            //         Versions
+                            //       </Link>
+                            //     </DropdownMenuItem>
+                            //   </DropdownMenuContent>
+                            // </DropdownMenu>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={deletingId === app.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/preview?id=${app.id}`);
+                              }}
+                            >
+                              <Info className="size-4 text-blue-600" />
+                            </Button>
                           ) : (
                             <Button
                               variant="ghost"
                               size="icon"
+                              disabled={deletingId === app.id}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDelete(app.id);
                               }}
                             >
-                              <Trash2 className="size-4 text-destructive" />
+                              {deletingId === app.id ? (
+                                <div className="size-4 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
+                              ) : (
+                                <Trash2 className="size-4 text-destructive" />
+                              )}
                             </Button>
                           )}
                         </div>
