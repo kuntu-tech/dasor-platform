@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   SidebarProvider,
@@ -58,9 +57,9 @@ export function ConditionalSidebar({
       <div className="flex items-center justify-between">
         {/* Logo - 左上角 */}
         <Link href="/" className="flex items-center gap-2">
-          <div className="size-10 rounded-lg bg-primary flex items-center justify-center">
-            <Sparkles className="size-6 text-primary-foreground" />
-          </div>
+          {/* <div className="size-10 rounded-lg bg-primary flex items-center justify-center"> */}
+          <img src="/logo.png" alt="Logo" className="size-10 object-contain" />
+          {/* </div> */}
           <span className="text-lg font-semibold text-gray-900">Datail</span>
         </Link>
 

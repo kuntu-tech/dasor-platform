@@ -64,7 +64,7 @@ async function checkAndSaveNewUser(user: User, context: string = "unknown") {
     const { data: existingUser, error: checkError } = await supabase
       .from("users")
       .select("id")
-      .eq("provider_user_id", user.id)
+      .eq("id", user.id)
       .single();
 
     if (checkError && checkError.code !== "PGRST116") {
@@ -80,7 +80,7 @@ async function checkAndSaveNewUser(user: User, context: string = "unknown") {
         .update({
           last_login_at: new Date().toISOString(),
         })
-        .eq("provider_user_id", user.id);
+        .eq("id", user.id);
 
       if (updateError) {
         console.log("❌ 更新用户登录时间失败:", updateError);
@@ -92,7 +92,7 @@ async function checkAndSaveNewUser(user: User, context: string = "unknown") {
       console.log("🆕 检测到新用户，开始创建用户记录...");
 
       const userData = {
-        provider_user_id: user.id,
+        id: user.id,
         email: user.email,
         name: user.user_metadata?.full_name || user.user_metadata?.name,
         avatar_url:
