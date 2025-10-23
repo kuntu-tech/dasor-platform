@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import {
   Zap,
   Home,
@@ -32,9 +33,13 @@ import {
 export function BreadcrumbNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user, session } = useAuth();
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [appName, setAppName] = useState("");
   const [appDescription, setAppDescription] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [appStatus, setAppStatus] = useState<string | null>(null);
 
   // 解析路径
   const pathSegments = pathname.split("/").filter(Boolean);
@@ -96,18 +101,88 @@ export function BreadcrumbNav() {
 
   // 检查是否在 preview 页面
   const isPreviewPage = pathname.startsWith("/preview");
+  const appId = searchParams.get("id");
+
+  // 获取应用状态
+  useEffect(() => {
+    if (isPreviewPage && appId && session) {
+      const fetchAppStatus = async () => {
+        try {
+          const response = await fetch(`/api/apps/${appId}`, {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setAppStatus(data.data?.status || null);
+          }
+        } catch (error) {
+          console.error("获取应用状态失败:", error);
+        }
+      };
+
+      fetchAppStatus();
+    }
+  }, [isPreviewPage, appId, session]);
 
   // 处理保存应用
-  const handleSaveApp = () => {
+  const handleSaveApp = async () => {
+    console.log(user);
+
     if (!appName.trim()) {
-      return; // 如果名称为空则不保存
+      alert("请输入应用名称");
+      return;
     }
 
-    // 关闭对话框
-    setIsSaveDialogOpen(false);
+    if (!user || !session) {
+      alert("请先登录");
+      return;
+    }
 
-    // 跳转到保存成功页面
-    router.push("/save-success");
+    setIsSaving(true);
+
+    try {
+      const response = await fetch("/api/apps", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          name: appName.trim(),
+          description: appDescription.trim(),
+          status: "draft",
+          app_version: null,
+          build_status: "pending",
+          deployment_status: "not_deployed",
+          connection_id: "42d2234c-7dca-4199-87fb-56fa26b7b50f",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "保存失败");
+      }
+
+      // 保存成功
+      console.log("应用保存成功:", data);
+
+      // 关闭对话框
+      setIsSaveDialogOpen(false);
+      setAppName("");
+      setAppDescription("");
+
+      // 跳转到保存成功页面
+      router.push("/save-success");
+    } catch (error) {
+      console.error("保存应用失败:", error);
+      alert(`保存失败: ${error instanceof Error ? error.message : "未知错误"}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // 处理取消保存
@@ -157,8 +232,8 @@ export function BreadcrumbNav() {
         ))}
       </div>
 
-      {/* 右侧按钮组 - 只在 preview 页面显示 */}
-      {isPreviewPage && (
+      {/* 右侧按钮组 - 只在 preview 页面显示，且应用未发布时显示 */}
+      {isPreviewPage && appStatus !== "published" && (
         <div className="flex items-center gap-2">
           <Button
             size="sm"
@@ -176,6 +251,18 @@ export function BreadcrumbNav() {
           >
             Publish
           </Button>
+        </div>
+      )}
+
+      {/* 已发布状态显示 */}
+      {isPreviewPage && appStatus === "published" && (
+        <div className="flex items-center gap-2">
+          <Badge
+            variant="outline"
+            className="bg-green-50 text-green-700 border-green-200"
+          >
+            published
+          </Badge>
         </div>
       )}
 
@@ -217,8 +304,11 @@ export function BreadcrumbNav() {
             <Button variant="outline" onClick={handleCancelSave}>
               Cancel
             </Button>
-            <Button onClick={handleSaveApp} disabled={!appName.trim()}>
-              Save Application
+            <Button
+              onClick={handleSaveApp}
+              disabled={!appName.trim() || isSaving}
+            >
+              {isSaving ? "Saving..." : "Save Application"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -44,8 +44,8 @@ type AppItem = {
   status: "published" | "draft";
   data_connections: {
     connection_info: {
-      supabase_url: string;
-      anno_public_key: string;
+      project_id: string;
+      access_token: string;
     };
   };
 
@@ -382,31 +382,26 @@ export default function DashboardPage() {
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       <div className="truncate">
-                        <span className="text-foreground/80">URL: </span>
+                        <span className="text-foreground/80">Project ID: </span>
                         <span className="font-mono">
-                          {app.data_connections.connection_info.supabase_url}
+                          {app.data_connections.connection_info.project_id}
                         </span>
                       </div>
                       <div className="truncate">
                         <span className="text-foreground/80">
-                          ConnectionId:{" "}
+                          Access Token:{" "}
                         </span>
-                        {/* <span className="font-mono">
-                          {app.data_connections.id}
-                        </span> */}
+                        <span className="font-mono">
+                          {app.data_connections.connection_info.access_token}
+                        </span>
                       </div>
                       <div className="truncate text-right md:text-left">
                         <span className="text-foreground/80">
-                          FeaturesNum:{" "}
+                          Valued Questions:{" "}
                         </span>
                         <span className="tabular-nums">{app.features}</span>
                       </div>
-                      <div className="truncate">
-                        <span className="text-foreground/80">API Key: </span>
-                        <span className="font-mono">
-                          {app.data_connections.connection_info.anno_public_key}
-                        </span>
-                      </div>
+
                       <div className="truncate">
                         <span className="text-foreground/80">
                           Last Edit Date:{" "}
@@ -446,10 +441,10 @@ export default function DashboardPage() {
                     <TableHead className="w-[20%]">Name</TableHead>
                     <TableHead className="w-[8%]">Status</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead className="w-[15%]">URL</TableHead>
-                    <TableHead className="w-[15%]">API Key</TableHead>
+                    <TableHead className="w-[15%]">Project ID</TableHead>
+                    <TableHead className="w-[15%]">Access Token</TableHead>
                     <TableHead className="w-[10%] text-center">
-                      Features
+                      Valued Questions
                     </TableHead>
                     <TableHead className="w-[10%]">Last Edit Date</TableHead>
                     <TableHead className="w-[10%]">Published Date</TableHead>
@@ -481,10 +476,10 @@ export default function DashboardPage() {
                         {app.description}
                       </TableCell>
                       <TableCell className="truncate text-xs text-muted-foreground">
-                        {app.data_connections.connection_info.supabase_url}
+                        {app.data_connections.connection_info.project_id}
                       </TableCell>
                       <TableCell className="truncate text-xs text-muted-foreground font-mono max-w-[260px]">
-                        {app.data_connections.connection_info.anno_public_key}
+                        {app.data_connections.connection_info.access_token}
                       </TableCell>
                       <TableCell className="text-center tabular-nums">
                         {app.features}
