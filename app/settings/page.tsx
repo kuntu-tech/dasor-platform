@@ -18,13 +18,15 @@ import {
   Infinity,
   Download,
   X,
-  Camera
+  Camera,
+  Wallet
 } from "lucide-react"
+import PaymentAccount from "@/portable-pages/components/settings/PaymentAccount"
 
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
   { id: "billing", label: "Usage & Billing", icon: CreditCard },
- 
+  { id: "payout", label: "Payout Account", icon: Wallet },
 ]
 
 export default function SettingsPage() {
@@ -307,6 +309,7 @@ export default function SettingsPage() {
         <div className="flex-1 p-8">
           {activeTab === "account" && renderAccountContent()}
           {activeTab === "billing" && renderBillingContent()}
+          {activeTab === "payout" && <PaymentAccount />}
         </div>
       </div>
     </div>

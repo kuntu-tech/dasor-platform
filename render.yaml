@@ -1,0 +1,24 @@
+# Render Blueprint for dasor-platform
+# Docs: https://render.com/docs/infrastructure-as-code
+
+services:
+  - type: web
+    name: dasor-platform
+    env: node
+    plan: free
+    region: frankfurt
+    repo: https://github.com/kuntu-tech/dasor-platform
+    branch: dev
+    autoDeploy: true
+    buildCommand: npm ci || npm install --legacy-peer-deps && npm run build
+    startCommand: npm start
+    # If your app lives in a subdirectory, set rootDir, e.g. "app" or "packages/web"
+    # rootDir: .
+    healthCheckPath: /
+    
+    # Environment variables are intentionally omitted here to avoid committing secrets.
+    # They can be managed in the Render dashboard or via Environment Groups.
+    # Example (uncomment and set up an env group named "dasor-platform-env"):
+    # envVars:
+    #   - fromGroup: dasor-platform-env
+
