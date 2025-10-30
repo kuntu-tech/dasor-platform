@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import MarketExplorationPage from "@/app/market-exploration/page";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -348,14 +347,10 @@ export function ConnectFlow() {
   const [connectionUrl, setConnectionUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [readOnly, setReadOnly] = useState(true);
-  const [markets, setMarkets] = useState<
-    { id: string; title: string; analysis: any }[]
-  >([]);
   const [analysisResults, setAnalysisResults] = useState<AnalysisResultItem[]>(
     []
   );
-  const [analysisStep, setAnalysisStep] =
-    useState<AnalysisStep>("validating-data");
+  const [analysisStep, setAnalysisStep] = useState<AnalysisStep>("connecting");
   const [chatInput, setChatInput] = useState("");
   const [pendingChatInput, setPendingChatInput] = useState("");
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -825,53 +820,12 @@ export function ConnectFlow() {
 
     // 开始分析流程
     setStep("analyzing");
-    setAnalysisStep("validating-data");
+    setAnalysisStep("connecting");
     setIsAnalyzing(true);
     console.log(aaaa, "--------------------------------");
     try {
-      // 连接成功，进入数据验证步骤
-
-      // 第一步：数据验证
-      console.log("Step 1: Validating data...");
-      const validateResponse = await fetch(
-        "https://my-connector.onrender.com/review",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            supabase_project_id: connectionUrl,
-            supabase_access_token: accessToken,
-            user_name: "huimin",
-            // openai_api_key: process.env.OPENAI_API_KEY || "",
-            openai_api_key:
-              "REDACTED",
-          }),
-        }
-      );
-
-      if (!validateResponse.ok) {
-        const errorData = await validateResponse.json();
-        throw new Error(
-          errorData.error ||
-            `Data validation failed: ${validateResponse.status}`
-        );
-      }
-
-      const validateData = await validateResponse.json();
-      console.log("Data validation successful:", validateData);
-      if (!validateData.final_conclusion) {
-        setDataValidationError(
-          "Data authenticity validation failed: No available data tables or empty data in database"
-        );
-        return;
-      }
-      // 第二步：连接数据库
-      console.log("Step 2: Connecting to database...");
-
-      setAnalysisStep("connecting");
-      // 连接方式一
+      // 第一步：连接数据库
+      console.log("Step 1: Connecting to database...");
       // const connectResponse = await fetch("/api/connect", {
       //   method: "POST",
       //   headers: {
@@ -879,7 +833,6 @@ export function ConnectFlow() {
       //   },
       //   body: JSON.stringify({ url: connectionUrl, key: accessToken }),
       // });
-      // 连接方式二
       // const connectResponse = await fetch(
       //   "https://my-connector.onrender.com/analyze",
       //   {
@@ -893,8 +846,6 @@ export function ConnectFlow() {
       //       supabase_access_token: accessToken,
       //       user_name: "huimin",
       //       data_review_result: true,
-      //       // openai_api_key: process.env.OPENAI_API_KEY || "",
-      //       openai_api_key: "",
       //       // openai_api_key: process.env.OPENAI_API_KEY || "",
       //       openai_api_key: "",
       //     }),
@@ -915,46 +866,44 @@ export function ConnectFlow() {
       //   "Database connection successful:",
       //   connectData.results.market_analysis
       // );
-      // 连接方式三
-      const connectResponse = await fetch(
-        "https://business-insighter.onrender.com/api/v1/run-analysis",
-        // "http://192.168.30.150:8001/api/v1/run-analysis",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            supabase_project_id: connectionUrl,
-            supabase_access_token: accessToken,
-            // supabase_project_id: "yzcdbefleociqdpxsqjt",
-            // supabase_access_token:
-            //   "sbp_82dc8d631fde6e235ec5b7d4792b8d6fb66ad5cf",
-            user_name: "huimin",
-          }),
-        }
-      );
+      // // 连接成功，进入数据验证步骤
+      // setAnalysisStep("validating-data");
 
-      if (!connectResponse.ok) {
-        const errorData = await connectResponse.json();
-        throw new Error(
-          errorData.error ||
-            `Data validation failed: ${connectResponse.statusText}`
-        );
-      }
+      // // 第二步：数据验证
+      // console.log("Step 2: Validating data...");
+      // const validateResponse = await fetch(
+      //   "https://my-connector.onrender.com/review",
+      //   {
+      //     method: "POST",
+      //     headers: {
+      //       "Content-Type": "application/json",
+      //     },
+      //     body: JSON.stringify({
+      //       supabase_project_id: connectionUrl,
+      //       supabase_access_token: accessToken,
+      //       user_name: "huimin",
+      //       // openai_api_key: process.env.OPENAI_API_KEY || "",
+      //       openai_api_key: "",
+      //     }),
+      //   }
+      // );
 
-      const connectData = await connectResponse.json();
-      console.log("Connect successful:", connectData);
-      setMarkets([
-        {
-          id: connectData.integrated_analysis.markets.market_segments[0]
-            .market_name,
-          title:
-            connectData.integrated_analysis.markets.market_segments[0]
-              .market_name,
-          analysis: connectData.integrated_analysis.markets.market_segments[0],
-        },
-      ]);
+      // if (!validateResponse.ok) {
+      //   const errorData = await validateResponse.json();
+      //   throw new Error(
+      //     errorData.error ||
+      //       `Data validation failed: ${validateResponse.status}`
+      //   );
+      // }
+
+      // const validateData = await validateResponse.json();
+      // console.log("Data validation successful:", validateData);
+      // if (!validateData.final_conclusion) {
+      //   setDataValidationError(
+      //     "Data authenticity validation failed: No available data tables or empty data in database"
+      //   );
+      //   return;
+      // }
 
       // 数据验证成功，继续后续步骤
       setAnalysisStep("reading-schema");
@@ -1002,10 +951,14 @@ export function ConnectFlow() {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 
-      // 根据错误发生的位置直接设置错误类型
-      // 如果是在 run-analysis 接口调用失败，设置连接错误
-      setConnectionError(`Connection failed: ${errorMessage}`);
-      setDataValidationError(null); // 清除数据验证错误
+      // 根据当前步骤设置相应的错误
+      if (analysisStep === "connecting") {
+        setConnectionError(`Connection failed: ${errorMessage}`);
+      } else if (analysisStep === "validating-data") {
+        setDataValidationError(`Data validation failed: ${errorMessage}`);
+      } else {
+        setConnectionError(`Processing failed: ${errorMessage}`);
+      }
 
       // 停留在 analyzing step 显示错误状态
       setStep("analyzing");
@@ -1731,8 +1684,8 @@ export function ConnectFlow() {
 
   const getStepStatus = (stepName: AnalysisStep) => {
     const steps: AnalysisStep[] = [
-      "validating-data",
       "connecting",
+      "validating-data",
       "reading-schema",
       "sampling-data",
       "evaluating",
@@ -1930,7 +1883,7 @@ export function ConnectFlow() {
               </div>
 
               {/* 测试用的 URL 和 API Key 提示 */}
-              {/* <div className="bg-green-50 border border-green-200 rounded-lg p-6 space-y-3">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6 space-y-3">
                 <div className="flex items-start gap-3">
                   <Info className="size-5 text-green-600 mt-0.5 shrink-0" />
                   <div className="space-y-2">
@@ -1972,7 +1925,7 @@ export function ConnectFlow() {
                     </div>
                   </div>
                 </div>
-              </div> */}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -1984,83 +1937,6 @@ export function ConnectFlow() {
                 <CardTitle>AI is Analyzing Your Database</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6 py-8">
-                {/* Data Availability Validation */}
-                <div className="flex items-start gap-4">
-                  <div className="mt-1">
-                    {dataValidationError ? (
-                      <XCircle className="size-6 text-red-600" />
-                    ) : getStepStatus("validating-data") === "completed" ? (
-                      <CheckCircle2 className="size-6 text-green-600" />
-                    ) : getStepStatus("validating-data") === "in-progress" ? (
-                      <Loader2 className="size-6 text-primary animate-spin" />
-                    ) : (
-                      <Clock className="size-6 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium">
-                        Data Availability Validation
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {dataValidationError
-                        ? "Data validation failed, please check data availability"
-                        : "Check data integrity and accessibility"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* 如果数据真实性验证失败，显示错误信息和建议 */}
-                {dataValidationError && (
-                  <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
-                    <div className="flex items-start gap-3">
-                      <XCircle className="size-6 text-red-600 mt-0.5 shrink-0" />
-                      <div className="space-y-3">
-                        <h4 className="font-bold text-red-900 text-lg">
-                          🚨 Data Authenticity Validation Failed
-                        </h4>
-                        <p className="text-red-800 font-medium">
-                          {dataValidationError}
-                        </p>
-                        <div className="bg-red-100 border border-red-200 rounded-lg p-4">
-                          <p className="font-semibold text-red-900 mb-2">
-                            🔍 Data Problem Diagnosis:
-                          </p>
-                        </div>
-                        <div className="bg-red-200 border border-red-300 rounded-lg p-4">
-                          <p className="font-semibold text-red-900 mb-2">
-                            💡 Suggested Solutions:
-                          </p>
-                        </div>
-                        <div className="flex gap-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              // setConnectionUrl("");
-                              // setAccessToken("");
-                              // setConnectionError(null);
-                              // setDataValidationError(null);
-                              // setHasValidated(false); // Reset validation status
-                              setIsAnalyzing(false);
-                              setStep("connect");
-                              setConnectionError(null);
-                              setDataValidationError(null);
-                              setHasValidated(false);
-                              setShowInputError(true);
-                            }}
-                            className="border-red-300 text-red-700 hover:bg-red-50"
-                          >
-                            Back
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Database Connection */}
                 <div className="flex items-start gap-4">
                   <div className="mt-1">
                     {connectionError ? (
@@ -2176,9 +2052,86 @@ export function ConnectFlow() {
                   </div>
                 )}
 
+                {/* Data Availability Validation */}
+
+                {/* 如果数据真实性验证失败，显示错误信息和建议 */}
+                {dataValidationError && (
+                  <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <XCircle className="size-6 text-red-600 mt-0.5 shrink-0" />
+                      <div className="space-y-3">
+                        <h4 className="font-bold text-red-900 text-lg">
+                          🚨 Data Authenticity Validation Failed
+                        </h4>
+                        <p className="text-red-800 font-medium">
+                          {dataValidationError}
+                        </p>
+                        <div className="bg-red-100 border border-red-200 rounded-lg p-4">
+                          <p className="font-semibold text-red-900 mb-2">
+                            🔍 Data Problem Diagnosis:
+                          </p>
+                        </div>
+                        <div className="bg-red-200 border border-red-300 rounded-lg p-4">
+                          <p className="font-semibold text-red-900 mb-2">
+                            💡 Suggested Solutions:
+                          </p>
+                        </div>
+                        <div className="flex gap-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              // setConnectionUrl("");
+                              // setAccessToken("");
+                              // setConnectionError(null);
+                              // setDataValidationError(null);
+                              // setHasValidated(false); // Reset validation status
+                              setIsAnalyzing(false);
+                              setStep("connect");
+                              setConnectionError(null);
+                              setDataValidationError(null);
+                              setHasValidated(false);
+                              setShowInputError(true);
+                            }}
+                            className="border-red-300 text-red-700 hover:bg-red-50"
+                          >
+                            Back
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Only show subsequent steps if both connection and data validation are successful */}
                 {!connectionError && !dataValidationError && (
                   <>
+                    <div className="flex items-start gap-4">
+                      <div className="mt-1">
+                        {dataValidationError ? (
+                          <XCircle className="size-6 text-red-600" />
+                        ) : getStepStatus("validating-data") === "completed" ? (
+                          <CheckCircle2 className="size-6 text-green-600" />
+                        ) : getStepStatus("validating-data") ===
+                          "in-progress" ? (
+                          <Loader2 className="size-6 text-primary animate-spin" />
+                        ) : (
+                          <Clock className="size-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium">
+                            Data Availability Validation
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {dataValidationError
+                            ? "Data validation failed, please check data availability"
+                            : "Check data integrity and accessibility"}
+                        </p>
+                      </div>
+                    </div>
                     <div className="flex items-start gap-4">
                       <div className="mt-1">
                         {connectionError || dataValidationError ? (
@@ -2277,9 +2230,9 @@ export function ConnectFlow() {
                             className="h-full bg-primary transition-all duration-500"
                             style={{
                               width: `${
-                                analysisStep === "validating-data"
+                                analysisStep === "connecting"
                                   ? 20
-                                  : analysisStep === "connecting"
+                                  : analysisStep === "validating-data"
                                   ? 40
                                   : analysisStep === "reading-schema"
                                   ? 60
@@ -2304,18 +2257,135 @@ export function ConnectFlow() {
             <Card className="leading-3 border-muted border-none -mt-12">
               <CardHeader></CardHeader>
               <CardContent className="space-y-6">
-                <MarketExplorationPage marketsData={markets} />
-                {/* Debug info */}
-                {/* {process.env.NODE_ENV === "development" && (
-                  <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
-                    <p>Markets data passed: {markets.length} items</p>
-                    {markets.length > 0 && (
-                      <pre className="mt-1 text-xs">
-                        {JSON.stringify(markets[0], null, 2)}
-                      </pre>
+                {/* Results Table */}
+                <div className="mb-3">
+                  <h1 className="text-2xl font-semibold">
+                    <span className="text-4xl font-bold">30</span> business
+                    opportunities found for you
+                  </h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Select the ones you are interested in
+                  </p>
+                </div>
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="grid grid-cols-12 gap-8 bg-muted/50 p-4 font-semibold text-sm border-b border-border py-2">
+                    <div className="col-span-1 flex items-center justify-center">
+                      Select
+                    </div>
+                    <div className="col-span-2 flex items-center justify-center gap-2">
+                      <Users className="size-4" />
+                      Target User
+                    </div>
+                    <div className="col-span-3 flex items-center gap-2">
+                      <Target className="size-4" />
+                      Solvable Problems
+                    </div>
+                    <div className="col-span-4 flex items-center gap-2">
+                      <TrendingUp className="size-4" />
+                      Market Value Estimation
+                    </div>
+                    {/* <div className="col-span-2 flex items-center gap-2">
+                      <Wrench className="size-4" />
+                      Implementation Method
+                    </div> */}
+                  </div>
+
+                  <div className="divide-y divide-border">
+                    {Object.entries(groupedResults).map(
+                      ([userProfile, results]) => (
+                        <div key={userProfile}>
+                          {results.map((result, index) => (
+                            <div
+                              key={result.id}
+                              className="grid grid-cols-12 hover:bg-muted/30 transition-colors leading-[0.8rem] gap-3 px-3 py-3"
+                            >
+                              <div className="col-span-1 flex items-center justify-center">
+                                {index === 0 && (
+                                  <Checkbox
+                                    checked={selectedUserProfiles.has(
+                                      userProfile
+                                    )}
+                                    onCheckedChange={() =>
+                                      toggleUserProfileSelection(userProfile)
+                                    }
+                                  />
+                                )}
+                              </div>
+                              <div className="col-span-2 text-sm font-medium text-center">
+                                {index === 0 ? result.userProfile : ""}
+                              </div>
+                              <div className="col-span-3 text-sm">
+                                {result.problem}
+                              </div>
+                              <div className="col-span-4 text-sm font-bold text-black">
+                                {result.marketValue}
+                              </div>
+                              {/* <div className="col-span-2">
+                                <Badge
+                                  variant="outline"
+                                  className={getImplementationColor(
+                                    result.implementationMethod
+                                  )}
+                                >
+                                  {result.implementationMethod}
+                                </Badge>
+                              </div> */}
+                            </div>
+                          ))}
+                        </div>
+                      )
                     )}
                   </div>
-                )} */}
+                </div>
+
+                {/* Exploration Chatbox */}
+                <div className="relative">
+                  <Textarea
+                    placeholder="e.g., Help me analyze user repurchase rate, predict product sales trends..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleChatSubmit();
+                      }
+                    }}
+                    rows={4}
+                    className="w-full pr-14 resize-none"
+                    disabled={false}
+                  />
+                  <Button
+                    onClick={handleChatSubmit}
+                    disabled={!chatInput.trim()}
+                    size="icon"
+                    className="absolute bottom-2 right-2 h-9 w-9 p-0"
+                  >
+                    <Send className="size-4" />
+                  </Button>
+                </div>
+
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={() => {
+                    const selectedIds = Array.from(selectedItems);
+                    const selectedResults = analysisResults.filter((r) =>
+                      selectedIds.includes(r.id)
+                    );
+                    // Store in localStorage for the generate page to access
+                    localStorage.setItem(
+                      "selectedProblems",
+                      JSON.stringify(selectedResults)
+                    );
+                    router.push("/generate");
+                  }}
+                  disabled={selectedItems.size === 0}
+                >
+                  {selectedItems.size > 0
+                    ? `Generate`
+                    : "Please select your target user first"}
+                  <ArrowRight className="ml-2 size-4" />
+                </Button>
               </CardContent>
             </Card>
           </div>

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import MarketExplorationPage from "@/app/market-exploration/page";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,7 +32,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import aaaa from "@/formatted_analysis_result.json";
+
 type Step = "connect" | "analyzing" | "results";
 type AnalysisStep =
   | "connecting"
@@ -51,295 +50,6 @@ type AnalysisResultItem = {
   implementationMethod: "Metadata Supported" | "Requires Modeling";
   implementationDifficulty: number; // 1-5, 1 being easiest
 };
-const testAnalysisData = [
-  // E-commerce Platform Operators - 10 problems
-  {
-    id: "1-1",
-    userProfile: "E-commerce Platform Operators",
-    problem: "Order Management and Tracking System",
-    marketValue:
-      "High Value - Can improve operational efficiency by 50%, reduce customer service inquiries",
-    implementationMethod: "Metadata Supported" as const,
-    implementationDifficulty: 1,
-  },
-  {
-    id: "1-2",
-    userProfile: "E-commerce Platform Operators",
-    problem: "Real-time Inventory Monitoring Dashboard",
-    marketValue:
-      "High Value - Prevent overselling, improve inventory turnover by 30%",
-    implementationMethod: "Metadata Supported" as const,
-    implementationDifficulty: 1,
-  },
-  {
-    id: "1-3",
-    userProfile: "E-commerce Platform Operators",
-    problem: "Return and Refund Process Management",
-    marketValue:
-      "Medium Value - Simplify return process, improve customer satisfaction",
-    implementationMethod: "Metadata Supported" as const,
-    implementationDifficulty: 2,
-  },
-  {
-    id: "1-4",
-    userProfile: "E-commerce Platform Operators",
-    problem: "Supplier Performance Analysis",
-    marketValue:
-      "Medium Value - Optimize supply chain, reduce procurement costs by 15%",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 3,
-  },
-  {
-    id: "1-5",
-    userProfile: "E-commerce Platform Operators",
-    problem: "Logistics Delivery Optimization Recommendations",
-    marketValue:
-      "High Value - Reduce delivery costs by 20%, improve delivery efficiency",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 4,
-  },
-  {
-    id: "1-6",
-    userProfile: "E-commerce Platform Operators",
-    problem: "Promotional Campaign Effectiveness Analysis",
-    marketValue: "High Value - Improve ROI by 40%, precise marketing targeting",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 3,
-  },
-  {
-    id: "1-7",
-    userProfile: "E-commerce Platform Operators",
-    problem: "Customer Lifetime Value Prediction",
-    marketValue:
-      "High Value - Identify high-value customers, improve repeat purchase rate by 25%",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 4,
-  },
-  {
-    id: "1-8",
-    userProfile: "E-commerce Platform Operators",
-    problem: "Product Recommendation Engine",
-    marketValue:
-      "High Value - Increase average order value by 30%, boost cross-selling",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 5,
-  },
-  {
-    id: "1-9",
-    userProfile: "E-commerce Platform Operators",
-    problem: "Price Competitiveness Analysis",
-    marketValue:
-      "Medium Value - Optimize pricing strategy, maintain market competitiveness",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 3,
-  },
-  {
-    id: "1-10",
-    userProfile: "E-commerce Platform Operators",
-    problem: "Seasonal Demand Forecasting",
-    marketValue:
-      "High Value - Optimize inventory planning, reduce stock accumulation",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 4,
-  },
-  // Product Managers - 10 problems
-  {
-    id: "2-1",
-    userProfile: "Product Managers",
-    problem: "Product Catalog and Inventory Display",
-    marketValue:
-      "High Value - Improve product visibility, increase conversion rate",
-    implementationMethod: "Metadata Supported" as const,
-    implementationDifficulty: 1,
-  },
-  {
-    id: "2-2",
-    userProfile: "Product Managers",
-    problem: "User Feedback Collection and Analysis",
-    marketValue:
-      "High Value - Rapid product iteration, improve user satisfaction",
-    implementationMethod: "Metadata Supported" as const,
-    implementationDifficulty: 2,
-  },
-  {
-    id: "2-3",
-    userProfile: "Product Managers",
-    problem: "Feature Usage Statistics",
-    marketValue:
-      "Medium Value - Identify core features, optimize product roadmap",
-    implementationMethod: "Metadata Supported" as const,
-    implementationDifficulty: 2,
-  },
-  {
-    id: "2-4",
-    userProfile: "Product Managers",
-    problem: "A/B Testing Results Analysis",
-    marketValue:
-      "High Value - Data-driven decisions, improve product effectiveness",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 3,
-  },
-  {
-    id: "2-5",
-    userProfile: "Product Managers",
-    problem: "User Churn Early Warning System",
-    marketValue: "High Value - Early intervention, reduce churn rate by 30%",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 4,
-  },
-  {
-    id: "2-6",
-    userProfile: "Product Managers",
-    problem: "Competitor Feature Comparison Analysis",
-    marketValue:
-      "Medium Value - Maintain competitive advantage, respond quickly to market",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 3,
-  },
-  {
-    id: "2-7",
-    userProfile: "Product Managers",
-    problem: "Target User Segmentation",
-    marketValue:
-      "High Value - Precise target user positioning, improve conversion",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 3,
-  },
-  {
-    id: "2-8",
-    userProfile: "Product Managers",
-    problem: "Product Roadmap Priority Ranking",
-    marketValue:
-      "Medium Value - Optimize resource allocation, accelerate product iteration",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 4,
-  },
-  {
-    id: "2-9",
-    userProfile: "Product Managers",
-    problem: "New Feature Adoption Rate Prediction",
-    marketValue:
-      "Medium Value - Evaluate feature value, reduce development risk",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 4,
-  },
-  {
-    id: "2-10",
-    userProfile: "Product Managers",
-    problem: "User Journey Visualization",
-    marketValue: "High Value - Discover pain points, optimize user experience",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 3,
-  },
-  // Marketing Teams - 10 problems
-  {
-    id: "3-1",
-    userProfile: "Marketing Teams",
-    problem: "Customer Acquisition Cost Analysis",
-    marketValue:
-      "High Value - Optimize marketing budget allocation, improve ROI by 35%",
-    implementationMethod: "Metadata Supported" as const,
-    implementationDifficulty: 1,
-  },
-  {
-    id: "3-2",
-    userProfile: "Marketing Teams",
-    problem: "Campaign Performance Real-time Monitoring",
-    marketValue:
-      "High Value - Real-time optimization, improve conversion rate by 20%",
-    implementationMethod: "Metadata Supported" as const,
-    implementationDifficulty: 2,
-  },
-  {
-    id: "3-3",
-    userProfile: "Marketing Teams",
-    problem: "Customer Segmentation and Targeting",
-    marketValue:
-      "High Value - Precise targeting, improve campaign effectiveness by 40%",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 3,
-  },
-  {
-    id: "3-4",
-    userProfile: "Marketing Teams",
-    problem: "Content Performance Analysis",
-    marketValue:
-      "Medium Value - Optimize content strategy, improve engagement by 25%",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 3,
-  },
-  {
-    id: "3-5",
-    userProfile: "Marketing Teams",
-    problem: "Lead Scoring and Qualification",
-    marketValue:
-      "High Value - Improve lead quality, increase conversion rate by 30%",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 4,
-  },
-  {
-    id: "3-6",
-    userProfile: "Marketing Teams",
-    problem: "Social Media Sentiment Analysis",
-    marketValue:
-      "Medium Value - Monitor brand reputation, respond quickly to issues",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 4,
-  },
-  {
-    id: "3-7",
-    userProfile: "Marketing Teams",
-    problem: "Email Marketing Optimization",
-    marketValue:
-      "High Value - Improve open rates by 15%, increase click-through rates by 20%",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 3,
-  },
-  {
-    id: "3-8",
-    userProfile: "Marketing Teams",
-    problem: "Cross-channel Attribution Analysis",
-    marketValue:
-      "High Value - Understand customer journey, optimize marketing mix",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 4,
-  },
-  {
-    id: "3-9",
-    userProfile: "Marketing Teams",
-    problem: "Customer Lifetime Value Prediction",
-    marketValue:
-      "High Value - Identify high-value customers, improve retention by 25%",
-    implementationMethod: "Requires Modeling" as const,
-    implementationDifficulty: 4,
-  },
-  {
-    id: "3-10",
-    userProfile: "Marketing Teams",
-    problem: "Marketing ROI Comprehensive Analysis",
-    marketValue:
-      "High Value - Optimize budget allocation, improve overall marketing efficiency",
-    implementationMethod: "Metadata Supported" as const,
-    implementationDifficulty: 2,
-  },
-].sort((a, b) => {
-  // First by market value (High -> Medium -> Low)
-  const aValue = a.marketValue.includes("High")
-    ? 3
-    : a.marketValue.includes("Medium")
-    ? 2
-    : 1;
-  const bValue = b.marketValue.includes("High")
-    ? 3
-    : b.marketValue.includes("Medium")
-    ? 2
-    : 1;
-  if (aValue !== bValue) {
-    return bValue - aValue;
-  }
-  // Then by implementation difficulty (easy->hard)
-  return a.implementationDifficulty - b.implementationDifficulty;
-});
 
 export function ConnectFlow() {
   const router = useRouter();
@@ -348,14 +58,10 @@ export function ConnectFlow() {
   const [connectionUrl, setConnectionUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [readOnly, setReadOnly] = useState(true);
-  const [markets, setMarkets] = useState<
-    { id: string; title: string; analysis: any }[]
-  >([]);
   const [analysisResults, setAnalysisResults] = useState<AnalysisResultItem[]>(
     []
   );
-  const [analysisStep, setAnalysisStep] =
-    useState<AnalysisStep>("validating-data");
+  const [analysisStep, setAnalysisStep] = useState<AnalysisStep>("connecting");
   const [chatInput, setChatInput] = useState("");
   const [pendingChatInput, setPendingChatInput] = useState("");
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -367,9 +73,7 @@ export function ConnectFlow() {
     null
   );
   const [hasValidated, setHasValidated] = useState<boolean>(false);
-  const [showInputError, setShowInputError] = useState<boolean>(false);
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [accessToken, setAccessToken] = useState("");
+
   // 简化的数据库验证函数 - 支持测试用的 URL 和 API Key
   const performRealDatabaseValidation = async (
     url: string,
@@ -434,583 +138,403 @@ export function ConnectFlow() {
     );
   };
 
-  // useEffect(() => {
-  //   // If URL param results=1, jump directly to results screen with existing/default suggestions
-  //   const shouldShowResults = searchParams?.get("results") === "1";
-  //   if (shouldShowResults) {
-  //     // Keep previous results if any; otherwise show minimal placeholder so the page renders
-  //     if (analysisResults.length === 0) {
-  //       setAnalysisResults([
-  //         {
-  //           id: "seed-1",
-  //           userProfile: "Product Managers",
-  //           problem: "Explore more AI app ideas",
-  //           marketValue: "Medium Value - Brainstorm based on your data context",
-  //           implementationMethod: "Metadata Supported",
-  //           implementationDifficulty: 1,
-  //         },
-  //       ]);
-  //     }
-  //     setStep("results");
-  //     return;
-  //   }
-
-  //   if (step === "analyzing") {
-  //     const steps: AnalysisStep[] = [
-  //       "connecting",
-  //       "validating-data",
-  //       "reading-schema",
-  //       "sampling-data",
-  //       "evaluating",
-  //       "complete",
-  //     ];
-  //     let currentIndex = 0;
-
-  //     const interval = setInterval(() => {
-  //       currentIndex++;
-  //       if (currentIndex < steps.length) {
-  //         setAnalysisStep(steps[currentIndex]);
-
-  //         // 注意：真实的验证已经在 handleConnect 中完成
-  //         // 这里只是显示进度，不再进行模拟验证
-  //       } else {
-  //         clearInterval(interval);
-  //         // 当所有步骤完成时，设置分析结果并跳转到结果页面
-  //         setAnalysisResults(
-  //           [
-  //             // E-commerce Platform Operators - 10 problems
-  //             {
-  //               id: "1-1",
-  //               userProfile: "E-commerce Platform Operators",
-  //               problem: "Order Management and Tracking System",
-  //               marketValue:
-  //                 "High Value - Can improve operational efficiency by 50%, reduce customer service inquiries",
-  //               implementationMethod: "Metadata Supported" as const,
-  //               implementationDifficulty: 1,
-  //             },
-  //             {
-  //               id: "1-2",
-  //               userProfile: "E-commerce Platform Operators",
-  //               problem: "Real-time Inventory Monitoring Dashboard",
-  //               marketValue:
-  //                 "High Value - Prevent overselling, improve inventory turnover by 30%",
-  //               implementationMethod: "Metadata Supported" as const,
-  //               implementationDifficulty: 1,
-  //             },
-  //             {
-  //               id: "1-3",
-  //               userProfile: "E-commerce Platform Operators",
-  //               problem: "Return and Refund Process Management",
-  //               marketValue:
-  //                 "Medium Value - Simplify return process, improve customer satisfaction",
-  //               implementationMethod: "Metadata Supported" as const,
-  //               implementationDifficulty: 2,
-  //             },
-  //             {
-  //               id: "1-4",
-  //               userProfile: "E-commerce Platform Operators",
-  //               problem: "Supplier Performance Analysis",
-  //               marketValue:
-  //                 "Medium Value - Optimize supply chain, reduce procurement costs by 15%",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 3,
-  //             },
-  //             {
-  //               id: "1-5",
-  //               userProfile: "E-commerce Platform Operators",
-  //               problem: "Logistics Delivery Optimization Recommendations",
-  //               marketValue:
-  //                 "High Value - Reduce delivery costs by 20%, improve delivery efficiency",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 4,
-  //             },
-  //             {
-  //               id: "1-6",
-  //               userProfile: "E-commerce Platform Operators",
-  //               problem: "Promotional Campaign Effectiveness Analysis",
-  //               marketValue:
-  //                 "High Value - Improve ROI by 40%, precise marketing targeting",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 3,
-  //             },
-  //             {
-  //               id: "1-7",
-  //               userProfile: "E-commerce Platform Operators",
-  //               problem: "Customer Lifetime Value Prediction",
-  //               marketValue:
-  //                 "High Value - Identify high-value customers, improve repeat purchase rate by 25%",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 4,
-  //             },
-  //             {
-  //               id: "1-8",
-  //               userProfile: "E-commerce Platform Operators",
-  //               problem: "Product Recommendation Engine",
-  //               marketValue:
-  //                 "High Value - Increase average order value by 30%, boost cross-selling",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 5,
-  //             },
-  //             {
-  //               id: "1-9",
-  //               userProfile: "E-commerce Platform Operators",
-  //               problem: "Price Competitiveness Analysis",
-  //               marketValue:
-  //                 "Medium Value - Optimize pricing strategy, maintain market competitiveness",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 3,
-  //             },
-  //             {
-  //               id: "1-10",
-  //               userProfile: "E-commerce Platform Operators",
-  //               problem: "Seasonal Demand Forecasting",
-  //               marketValue:
-  //                 "High Value - Optimize inventory planning, reduce stock accumulation",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 4,
-  //             },
-  //             // Product Managers - 10 problems
-  //             {
-  //               id: "2-1",
-  //               userProfile: "Product Managers",
-  //               problem: "Product Catalog and Inventory Display",
-  //               marketValue:
-  //                 "High Value - Improve product visibility, increase conversion rate",
-  //               implementationMethod: "Metadata Supported" as const,
-  //               implementationDifficulty: 1,
-  //             },
-  //             {
-  //               id: "2-2",
-  //               userProfile: "Product Managers",
-  //               problem: "User Feedback Collection and Analysis",
-  //               marketValue:
-  //                 "High Value - Rapid product iteration, improve user satisfaction",
-  //               implementationMethod: "Metadata Supported" as const,
-  //               implementationDifficulty: 2,
-  //             },
-  //             {
-  //               id: "2-3",
-  //               userProfile: "Product Managers",
-  //               problem: "Feature Usage Statistics",
-  //               marketValue:
-  //                 "Medium Value - Identify core features, optimize product roadmap",
-  //               implementationMethod: "Metadata Supported" as const,
-  //               implementationDifficulty: 2,
-  //             },
-  //             {
-  //               id: "2-4",
-  //               userProfile: "Product Managers",
-  //               problem: "A/B Testing Results Analysis",
-  //               marketValue:
-  //                 "High Value - Data-driven decisions, improve product effectiveness",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 3,
-  //             },
-  //             {
-  //               id: "2-5",
-  //               userProfile: "Product Managers",
-  //               problem: "User Churn Early Warning System",
-  //               marketValue:
-  //                 "High Value - Early intervention, reduce churn rate by 30%",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 4,
-  //             },
-  //             {
-  //               id: "2-6",
-  //               userProfile: "Product Managers",
-  //               problem: "Competitor Feature Comparison Analysis",
-  //               marketValue:
-  //                 "Medium Value - Maintain competitive advantage, respond quickly to market",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 3,
-  //             },
-  //             {
-  //               id: "2-7",
-  //               userProfile: "Product Managers",
-  //               problem: "Target User Segmentation",
-  //               marketValue:
-  //                 "High Value - Precise target user positioning, improve conversion",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 3,
-  //             },
-  //             {
-  //               id: "2-8",
-  //               userProfile: "Product Managers",
-  //               problem: "Product Roadmap Priority Ranking",
-  //               marketValue:
-  //                 "Medium Value - Optimize resource allocation, accelerate product iteration",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 4,
-  //             },
-  //             {
-  //               id: "2-9",
-  //               userProfile: "Product Managers",
-  //               problem: "New Feature Adoption Rate Prediction",
-  //               marketValue:
-  //                 "Medium Value - Evaluate feature value, reduce development risk",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 4,
-  //             },
-  //             {
-  //               id: "2-10",
-  //               userProfile: "Product Managers",
-  //               problem: "User Journey Visualization",
-  //               marketValue:
-  //                 "High Value - Discover pain points, optimize user experience",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 3,
-  //             },
-  //             // Marketing Teams - 10 problems
-  //             {
-  //               id: "3-1",
-  //               userProfile: "Marketing Teams",
-  //               problem: "Customer Acquisition Cost Analysis",
-  //               marketValue:
-  //                 "High Value - Optimize marketing budget allocation, improve ROI by 35%",
-  //               implementationMethod: "Metadata Supported" as const,
-  //               implementationDifficulty: 1,
-  //             },
-  //             {
-  //               id: "3-2",
-  //               userProfile: "Marketing Teams",
-  //               problem: "Campaign Performance Real-time Monitoring",
-  //               marketValue:
-  //                 "High Value - Real-time optimization, improve conversion rate by 20%",
-  //               implementationMethod: "Metadata Supported" as const,
-  //               implementationDifficulty: 2,
-  //             },
-  //             {
-  //               id: "3-3",
-  //               userProfile: "Marketing Teams",
-  //               problem: "Customer Segmentation and Targeting",
-  //               marketValue:
-  //                 "High Value - Precise targeting, improve campaign effectiveness by 40%",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 3,
-  //             },
-  //             {
-  //               id: "3-4",
-  //               userProfile: "Marketing Teams",
-  //               problem: "Content Performance Analysis",
-  //               marketValue:
-  //                 "Medium Value - Optimize content strategy, improve engagement by 25%",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 3,
-  //             },
-  //             {
-  //               id: "3-5",
-  //               userProfile: "Marketing Teams",
-  //               problem: "Lead Scoring and Qualification",
-  //               marketValue:
-  //                 "High Value - Improve lead quality, increase conversion rate by 30%",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 4,
-  //             },
-  //             {
-  //               id: "3-6",
-  //               userProfile: "Marketing Teams",
-  //               problem: "Social Media Sentiment Analysis",
-  //               marketValue:
-  //                 "Medium Value - Monitor brand reputation, respond quickly to issues",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 4,
-  //             },
-  //             {
-  //               id: "3-7",
-  //               userProfile: "Marketing Teams",
-  //               problem: "Email Marketing Optimization",
-  //               marketValue:
-  //                 "High Value - Improve open rates by 15%, increase click-through rates by 20%",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 3,
-  //             },
-  //             {
-  //               id: "3-8",
-  //               userProfile: "Marketing Teams",
-  //               problem: "Cross-channel Attribution Analysis",
-  //               marketValue:
-  //                 "High Value - Understand customer journey, optimize marketing mix",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 4,
-  //             },
-  //             {
-  //               id: "3-9",
-  //               userProfile: "Marketing Teams",
-  //               problem: "Customer Lifetime Value Prediction",
-  //               marketValue:
-  //                 "High Value - Identify high-value customers, improve retention by 25%",
-  //               implementationMethod: "Requires Modeling" as const,
-  //               implementationDifficulty: 4,
-  //             },
-  //             {
-  //               id: "3-10",
-  //               userProfile: "Marketing Teams",
-  //               problem: "Marketing ROI Comprehensive Analysis",
-  //               marketValue:
-  //                 "High Value - Optimize budget allocation, improve overall marketing efficiency",
-  //               implementationMethod: "Metadata Supported" as const,
-  //               implementationDifficulty: 2,
-  //             },
-  //           ].sort((a, b) => {
-  //             // First by market value (High -> Medium -> Low)
-  //             const aValue = a.marketValue.includes("High")
-  //               ? 3
-  //               : a.marketValue.includes("Medium")
-  //               ? 2
-  //               : 1;
-  //             const bValue = b.marketValue.includes("High")
-  //               ? 3
-  //               : b.marketValue.includes("Medium")
-  //               ? 2
-  //               : 1;
-  //             if (aValue !== bValue) {
-  //               return bValue - aValue;
-  //             }
-  //             // Then by implementation difficulty (easy->hard)
-  //             return a.implementationDifficulty - b.implementationDifficulty;
-  //           })
-  //         );
-  //         // setStep("results");
-  //       }
-  //     }, 1900); // 缩短为原来的一半以加快分析过程
-
-  //     return () => clearInterval(interval);
-  //   }
-  // }, [step, searchParams]);
-  const handleConnectAPI = async () => {
-    console.log("handleConnectAPI");
-
-    // 清除之前的错误信息
-    setConnectionError(null);
-    setDataValidationError(null);
-    setShowInputError(false);
-    setStep("analyzing");
-    setIsAnalyzing(false);
-
-    // 校验 connectionUrl 格式
-    if (!connectionUrl || connectionUrl.trim() === "") {
-      setConnectionError("Connection URL cannot be empty");
-      return;
-    }
-
-    // 校验 URL 格式
-    // try {
-    //   new URL(connectionUrl);
-    // } catch (error) {
-    //   setConnectionError("Invalid connection URL format");
-    //   return;
-    // }
-
-    // 校验 access token 格式
-    if (!accessToken || accessToken.trim() === "") {
-      setConnectionError("access token cannot be empty");
-      return;
-    }
-
-    // 校验 access token 长度（通常至少8位）
-    if (accessToken.length < 8) {
-      setConnectionError("Access token must be at least 8 characters long");
-      return;
-    }
-    if (!apiKey || apiKey.trim() === "") {
-      setConnectionError("API key cannot be empty");
-      return;
-    }
-
-    // 校验 API Key 长度（通常至少8位）
-    if (apiKey.length < 8) {
-      setConnectionError("API key must be at least 8 characters long");
-      return;
-    }
-
-    // 开始分析流程
-    setStep("analyzing");
-    setAnalysisStep("validating-data");
-    setIsAnalyzing(true);
-    console.log(aaaa, "--------------------------------");
-    try {
-      // 连接成功，进入数据验证步骤
-
-      // 第一步：数据验证
-      console.log("Step 1: Validating data...");
-      const validateResponse = await fetch(
-        "https://my-connector.onrender.com/review",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+  useEffect(() => {
+    // If URL param results=1, jump directly to results screen with existing/default suggestions
+    const shouldShowResults = searchParams?.get("results") === "1";
+    if (shouldShowResults) {
+      // Keep previous results if any; otherwise show minimal placeholder so the page renders
+      if (analysisResults.length === 0) {
+        setAnalysisResults([
+          {
+            id: "seed-1",
+            userProfile: "Product Managers",
+            problem: "Explore more AI app ideas",
+            marketValue: "Medium Value - Brainstorm based on your data context",
+            implementationMethod: "Metadata Supported",
+            implementationDifficulty: 1,
           },
-          body: JSON.stringify({
-            supabase_project_id: connectionUrl,
-            supabase_access_token: accessToken,
-            user_name: "huimin",
-            // openai_api_key: process.env.OPENAI_API_KEY || "",
-            openai_api_key:
-              "REDACTED",
-          }),
-        }
-      );
-
-      if (!validateResponse.ok) {
-        const errorData = await validateResponse.json();
-        throw new Error(
-          errorData.error ||
-            `Data validation failed: ${validateResponse.status}`
-        );
+        ]);
       }
+      setStep("results");
+      return;
+    }
 
-      const validateData = await validateResponse.json();
-      console.log("Data validation successful:", validateData);
-      if (!validateData.final_conclusion) {
-        setDataValidationError(
-          "Data authenticity validation failed: No available data tables or empty data in database"
-        );
-        return;
-      }
-      // 第二步：连接数据库
-      console.log("Step 2: Connecting to database...");
-
-      setAnalysisStep("connecting");
-      // 连接方式一
-      // const connectResponse = await fetch("/api/connect", {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({ url: connectionUrl, key: accessToken }),
-      // });
-      // 连接方式二
-      // const connectResponse = await fetch(
-      //   "https://my-connector.onrender.com/analyze",
-      //   {
-      //     method: "POST",
-      //     headers: {
-      //       "Content-Type": "application/json",
-      //     },
-      //     body: JSON.stringify({
-      //       analysis_type: "all",
-      //       supabase_project_id: connectionUrl,
-      //       supabase_access_token: accessToken,
-      //       user_name: "huimin",
-      //       data_review_result: true,
-      //       // openai_api_key: process.env.OPENAI_API_KEY || "",
-      //       openai_api_key: "",
-      //       // openai_api_key: process.env.OPENAI_API_KEY || "",
-      //       openai_api_key: "",
-      //     }),
-      //     signal: AbortSignal.timeout(180000),
-      //   }
-      // );
-
-      // if (!connectResponse.ok) {
-      //   const errorData = await connectResponse.json();
-
-      //   throw new Error(
-      //     errorData.error || `Connection failed: ${connectResponse.status}`
-      //   );
-      // }
-
-      // const connectData = await connectResponse.json();
-      // console.log(
-      //   "Database connection successful:",
-      //   connectData.results.market_analysis
-      // );
-      // 连接方式三
-      const connectResponse = await fetch(
-        "https://business-insighter.onrender.com/api/v1/run-analysis",
-        // "http://192.168.30.150:8001/api/v1/run-analysis",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            supabase_project_id: connectionUrl,
-            supabase_access_token: accessToken,
-            // supabase_project_id: "yzcdbefleociqdpxsqjt",
-            // supabase_access_token:
-            //   "sbp_82dc8d631fde6e235ec5b7d4792b8d6fb66ad5cf",
-            user_name: "huimin",
-          }),
-        }
-      );
-
-      if (!connectResponse.ok) {
-        const errorData = await connectResponse.json();
-        throw new Error(
-          errorData.error ||
-            `Data validation failed: ${connectResponse.statusText}`
-        );
-      }
-
-      const connectData = await connectResponse.json();
-      console.log("Connect successful:", connectData);
-      setMarkets([
-        {
-          id: connectData.integrated_analysis.markets.market_segments[0]
-            .market_name,
-          title:
-            connectData.integrated_analysis.markets.market_segments[0]
-              .market_name,
-          analysis: connectData.integrated_analysis.markets.market_segments[0],
-        },
-      ]);
-
-      // 数据验证成功，继续后续步骤
-      setAnalysisStep("reading-schema");
-
-      // 模拟后续步骤的进度
-      const steps = [
+    if (step === "analyzing") {
+      const steps: AnalysisStep[] = [
+        "connecting",
+        "validating-data",
         "reading-schema",
         "sampling-data",
         "evaluating",
         "complete",
       ];
-      for (let i = 0; i < steps.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setAnalysisStep(steps[i] as AnalysisStep);
-      }
+      let currentIndex = 0;
 
-      // 获取分析结果
-      // const analyzeResponse = await fetch("/api/analyze", {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({ url: connectionUrl, key: accessToken }),
-      // });
+      // const interval = setInterval(() => {
+      //   currentIndex++;
+      //   if (currentIndex < steps.length) {
+      //     setAnalysisStep(steps[currentIndex]);
 
-      // if (!analyzeResponse.ok) {
-      //   throw new Error("分析失败");
-      // }
+      //     // 注意：真实的验证已经在 handleConnect 中完成
+      //     // 这里只是显示进度，不再进行模拟验证
+      //   } else {
+      //     clearInterval(interval);
+      //     // 当所有步骤完成时，设置分析结果并跳转到结果页面
+      //     setAnalysisResults(
+      //       [
+      //         // E-commerce Platform Operators - 10 problems
+      //         {
+      //           id: "1-1",
+      //           userProfile: "E-commerce Platform Operators",
+      //           problem: "Order Management and Tracking System",
+      //           marketValue:
+      //             "High Value - Can improve operational efficiency by 50%, reduce customer service inquiries",
+      //           implementationMethod: "Metadata Supported" as const,
+      //           implementationDifficulty: 1,
+      //         },
+      //         {
+      //           id: "1-2",
+      //           userProfile: "E-commerce Platform Operators",
+      //           problem: "Real-time Inventory Monitoring Dashboard",
+      //           marketValue:
+      //             "High Value - Prevent overselling, improve inventory turnover by 30%",
+      //           implementationMethod: "Metadata Supported" as const,
+      //           implementationDifficulty: 1,
+      //         },
+      //         {
+      //           id: "1-3",
+      //           userProfile: "E-commerce Platform Operators",
+      //           problem: "Return and Refund Process Management",
+      //           marketValue:
+      //             "Medium Value - Simplify return process, improve customer satisfaction",
+      //           implementationMethod: "Metadata Supported" as const,
+      //           implementationDifficulty: 2,
+      //         },
+      //         {
+      //           id: "1-4",
+      //           userProfile: "E-commerce Platform Operators",
+      //           problem: "Supplier Performance Analysis",
+      //           marketValue:
+      //             "Medium Value - Optimize supply chain, reduce procurement costs by 15%",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 3,
+      //         },
+      //         {
+      //           id: "1-5",
+      //           userProfile: "E-commerce Platform Operators",
+      //           problem: "Logistics Delivery Optimization Recommendations",
+      //           marketValue:
+      //             "High Value - Reduce delivery costs by 20%, improve delivery efficiency",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 4,
+      //         },
+      //         {
+      //           id: "1-6",
+      //           userProfile: "E-commerce Platform Operators",
+      //           problem: "Promotional Campaign Effectiveness Analysis",
+      //           marketValue:
+      //             "High Value - Improve ROI by 40%, precise marketing targeting",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 3,
+      //         },
+      //         {
+      //           id: "1-7",
+      //           userProfile: "E-commerce Platform Operators",
+      //           problem: "Customer Lifetime Value Prediction",
+      //           marketValue:
+      //             "High Value - Identify high-value customers, improve repeat purchase rate by 25%",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 4,
+      //         },
+      //         {
+      //           id: "1-8",
+      //           userProfile: "E-commerce Platform Operators",
+      //           problem: "Product Recommendation Engine",
+      //           marketValue:
+      //             "High Value - Increase average order value by 30%, boost cross-selling",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 5,
+      //         },
+      //         {
+      //           id: "1-9",
+      //           userProfile: "E-commerce Platform Operators",
+      //           problem: "Price Competitiveness Analysis",
+      //           marketValue:
+      //             "Medium Value - Optimize pricing strategy, maintain market competitiveness",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 3,
+      //         },
+      //         {
+      //           id: "1-10",
+      //           userProfile: "E-commerce Platform Operators",
+      //           problem: "Seasonal Demand Forecasting",
+      //           marketValue:
+      //             "High Value - Optimize inventory planning, reduce stock accumulation",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 4,
+      //         },
+      //         // Product Managers - 10 problems
+      //         {
+      //           id: "2-1",
+      //           userProfile: "Product Managers",
+      //           problem: "Product Catalog and Inventory Display",
+      //           marketValue:
+      //             "High Value - Improve product visibility, increase conversion rate",
+      //           implementationMethod: "Metadata Supported" as const,
+      //           implementationDifficulty: 1,
+      //         },
+      //         {
+      //           id: "2-2",
+      //           userProfile: "Product Managers",
+      //           problem: "User Feedback Collection and Analysis",
+      //           marketValue:
+      //             "High Value - Rapid product iteration, improve user satisfaction",
+      //           implementationMethod: "Metadata Supported" as const,
+      //           implementationDifficulty: 2,
+      //         },
+      //         {
+      //           id: "2-3",
+      //           userProfile: "Product Managers",
+      //           problem: "Feature Usage Statistics",
+      //           marketValue:
+      //             "Medium Value - Identify core features, optimize product roadmap",
+      //           implementationMethod: "Metadata Supported" as const,
+      //           implementationDifficulty: 2,
+      //         },
+      //         {
+      //           id: "2-4",
+      //           userProfile: "Product Managers",
+      //           problem: "A/B Testing Results Analysis",
+      //           marketValue:
+      //             "High Value - Data-driven decisions, improve product effectiveness",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 3,
+      //         },
+      //         {
+      //           id: "2-5",
+      //           userProfile: "Product Managers",
+      //           problem: "User Churn Early Warning System",
+      //           marketValue:
+      //             "High Value - Early intervention, reduce churn rate by 30%",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 4,
+      //         },
+      //         {
+      //           id: "2-6",
+      //           userProfile: "Product Managers",
+      //           problem: "Competitor Feature Comparison Analysis",
+      //           marketValue:
+      //             "Medium Value - Maintain competitive advantage, respond quickly to market",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 3,
+      //         },
+      //         {
+      //           id: "2-7",
+      //           userProfile: "Product Managers",
+      //           problem: "Target User Segmentation",
+      //           marketValue:
+      //             "High Value - Precise target user positioning, improve conversion",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 3,
+      //         },
+      //         {
+      //           id: "2-8",
+      //           userProfile: "Product Managers",
+      //           problem: "Product Roadmap Priority Ranking",
+      //           marketValue:
+      //             "Medium Value - Optimize resource allocation, accelerate product iteration",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 4,
+      //         },
+      //         {
+      //           id: "2-9",
+      //           userProfile: "Product Managers",
+      //           problem: "New Feature Adoption Rate Prediction",
+      //           marketValue:
+      //             "Medium Value - Evaluate feature value, reduce development risk",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 4,
+      //         },
+      //         {
+      //           id: "2-10",
+      //           userProfile: "Product Managers",
+      //           problem: "User Journey Visualization",
+      //           marketValue:
+      //             "High Value - Discover pain points, optimize user experience",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 3,
+      //         },
+      //         // Marketing Teams - 10 problems
+      //         {
+      //           id: "3-1",
+      //           userProfile: "Marketing Teams",
+      //           problem: "Customer Acquisition Cost Analysis",
+      //           marketValue:
+      //             "High Value - Optimize marketing budget allocation, improve ROI by 35%",
+      //           implementationMethod: "Metadata Supported" as const,
+      //           implementationDifficulty: 1,
+      //         },
+      //         {
+      //           id: "3-2",
+      //           userProfile: "Marketing Teams",
+      //           problem: "Campaign Performance Real-time Monitoring",
+      //           marketValue:
+      //             "High Value - Real-time optimization, improve conversion rate by 20%",
+      //           implementationMethod: "Metadata Supported" as const,
+      //           implementationDifficulty: 2,
+      //         },
+      //         {
+      //           id: "3-3",
+      //           userProfile: "Marketing Teams",
+      //           problem: "Customer Segmentation and Targeting",
+      //           marketValue:
+      //             "High Value - Precise targeting, improve campaign effectiveness by 40%",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 3,
+      //         },
+      //         {
+      //           id: "3-4",
+      //           userProfile: "Marketing Teams",
+      //           problem: "Content Performance Analysis",
+      //           marketValue:
+      //             "Medium Value - Optimize content strategy, improve engagement by 25%",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 3,
+      //         },
+      //         {
+      //           id: "3-5",
+      //           userProfile: "Marketing Teams",
+      //           problem: "Lead Scoring and Qualification",
+      //           marketValue:
+      //             "High Value - Improve lead quality, increase conversion rate by 30%",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 4,
+      //         },
+      //         {
+      //           id: "3-6",
+      //           userProfile: "Marketing Teams",
+      //           problem: "Social Media Sentiment Analysis",
+      //           marketValue:
+      //             "Medium Value - Monitor brand reputation, respond quickly to issues",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 4,
+      //         },
+      //         {
+      //           id: "3-7",
+      //           userProfile: "Marketing Teams",
+      //           problem: "Email Marketing Optimization",
+      //           marketValue:
+      //             "High Value - Improve open rates by 15%, increase click-through rates by 20%",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 3,
+      //         },
+      //         {
+      //           id: "3-8",
+      //           userProfile: "Marketing Teams",
+      //           problem: "Cross-channel Attribution Analysis",
+      //           marketValue:
+      //             "High Value - Understand customer journey, optimize marketing mix",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 4,
+      //         },
+      //         {
+      //           id: "3-9",
+      //           userProfile: "Marketing Teams",
+      //           problem: "Customer Lifetime Value Prediction",
+      //           marketValue:
+      //             "High Value - Identify high-value customers, improve retention by 25%",
+      //           implementationMethod: "Requires Modeling" as const,
+      //           implementationDifficulty: 4,
+      //         },
+      //         {
+      //           id: "3-10",
+      //           userProfile: "Marketing Teams",
+      //           problem: "Marketing ROI Comprehensive Analysis",
+      //           marketValue:
+      //             "High Value - Optimize budget allocation, improve overall marketing efficiency",
+      //           implementationMethod: "Metadata Supported" as const,
+      //           implementationDifficulty: 2,
+      //         },
+      //       ].sort((a, b) => {
+      //         // First by market value (High -> Medium -> Low)
+      //         const aValue = a.marketValue.includes("High")
+      //           ? 3
+      //           : a.marketValue.includes("Medium")
+      //           ? 2
+      //           : 1;
+      //         const bValue = b.marketValue.includes("High")
+      //           ? 3
+      //           : b.marketValue.includes("Medium")
+      //           ? 2
+      //           : 1;
+      //         if (aValue !== bValue) {
+      //           return bValue - aValue;
+      //         }
+      //         // Then by implementation difficulty (easy->hard)
+      //         return a.implementationDifficulty - b.implementationDifficulty;
+      //       })
+      //     );
+      //     setStep("results");
+      //   }
+      // }, 1900); // 缩短为原来的一半以加快分析过程
 
-      // const analyzeData = await analyzeResponse.json();
-      // setAnalysisResults(analyzeData.results || []);
-      setAnalysisResults(testAnalysisData);
-      setStep("results");
-      setIsAnalyzing(false);
-      localStorage.setItem(
-        "dbConnectionData",
-        JSON.stringify({
-          connectionUrl: connectionUrl,
-          apiKey: apiKey,
-          accessToken: accessToken,
-        })
-      );
-    } catch (error) {
-      console.error("API call failed:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-
-      // 根据错误发生的位置直接设置错误类型
-      // 如果是在 run-analysis 接口调用失败，设置连接错误
-      setConnectionError(`Connection failed: ${errorMessage}`);
-      setDataValidationError(null); // 清除数据验证错误
-
-      // 停留在 analyzing step 显示错误状态
-      setStep("analyzing");
-      setIsAnalyzing(false);
+      // return () => clearInterval(interval);
     }
+  }, [step, searchParams]);
+  const handleConnectAPI = async () => {
+    console.log("handleConnectAPI");
+    setStep("analyzing");
+    // setAnalysisStep("connecting");
+    // setConnectionError(null); // Reset connection error
+    // setDataValidationError(null); // Reset data validation error
+
+    // 校验 connectionUrl 格式
+    if (!connectionUrl || connectionUrl.trim() === "") {
+      setConnectionError("连接URL不能为空");
+      return;
+    }
+
+    // 校验 URL 格式
+    try {
+      new URL(connectionUrl);
+    } catch (error) {
+      setConnectionError("连接URL格式不正确，请输入有效的URL");
+      return;
+    }
+
+    // 校验 apiKey 格式
+    if (!apiKey || apiKey.trim() === "") {
+      setConnectionError("API密钥不能为空");
+      return;
+    }
+
+    // 校验 API Key 长度（通常至少8位）
+    if (apiKey.length < 8) {
+      setConnectionError("API密钥长度至少需要8位字符");
+      return;
+    }
+
+    // 清除之前的错误信息
+    setConnectionError("");
+
+    // try {
+    //   const response = await fetch("/api/connect", {
+    //     method: "POST",
+    //     headers: {
+    //       "Content-Type": "application/json",
+    //     },
+    //     body: JSON.stringify({ url: connectionUrl, key: apiKey }),
+    //   });
+    //   const data = await response.json();
+    //   console.log(data);
+    // } catch (error) {
+    //   console.error("Error connecting to API:", error);
+    //   setConnectionError(
+    //     `Error connecting to API: ${
+    //       error instanceof Error ? error.message : "Unknown error"
+    //     }`
+    //   );
+    // }
   };
   const handleConnect = async () => {
     if (!connectionUrl) return;
@@ -1329,14 +853,14 @@ export function ConnectFlow() {
     } else {
       // 如果未验证过，进行真实验证
       try {
-        await performRealDatabaseValidation(connectionUrl, accessToken);
+        await performRealDatabaseValidation(connectionUrl, apiKey);
         // 验证成功，标记为已验证
         setHasValidated(true);
 
         // 特殊处理：如果是 test.supabase.co 组合，在第二步进行数据真实性验证
         if (
           connectionUrl === "https://test.supabase.co" &&
-          accessToken === "test-api-key-123456789"
+          apiKey === "test-api-key-123456789"
         ) {
           // 模拟数据真实性验证失败
           setTimeout(() => {
@@ -1731,8 +1255,8 @@ export function ConnectFlow() {
 
   const getStepStatus = (stepName: AnalysisStep) => {
     const steps: AnalysisStep[] = [
-      "validating-data",
       "connecting",
+      "validating-data",
       "reading-schema",
       "sampling-data",
       "evaluating",
@@ -1789,22 +1313,15 @@ export function ConnectFlow() {
                   htmlFor="supabase-url"
                   className="text-base font-semibold text-foreground"
                 >
-                  Project ID
+                  Supabase URL
                 </Label>
                 <div className="relative">
                   <Input
                     id="supabase-url"
-                    placeholder="please input project id"
+                    placeholder="https://example.supabase.co"
                     value={connectionUrl}
-                    onChange={(e) => {
-                      setConnectionUrl(e.target.value);
-                      setShowInputError(false);
-                    }}
-                    className={`h-12 pr-12 text-base ${
-                      showInputError
-                        ? "border-red-500 text-red-600 focus:border-red-500 focus:ring-red-500"
-                        : ""
-                    }`}
+                    onChange={(e) => setConnectionUrl(e.target.value)}
+                    className="h-12 pr-12 text-base"
                   />
                   <Database className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
                 </div>
@@ -1820,59 +1337,24 @@ export function ConnectFlow() {
                   htmlFor="api-key"
                   className="text-base font-semibold text-foreground"
                 >
-                  Access Token
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="access-token"
-                    placeholder="please input access token"
-                    value={accessToken}
-                    onChange={(e) => {
-                      setAccessToken(e.target.value);
-                      setShowInputError(false);
-                    }}
-                    className={`h-12 pr-12 text-base ${
-                      showInputError
-                        ? "border-red-500 text-red-600 focus:border-red-500 focus:ring-red-500"
-                        : ""
-                    }`}
-                    type="password"
-                  />
-                  <Database className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
-                </div>
-                <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <Info className="size-4 mt-0.5 shrink-0" />
-                  <span>Use access token, can be found in API settings</span>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <Label
-                  htmlFor="api-key"
-                  className="text-base font-semibold text-foreground"
-                >
-                  API Key
+                  Supabase API Key
                 </Label>
                 <div className="relative">
                   <Input
                     id="api-key"
-                    placeholder="please input api key"
+                    placeholder="supabase_key"
                     value={apiKey}
-                    onChange={(e) => {
-                      setApiKey(e.target.value);
-                      setShowInputError(false);
-                    }}
-                    className={`h-12 pr-12 text-base ${
-                      showInputError
-                        ? "border-red-500 text-red-600 focus:border-red-500 focus:ring-red-500"
-                        : ""
-                    }`}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="h-12 pr-12 text-base"
                     type="password"
                   />
                   <Database className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
                 </div>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <Info className="size-4 mt-0.5 shrink-0" />
-                  <span>Use api key, can be found in API settings</span>
+                  <span>
+                    Use service role key, can be found in API settings
+                  </span>
                 </div>
               </div>
 
@@ -1896,18 +1378,9 @@ export function ConnectFlow() {
                 className="w-full h-14 text-base"
                 size="lg"
                 onClick={handleConnectAPI}
-                disabled={
-                  !connectionUrl || !apiKey || !accessToken || isAnalyzing
-                }
+                disabled={!connectionUrl || !apiKey}
               >
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="size-4 mr-2 animate-spin" />
-                    Analyzing...
-                  </>
-                ) : (
-                  "Import and Analyse"
-                )}
+                Import and Analysef
               </Button>
 
               {/* Info Box */}
@@ -1930,7 +1403,7 @@ export function ConnectFlow() {
               </div>
 
               {/* 测试用的 URL 和 API Key 提示 */}
-              {/* <div className="bg-green-50 border border-green-200 rounded-lg p-6 space-y-3">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6 space-y-3">
                 <div className="flex items-start gap-3">
                   <Info className="size-5 text-green-600 mt-0.5 shrink-0" />
                   <div className="space-y-2">
@@ -1972,7 +1445,7 @@ export function ConnectFlow() {
                     </div>
                   </div>
                 </div>
-              </div> */}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -1984,83 +1457,6 @@ export function ConnectFlow() {
                 <CardTitle>AI is Analyzing Your Database</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6 py-8">
-                {/* Data Availability Validation */}
-                <div className="flex items-start gap-4">
-                  <div className="mt-1">
-                    {dataValidationError ? (
-                      <XCircle className="size-6 text-red-600" />
-                    ) : getStepStatus("validating-data") === "completed" ? (
-                      <CheckCircle2 className="size-6 text-green-600" />
-                    ) : getStepStatus("validating-data") === "in-progress" ? (
-                      <Loader2 className="size-6 text-primary animate-spin" />
-                    ) : (
-                      <Clock className="size-6 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium">
-                        Data Availability Validation
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {dataValidationError
-                        ? "Data validation failed, please check data availability"
-                        : "Check data integrity and accessibility"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* 如果数据真实性验证失败，显示错误信息和建议 */}
-                {dataValidationError && (
-                  <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
-                    <div className="flex items-start gap-3">
-                      <XCircle className="size-6 text-red-600 mt-0.5 shrink-0" />
-                      <div className="space-y-3">
-                        <h4 className="font-bold text-red-900 text-lg">
-                          🚨 Data Authenticity Validation Failed
-                        </h4>
-                        <p className="text-red-800 font-medium">
-                          {dataValidationError}
-                        </p>
-                        <div className="bg-red-100 border border-red-200 rounded-lg p-4">
-                          <p className="font-semibold text-red-900 mb-2">
-                            🔍 Data Problem Diagnosis:
-                          </p>
-                        </div>
-                        <div className="bg-red-200 border border-red-300 rounded-lg p-4">
-                          <p className="font-semibold text-red-900 mb-2">
-                            💡 Suggested Solutions:
-                          </p>
-                        </div>
-                        <div className="flex gap-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              // setConnectionUrl("");
-                              // setAccessToken("");
-                              // setConnectionError(null);
-                              // setDataValidationError(null);
-                              // setHasValidated(false); // Reset validation status
-                              setIsAnalyzing(false);
-                              setStep("connect");
-                              setConnectionError(null);
-                              setDataValidationError(null);
-                              setHasValidated(false);
-                              setShowInputError(true);
-                            }}
-                            className="border-red-300 text-red-700 hover:bg-red-50"
-                          >
-                            Back
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Database Connection */}
                 <div className="flex items-start gap-4">
                   <div className="mt-1">
                     {connectionError ? (
@@ -2118,7 +1514,7 @@ export function ConnectFlow() {
                             </li>
                           </ul>
                         </div>
-                        {/* <div className="bg-red-200 border border-red-300 rounded-lg p-4">
+                        <div className="bg-red-200 border border-red-300 rounded-lg p-4">
                           <p className="font-semibold text-red-900 mb-2">
                             💡 Suggested Solutions:
                           </p>
@@ -2140,7 +1536,7 @@ export function ConnectFlow() {
                               Contact Supabase support if the problem persists
                             </li>
                           </ul>
-                        </div> */}
+                        </div>
                         <div className="flex gap-3">
                           <Button
                             variant="outline"
@@ -2150,18 +1546,17 @@ export function ConnectFlow() {
                               setConnectionError(null);
                               setDataValidationError(null);
                               setHasValidated(false);
-                              setShowInputError(true);
                             }}
                             className="border-red-300 text-red-700 hover:bg-red-50"
                           >
                             Reconnect
                           </Button>
-                          {/* <Button
+                          <Button
                             variant="outline"
                             size="sm"
                             onClick={() => {
                               setConnectionUrl("");
-                              setAccessToken("");
+                              setApiKey("");
                               setConnectionError(null);
                               setDataValidationError(null);
                               setHasValidated(false);
@@ -2169,7 +1564,77 @@ export function ConnectFlow() {
                             className="border-red-300 text-red-700 hover:bg-red-50"
                           >
                             Clear and Refill
-                          </Button> */}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Data Availability Validation */}
+                <div className="flex items-start gap-4">
+                  <div className="mt-1">
+                    {dataValidationError ? (
+                      <XCircle className="size-6 text-red-600" />
+                    ) : getStepStatus("validating-data") === "completed" ? (
+                      <CheckCircle2 className="size-6 text-green-600" />
+                    ) : getStepStatus("validating-data") === "in-progress" ? (
+                      <Loader2 className="size-6 text-primary animate-spin" />
+                    ) : (
+                      <Clock className="size-6 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium">
+                        Data Availability Validation
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {dataValidationError
+                        ? "Data validation failed, please check data availability"
+                        : "Check data integrity and accessibility"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 如果数据真实性验证失败，显示错误信息和建议 */}
+                {dataValidationError && (
+                  <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <XCircle className="size-6 text-red-600 mt-0.5 shrink-0" />
+                      <div className="space-y-3">
+                        <h4 className="font-bold text-red-900 text-lg">
+                          🚨 Data Authenticity Validation Failed
+                        </h4>
+                        <p className="text-red-800 font-medium">
+                          {dataValidationError}
+                        </p>
+                        <div className="bg-red-100 border border-red-200 rounded-lg p-4">
+                          <p className="font-semibold text-red-900 mb-2">
+                            🔍 Data Problem Diagnosis:
+                          </p>
+                        </div>
+                        <div className="bg-red-200 border border-red-300 rounded-lg p-4">
+                          <p className="font-semibold text-red-900 mb-2">
+                            💡 Suggested Solutions:
+                          </p>
+                        </div>
+                        <div className="flex gap-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setConnectionUrl("");
+                              setApiKey("");
+                              setConnectionError(null);
+                              setDataValidationError(null);
+                              setHasValidated(false); // Reset validation status
+                            }}
+                            className="border-red-300 text-red-700 hover:bg-red-50"
+                          >
+                            Back
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -2181,9 +1646,7 @@ export function ConnectFlow() {
                   <>
                     <div className="flex items-start gap-4">
                       <div className="mt-1">
-                        {connectionError || dataValidationError ? (
-                          <XCircle className="size-6 text-red-600" />
-                        ) : getStepStatus("reading-schema") === "completed" ? (
+                        {getStepStatus("reading-schema") === "completed" ? (
                           <CheckCircle2 className="size-6 text-green-600" />
                         ) : getStepStatus("reading-schema") ===
                           "in-progress" ? (
@@ -2206,9 +1669,7 @@ export function ConnectFlow() {
 
                     <div className="flex items-start gap-4">
                       <div className="mt-1">
-                        {connectionError || dataValidationError ? (
-                          <XCircle className="size-6 text-red-600" />
-                        ) : getStepStatus("sampling-data") === "completed" ? (
+                        {getStepStatus("sampling-data") === "completed" ? (
                           <CheckCircle2 className="size-6 text-green-600" />
                         ) : getStepStatus("sampling-data") === "in-progress" ? (
                           <Loader2 className="size-6 text-primary animate-spin" />
@@ -2231,9 +1692,7 @@ export function ConnectFlow() {
 
                     <div className="flex items-start gap-4">
                       <div className="mt-1">
-                        {connectionError || dataValidationError ? (
-                          <XCircle className="size-6 text-red-600" />
-                        ) : getStepStatus("evaluating") === "completed" ? (
+                        {getStepStatus("evaluating") === "completed" ? (
                           <CheckCircle2 className="size-6 text-green-600" />
                         ) : getStepStatus("evaluating") === "in-progress" ? (
                           <Loader2 className="size-6 text-primary animate-spin" />
@@ -2277,9 +1736,9 @@ export function ConnectFlow() {
                             className="h-full bg-primary transition-all duration-500"
                             style={{
                               width: `${
-                                analysisStep === "validating-data"
+                                analysisStep === "connecting"
                                   ? 20
-                                  : analysisStep === "connecting"
+                                  : analysisStep === "validating-data"
                                   ? 40
                                   : analysisStep === "reading-schema"
                                   ? 60
@@ -2304,18 +1763,135 @@ export function ConnectFlow() {
             <Card className="leading-3 border-muted border-none -mt-12">
               <CardHeader></CardHeader>
               <CardContent className="space-y-6">
-                <MarketExplorationPage marketsData={markets} />
-                {/* Debug info */}
-                {/* {process.env.NODE_ENV === "development" && (
-                  <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
-                    <p>Markets data passed: {markets.length} items</p>
-                    {markets.length > 0 && (
-                      <pre className="mt-1 text-xs">
-                        {JSON.stringify(markets[0], null, 2)}
-                      </pre>
+                {/* Results Table */}
+                <div className="mb-3">
+                  <h1 className="text-2xl font-semibold">
+                    <span className="text-4xl font-bold">30</span> business
+                    opportunities found for you
+                  </h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Select the ones you are interested in
+                  </p>
+                </div>
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="grid grid-cols-12 gap-8 bg-muted/50 p-4 font-semibold text-sm border-b border-border py-2">
+                    <div className="col-span-1 flex items-center justify-center">
+                      Select
+                    </div>
+                    <div className="col-span-2 flex items-center justify-center gap-2">
+                      <Users className="size-4" />
+                      Target User
+                    </div>
+                    <div className="col-span-3 flex items-center gap-2">
+                      <Target className="size-4" />
+                      Solvable Problems
+                    </div>
+                    <div className="col-span-4 flex items-center gap-2">
+                      <TrendingUp className="size-4" />
+                      Market Value Estimation
+                    </div>
+                    <div className="col-span-2 flex items-center gap-2">
+                      <Wrench className="size-4" />
+                      Implementation Method
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-border">
+                    {Object.entries(groupedResults).map(
+                      ([userProfile, results]) => (
+                        <div key={userProfile}>
+                          {results.map((result, index) => (
+                            <div
+                              key={result.id}
+                              className="grid grid-cols-12 hover:bg-muted/30 transition-colors leading-[0.8rem] gap-3 px-3 py-3"
+                            >
+                              <div className="col-span-1 flex items-center justify-center">
+                                {index === 0 && (
+                                  <Checkbox
+                                    checked={selectedUserProfiles.has(
+                                      userProfile
+                                    )}
+                                    onCheckedChange={() =>
+                                      toggleUserProfileSelection(userProfile)
+                                    }
+                                  />
+                                )}
+                              </div>
+                              <div className="col-span-2 text-sm font-medium text-center">
+                                {index === 0 ? result.userProfile : ""}
+                              </div>
+                              <div className="col-span-3 text-sm">
+                                {result.problem}
+                              </div>
+                              <div className="col-span-4 text-sm font-bold text-black">
+                                {result.marketValue}
+                              </div>
+                              <div className="col-span-2">
+                                <Badge
+                                  variant="outline"
+                                  className={getImplementationColor(
+                                    result.implementationMethod
+                                  )}
+                                >
+                                  {result.implementationMethod}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )
                     )}
                   </div>
-                )} */}
+                </div>
+
+                {/* Exploration Chatbox */}
+                <div className="relative">
+                  <Textarea
+                    placeholder="e.g., Help me analyze user repurchase rate, predict product sales trends..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleChatSubmit();
+                      }
+                    }}
+                    rows={4}
+                    className="w-full pr-14 resize-none"
+                    disabled={false}
+                  />
+                  <Button
+                    onClick={handleChatSubmit}
+                    disabled={!chatInput.trim()}
+                    size="icon"
+                    className="absolute bottom-2 right-2 h-9 w-9 p-0"
+                  >
+                    <Send className="size-4" />
+                  </Button>
+                </div>
+
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={() => {
+                    const selectedIds = Array.from(selectedItems);
+                    const selectedResults = analysisResults.filter((r) =>
+                      selectedIds.includes(r.id)
+                    );
+                    // Store in localStorage for the generate page to access
+                    localStorage.setItem(
+                      "selectedProblems",
+                      JSON.stringify(selectedResults)
+                    );
+                    router.push("/generate");
+                  }}
+                  disabled={selectedItems.size === 0}
+                >
+                  {selectedItems.size > 0
+                    ? `Generate`
+                    : "Please select your target user first"}
+                  <ArrowRight className="ml-2 size-4" />
+                </Button>
               </CardContent>
             </Card>
           </div>

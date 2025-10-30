@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/popover";
 import {
   Sparkles,
+  Send,
+  Loader2,
   TrendingUp,
   Users,
   DollarSign,
@@ -65,13 +67,14 @@ export function PreviewEditor() {
   const searchParams = useSearchParams();
   const appId = searchParams.get("id");
 
+  const [searchMessage, setSearchMessage] = useState("");
+  const [isSearchProcessing, setIsSearchProcessing] = useState(false);
   const [isPreviewUpdating, setIsPreviewUpdating] = useState(false);
   const inputBarRef = useRef<HTMLDivElement | null>(null);
   const [inputBarHeight, setInputBarHeight] = useState<number>(140);
   const INPUT_BAR_BOTTOM_OFFSET = 8; // tailwind bottom-2 => 8px
 
   const [currentApp, setCurrentApp] = useState<App | null>(null);
-  const [selectedProblems, setSelectedProblems] = useState<string[]>([]);
   const [selectedFeatureId, setSelectedFeatureId] = useState<string>("");
   const [contextMenuFeatureId, setContextMenuFeatureId] = useState<
     string | null
@@ -80,9 +83,17 @@ export function PreviewEditor() {
     Record<string, PreviewDesign>
   >({});
   const rightPanelRef = useRef<HTMLDivElement | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [rightPanelLeft, setRightPanelLeft] = useState<number>(256);
   const [panelLayout, setPanelLayout] = useState<number[] | null>(null);
+
+  const [searchHistory, setSearchHistory] = useState<
+    Array<{
+      role: "user" | "assistant";
+      content: string;
+      type?: "text" | "chart" | "image";
+      data?: any;
+    }>
+  >([]);
 
   // Save dialog states
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
@@ -108,58 +119,258 @@ export function PreviewEditor() {
     return questionMap[featureName] || `请提供关于${featureName}的信息`;
   };
 
-  // 向iframe发送消息的函数
-  const sendMessageToIframe = (message: string) => {
-    if (iframeRef.current?.contentWindow) {
-      try {
-        // 使用MCP Chat Embed API发送消息
-        iframeRef.current.contentWindow.postMessage(
-          {
-            type: "mcp-chat:setInput",
-            text: message,
-            focus: true,
-          },
-          "*"
-        );
-      } catch (error) {
-        console.error("Failed to send message to iframe:", error);
-      }
+  // Render different types of cards
+  const renderCard = (item: {
+    role: "user" | "assistant";
+    content: string;
+    type?: "text" | "chart" | "image";
+    data?: any;
+  }) => {
+    if (item.role === "user") {
+      return (
+        <div className="flex justify-end">
+          <div
+            className="max-w-[70%] rounded-lg p-3 text-gray-800"
+            style={{ backgroundColor: "#F4F4F4" }}
+          >
+            <p className="text-sm">{item.content}</p>
+          </div>
+        </div>
+      );
     }
+
+    // Assistant response cards
+    if (item.type === "chart") {
+      const getChartInfo = (chartType: string) => {
+        switch (chartType) {
+          case "sales-trend":
+            return {
+              title: "销售趋势图",
+              value: "¥128,450 (+12.5%)",
+              icon: TrendingUp,
+            };
+          case "ab-test":
+            return {
+              title: "A/B测试结果",
+              value: "转化率提升15%",
+              icon: TrendingUp,
+            };
+          case "user-segments":
+            return { title: "用户分群图", value: "3个主要群体", icon: Users };
+          case "inventory-status":
+            return {
+              title: "库存状态图",
+              value: "357个SKU",
+              icon: ShoppingCart,
+            };
+          case "feedback-analysis":
+            return {
+              title: "反馈分析图",
+              value: "满意度4.2分",
+              icon: TrendingUp,
+            };
+          case "user-journey":
+            return { title: "用户旅程图", value: "5个关键节点", icon: Users };
+          case "campaign-performance":
+            return {
+              title: "活动效果图",
+              value: "销量增长23%",
+              icon: TrendingUp,
+            };
+          case "recommendation-performance":
+            return {
+              title: "推荐效果图",
+              value: "准确率提升18%",
+              icon: TrendingUp,
+            };
+          case "price-comparison":
+            return {
+              title: "价格对比图",
+              value: "竞争优势明显",
+              icon: TrendingUp,
+            };
+          default:
+            return { title: "数据分析图", value: "分析完成", icon: TrendingUp };
+        }
+      };
+
+      const chartInfo = getChartInfo(item.data?.chartType || "");
+      const IconComponent = chartInfo.icon;
+
+      return (
+        <div className="flex justify-start">
+          <Card className="max-w-[85%] p-4 shadow-sm border">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-sm font-medium text-muted-foreground">
+                  数据图表
+                </span>
+              </div>
+              <div className="h-48 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg flex items-center justify-center border-2 border-dashed border-blue-200">
+                <div className="text-center">
+                  <IconComponent className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                  <p className="text-sm text-blue-600 font-medium">
+                    {chartInfo.title}
+                  </p>
+                  <p className="text-xs text-blue-500 mt-1">
+                    {chartInfo.value}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">{item.content}</p>
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    if (item.type === "image") {
+      const getImageInfo = (imageType: string) => {
+        switch (imageType) {
+          case "user-segmentation":
+            return { title: "用户分群图", value: "3个主要群体", icon: Users };
+          case "user-journey":
+            return { title: "用户旅程图", value: "5个关键节点", icon: Users };
+          case "sales-analysis":
+            return { title: "销售分析图", value: "¥128,450", icon: TrendingUp };
+          case "product-catalog":
+            return {
+              title: "产品目录图",
+              value: "357个SKU",
+              icon: ShoppingCart,
+            };
+          case "feedback-visualization":
+            return {
+              title: "反馈可视化",
+              value: "满意度4.2分",
+              icon: TrendingUp,
+            };
+          case "ab-test-results":
+            return {
+              title: "A/B测试图",
+              value: "转化率提升15%",
+              icon: TrendingUp,
+            };
+          case "promotional-analysis":
+            return {
+              title: "促销分析图",
+              value: "销量增长23%",
+              icon: TrendingUp,
+            };
+          case "recommendation-engine":
+            return {
+              title: "推荐引擎图",
+              value: "准确率提升18%",
+              icon: TrendingUp,
+            };
+          case "competitive-pricing":
+            return {
+              title: "价格对比图",
+              value: "竞争优势明显",
+              icon: TrendingUp,
+            };
+          default:
+            return { title: "数据可视化", value: "分析完成", icon: Users };
+        }
+      };
+
+      const imageInfo = getImageInfo(item.data?.imageType || "");
+      const IconComponent = imageInfo.icon;
+
+      return (
+        <div className="flex justify-start">
+          <Card className="max-w-[85%] p-4 shadow-sm border">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-medium text-muted-foreground">
+                  可视化图表
+                </span>
+              </div>
+              <div className="h-48 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg flex items-center justify-center border-2 border-dashed border-green-200">
+                <div className="text-center">
+                  <IconComponent className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                  <p className="text-sm text-green-600 font-medium">
+                    {imageInfo.title}
+                  </p>
+                  <p className="text-xs text-green-500 mt-1">
+                    {imageInfo.value}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">{item.content}</p>
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    // Default text card
+    return (
+      <div className="flex justify-start">
+        <Card className="max-w-[85%] p-4 shadow-sm border">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+              <span className="text-sm font-medium text-muted-foreground">
+                分析报告
+              </span>
+            </div>
+            <div className="prose prose-sm max-w-none">
+              <p className="text-sm leading-relaxed whitespace-pre-line">
+                {item.content}
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
   };
 
-  // 简化：不再需要处理 currentApp.features，只使用 selectedProblems
   useEffect(() => {
     const stored = localStorage.getItem("currentApp");
     if (stored) {
       try {
         const app = JSON.parse(stored);
         setCurrentApp(app);
-        // 不再处理 features，因为现在使用 selectedProblems
+        if (app.features && app.features.length > 0) {
+          setSelectedFeatureId(app.features[0].id);
+
+          // 为每个功能分配预览设计
+          const designs: PreviewDesign[] = [
+            "product-list",
+            "metrics-dashboard",
+            "simple-text",
+            "pie-chart",
+          ];
+          const newFeatureDesigns: Record<string, PreviewDesign> = {};
+
+          app.features.forEach((feature: Feature) => {
+            // 为特定功能分配指定样式
+            if (feature.name.includes("Product Recommendation")) {
+              newFeatureDesigns[feature.id] = "pie-chart";
+            } else if (
+              feature.name.includes("Promotional Campaign Effectiveness")
+            ) {
+              newFeatureDesigns[feature.id] = "metrics-dashboard";
+            } else if (feature.name.includes("Price Competitiveness")) {
+              newFeatureDesigns[feature.id] = "simple-text";
+            } else {
+              // 其他功能随机分配
+              const randomDesign =
+                designs[Math.floor(Math.random() * designs.length)];
+              newFeatureDesigns[feature.id] = randomDesign;
+            }
+          });
+
+          setFeatureDesigns(newFeatureDesigns);
+        }
       } catch (e) {
         console.error("Failed to parse current app", e);
       }
     }
   }, [appId]);
-
-  // 从 localStorage 读取 selectedProblems
-  useEffect(() => {
-    const stored = localStorage.getItem("selectedProblems");
-    console.log("localStorage selectedProblems:", stored);
-    if (stored) {
-      try {
-        const problems = JSON.parse(stored);
-        console.log("Parsed selectedProblems:", problems);
-        setSelectedProblems(problems);
-        // if (problems.length > 0) {
-        //   setSelectedFeatureId(problems[0]);
-        // }
-      } catch (e) {
-        console.error("Failed to parse selectedProblems", e);
-      }
-    } else {
-      console.log("No selectedProblems found in localStorage");
-    }
-  }, []);
 
   useEffect(() => {
     const measure = () => {
@@ -177,23 +388,199 @@ export function PreviewEditor() {
     return () => window.removeEventListener("resize", measure);
   }, []);
 
+  const handleSearchMessage = () => {
+    if (!searchMessage.trim()) return;
+
+    const userMessage = searchMessage.trim();
+    setSearchMessage(""); // Clear input immediately
+    setIsSearchProcessing(true);
+    setIsPreviewUpdating(true);
+
+    // Add user message to search history (for middle preview area)
+    setSearchHistory((prev) => [
+      ...prev,
+      { role: "user", content: userMessage },
+    ]);
+
+    // Generate context-aware response with random card type
+    const generateResponse = (question: string) => {
+      // 定义所有可能的卡片类型
+      const cardTypes = ["text", "chart", "image"] as const;
+
+      // 随机选择一个卡片类型
+      const randomType =
+        cardTypes[Math.floor(Math.random() * cardTypes.length)];
+
+      // 根据问题类型生成内容，但随机分配展示形式
+      if (question.includes("功能使用统计")) {
+        return {
+          content: "销售趋势分析显示持续增长，转化率需要关注优化。",
+          type: randomType,
+          data:
+            randomType === "chart"
+              ? { chartType: "sales-trend" }
+              : randomType === "image"
+              ? { imageType: "sales-analysis" }
+              : undefined,
+        };
+      } else if (question.includes("用户分群")) {
+        return {
+          content: "用户分群分析完成，识别出3个主要用户群体。",
+          type: randomType,
+          data:
+            randomType === "chart"
+              ? { chartType: "user-segments" }
+              : randomType === "image"
+              ? { imageType: "user-segmentation" }
+              : undefined,
+        };
+      } else if (question.includes("产品目录和库存")) {
+        const textContent =
+          "**产品目录统计**\n• 电子产品类：156个SKU\n• 服装类：89个SKU\n• 食品类：67个SKU\n• 家居用品：45个SKU\n\n**库存状态**\n• 正常库存：89%\n• 库存不足：8%\n• 缺货：3%\n\n需要查看具体的产品详情吗？";
+        const shortContent =
+          "产品目录和库存分析完成，共357个SKU，库存健康度良好。";
+
+        return {
+          content: randomType === "text" ? textContent : shortContent,
+          type: randomType,
+          data:
+            randomType === "chart"
+              ? { chartType: "inventory-status" }
+              : randomType === "image"
+              ? { imageType: "product-catalog" }
+              : undefined,
+        };
+      } else if (question.includes("用户反馈")) {
+        const textContent =
+          "**反馈统计**\n• 本月收到反馈：1,247条\n• 满意度评分：4.2/5.0\n• 响应时间：平均2.3小时\n\n**主要反馈类型**\n• 产品质量：35%\n• 配送服务：28%\n• 客服体验：20%\n• 网站功能：17%\n\n**改进建议**\n• 优化配送时效\n• 增强产品描述\n• 改进搜索功能";
+        const shortContent =
+          "用户反馈分析完成，满意度4.2分，主要关注产品质量和配送服务。";
+
+        return {
+          content: randomType === "text" ? textContent : shortContent,
+          type: randomType,
+          data:
+            randomType === "chart"
+              ? { chartType: "feedback-analysis" }
+              : randomType === "image"
+              ? { imageType: "feedback-visualization" }
+              : undefined,
+        };
+      } else if (question.includes("A/B测试")) {
+        return {
+          content: "A/B测试结果分析完成，新版本转化率提升15%。",
+          type: randomType,
+          data:
+            randomType === "chart"
+              ? { chartType: "ab-test" }
+              : randomType === "image"
+              ? { imageType: "ab-test-results" }
+              : undefined,
+        };
+      } else if (question.includes("用户旅程")) {
+        return {
+          content: "用户旅程可视化分析显示关键转化节点。",
+          type: randomType,
+          data:
+            randomType === "chart"
+              ? { chartType: "user-journey" }
+              : randomType === "image"
+              ? { imageType: "user-journey" }
+              : undefined,
+        };
+      } else if (question.includes("促销活动")) {
+        return {
+          content: "促销活动效果分析完成，活动期间销量增长23%。",
+          type: randomType,
+          data:
+            randomType === "chart"
+              ? { chartType: "campaign-performance" }
+              : randomType === "image"
+              ? { imageType: "promotional-analysis" }
+              : undefined,
+        };
+      } else if (question.includes("产品推荐")) {
+        return {
+          content: "产品推荐引擎分析完成，推荐准确率提升18%。",
+          type: randomType,
+          data:
+            randomType === "chart"
+              ? { chartType: "recommendation-performance" }
+              : randomType === "image"
+              ? { imageType: "recommendation-engine" }
+              : undefined,
+        };
+      } else if (question.includes("价格竞争力")) {
+        return {
+          content: "价格竞争力分析完成，与竞品相比价格优势明显。",
+          type: randomType,
+          data:
+            randomType === "chart"
+              ? { chartType: "price-comparison" }
+              : randomType === "image"
+              ? { imageType: "competitive-pricing" }
+              : undefined,
+        };
+      } else {
+        return {
+          content:
+            "好的，我已经为您分析了相关数据。根据您的问题，我提供了相应的分析结果。如果您需要更详细的信息或有其他问题，请随时告诉我。",
+          type: randomType,
+          data:
+            randomType === "chart"
+              ? { chartType: "general-analysis" }
+              : randomType === "image"
+              ? { imageType: "data-visualization" }
+              : undefined,
+        };
+      }
+    };
+
+    setTimeout(() => {
+      // Add assistant response to search history (for middle preview area)
+      const response = generateResponse(userMessage);
+      setSearchHistory((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: response.content,
+          type: response.type,
+          data: response.data,
+        },
+      ]);
+      setIsSearchProcessing(false);
+      setIsPreviewUpdating(false);
+    }, 1500);
+  };
+
   const handleDeleteFeature = (featureId: string) => {
-    if (selectedProblems.length <= 1) {
-      alert("Application must retain at least one question");
+    if (!currentApp) return;
+
+    if (currentApp.features.length <= 1) {
+      alert("Application must retain at least one feature");
       return;
     }
 
-    const updatedProblems = selectedProblems.filter((p) => p !== featureId);
+    const updatedFeatures = currentApp.features.filter(
+      (f) => f.id !== featureId
+    );
+    const updatedApp = {
+      ...currentApp,
+      features: updatedFeatures,
+      featureCount: updatedFeatures.length,
+    };
 
-    setSelectedProblems(updatedProblems);
-    localStorage.setItem("selectedProblems", JSON.stringify(updatedProblems));
+    setCurrentApp(updatedApp);
+    localStorage.setItem("currentApp", JSON.stringify(updatedApp));
 
     if (selectedFeatureId === featureId) {
-      setSelectedFeatureId(updatedProblems[0] || "");
+      setSelectedFeatureId(updatedFeatures[0].id);
     }
   };
 
-  const selectedFeature = selectedProblems.find((p) => p === selectedFeatureId);
+  const selectedFeature = currentApp?.features.find(
+    (f) => f.id === selectedFeatureId
+  );
 
   const handleSaveSubmit = () => {
     if (!saveFormData.name.trim()) {
@@ -219,23 +606,28 @@ export function PreviewEditor() {
       return (
         <Card className="p-6 h-full flex items-center justify-center">
           <div className="text-center">
-            <div className="size-8 animate-spin mx-auto mb-4 text-primary border-2 border-primary border-t-transparent rounded-full" />
+            <Loader2 className="size-8 animate-spin mx-auto mb-4 text-primary" />
             <p className="text-muted-foreground">Updating preview...</p>
           </div>
         </Card>
       );
     }
 
-    const currentDesign = "product-list"; // 简化设计，因为现在只有问题文本
+    const selectedFeature = currentApp?.features.find(
+      (f) => f.id === selectedFeatureId
+    );
+    const currentDesign = selectedFeature
+      ? featureDesigns[selectedFeature.id]
+      : "product-list";
 
     if (currentDesign === "product-list") {
       return (
         <Card className="p-6 px-7">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold">
-              {selectedFeature || "Feature Preview"}
+              {selectedFeature?.name || "Feature Preview"}
             </h1>
-            <Badge variant="outline">{"Question"}</Badge>
+            <Badge variant="outline">{selectedFeature?.templateName}</Badge>
           </div>
 
           <div className="grid grid-cols-3 gap-4 mb-6">
@@ -299,10 +691,10 @@ export function PreviewEditor() {
           <div className="text-center space-y-6">
             <div className="flex items-center justify-center mb-6">
               <h1 className="text-3xl font-bold">
-                {selectedFeature || "Feature Preview"}
+                {selectedFeature?.name || "Feature Preview"}
               </h1>
               <Badge variant="outline" className="ml-4">
-                {"Question"}
+                {selectedFeature?.templateName}
               </Badge>
             </div>
 
@@ -338,9 +730,9 @@ export function PreviewEditor() {
         <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold">
-              {selectedFeature || "Feature Preview"}
+              {selectedFeature?.name || "Feature Preview"}
             </h1>
-            <Badge variant="outline">{"Question"}</Badge>
+            <Badge variant="outline">{selectedFeature?.templateName}</Badge>
           </div>
 
           <div className="grid grid-cols-2 gap-8">
@@ -451,9 +843,9 @@ export function PreviewEditor() {
       <Card className="p-6 px-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">
-            {selectedFeature || "Feature Preview"}
+            {selectedFeature?.name || "Feature Preview"}
           </h1>
-          <Badge variant="outline">{"Question"}</Badge>
+          <Badge variant="outline">{selectedFeature?.templateName}</Badge>
         </div>
 
         <div className="grid grid-cols-4 gap-4 mb-8">
@@ -554,25 +946,13 @@ export function PreviewEditor() {
   if (!currentApp) {
     return (
       <div className="h-screen flex items-center justify-center">
-        <div className="size-8 animate-spin text-primary border-2 border-primary border-t-transparent rounded-full" />
+        <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div
-      className="h-screen flex flex-col bg-background overflow-hidden"
-      style={{
-        height: "92vh",
-        overflow: "hidden",
-        position: "fixed",
-        top: "80px",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        width: "100vw",
-      }}
-    >
+    <div className="h-screen flex flex-col bg-background">
       <div className="flex-1 flex overflow-hidden">
         <ResizablePanelGroup
           direction="horizontal"
@@ -597,46 +977,46 @@ export function PreviewEditor() {
           >
             <div className="px-4 py-3 flex items-center justify-between">
               <h2 className="font-medium text-lg" style={{ color: "#8E8E93" }}>
-                Valued questions ({selectedProblems.length})
+                Valued questions
               </h2>
             </div>
             <div className="flex-1 overflow-y-auto pt-0 px-3 pb-3">
-              {/* 调试信息 */}
-              {selectedProblems.length === 0 && (
-                <div className="p-4 text-center text-gray-500">
-                  <p>No questions found in localStorage</p>
-                  <p className="text-sm">Check console for debug info</p>
-                </div>
-              )}
-              {selectedProblems.map((problem, index) => {
-                const isSelected = problem === selectedFeatureId;
+              {currentApp.features.map((feature) => {
+                const isSelected = feature.id === selectedFeatureId;
 
                 return (
-                  <div key={`${problem}-${index}`} className="relative">
+                  <div key={feature.id} className="relative">
                     <button
                       onClick={() => {
-                        setSelectedFeatureId(problem);
-                        // 发送问题文本到iframe
-                        sendMessageToIframe(problem);
+                        // Auto-fill the input with predefined question text
+                        const questionText = getQuestionText(feature.name);
+                        setSearchMessage(questionText);
+
+                        // Focus the input after auto-filling
+                        setTimeout(() => {
+                          const input = document.querySelector(
+                            'input[placeholder="Search webpage"]'
+                          ) as HTMLInputElement;
+                          if (input) {
+                            input.focus();
+                            input.select(); // Select the text so user can easily edit it
+                          }
+                        }, 100);
                       }}
                       onContextMenu={(e) => {
                         e.preventDefault();
-                        setContextMenuFeatureId(problem);
+                        setContextMenuFeatureId(feature.id);
                       }}
                       className="w-full text-left p-3 rounded-md mb-2 transition-all duration-200 hover:bg-blue-50/50"
                       style={{
-                        backgroundColor: isSelected ? "#007AFF" : "transparent",
-                        color: isSelected ? "#FFFFFF" : "#8E8E93",
+                        backgroundColor: "transparent",
+                        color: "#8E8E93",
                       }}
                       onMouseEnter={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.color = "#007AFF";
-                        }
+                        e.currentTarget.style.color = "#007AFF";
                       }}
                       onMouseLeave={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.color = "#8E8E93";
-                        }
+                        e.currentTarget.style.color = "#8E8E93";
                       }}
                     >
                       <div className="flex items-center gap-3">
@@ -668,14 +1048,14 @@ export function PreviewEditor() {
                               letterSpacing: "-0.01em",
                             }}
                           >
-                            {problem}
+                            {feature.name}
                           </div>
                         </div>
                       </div>
                     </button>
 
                     <Popover
-                      open={contextMenuFeatureId === problem}
+                      open={contextMenuFeatureId === feature.id}
                       onOpenChange={(open) =>
                         !open && setContextMenuFeatureId(null)
                       }
@@ -693,25 +1073,12 @@ export function PreviewEditor() {
                           size="sm"
                           className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => {
-                            // 从 selectedProblems 中移除这个问题
-                            const updatedProblems = selectedProblems.filter(
-                              (p) => p !== problem
-                            );
-                            setSelectedProblems(updatedProblems);
-                            localStorage.setItem(
-                              "selectedProblems",
-                              JSON.stringify(updatedProblems)
-                            );
+                            handleDeleteFeature(feature.id);
                             setContextMenuFeatureId(null);
-
-                            // 如果删除的是当前选中的问题，选择下一个
-                            if (problem === selectedFeatureId) {
-                              setSelectedFeatureId(updatedProblems[0] || "");
-                            }
                           }}
                         >
                           <Trash2 className="size-4 mr-2" />
-                          Delete Question
+                          Delete Feature
                         </Button>
                       </PopoverContent>
                     </Popover>
@@ -731,20 +1098,128 @@ export function PreviewEditor() {
           >
             <div
               ref={rightPanelRef}
-              className="h-full bg-muted/30 overflow-hidden relative"
+              className="h-full bg-muted/30 overflow-y-auto relative leading-[0rem] px-0.5 pt-0"
               style={{
+                height: `calc(100vh - ${
+                  inputBarHeight + INPUT_BAR_BOTTOM_OFFSET
+                }px)`,
                 width: "calc(100% - 20px)",
               }}
             >
-              <iframe
-                ref={iframeRef}
-                src="https://app-preview.datail.ai/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
-                // src="http://192.168.30.153:5174/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
-                className="w-full h-full border-0"
-                title="Embedded Chat Interface"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-                loading="lazy"
-              />
+              <div
+                className="max-w-4xl mx-auto"
+                style={{
+                  paddingBottom: inputBarHeight + INPUT_BAR_BOTTOM_OFFSET + 16,
+                }}
+              >
+                {searchHistory.length > 0 && (
+                  <div className="mb-6 space-y-4">
+                    {searchHistory.map((msg, i) => (
+                      <div key={i}>{renderCard(msg)}</div>
+                    ))}
+                    {isSearchProcessing && (
+                      <div className="flex justify-start">
+                        <Card className="p-4 shadow-sm border">
+                          <div className="flex items-center gap-3">
+                            <Loader2 className="size-4 animate-spin text-primary" />
+                            <span className="text-sm text-muted-foreground">
+                              正在分析数据...
+                            </span>
+                          </div>
+                        </Card>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {searchHistory.length === 0 && (
+                  <div className="relative pb-12 flex items-center justify-center min-h-[400px]">
+                    <div className="text-center text-muted-foreground">
+                      <div className="size-16 rounded-full bg-muted/50 flex items-center justify-center mb-4 mx-auto">
+                        <Sparkles className="size-8" />
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2"></h3>
+                      <p className="text-sm">点击左侧感兴趣的问题查看答案</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div
+                className="fixed bottom-2 right-0 px-8 z-50"
+                ref={inputBarRef}
+                style={{ left: `${rightPanelLeft}px` }}
+              >
+                <div className="max-w-4xl mx-auto">
+                  <div className="bg-background border-border rounded-3xl shadow-lg p-4 py-4 border-2">
+                    <input
+                      type="text"
+                      placeholder="Search webpage"
+                      value={searchMessage}
+                      onChange={(e) => setSearchMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleSearchMessage();
+                        }
+                      }}
+                      disabled={isSearchProcessing}
+                      className="w-full bg-transparent border-none outline-none text-lg mb-3 px-2"
+                    />
+                    <div className="flex items-center justify-between px-2">
+                      <div className="flex items-center gap-3">
+                        <button className="hover:bg-muted rounded-full p-1">
+                          <svg
+                            className="size-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 4v16m8-8H4"
+                            />
+                          </svg>
+                        </button>
+                        <button className="flex items-center gap-2 text-blue-600 hover:bg-blue-50 rounded-full px-3 py-1">
+                          <svg
+                            className="size-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle cx="12" cy="12" r="10" strokeWidth={2} />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"
+                            />
+                          </svg>
+                          <span className="text-sm font-medium">Search</span>
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={handleSearchMessage}
+                          disabled={!searchMessage.trim() || isSearchProcessing}
+                          className="hover:bg-muted rounded-full p-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Send className="size-4 mr-2" />
+                          Send
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-center text-xs text-muted-foreground mt-3">
+                    ChatGPT may make mistakes. Please verify important
+                    information.
+                  </p>
+                </div>
+              </div>
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
