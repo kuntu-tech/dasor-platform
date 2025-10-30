@@ -846,8 +846,6 @@ export function ConnectFlow() {
       //       supabase_access_token: accessToken,
       //       user_name: "huimin",
       //       data_review_result: true,
-      //       // openai_api_key: process.env.OPENAI_API_KEY || "",
-      //       openai_api_key: "",
       //     }),
       //     signal: AbortSignal.timeout(180000),
       //   }
@@ -882,8 +880,6 @@ export function ConnectFlow() {
       //       supabase_project_id: connectionUrl,
       //       supabase_access_token: accessToken,
       //       user_name: "huimin",
-      //       // openai_api_key: process.env.OPENAI_API_KEY || "",
-      //       openai_api_key: "",
       //     }),
       //   }
       // );
