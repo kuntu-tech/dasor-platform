@@ -920,9 +920,6 @@ export function ConnectFlow() {
           body: JSON.stringify({
             supabase_project_id: connectionUrl,
             supabase_access_token: accessToken,
-            // supabase_project_id: "yzcdbefleociqdpxsqjt",
-            // supabase_access_token:
-            //   "sbp_82dc8d631fde6e235ec5b7d4792b8d6fb66ad5cf",
             user_name: "huimin",
           }),
         }
