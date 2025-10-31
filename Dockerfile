@@ -17,10 +17,10 @@ COPY . .
 RUN npm run build
 
 # 清理开发依赖以减小镜像大小
-RUN npm prune --production
+RUN npm prune --omit=dev --legacy-peer-deps --no-audit --no-fund || true
 
 # 暴露端口（Render 会自动设置 PORT 环境变量）
-EXPOSE 3000
+EXPOSE 4001
 
 # 启动应用
 CMD ["npm", "start"]
