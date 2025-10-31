@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # 安装所有依赖（包括开发依赖，用于构建）
-RUN npm ci
+RUN npm ci --no-audit --no-fund || npm install --legacy-peer-deps --no-audit --no-fund
 
 # 复制源代码
 COPY . .
