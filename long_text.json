@@ -1,0 +1,529 @@
+{
+    "run_id": "r_1",
+    "task_id": "66cb45e4-5d87-49f2-a90d-6f4b76b5b0e2",
+    "status": "completed",
+    "progress": 100,
+    "error": null,
+    "created_at": "2025-10-29T08:22:16.843896",
+    "completed_at": null,
+    "run_results": {
+        "user_id": "4748756a-5682-4807-8ced-dd4c3aea5a08",
+        "connection_id": "42d2234c-7dca-4199-87fb-56fa26b7b50f",
+        "task_id": "04d24da9-5e22-4047-97d8-2ab56e916821",
+        "run_id": "r_1",
+        "parent_run_id": "r_1",
+        "run_result": {
+            "domain": {
+                "primaryDomain": "Hospitality Management"
+            },
+            "ingest": {
+                "schemaHash": "sha256-3c7459f15975eae5"
+            },
+            "run_id": "r_1",
+            "status": "complete",
+            "task_id": "04d24da9-5e22-4047-97d8-2ab56e916821",
+            "segments": [
+                {
+                    "name": "Hospitality Management Solutions for Small to Medium Enterprises in North America",
+                    "analysis": {},
+                    "segmentId": "seg_01",
+                    "valueQuestions": [
+                        {
+                            "id": "q_seg_01_fallback_01",
+                            "intent": "Trend",
+                            "question": "What are the key performance indicators for this segment?",
+                            "answerShape": "comparison",
+                            "feasibility": {
+                                "note": "Fallback analysis detected: bucket",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.7,
+                                "requiredTransform": [
+                                    "bucket"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_seg_01_fallback_02",
+                            "intent": "Comparison",
+                            "question": "How does this segment compare to others?",
+                            "answerShape": "comparison",
+                            "feasibility": {
+                                "note": "Fallback analysis detected: bucket",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.7,
+                                "requiredTransform": [
+                                    "bucket"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Regional Boutique Hotels",
+                    "analysis": {
+                        "D1": {
+                            "score": 8.5,
+                            "summary": "The market segment shows high attractiveness due to the growing demand in the accommodation and rental sector, especially in urban areas. The competition is intense but manageable with differentiated offerings.",
+                            "supporting_indicators": [
+                                "Growing urban demand",
+                                "High rental yields",
+                                "Manageable competition"
+                            ]
+                        },
+                        "D2": {
+                            "score": 9.0,
+                            "summary": "The primary user persona is a tech-savvy, middle-aged professional who seeks convenient and well-located accommodations for short to medium-term stays. They value transparency and quick service.",
+                            "user_persona": {
+                                "role": "Professional",
+                                "pain_points": [
+                                    "Lack of transparent pricing",
+                                    "Inconsistent quality",
+                                    "Complex booking processes"
+                                ],
+                                "company_type": "Tech"
+                            }
+                        },
+                        "D3": {
+                            "score": 7.8,
+                            "summary": "There is a strong conversion potential in this market segment, supported by a high demand and the effectiveness of targeted digital marketing strategies.",
+                            "revenue_band": "$500K-$1M",
+                            "retention_signal": "High",
+                            "conversion_rate_est": 0.15
+                        },
+                        "D4": {
+                            "score": 8.3,
+                            "summary": "The data moat is robust due to exclusive access to comprehensive listing and review data, which can be leveraged to enhance user experience and optimize pricing strategies.",
+                            "moat_score": 8.0,
+                            "scalability_score": 8.5,
+                            "competitive_advantage": [
+                                "Exclusive data access",
+                                "Advanced analytics capabilities",
+                                "Strong partnerships"
+                            ]
+                        }
+                    },
+                    "segmentId": "seg_02",
+                    "valueQuestions": [
+                        {
+                            "id": "q_seg_02_01",
+                            "intent": "Comparison",
+                            "question": "How does the average amount spent on accommodations compare between urban and suburban areas over the last quarter?",
+                            "answerShape": "comparison",
+                            "feasibility": {
+                                "note": "Requires joining listings with calendar, aggregating prices, and filtering by last quarter. Urban vs. suburban areas distinction might require neighborhood data interpretation.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.75,
+                                "requiredTransform": [
+                                    "join",
+                                    "aggregate",
+                                    "time_window"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_seg_02_02",
+                            "intent": "Trend",
+                            "question": "What are the trends in rental yields from accommodations categorized under 'high-end' and 'budget' in the past year?",
+                            "answerShape": "time_series",
+                            "feasibility": {
+                                "note": "The schema lacks explicit categorization of 'high-end' and 'budget' accommodations, and rental yield calculations require cost data not provided.",
+                                "status": "IMPOSSIBLE",
+                                "confidence": 0.9,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_seg_02_03",
+                            "intent": "Correlation",
+                            "question": "Can we identify any correlation between the transparency of pricing and customer retention rates in the accommodation sector?",
+                            "answerShape": "correlation",
+                            "feasibility": {
+                                "note": "Customer retention rates are not available in the schema, and no direct measure of pricing transparency exists.",
+                                "status": "IMPOSSIBLE",
+                                "confidence": 0.95,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_seg_02_04",
+                            "intent": "Segmentation",
+                            "question": "What is the distribution of customer ratings for accommodations that have complex booking processes versus those with streamlined processes?",
+                            "answerShape": "distribution",
+                            "feasibility": {
+                                "note": "The complexity of booking processes is not defined in the schema. Customer ratings are available, but linking them to booking process complexity is unclear.",
+                                "status": "AMBIGUOUS",
+                                "confidence": 0.5,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_seg_02_05",
+                            "intent": "Optimization",
+                            "question": "How effective are targeted digital marketing strategies in improving conversion rates for tech professionals seeking short to medium-term stays?",
+                            "answerShape": "correlation",
+                            "feasibility": {
+                                "note": "Data on targeted digital marketing strategies and specific demographic targeting (tech professionals) is not available in the schema.",
+                                "status": "IMPOSSIBLE",
+                                "confidence": 0.95,
+                                "requiredTransform": null
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Vacation Rental Services",
+                    "analysis": {
+                        "D1": {
+                            "score": 8.5,
+                            "summary": "The market segment shows high attractiveness due to its large size and significant growth potential, with moderate competition.",
+                            "supporting_indicators": [
+                                "Large market size",
+                                "High growth potential",
+                                "Moderate competition intensity"
+                            ]
+                        },
+                        "D2": {
+                            "score": 9.0,
+                            "summary": "The user persona is well-defined with high purchase intent and a straightforward decision process.",
+                            "user_persona": {
+                                "role": "Accommodation seeker",
+                                "pain_points": [
+                                    "Finding quality accommodations",
+                                    "Navigating pricing variations",
+                                    "Trust in host reliability"
+                                ],
+                                "company_type": "Individual consumers"
+                            }
+                        },
+                        "D3": {
+                            "score": 7.8,
+                            "summary": "The conversion potential is strong, supported by a good estimated conversion rate and high revenue potential, though retention varies.",
+                            "revenue_band": "$100-$500 per transaction",
+                            "retention_signal": "Medium",
+                            "conversion_rate_est": 0.15
+                        },
+                        "D4": {
+                            "score": 8.3,
+                            "summary": "The data moat is robust due to exclusive data access, high scalability of data operations, and strong competitive barriers.",
+                            "moat_score": 8.0,
+                            "scalability_score": 8.5,
+                            "competitive_advantage": [
+                                "Exclusive data access",
+                                "Scalable data infrastructure",
+                                "Strong competitive barriers"
+                            ]
+                        }
+                    },
+                    "segmentId": "seg_03",
+                    "valueQuestions": [
+                        {
+                            "id": "q_seg_03_01",
+                            "intent": "Trend",
+                            "question": "How do the average transaction amounts for accommodations vary by category over the last quarter?",
+                            "answerShape": "time_series",
+                            "feasibility": {
+                                "note": "Requires aggregation of transaction amounts and filtering by last quarter. Accommodation category can be derived from room_type or property_type.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.8,
+                                "requiredTransform": [
+                                    "aggregate",
+                                    "time_window"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_seg_03_02",
+                            "intent": "Correlation",
+                            "question": "What is the correlation between customer review scores and the frequency of repeat bookings for different accommodation categories?",
+                            "answerShape": "correlation",
+                            "feasibility": {
+                                "note": "Data on repeat bookings is not available in the schema, thus correlation cannot be established.",
+                                "status": "IMPOSSIBLE",
+                                "confidence": 0.95,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_seg_03_03",
+                            "intent": "Segmentation",
+                            "question": "Can we rank the top 10% of products by revenue generated in the last year, segmented by accommodation category?",
+                            "answerShape": "ranking",
+                            "feasibility": {
+                                "note": "Requires aggregation of revenue data and ranking within each accommodation category. Revenue data might need to be derived from price and booking status.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.85,
+                                "requiredTransform": [
+                                    "aggregate",
+                                    "bucket"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_seg_03_04",
+                            "intent": "Prediction",
+                            "question": "What are the predictive trends for growth in different accommodation categories based on historical order data?",
+                            "answerShape": "time_series",
+                            "feasibility": {
+                                "note": "Predictive trends require historical order data which is not clearly defined as available. It's unclear if existing data supports predictive analysis.",
+                                "status": "AMBIGUOUS",
+                                "confidence": 0.4,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_seg_03_05",
+                            "intent": "Optimization",
+                            "question": "How does the customer conversion rate vary between different accommodation categories and what factors influence these variations?",
+                            "answerShape": "correlation",
+                            "feasibility": {
+                                "note": "Data on customer conversion rates is not available in the schema, making it impossible to analyze variations between accommodation categories.",
+                                "status": "IMPOSSIBLE",
+                                "confidence": 0.9,
+                                "requiredTransform": null
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Urban Property Management Firms",
+                    "analysis": {
+                        "D1": {
+                            "score": 8.5,
+                            "summary": "The market segment is highly attractive due to its large size and significant growth potential, although competition is intense.",
+                            "supporting_indicators": [
+                                "Large market size",
+                                "High growth potential",
+                                "Intense competition"
+                            ]
+                        },
+                        "D2": {
+                            "score": 9.0,
+                            "summary": "The user persona is well-defined with clear purchase intent and a structured decision process.",
+                            "user_persona": {
+                                "role": "Host",
+                                "pain_points": [
+                                    "Complexity in managing listings",
+                                    "Need for pricing optimization",
+                                    "Demand for high-quality guest experiences"
+                                ],
+                                "company_type": "Private and commercial property owners"
+                            }
+                        },
+                        "D3": {
+                            "score": 7.8,
+                            "summary": "There is a strong conversion potential with a moderate conversion rate, high retention, and significant revenue opportunities.",
+                            "revenue_band": "$20,000 - $50,000",
+                            "retention_signal": "High",
+                            "conversion_rate_est": 0.15
+                        },
+                        "D4": {
+                            "score": 8.3,
+                            "summary": "The data moat is robust, supported by unique data sets that offer scalability and a competitive advantage.",
+                            "moat_score": 8.0,
+                            "scalability_score": 8.5,
+                            "competitive_advantage": [
+                                "Unique property and host data",
+                                "Comprehensive review system",
+                                "Extensive geographical coverage"
+                            ]
+                        }
+                    },
+                    "segmentId": "seg_04",
+                    "valueQuestions": [
+                        {
+                            "id": "q_seg_04_01",
+                            "intent": "Trend",
+                            "question": "How does the average order amount vary across different property categories and what trends can be observed over time?",
+                            "answerShape": "time_series",
+                            "feasibility": {
+                                "note": "The schema does not contain 'order amount' or equivalent financial transaction data, making it impossible to analyze average order amounts.",
+                                "status": "IMPOSSIBLE",
+                                "confidence": 0.95,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_seg_04_02",
+                            "intent": "Correlation",
+                            "question": "What is the correlation between customer retention rates and the amount spent per order in each category?",
+                            "answerShape": "correlation",
+                            "feasibility": {
+                                "note": "The schema lacks data on customer retention rates and specific order amounts per customer, making correlation analysis impossible.",
+                                "status": "IMPOSSIBLE",
+                                "confidence": 0.95,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_seg_04_03",
+                            "intent": "Comparison",
+                            "question": "Can we rank the top-performing property categories by revenue and identify key growth trends in these categories over the past year?",
+                            "answerShape": "ranking",
+                            "feasibility": {
+                                "note": "The schema does not include revenue data by property category, making it impossible to rank property categories by revenue or analyze growth trends.",
+                                "status": "IMPOSSIBLE",
+                                "confidence": 0.95,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_seg_04_04",
+                            "intent": "Segmentation",
+                            "question": "What are the distribution patterns of order amounts across different geographical regions and how do they correlate with local competition levels?",
+                            "answerShape": "distribution",
+                            "feasibility": {
+                                "note": "The schema does not contain data on order amounts or local competition levels, making it impossible to analyze distribution patterns or correlations.",
+                                "status": "IMPOSSIBLE",
+                                "confidence": 0.95,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_seg_04_05",
+                            "intent": "Prediction",
+                            "question": "Based on historical data, what predictive model can we develop to forecast demand in different property categories for the upcoming quarter?",
+                            "answerShape": "time_series",
+                            "feasibility": {
+                                "note": "The schema does not provide sufficient data to develop a predictive model for demand in property categories, such as historical demand data or category-specific features.",
+                                "status": "IMPOSSIBLE",
+                                "confidence": 0.95,
+                                "requiredTransform": null
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Hospitality Tech Startups",
+                    "analysis": {
+                        "D1": {
+                            "score": 8.5,
+                            "summary": "The market segment is highly attractive due to the growing demand for short-term rental properties and the increasing number of tourists and business travelers looking for alternative accommodations to hotels.",
+                            "supporting_indicators": [
+                                "Growing tourism industry",
+                                "High demand for short-term rentals",
+                                "Moderate competition with traditional hotels"
+                            ]
+                        },
+                        "D2": {
+                            "score": 9.0,
+                            "summary": "The primary user persona is a tech-savvy traveler aged between 25 and 40, who prefers short-term rental accommodations for their flexibility, comfort, and local experience over traditional hotel stays.",
+                            "user_persona": {
+                                "role": "Tech-savvy traveler",
+                                "pain_points": [
+                                    "Lack of personalized options in traditional hotels",
+                                    "Desire for more authentic travel experiences",
+                                    "Need for cost-effective lodging solutions"
+                                ],
+                                "company_type": "N/A"
+                            }
+                        },
+                        "D3": {
+                            "score": 7.8,
+                            "summary": "The conversion potential is high, as targeted marketing strategies can effectively reach and convert the identified user persona, supported by a growing trend towards personalized travel experiences.",
+                            "revenue_band": "$100-$200 per night",
+                            "retention_signal": "High",
+                            "conversion_rate_est": 0.15
+                        },
+                        "D4": {
+                            "score": 8.3,
+                            "summary": "The data moat is strong, leveraging extensive data on user preferences, booking patterns, and pricing strategies, which can be used to enhance user experience and optimize pricing.",
+                            "moat_score": 8.0,
+                            "scalability_score": 8.5,
+                            "competitive_advantage": [
+                                "Rich user data",
+                                "Advanced pricing algorithms",
+                                "Strong brand recognition"
+                            ]
+                        }
+                    },
+                    "segmentId": "seg_05",
+                    "valueQuestions": [
+                        {
+                            "id": "q_seg_05_01",
+                            "intent": "Trend",
+                            "question": "How does the booking frequency for short-term rental properties vary by category during peak tourist seasons compared to off-seasons?",
+                            "answerShape": "time_series",
+                            "feasibility": {
+                                "note": "Requires time-based filtering for peak and off-seasons and aggregation by category, but 'category' definition is unclear.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.75,
+                                "requiredTransform": [
+                                    "time_window",
+                                    "aggregate"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_seg_05_02",
+                            "intent": "Segmentation",
+                            "question": "What are the top performing categories of short-term rentals in terms of revenue per night and customer satisfaction for travelers aged 25 to 40?",
+                            "answerShape": "ranking",
+                            "feasibility": {
+                                "note": "Lacks explicit data on traveler age and unclear category definition for 'top performing'.",
+                                "status": "AMBIGUOUS",
+                                "confidence": 0.4,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_seg_05_03",
+                            "intent": "Correlation",
+                            "question": "Can we identify correlation patterns between the amount spent on different categories of short-term rentals and the repeat booking rates?",
+                            "answerShape": "correlation",
+                            "feasibility": {
+                                "note": "No data available on 'amount spent' and 'repeat booking rates', making correlation analysis impossible.",
+                                "status": "IMPOSSIBLE",
+                                "confidence": 0.9,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_seg_05_04",
+                            "intent": "Comparison",
+                            "question": "What is the distribution of average nightly rates across different categories of short-term rentals and how does it compare to traditional hotels?",
+                            "answerShape": "distribution",
+                            "feasibility": {
+                                "note": "While data on average nightly rates exists, comparison to 'traditional hotels' is not possible with the current schema.",
+                                "status": "AMBIGUOUS",
+                                "confidence": 0.5,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_seg_05_05",
+                            "intent": "Prediction",
+                            "question": "How have customer preferences for short-term rental categories changed over the last year and what predictive trends can be identified for the next year?",
+                            "answerShape": "time_series",
+                            "feasibility": {
+                                "note": "Requires time-based analysis and derivation of trends, but predictive modeling capabilities are not supported by schema alone.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.7,
+                                "requiredTransform": [
+                                    "time_window",
+                                    "derive"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ],
+            "diff_summary": {
+                "analysis": {},
+                "segments": {
+                    "added": [],
+                    "removed": [],
+                    "modified": []
+                },
+                "feasibility": {},
+                "valueQuestions": {
+                    "added": [],
+                    "removed": [],
+                    "modified": []
+                }
+            },
+            "parent_run_id": "r_1"
+        },
+        "run_status": "completed",
+        "created_at": "2025-10-29T08:22:16.843896"
+    }
+}

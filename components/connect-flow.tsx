@@ -42,7 +42,7 @@ type AnalysisStep =
   | "sampling-data"
   | "evaluating"
   | "complete";
-
+import { useAuth } from "./AuthProvider";
 type AnalysisResultItem = {
   id: string;
   userProfile: string;
@@ -370,6 +370,9 @@ export function ConnectFlow() {
   const [showInputError, setShowInputError] = useState<boolean>(false);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [accessToken, setAccessToken] = useState("");
+  const { user } = useAuth();
+  const [progress, setProgress] = useState(0); // 百分比
+  const [jobStatus, setJobStatus] = useState("init");
   // 简化的数据库验证函数 - 支持测试用的 URL 和 API Key
   const performRealDatabaseValidation = async (
     url: string,
@@ -777,6 +780,44 @@ export function ConnectFlow() {
   //     return () => clearInterval(interval);
   //   }
   // }, [step, searchParams]);
+  const pollJobProgress = async (
+    jobId: string,
+    onProgress?: (
+      progress: number | null,
+      status: string | null,
+      data: any
+    ) => void,
+    interval = 5000,
+    maxMinutes = 6
+  ) => {
+    const maxTime = maxMinutes * 60 * 1000;
+    const start = Date.now();
+    let last = null;
+    while (Date.now() - start < maxTime) {
+      const res = await fetch(
+        `https://business-insight.datail.ai/api/v1/runs/job/${jobId}`
+      );
+      const data = await res.json();
+      if (typeof onProgress === "function") {
+        onProgress(
+          typeof data.progress === "number" ? data.progress : null,
+          data.status || null,
+          data
+        );
+      }
+      if (
+        data.progress === 100 ||
+        data.status === "completed" ||
+        data.status === "failed" ||
+        data.status === "error"
+      ) {
+        return data;
+      }
+      await new Promise((r) => setTimeout(r, interval));
+      last = data;
+    }
+    return { ...last, status: "timeout", error: "超过最大轮询等待时间" };
+  };
   const handleConnectAPI = async () => {
     console.log("handleConnectAPI");
 
@@ -829,6 +870,31 @@ export function ConnectFlow() {
     setIsAnalyzing(true);
     console.log(aaaa, "--------------------------------");
     try {
+      console.log("Step 0: Validating connection...");
+      const validateRes = await fetch("/api/validate-connection", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectId: connectionUrl,
+          accessToken: accessToken,
+        }),
+      });
+      if (!validateRes.ok) {
+        const errorData = await validateRes.json();
+        throw new Error(
+          errorData.error || `Data validation failed: ${validateRes.status}`
+        );
+      }
+      const validateResData = await validateRes.json();
+      console.log("Data validation successful:", validateResData);
+      if (!validateResData.success) {
+        setDataValidationError(
+          "Data authenticity validation failed: No available data tables or empty data in database"
+        );
+        return;
+      }
       // 连接成功，进入数据验证步骤
 
       // 第一步：数据验证
@@ -910,7 +976,8 @@ export function ConnectFlow() {
       // );
       // 连接方式三
       const connectResponse = await fetch(
-        "https://business-insighter.onrender.com/api/v1/run-analysis",
+        "https://business-insight.datail.ai/api/v1/pipeline/run",
+        // "https://business-insighter.onrender.com/api/v1/run-analysis",
         // "http://192.168.30.150:8001/api/v1/run-analysis",
         {
           method: "POST",
@@ -918,9 +985,11 @@ export function ConnectFlow() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            supabase_project_id: connectionUrl,
-            supabase_access_token: accessToken,
-            user_name: "huimin",
+            user_id: user?.id || "",
+            project: {
+              project_id: connectionUrl,
+              access_token: accessToken,
+            },
           }),
         }
       );
@@ -933,16 +1002,38 @@ export function ConnectFlow() {
         );
       }
 
-      const connectData = await connectResponse.json();
-      console.log("Connect successful:", connectData);
+      const connectData1 = await connectResponse.json();
+      console.log("Connect successful:", connectData1);
+      setJobStatus("waiting");
+      const pollingResult = await pollJobProgress(
+        connectData1.job_id,
+        (progress, status, data) => {
+          if (progress !== null) setProgress(progress); // 假如progress是0~1
+          if (status) setJobStatus(status);
+        },
+        10000, // 2s轮询一次
+        6 // 最多轮询6分钟
+      );
+      if (
+        pollingResult.status === "completed" ||
+        pollingResult.progress === 100
+      ) {
+        setJobStatus("done");
+        console.log("pollingResult:", pollingResult);
+      } else {
+        setJobStatus(pollingResult.status || "error");
+        setConnectionError(pollingResult.error || "Job failed");
+        return;
+      }
       setMarkets([
         {
-          id: connectData.integrated_analysis.markets.market_segments[0]
-            .market_name,
+          id: pollingResult.result.integrated_analysis.markets
+            .market_segments[0].market_name,
           title:
-            connectData.integrated_analysis.markets.market_segments[0]
+            pollingResult.result.integrated_analysis.markets.market_segments[0]
               .market_name,
-          analysis: connectData.integrated_analysis.markets.market_segments[0],
+          analysis:
+            pollingResult.result.integrated_analysis.markets.market_segments[0],
         },
       ]);
 
@@ -2066,6 +2157,12 @@ export function ConnectFlow() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium">Database Connection</span>
+
+                      {getStepStatus("connecting") === "in-progress" && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          [{jobStatus} —— {progress}%]
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {connectionError

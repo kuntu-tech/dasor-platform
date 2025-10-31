@@ -14,7 +14,7 @@ const CreateAccount = ({ onBack, onConnect }: CreateAccountProps) => {
   const { user } = useAuth();
   const loginEmail = user?.email || "";
   const userId = user?.id || "";
-  const returnUrl = useMemo(() => `${window.location.origin}`, []);
+  const returnUrl = useMemo(() => `${window.location.origin}/oauth/callback`, []);
   const refreshUrl = returnUrl;
 
   const handleOpenStripe = async () => {
@@ -24,10 +24,14 @@ const CreateAccount = ({ onBack, onConnect }: CreateAccountProps) => {
     }
     try {
       setLoading(true);
-      const body = { returnUrl, refreshUrl, email: loginEmail, userId };
-      const resp = await bindVendor(body as any);
+      const resp = await bindVendor({
+        email: loginEmail,
+        userId: userId,
+        returnUrl: returnUrl,
+        refreshUrl: refreshUrl,
+      });
       if (!resp.success) {
-        alert(resp.error || "Bind failed");
+        alert(resp.error || "Failed to create account");
         return;
       }
       const data = resp.data!;
@@ -35,7 +39,10 @@ const CreateAccount = ({ onBack, onConnect }: CreateAccountProps) => {
         window.location.href = data.onboarding.url;
         return;
       }
-      alert("No onboarding required. You may already be connected.");
+      onConnect(loginEmail);
+    } catch (err) {
+      console.error("Bind vendor error:", err);
+      alert("创建账户失败，请重试");
     } finally {
       setLoading(false);
     }
@@ -70,5 +77,3 @@ const CreateAccount = ({ onBack, onConnect }: CreateAccountProps) => {
 };
 
 export default CreateAccount;
-
-
