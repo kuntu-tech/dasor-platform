@@ -141,3 +141,67 @@ export async function linkVendorAccount(body: OAuthLinkRequestBody): Promise<OAu
   const json = (await res.json()) as OAuthLinkResponse;
   return json;
 }
+
+// 订阅相关接口
+export interface CreateSubscriptionRequestBody {
+  interval: "month" | "year";
+}
+
+export interface CreateSubscriptionResponse {
+  success: boolean;
+  data?: {
+    sessionId: string;
+    customerId: string;
+    checkoutUrl: string;
+    priceId: string;
+  };
+  message?: string;
+  error?: string;
+}
+
+export async function createSubscription(
+  vendorId: number,
+  body: CreateSubscriptionRequestBody
+): Promise<CreateSubscriptionResponse> {
+  // 使用后端代理 API 避免 CORS 问题
+  const res = await fetch(`/api/subscriptions/${vendorId}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  // 尝试解析响应
+  let json: CreateSubscriptionResponse;
+  try {
+    json = (await res.json()) as CreateSubscriptionResponse;
+  } catch (error) {
+    console.error("Failed to parse JSON response:", error);
+    return {
+      success: false,
+      error: `Failed to parse response: ${res.status}`,
+    };
+  }
+
+  // 检查响应状态和数据
+  if (!res.ok) {
+    console.error("Subscription API HTTP error:", res.status, json);
+    return {
+      success: false,
+      error: json.error || `HTTP error: ${res.status}`,
+    };
+  }
+
+  // 检查响应数据是否有 success 字段
+  if (json.success === false || (json.success === undefined && !json.data?.checkoutUrl)) {
+    console.error("Subscription API error:", res.status, json);
+    return {
+      success: false,
+      error: json.error || json.message || "Subscription request failed",
+    };
+  }
+
+  return json;
+}

@@ -4,7 +4,9 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Check, X, ArrowUp, ArrowDown } from "lucide-react"
+import { Check, X } from "lucide-react"
+import { useAuth } from "@/components/AuthProvider"
+import { getVendorStatus, createSubscription } from "@/portable-pages/lib/connectApi"
 
 interface PricingModalProps {
   isOpen: boolean
@@ -14,8 +16,11 @@ interface PricingModalProps {
 export function PricingModal({ isOpen, onClose }: PricingModalProps) {
   const [billingCycle, setBillingCycle] = useState<"yearly" | "monthly">("yearly")
   const [selectedPlan, setSelectedPlan] = useState<string>("pro")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
 
-  // 处理ESC键关闭
+  // 处理ESC键关闭和错误状态
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -27,6 +32,8 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
       document.addEventListener("keydown", handleEscape)
       // 防止背景滚动
       document.body.style.overflow = "hidden"
+      // 清除错误状态
+      setError(null)
     }
 
     return () => {
@@ -35,31 +42,55 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
     }
   }, [isOpen, onClose])
 
+  // 处理订阅
+  const handleSubscribe = async () => {
+    if (!user?.id) {
+      setError("请先登录")
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // 1. 获取 vendorId
+      const vendorStatus = await getVendorStatus(user.id)
+      
+      if (!vendorStatus.success || !vendorStatus.data?.id) {
+        setError("未找到商家信息，请先绑定 Stripe 账户")
+        setIsLoading(false)
+        return
+      }
+
+      const vendorId = vendorStatus.data.id
+
+      // 2. 调用订阅接口
+      const interval = billingCycle === "yearly" ? "year" : "month"
+      const subscriptionResponse = await createSubscription(vendorId, { interval })
+
+      if (!subscriptionResponse.success || !subscriptionResponse.data?.checkoutUrl) {
+        setError(subscriptionResponse.error || "创建订阅失败")
+        setIsLoading(false)
+        return
+      }
+
+      // 3. 跳转到支付页面
+      window.location.href = subscriptionResponse.data.checkoutUrl
+    } catch (err) {
+      console.error("订阅处理错误:", err)
+      setError(err instanceof Error ? err.message : "订阅处理失败，请稍后重试")
+      setIsLoading(false)
+    }
+  }
+
   const plans = [
-    {
-      id: "free",
-      name: "Free",
-      description: "For personal use and testing",
-      price: billingCycle === "yearly" ? "US$0" : "US$0",
-      period: billingCycle === "yearly" ? "per month billed yearly" : "per month",
-      buttonText: "Downgrade",
-      buttonVariant: "outline" as const,
-      features: [
-        "10 credits included",
-        "Component library",
-        "UI Inspiration Library",
-        "Theme Library",
-        "Community support"
-      ],
-      isPopular: false
-    },
     {
       id: "pro",
       name: "Pro",
       description: "For more projects and usage",
-      price: billingCycle === "yearly" ? "US$16" : "US$20",
-      period: billingCycle === "yearly" ? "per month billed yearly" : "per month",
-      buttonText: "Switch to yearly billing",
+      price: billingCycle === "yearly" ? "US$330" : "US$35",
+      period: billingCycle === "yearly" ? "billed yearly" : "per month",
+      buttonText: "Subscribe",
       buttonVariant: "default" as const,
       features: [
         "100 credits included",
@@ -67,24 +98,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
         "Clone site feature",
         "Support in Email"
       ],
-      isPopular: true
-    },
-    {
-      id: "pro-plus",
-      name: "Pro Plus",
-      description: "For power users",
-      price: billingCycle === "yearly" ? "US$32" : "US$40",
-      period: billingCycle === "yearly" ? "per month billed yearly" : "per month",
-      buttonText: "Upgrade",
-      buttonVariant: "default" as const,
-      features: [
-        "200 credits included",
-        "Everything from Pro",
-        "Priority support",
-        "Early access to new features"
-      ],
-      isPopular: false,
-      credits: "200"
+      isPopular: false
     }
   ]
 
@@ -116,7 +130,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
             <div className="flex flex-col items-center relative">
               {billingCycle === "yearly" && (
                 <Badge className="absolute -top-6 bg-green-500 text-white text-xs px-2 py-0.5">
-                  Save 33%
+                  Save 21%
                 </Badge>
               )}
               <Button
@@ -148,25 +162,17 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
         </div>
 
         {/* 价格计划卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="flex justify-center">
           {plans.map((plan) => (
             <Card 
               key={plan.id} 
-              className={`relative cursor-pointer transition-all duration-200 ${
+              className={`relative w-full max-w-md transition-all duration-200 ${
                 selectedPlan === plan.id 
                   ? 'ring-2 ring-blue-500 bg-blue-50' 
-                  : plan.isPopular 
-                    ? 'ring-2 ring-blue-500' 
-                    : 'hover:ring-2 hover:ring-gray-300'
+                  : 'hover:ring-2 hover:ring-gray-300'
               }`}
               onClick={() => setSelectedPlan(plan.id)}
             >
-              {plan.isPopular && (
-                <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white">
-                  Popular
-                </Badge>
-              )}
-              
               <CardHeader className="text-center pb-4">
                 <CardTitle className="text-xl">{plan.name}</CardTitle>
                 <CardDescription className="text-sm">{plan.description}</CardDescription>
@@ -174,28 +180,27 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
                 <div className="mt-4">
                   <div className="flex items-center justify-center gap-2">
                     <span className="text-3xl font-bold">{plan.price}</span>
-                    {plan.credits && (
-                      <div className="flex flex-col items-center">
-                        <ArrowUp className="size-3" />
-                        <span className="text-sm font-medium">{plan.credits}</span>
-                        <ArrowDown className="size-3" />
-                      </div>
-                    )}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">{plan.period}</p>
                 </div>
               </CardHeader>
 
               <CardContent className="pt-0">
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-sm text-red-600">{error}</p>
+                  </div>
+                )}
                 <Button 
                   className="w-full mb-6" 
                   variant={plan.buttonVariant}
+                  disabled={isLoading}
                   onClick={(e) => {
                     e.stopPropagation()
-                    // 这里可以添加按钮的具体逻辑
+                    handleSubscribe()
                   }}
                 >
-                  {plan.buttonText}
+                  {isLoading ? "处理中..." : plan.buttonText}
                 </Button>
 
                 <div className="space-y-3">
