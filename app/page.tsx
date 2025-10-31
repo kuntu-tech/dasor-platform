@@ -116,7 +116,7 @@ export default function DashboardPage() {
   //     },
   //     features: 8,
   //     status: "published",
-  //     createdAt: "2025-10-03",
+  //      createdAt: "2025-10-03",
   //     lastEditedAt: "2025-10-08",
   //     publishedAt: "2025-10-09",
   //     visits: 856,
@@ -384,7 +384,8 @@ export default function DashboardPage() {
                       <div className="truncate">
                         <span className="text-foreground/80">Project ID: </span>
                         <span className="font-mono">
-                          {app.data_connections?.connection_info?.project_id || "-"}
+                          {app.data_connections?.connection_info?.project_id ||
+                            "-"}
                         </span>
                       </div>
                       <div className="truncate">
@@ -392,7 +393,8 @@ export default function DashboardPage() {
                           Access Token:{" "}
                         </span>
                         <span className="font-mono">
-                          {app.data_connections?.connection_info?.access_token || "-"}
+                          {app.data_connections?.connection_info
+                            ?.access_token || "-"}
                         </span>
                       </div>
                       <div className="truncate text-right md:text-left">
@@ -476,10 +478,12 @@ export default function DashboardPage() {
                         {app.description}
                       </TableCell>
                       <TableCell className="truncate text-xs text-muted-foreground">
-                        {app.data_connections?.connection_info?.project_id || "-"}
+                        {app.data_connections?.connection_info?.project_id ||
+                          "-"}
                       </TableCell>
                       <TableCell className="truncate text-xs text-muted-foreground font-mono max-w-[260px]">
-                        {app.data_connections?.connection_info?.access_token || "-"}
+                        {app.data_connections?.connection_info?.access_token ||
+                          "-"}
                       </TableCell>
                       <TableCell className="text-center tabular-nums">
                         {app.features}
