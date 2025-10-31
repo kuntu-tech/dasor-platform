@@ -3,7 +3,8 @@ import { ExternalLink, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
-import { bindVendor } from "../../../lib/connectApi";
+import { startOAuth, linkVendorAccount } from "../../../lib/connectApi";
+import { useAuth } from "../../../../components/AuthProvider";
 
 interface ConnectExistingProps {
   onBack: () => void;
@@ -18,28 +19,59 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
   const [accountId, setAccountId] = useState("");
   const [errors, setErrors] = useState<{ publishable?: string; secret?: string; accountId?: string }>({});
   const [loading, setLoading] = useState(false);
-  const returnUrl = useMemo(() => `${window.location.origin}`, []);
-  const refreshUrl = returnUrl;
+  const { user } = useAuth();
+  const loginEmail = user?.email || "";
+  const userId = user?.id || "";
+  const redirectUri = useMemo(() => `${window.location.origin}/oauth/callback`, []);
 
+  // OAuth 授权流程
   const handleOAuthConnect = async () => {
+    if (!loginEmail) {
+      alert("Login required: missing email");
+      return;
+    }
+    try {
+      setLoading(true);
+      const resp = await startOAuth({
+        email: loginEmail,
+        userId: userId,
+        redirectUri: redirectUri,
+      });
+      if (!resp.success) {
+        alert(resp.error || "Failed to start OAuth");
+        return;
+      }
+      // 跳转到 Stripe 授权页面
+      window.location.href = resp.data!.authUrl;
+    } catch (err) {
+      console.error("OAuth start error:", err);
+      alert("启动 OAuth 失败，请重试");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 手动输入账户 ID 关联
+  const handleAccountIdConnect = async () => {
     if (!accountId.trim()) {
       setErrors((prev) => ({ ...prev, accountId: "Please enter your Stripe Account ID" }));
       return;
     }
     try {
       setLoading(true);
-      const body = { stripeAccountId: accountId.trim(), returnUrl, refreshUrl };
-      const resp = await bindVendor(body as any);
+      const resp = await linkVendorAccount({
+        stripeAccountId: accountId.trim(),
+        email: loginEmail,
+        userId: userId,
+      });
       if (!resp.success) {
-        alert(resp.error || "Bind failed");
+        alert(resp.error || "Failed to link account");
         return;
       }
-      const data = resp.data!;
-      if (data.requiresOnboarding && data.onboarding?.url) {
-        window.location.href = data.onboarding.url;
-        return;
-      }
-      onConnect(accountId.trim());
+      onConnect(resp.data!.stripeAccountId);
+    } catch (err) {
+      console.error("Link account error:", err);
+      alert("关联账户失败，请重试");
     } finally {
       setLoading(false);
     }
@@ -74,7 +106,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
               className={errors.accountId ? "border-destructive" : ""}
             />
             {errors.accountId && <p className="text-sm text-destructive">{errors.accountId}</p>}
-            <Button onClick={handleOAuthConnect} className="w-full" size="lg" disabled={!accountId.trim() || loading}>
+            <Button onClick={handleAccountIdConnect} className="w-full" size="lg" disabled={!accountId.trim() || loading}>
               Connect With Account ID
             </Button>
           </div>

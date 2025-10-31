@@ -1,0 +1,171 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+export default function OAuthCallbackPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const handleCallback = async () => {
+      try {
+        // Stripe OAuth 回调参数
+        const code = searchParams.get("code");
+        const state = searchParams.get("state");
+        const error = searchParams.get("error");
+        
+        // 后端处理后的结果参数
+        const oauth = searchParams.get("oauth");
+        const vendorId = searchParams.get("vendorId");
+        const accountId = searchParams.get("accountId");
+
+        // 如果有 error，说明 Stripe 授权被拒绝
+        if (error) {
+          setStatus("error");
+          setMessage(decodeURIComponent(error || "Stripe 授权被拒绝"));
+          return;
+        }
+
+        // 如果已经是后端处理后的结果（有 oauth 参数）
+        if (oauth === "success") {
+          setStatus("success");
+          setMessage("账户关联成功！");
+          setTimeout(() => {
+            router.push("/settings");
+          }, 3000);
+          return;
+        }
+
+        if (oauth === "error") {
+          setStatus("error");
+          setMessage("授权失败");
+          return;
+        }
+
+        // 如果是 Stripe 回调（有 code 和 state）
+        if (code && state) {
+          try {
+            // 通过本地 API 代理转发请求，绕过浏览器限制
+            const callbackUrl = `/api/proxy-oauth-callback?code=${code}&state=${state}`;
+            console.log("Calling OAuth callback:", callbackUrl);
+            
+            const response = await fetch(callbackUrl, {
+              method: "GET",
+              headers: {
+                "Accept": "application/json",
+              },
+            });
+
+            console.log("Response status:", response.status);
+            console.log("Response headers:", response.headers.get("content-type"));
+
+            if (!response.ok) {
+              const text = await response.text();
+              console.error("Error response:", text);
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+              const text = await response.text();
+              console.error("Non-JSON response:", text.substring(0, 500));
+              setStatus("error");
+              setMessage("服务器返回了错误格式的数据");
+              return;
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+              setStatus("success");
+              setMessage("账户关联成功！");
+              setTimeout(() => {
+                router.push("/settings");
+              }, 3000);
+            } else {
+              setStatus("error");
+              setMessage(data.error || "关联失败");
+            }
+          } catch (err) {
+            console.error("OAuth callback processing error:", err);
+            setStatus("error");
+            setMessage("网络错误，请重试");
+          }
+          return;
+        }
+
+        // 既不是 Stripe 回调也不是后端结果
+        setStatus("error");
+        setMessage("回调参数无效");
+      } catch (error) {
+        console.error("OAuth callback error:", error);
+        setStatus("error");
+        setMessage("处理回调时发生错误");
+      }
+    };
+
+    handleCallback();
+  }, [searchParams, router]);
+
+  return (
+    <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="text-center max-w-md px-4">
+        {status === "loading" && (
+          <>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">正在处理授权...</p>
+          </>
+        )}
+
+        {status === "success" && (
+          <>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+              <svg
+                className="h-6 w-6 text-green-600"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <p className="text-lg font-semibold text-gray-900">{message}</p>
+            <p className="mt-2 text-sm text-gray-500">正在跳转到设置页面...</p>
+          </>
+        )}
+
+        {status === "error" && (
+          <>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+              <svg
+                className="h-6 w-6 text-red-600"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </div>
+            <p className="text-lg font-semibold text-gray-900">{message}</p>
+            <button
+              onClick={() => router.push("/settings")}
+              className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              返回设置页面
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
