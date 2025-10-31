@@ -21,8 +21,10 @@ import { useAuth } from "@/components/AuthProvider";
 export function PublishFlow() {
   const router = useRouter();
   const { session } = useAuth();
-  const [appName, setAppName] = useState("");
-  const [description, setDescription] = useState("");
+  const [appName, setAppName] = useState("UrbanStay Insights");
+  const [description, setDescription] = useState(
+    "UrbanStay Insights provides data-driven analysis for optimizing short-term rental performance in urban markets. It empowers property managers and hospitality marketers with actionable insights to enhance occupancy and revenue."
+  );
   const [monetization, setMonetization] = useState("free");
   const [paymentPrice, setPaymentPrice] = useState(0);
   const [isPublished, setIsPublished] = useState(false);
@@ -61,6 +63,70 @@ export function PublishFlow() {
     //   setIsPublished(true);
     // }, 1000);
     try {
+      // 先调用业务元数据接口，获取 app_meta_info
+      let appMetaFromService: any | null = null;
+      try {
+        const taskId =
+          (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
+        let segmentsPayload: any[] = [];
+        try {
+          const marketsRaw = localStorage.getItem("marketsData");
+          if (marketsRaw) {
+            const markets = JSON.parse(marketsRaw);
+            if (Array.isArray(markets)) {
+              segmentsPayload = markets.map((seg: any) => ({
+                name: seg.name || seg.title,
+                analysis: seg.analysis || undefined,
+                valueQuestions: seg.valueQuestions || undefined,
+              }));
+            }
+          }
+        } catch {}
+
+        const metadataPayload = {
+          run_result: JSON.parse(localStorage.getItem("run_result") || "{}"),
+          domain: { primaryDomain: "Hospitality Management" },
+          ingest: { schemaHash: "sha256-3c7459f15975eae5" },
+          run_id: "r_1",
+          status: "complete",
+          task_id: taskId,
+          segments: segmentsPayload,
+        };
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20000);
+        const metaRes = await fetch(
+          "https://business-insight.datail.ai/api/v1/apps/metadata",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              JSON.parse(localStorage.getItem("run_result") || "{}")
+            ),
+            cache: "no-store",
+            signal: controller.signal,
+          }
+        );
+        clearTimeout(timeout);
+        const metaText = await metaRes.text();
+        try {
+          appMetaFromService = JSON.parse(metaText);
+        } catch {
+          appMetaFromService = { raw: metaText };
+        }
+        if (!metaRes.ok) {
+          console.warn(
+            "apps/metadata 调用失败",
+            metaRes.status,
+            appMetaFromService
+          );
+        } else {
+          console.log("apps/metadata 调用成功", appMetaFromService);
+        }
+      } catch (err) {
+        console.warn("上报应用元数据异常", err);
+      }
+
       const response = await fetch("/api/apps", {
         method: "POST",
         headers: {
@@ -79,7 +145,9 @@ export function PublishFlow() {
           build_status: "success",
           deployment_status: "success",
           published_at: new Date().toISOString(),
-          connection_id: "42d2234c-7dca-4199-87fb-56fa26b7b50f",
+          // 不显式传 connection_id，后端将为当前用户选择最近的激活连接
+          // 传对象，后端会标准化写入 { app_meta_info: <object> }
+          apps_meta_info: appMetaFromService,
         }),
       });
 

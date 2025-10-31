@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
       payment_model,
       published_at,
       connection_id: bodyConnectionId,
+      apps_meta_info,
     } = body;
 
     // 验证必填字段
@@ -165,22 +166,45 @@ export async function POST(request: NextRequest) {
     }
 
     // 创建应用
-    const { data: app, error } = await supabaseAdmin
+    // 规范化 apps_meta_info：允许传字符串/对象，统一包裹为 { app_meta_info: <object> }
+    let normalizedAppsMetaInfo: any = null;
+    try {
+      if (typeof apps_meta_info === "string") {
+        const parsed = JSON.parse(apps_meta_info);
+        normalizedAppsMetaInfo = { app_meta_info: parsed };
+      } else if (apps_meta_info && typeof apps_meta_info === "object") {
+        // 若已是 { app_meta_info: {...} } 则直接使用，否则包裹
+        normalizedAppsMetaInfo = Object.prototype.hasOwnProperty.call(
+          apps_meta_info,
+          "app_meta_info"
+        )
+          ? apps_meta_info
+          : { app_meta_info: apps_meta_info };
+      }
+    } catch (e) {
+      console.warn("apps_meta_info 解析失败，按空处理", e);
+      normalizedAppsMetaInfo = null;
+    }
+
+    const basePayload: any = {
+      user_id: userId,
+      name,
+      description,
+      status,
+      app_version,
+      build_status,
+      deployment_status,
+      connection_id: resolvedConnectionId,
+      payment_model,
+      published_at,
+    };
+    if (normalizedAppsMetaInfo) {
+      basePayload.apps_meta_info = normalizedAppsMetaInfo;
+    }
+
+    let appInsert = await supabaseAdmin
       .from("apps")
-      .insert([
-        {
-          user_id: userId,
-          name,
-          description,
-          status,
-          app_version,
-          build_status,
-          deployment_status,
-          connection_id: resolvedConnectionId,
-          payment_model,
-          published_at,
-        },
-      ])
+      .insert([basePayload])
       .select(
         `
         *,
@@ -198,9 +222,42 @@ export async function POST(request: NextRequest) {
       )
       .single();
 
+    // 如果因为列不存在导致失败，回退去掉 apps_meta_info 再试
+    if (appInsert.error && normalizedAppsMetaInfo) {
+      const msg = appInsert.error.message || "";
+      if (msg.includes("apps_meta_info") || msg.includes("column")) {
+        const fallbackPayload = { ...basePayload };
+        delete (fallbackPayload as any).apps_meta_info;
+        appInsert = await supabaseAdmin
+          .from("apps")
+          .insert([fallbackPayload])
+          .select(
+            `
+            *,
+            users:user_id (
+              id,
+              name,
+              email,
+              avatar_url
+            ),
+            data_connections:connection_id (
+              id,
+              connection_info
+            )
+          `
+          )
+          .single();
+      }
+    }
+
+    const { data: app, error } = appInsert;
+
     if (error) {
       console.error("创建应用错误:", error);
-      return NextResponse.json({ error: "创建应用失败" }, { status: 500 });
+      return NextResponse.json(
+        { error: "创建应用失败", details: error.message || String(error) },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
