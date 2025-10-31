@@ -1,9 +1,10 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, RotateCcw, ChevronDown, ArrowRight } from "lucide-react";
 import { DetailModal } from "@/components/DetailModal";
 import { ValueQuestionsSection } from "@/components/ValueQuestionsSection";
+import { useRouter } from "next/navigation";
 interface MarketSegment {
   id: string;
   title: string;
@@ -29,7 +30,7 @@ interface AnalysisData {
   marketsData: MarketSegment[];
 }
 interface MarketExplorationPageProps {
-  marketsData?: { id: string; title: string; analysis: any }[];
+  marketsData?: any[]; // 兼容新接口段数据
 }
 type RefreshType =
   | "none"
@@ -49,6 +50,19 @@ type RefreshType =
 export default function MarketExplorationPage({
   marketsData,
 }: MarketExplorationPageProps) {
+  const router = useRouter();
+  const [segmentsData, setSegmentsData] = useState<any[] | undefined>(
+    marketsData
+  );
+  useEffect(() => {
+    console.log("segmentsData", segmentsData);
+    if (!segmentsData) {
+      try {
+        const raw = localStorage.getItem("marketsData");
+        if (raw) setSegmentsData(JSON.parse(raw));
+      } catch {}
+    }
+  }, [segmentsData]);
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisData | null>(
     null
   );
@@ -146,6 +160,8 @@ export default function MarketExplorationPage({
   };
   const handleGenerateApp = () => {
     console.log("Generating ChatApp");
+    // 保留由 ValueQuestionsSection 写入的 selectedProblems（仅当前选中 Tab 的 valueQuestions）
+    router.push("/generate");
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -234,6 +250,7 @@ export default function MarketExplorationPage({
               generationProgress={generationProgress}
               refreshType={refreshType}
               refreshKey={refreshKey}
+              segmentsData={segmentsData as any}
             />
           </motion.div>
         </AnimatePresence>
