@@ -740,7 +740,7 @@ export function PreviewEditor() {
                 ref={iframeRef}
                 src={`https://app-preview.datail.ai/?embed=1&mcp=${localStorage.getItem(
                   "currentAppUrl"
-                )}/mcp`}
+                )}`}
                 // "https://app-preview.datail.ai/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
                 // src="http://192.168.30.153:5174/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
                 className="w-full h-full border-0"
