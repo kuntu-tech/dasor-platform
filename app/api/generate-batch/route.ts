@@ -9,6 +9,10 @@ export async function POST(request: Request) {
     // const externalApiUrl = "http://192.168.30.3:3000/generate-batch";
     const externalApiUrl = "http://mcp-build.datail.ai/generate-batch";
 
+    const controller = new AbortController();
+    // 拉长到 120 秒
+    const timeout = setTimeout(() => controller.abort(), 600_000);
+
     const response = await fetch(externalApiUrl, {
       method: "POST",
       headers: {
@@ -17,7 +21,9 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -42,12 +48,16 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("生成接口错误:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    const isAbort =
+      msg.toLowerCase().includes("aborted") ||
+      msg.includes("The user aborted a request");
     return NextResponse.json(
       {
-        error: "服务器内部错误",
-        details: error instanceof Error ? error.message : "未知错误",
+        error: isAbort ? "Request timeout" : "服务器内部错误",
+        details: msg,
       },
-      { status: 500 }
+      { status: isAbort ? 504 : 500 }
     );
   }
 }
