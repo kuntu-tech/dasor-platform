@@ -34,7 +34,15 @@ export default function OAuthCallbackPage() {
           setStatus("success");
           setMessage("账户关联成功！");
           setTimeout(() => {
-            router.push("/settings");
+            // 获取保存的来源页面，如果没有则使用首页
+            const returnPath = typeof window !== "undefined" 
+              ? sessionStorage.getItem("oauth_return_path") || "/"
+              : "/";
+            if (typeof window !== "undefined") {
+              sessionStorage.removeItem("oauth_return_path");
+            }
+            // 返回到来源页面，并带上参数打开设置对话框的 payout 标签页
+            router.push(`${returnPath}${returnPath === "/" ? "?" : "&"}openSettings=payout`);
           }, 3000);
           return;
         }
@@ -83,7 +91,15 @@ export default function OAuthCallbackPage() {
               setStatus("success");
               setMessage("账户关联成功！");
               setTimeout(() => {
-                router.push("/settings");
+                // 获取保存的来源页面，如果没有则使用首页
+                const returnPath = typeof window !== "undefined" 
+                  ? sessionStorage.getItem("oauth_return_path") || "/"
+                  : "/";
+                if (typeof window !== "undefined") {
+                  sessionStorage.removeItem("oauth_return_path");
+                }
+                // 返回到来源页面，并带上参数打开设置对话框的 payout 标签页
+                router.push(`${returnPath}${returnPath === "/" ? "?" : "&"}openSettings=payout`);
               }, 3000);
             } else {
               setStatus("error");
@@ -157,7 +173,15 @@ export default function OAuthCallbackPage() {
             </div>
             <p className="text-lg font-semibold text-gray-900">{message}</p>
             <button
-              onClick={() => router.push("/settings")}
+              onClick={() => {
+                const returnPath = typeof window !== "undefined" 
+                  ? sessionStorage.getItem("oauth_return_path") || "/"
+                  : "/";
+                if (typeof window !== "undefined") {
+                  sessionStorage.removeItem("oauth_return_path");
+                }
+                router.push(`${returnPath}${returnPath === "/" ? "?" : "&"}openSettings=payout`);
+              }}
               className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
               返回设置页面

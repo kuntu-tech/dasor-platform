@@ -80,7 +80,7 @@ export default function DashboardPage() {
     const response = await fetch(`/api/apps?${queryParams.toString()}`);
     const data = await response.json();
     console.log(data);
-    setAppItems(data.data);
+    setAppItems(Array.isArray(data.data) ? data.data : []);
     return data;
   };
   useEffect(() => {
@@ -178,7 +178,9 @@ export default function DashboardPage() {
   };
 
   const filteredApps = useMemo(() => {
-    let filtered = appItems;
+    // 确保 appItems 始终是数组
+    const items = Array.isArray(appItems) ? appItems : [];
+    let filtered = items;
 
     // 状态筛选
     if (statusFilter !== "all") {
@@ -190,7 +192,7 @@ export default function DashboardPage() {
     if (q) {
       filtered = filtered.filter((a) => {
         // 只匹配name字段
-        return a.name.toLowerCase().includes(q);
+        return a.name?.toLowerCase().includes(q);
       });
     }
 

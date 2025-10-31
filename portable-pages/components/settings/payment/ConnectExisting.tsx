@@ -33,6 +33,10 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
     }
     try {
       setLoading(true);
+      // 保存当前页面路径，以便 OAuth 回调后返回
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("oauth_return_path", window.location.pathname);
+      }
       const resp = await startOAuth({
         email: loginEmail,
         userId: userId,

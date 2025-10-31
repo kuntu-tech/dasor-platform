@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -30,12 +30,30 @@ export function ConditionalSidebar({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isHomePage = pathname === "/";
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsDefaultTab, setSettingsDefaultTab] = useState("account");
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const { signOut, user } = useAuth();
   const router = useRouter();
+
+  // 检查 URL 参数，如果需要打开设置对话框
+  useEffect(() => {
+    const openSettings = searchParams.get("openSettings");
+    if (openSettings) {
+      // 验证标签页是否有效
+      const validTabs = ["account", "billing", "payout"];
+      if (validTabs.includes(openSettings)) {
+        setSettingsDefaultTab(openSettings);
+        setIsSettingsOpen(true);
+        // 清除 URL 参数，避免刷新时重复打开
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete("openSettings");
+        router.replace(newUrl.pathname + (newUrl.search || ""), { scroll: false });
+      }
+    }
+  }, [searchParams, router]);
 
   // 公开页面路径（不需要认证的页面）
   const publicPaths = [
