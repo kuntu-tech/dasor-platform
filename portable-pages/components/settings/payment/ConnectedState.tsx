@@ -1,7 +1,9 @@
 import { ExternalLink } from "lucide-react";
 import { Button } from "../../ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DisconnectModal from "./DisconnectModal";
+import { getVendorStatus } from "../../../lib/connectApi";
+import { useAuth } from "../../../../components/AuthProvider";
 
 interface ConnectedStateProps {
   email: string;
@@ -10,6 +12,32 @@ interface ConnectedStateProps {
 
 const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [vendorData, setVendorData] = useState<{ email: string; stripe_account_id: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const fetchVendor = async () => {
+      if (user?.id) {
+        try {
+          const resp = await getVendorStatus(user.id);
+          if (resp.success && resp.data) {
+            setVendorData({ email: resp.data.email, stripe_account_id: resp.data.stripe_account_id });
+          }
+        } catch (err) {
+          console.error("Failed to fetch vendor:", err);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchVendor();
+  }, [user]);
+
+  const displayEmail = vendorData?.email || email;
+  const displayStripeAccountId = vendorData?.stripe_account_id;
+
   return (
     <div>
       <h2 className="mb-2 text-3xl font-semibold">Payout Account</h2>
@@ -19,8 +47,14 @@ const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <p className="text-sm text-muted-foreground">Stripe Account Email</p>
-              <p className="font-medium">{email}</p>
+              <p className="font-medium">{loading ? "Loading..." : displayEmail}</p>
             </div>
+            {displayStripeAccountId && (
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-muted-foreground">Stripe Account ID</p>
+                <p className="font-medium">{loading ? "Loading..." : displayStripeAccountId}</p>
+              </div>
+            )}
           </div>
           <div className="mt-8 flex gap-3">
             <Button variant="outline" className="gap-2" asChild>

@@ -32,6 +32,23 @@ export interface BindResponse {
   error?: string;
 }
 
+export interface VendorStatusResponse {
+  success: boolean;
+  data?: {
+    id: number;
+    email: string;
+    name: string;
+    company_name: string;
+    stripe_account_id: string;
+    stripe_account_status: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    user_id: string;
+  };
+  error?: string;
+}
+
 export async function bindVendor(body: BindRequestBody): Promise<BindResponse> {
   const res = await fetch(`${CONNECT_API_BASE}/api/connect/bind`, {
     method: "POST",
@@ -43,6 +60,18 @@ export async function bindVendor(body: BindRequestBody): Promise<BindResponse> {
   });
 
   const json = (await res.json()) as BindResponse;
+  return json;
+}
+
+export async function getVendorStatus(userId: string): Promise<VendorStatusResponse> {
+  const res = await fetch(`/api/connect/status?userId=${userId}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  const json = (await res.json()) as VendorStatusResponse;
   return json;
 }
 
