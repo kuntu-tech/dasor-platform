@@ -870,30 +870,30 @@ export function ConnectFlow() {
     console.log(aaaa, "--------------------------------");
     try {
       console.log("Step 0: Validating connection...");
-      const validateRes = await fetch("/api/validate-connection", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          projectId: connectionUrl,
-          accessToken: accessToken,
-        }),
-      });
-      if (!validateRes.ok) {
-        const errorData = await validateRes.json();
-        throw new Error(
-          errorData.error || `Data validation failed: ${validateRes.status}`
-        );
-      }
-      const validateResData = await validateRes.json();
-      console.log("Data validation successful:", validateResData);
-      if (!validateResData.success) {
-        setDataValidationError(
-          "Data authenticity validation failed: No available data tables or empty data in database"
-        );
-        return;
-      }
+      // const validateRes = await fetch("/api/validate-connection", {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //   },
+      //   body: JSON.stringify({
+      //     projectId: connectionUrl,
+      //     accessToken: accessToken,
+      //   }),
+      // });
+      // if (!validateRes.ok) {
+      //   const errorData = await validateRes.json();
+      //   throw new Error(
+      //     errorData.error || `Data validation failed: ${validateRes.status}`
+      //   );
+      // }
+      // const validateResData = await validateRes.json();
+      // console.log("Data validation successful:", validateResData);
+      // if (!validateResData.success) {
+      //   setDataValidationError(
+      //     "Data authenticity validation failed: No available data tables or empty data in database"
+      //   );
+      //   return;
+      // }
       // 连接成功，存入data_connections表
       try {
         await fetch("/api/data-connections", {
