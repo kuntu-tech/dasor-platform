@@ -77,5 +77,3 @@ const CreateAccount = ({ onBack, onConnect }: CreateAccountProps) => {
 };
 
 export default CreateAccount;
-
-
