@@ -145,6 +145,8 @@ export async function linkVendorAccount(body: OAuthLinkRequestBody): Promise<OAu
 // 订阅相关接口
 export interface CreateSubscriptionRequestBody {
   interval: "month" | "year";
+  successUrl?: string; // 支付成功回调 URL（可选）
+  cancelUrl?: string; // 支付取消回调 URL（可选）
 }
 
 export interface CreateSubscriptionResponse {
@@ -200,6 +202,71 @@ export async function createSubscription(
     return {
       success: false,
       error: json.error || json.message || "Subscription request failed",
+    };
+  }
+
+  return json;
+}
+
+// 同步订阅状态接口
+export interface SyncSubscriptionStatusResponse {
+  success: boolean;
+  data?: {
+    vendorId: number;
+    subscriptionStatus: string;
+    transactionId?: number;
+  };
+  message?: string;
+  error?: string;
+}
+
+export async function syncSubscriptionStatus(
+  vendorId: number,
+  sessionId?: string
+): Promise<SyncSubscriptionStatusResponse> {
+  // 构建请求体（如果提供了 sessionId）
+  const requestBody: { sessionId?: string } = {};
+  if (sessionId) {
+    requestBody.sessionId = sessionId;
+  }
+
+  // 使用后端代理 API 避免 CORS 问题
+  const res = await fetch(`/api/subscriptions/${vendorId}/sync-status`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+    body: Object.keys(requestBody).length > 0 ? JSON.stringify(requestBody) : undefined,
+  });
+
+  // 尝试解析响应
+  let json: SyncSubscriptionStatusResponse;
+  try {
+    json = (await res.json()) as SyncSubscriptionStatusResponse;
+  } catch (error) {
+    console.error("Failed to parse JSON response:", error);
+    return {
+      success: false,
+      error: `Failed to parse response: ${res.status}`,
+    };
+  }
+
+  // 检查响应状态和数据
+  if (!res.ok) {
+    console.error("Sync-status API HTTP error:", res.status, json);
+    return {
+      success: false,
+      error: json.error || `HTTP error: ${res.status}`,
+    };
+  }
+
+  // 检查响应数据是否有 success 字段
+  if (json.success === false) {
+    console.error("Sync-status API error:", res.status, json);
+    return {
+      success: false,
+      error: json.error || json.message || "Sync status request failed",
     };
   }
 

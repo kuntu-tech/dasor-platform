@@ -5,10 +5,10 @@ const SERVICE_API_TOKEN = process.env.NEXT_PUBLIC_SERVICE_API_TOKEN || "";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { vendorId: string } }
+  { params }: { params: Promise<{ vendorId: string }> }
 ) {
   try {
-    const { vendorId } = params;
+    const { vendorId } = await params;
     const body = await request.json();
 
     if (!vendorId) {

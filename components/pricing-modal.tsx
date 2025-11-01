@@ -64,9 +64,18 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
 
       const vendorId = vendorStatus.data.id
 
-      // 2. 调用订阅接口
+      // 2. 构建回调 URL
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
+      const successUrl = `${baseUrl}/subscription/success`
+      const cancelUrl = `${baseUrl}/subscription/cancel`
+
+      // 3. 调用订阅接口
       const interval = billingCycle === "yearly" ? "year" : "month"
-      const subscriptionResponse = await createSubscription(vendorId, { interval })
+      const subscriptionResponse = await createSubscription(vendorId, {
+        interval,
+        successUrl,
+        cancelUrl,
+      })
 
       if (!subscriptionResponse.success || !subscriptionResponse.data?.checkoutUrl) {
         setError(subscriptionResponse.error || "创建订阅失败")
