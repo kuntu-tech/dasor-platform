@@ -1,0 +1,787 @@
+{
+    "run_result": {
+            "domain": {
+                "primaryDomain": "Hospitality Management"
+            },
+            "ingest": {
+                "schemaHash": "sha256-3c7459f15975eae5"
+            },
+            "run_id": "r_1",
+            "status": "complete",
+            "task_id": "66cb45e4-5d87-49f2-a90d-6f4b76b5b0e2",
+            "segments": [
+                {
+                    "name": "Global Online Booking Platforms",
+                    "analysis": {
+                        "D1": {
+                            "score": 8.5,
+                            "summary": "Expansive market with high growth in urban accommodations",
+                            "supporting_indicators": [
+                                "Growing urban tourism",
+                                "Increasing short-term rental demand",
+                                "Competitive but large market"
+                            ]
+                        },
+                        "D2": {
+                            "score": 9.0,
+                            "summary": "Targeting urban travelers and short-term residents",
+                            "user_persona": {
+                                "role": "Traveler/Short-term resident",
+                                "pain_points": [
+                                    "Lack of personalized options",
+                                    "High costs in peak seasons",
+                                    "Complex booking processes"
+                                ],
+                                "company_type": "Individuals and families"
+                            }
+                        },
+                        "D3": {
+                            "score": 7.8,
+                            "summary": "High engagement with potential for repeat bookings",
+                            "revenue_band": "$100-$300 per night",
+                            "retention_signal": "High",
+                            "conversion_rate_est": 0.15
+                        },
+                        "D4": {
+                            "score": 8.3,
+                            "summary": "Strong data assets from diverse listings and user reviews",
+                            "moat_score": 8.0,
+                            "scalability_score": 8.5,
+                            "competitive_advantage": [
+                                "Extensive listing details",
+                                "Rich user-generated content",
+                                "Strong geographical data"
+                            ]
+                        }
+                    },
+                    "segmentId": "seg_01",
+                    "valueQuestions": [
+                        {
+                            "id": "q_01",
+                            "intent": "Comparison",
+                             "question": "List the top-performing property types in urban areas based on estimated revenue and review scores over the last 365 days.",
+                            "answerShape": "ranking",
+                            "feasibility": {
+                                "note": "Requires joining listingsdetails with neighbourhoods and aggregating by property type and estimated revenue. Review scores also need to be considered.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.75,
+                                "requiredTransform": [
+                                    "join",
+                                    "aggregate"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_02",
+                            "intent": "Optimization",
+                            "question": "What are the common amenities in high-rated urban accommodations that correlate with higher booking rates during peak seasons?",
+                            "answerShape": "correlation",
+                            "feasibility": {
+                                "note": "Requires aggregation of amenities and correlation analysis with booking rates (derived from availability data) and review scores.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.7,
+                                "requiredTransform": [
+                                    "aggregate",
+                                    "derive"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_03",
+                            "intent": "Trend",
+                            "question": "Analyze the trend of average nightly prices for short-term urban accommodations during major holidays and events.",
+                            "answerShape": "time_series",
+                            "feasibility": {
+                                "note": "Requires joining calendar with listings to filter urban accommodations and apply time-based filtering for major holidays and events.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.65,
+                                "requiredTransform": [
+                                    "join",
+                                    "time_window"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_04",
+                            "intent": "Comparison",
+                            "question": "Compare the user engagement and repeat booking rates between listings with personalized options versus standard listings.",
+                            "answerShape": "comparison",
+                            "feasibility": {
+                                "note": "Unclear definition of '\''personalized options'\'' and '\''standard listings'\''. Data on user engagement and repeat booking rates is not explicitly available.",
+                                "status": "AMBIGUOUS",
+                                "confidence": 0.4,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_05",
+                            "intent": "Correlation",
+                            "question": "What is the impact of host response times on conversion rates for urban accommodations?",
+                            "answerShape": "correlation",
+                            "feasibility": {
+                                "note": "Requires joining listingsdetails for host response times and deriving conversion rates from booking data.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.7,
+                                "requiredTransform": [
+                                    "join",
+                                    "derive"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Regional Accommodation Providers",
+                    "analysis": {
+                        "D1": {
+                            "score": 8.5,
+                            "summary": "Growing vacation rental market, high demand in urban areas",
+                            "supporting_indicators": [
+                                "Increasing tourism",
+                                "High urban population density",
+                                "Expanding short-term rental regulations"
+                            ]
+                        },
+                        "D2": {
+                            "score": 9.0,
+                            "summary": "Targeting short-term vacation renters, high intent to book",
+                            "user_persona": {
+                                "role": "Tourist/Traveler",
+                                "pain_points": [
+                                    "Finding quality accommodations",
+                                    "Navigating booking platforms",
+                                    "Ensuring safety and cleanliness"
+                                ],
+                                "company_type": "Individuals/Families"
+                            }
+                        },
+                        "D3": {
+                            "score": 7.8,
+                            "summary": "High booking rate, strong seasonal retention",
+                            "revenue_band": "$100-$500 per booking",
+                            "retention_signal": "High",
+                            "conversion_rate_est": 0.15
+                        },
+                        "D4": {
+                            "score": 8.3,
+                            "summary": "Unique property listings create competitive barrier",
+                            "moat_score": 8.0,
+                            "scalability_score": 8.5,
+                            "competitive_advantage": [
+                                "Exclusive listings",
+                                "Superior user experience",
+                                "Strong brand recognition"
+                            ]
+                        }
+                    },
+                    "segmentId": "seg_02",
+                    "valueQuestions": [
+                        {
+                            "id": "q_01",
+                            "intent": "Segmentation",
+                            "question": "List the top-performing urban neighborhoods in terms of estimated revenue per booking for properties accommodating more than 4 guests.",
+                            "answerShape": "ranking",
+                            "feasibility": {
+                                "note": "Requires joining listingsdetails with neighbourhoods, filtering for accommodations > 4, and aggregating estimated revenue.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.75,
+                                "requiredTransform": [
+                                    "join",
+                                    "aggregate",
+                                    "filter"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_02",
+                            "intent": "Correlation",
+                            "question": "How do the review scores for cleanliness correlate with the conversion rates of vacation rentals in high-density urban areas?",
+                            "answerShape": "correlation",
+                            "feasibility": {
+                                "note": "Correlation between cleanliness review scores and conversion rates is unclear due to lack of explicit conversion rate data.",
+                                "status": "AMBIGUOUS",
+                                "confidence": 0.4,
+                                "requiredTransform": null
+                            }
+                        },
+                        {
+                            "id": "q_03",
+                            "intent": "Trend",
+                            "question": "What is the trend in availability and booking rates during peak tourist seasons across different property types in urban neighborhoods?",
+                            "answerShape": "time_series",
+                            "feasibility": {
+                                "note": "Requires joining listingsdetails with calendar, filtering by peak seasons, and aggregating availability data by property type.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.8,
+                                "requiredTransform": [
+                                    "join",
+                                    "time_window",
+                                    "aggregate"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_04",
+                            "intent": "Comparison",
+                            "question": "Compare the average nightly price and estimated occupancy rates for exclusive listings versus commonly listed properties in major urban centers.",
+                            "answerShape": "comparison",
+                            "feasibility": {
+                                "note": "Requires joining listings and listingsdetails to compare average prices and occupancy rates between exclusive and common properties.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.7,
+                                "requiredTransform": [
+                                    "join",
+                                    "aggregate"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_05",
+                            "intent": "Optimization",
+                            "question": "Identify the distribution of amenities that are most frequently associated with high review scores in urban vacation rentals.",
+                            "answerShape": "distribution",
+                            "feasibility": {
+                                "note": "Requires aggregating amenities and filtering by high review scores to identify distribution.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.65,
+                                "requiredTransform": [
+                                    "aggregate",
+                                    "filter"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Hospitality Review Management Services",
+                    "analysis": {
+                        "D1": {
+                            "score": 8.5,
+                            "summary": "Expanding vacation rental market with high demand",
+                            "supporting_indicators": [
+                                "Growing tourism sector",
+                                "Increasing short-term rental popularity",
+                                "Competitive but large market"
+                            ]
+                        },
+                        "D2": {
+                            "score": 9.0,
+                            "summary": "Hosts and property managers as primary users",
+                            "user_persona": {
+                                "role": "Property Manager",
+                                "pain_points": [
+                                    "Managing multiple listings",
+                                    "Optimizing pricing",
+                                    "Improving guest experience"
+                                ],
+                                "company_type": "Hospitality"
+                            }
+                        },
+                        "D3": {
+                            "score": 7.8,
+                            "summary": "High booking rate, repeat customers",
+                            "revenue_band": "$500K-$1M",
+                            "retention_signal": "High",
+                            "conversion_rate_est": 0.15
+                        },
+                        "D4": {
+                            "score": 8.3,
+                            "summary": "Strong data assets from diverse listings and reviews",
+                            "moat_score": 8.0,
+                            "scalability_score": 8.5,
+                            "competitive_advantage": [
+                                "Unique property offerings",
+                                "Robust review system",
+                                "Advanced booking features"
+                            ]
+                        }
+                    },
+                    "segmentId": "seg_03",
+                    "valueQuestions": [
+                        {
+                            "id": "q_01",
+                            "intent": "Segmentation",
+                            "question": "List the top-performing property types in terms of booking rates and repeat customers.",
+                            "answerShape": "ranking",
+                            "feasibility": {
+                                "note": "Requires aggregation of booking rates and repeat customer data, which might be derived from reviews and bookings, and joining with property types.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.75,
+                                "requiredTransform": [
+                                    "aggregate",
+                                    "join"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_02",
+                            "intent": "Correlation",
+                            "question": "How do amenities and room types correlate with review scores and repeat bookings?",
+                            "answerShape": "correlation",
+                            "feasibility": {
+                                "note": "Correlation analysis between amenities, room types, review scores, and repeat bookings requires data aggregation and potentially complex joins.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.7,
+                                "requiredTransform": [
+                                    "aggregate",
+                                    "join"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_03",
+                            "intent": "Comparison",
+                            "question": "What is the distribution of adjusted price across different neighbourhoods and how does it affect booking rates?",
+                            "answerShape": "distribution",
+                            "feasibility": {
+                                "note": "Analysis of price distribution across neighbourhoods and its impact on booking rates requires joining tables and aggregating data.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.8,
+                                "requiredTransform": [
+                                    "aggregate",
+                                    "join"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_04",
+                            "intent": "Trend",
+                            "question": "Analyze the trend of estimated revenue over the last 365 days for properties managed by superhosts versus non-superhosts.",
+                            "answerShape": "time_series",
+                            "feasibility": {
+                                "note": "Trend analysis over time for superhosts versus non-superhosts requires time-based data filtering and joining multiple tables.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.65,
+                                "requiredTransform": [
+                                    "time_window",
+                                    "join"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_05",
+                            "intent": "Optimization",
+                            "question": "Rank neighbourhoods by the number of reviews per month to identify emerging markets for vacation rentals.",
+                            "answerShape": "ranking",
+                            "feasibility": {
+                                "note": "Ranking neighbourhoods by reviews per month requires aggregation of review data.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.8,
+                                "requiredTransform": [
+                                    "aggregate"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Data-Driven Hospitality Marketing Firms",
+                    "analysis": {
+                        "D1": {
+                            "score": 8.5,
+                            "summary": "Expansive market with high growth in urban travel accommodations",
+                            "supporting_indicators": [
+                                "Growing demand in urban areas",
+                                "Increasing short-term rental popularity",
+                                "Competitive but large market"
+                            ]
+                        },
+                        "D2": {
+                            "score": 9.0,
+                            "summary": "Focused on urban travelers seeking short-term rentals",
+                            "user_persona": {
+                                "role": "Traveler",
+                                "pain_points": [
+                                    "Finding quality accommodations",
+                                    "Affordable pricing",
+                                    "Convenient location"
+                                ],
+                                "company_type": "Individuals and families"
+                            }
+                        },
+                        "D3": {
+                            "score": 7.8,
+                            "summary": "High initial booking rate with moderate retention",
+                            "revenue_band": "$100-$200 per night",
+                            "retention_signal": "Medium",
+                            "conversion_rate_est": 0.15
+                        },
+                        "D4": {
+                            "score": 8.3,
+                            "summary": "Strong data assets from diverse listings and detailed user reviews",
+                            "moat_score": 8.0,
+                            "scalability_score": 8.5,
+                            "competitive_advantage": [
+                                "Extensive listing details",
+                                "Wide geographical coverage",
+                                "Rich user-generated content"
+                            ]
+                        }
+                    },
+                    "segmentId": "seg_04",
+                    "valueQuestions": [
+                        {
+                            "id": "q_01",
+                            "intent": "Ranking",
+                            "question": "List the top-performing urban areas for short-term rentals based on estimated revenue and occupancy rates over the last 365 days.",
+                            "answerShape": "ranking",
+                            "feasibility": {
+                                "note": "Requires aggregation of estimated revenue and occupancy rates from listingsdetails table.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.85,
+                                "requiredTransform": [
+                                    "aggregate"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_02",
+                            "intent": "Correlation",
+                            "question": "What are the common amenities in the highest-rated urban short-term rentals, and how do they correlate with review scores?",
+                            "answerShape": "correlation",
+                            "feasibility": {
+                                "note": "Requires aggregation and correlation analysis between amenities and review scores in listingsdetails.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.8,
+                                "requiredTransform": [
+                                    "aggregate"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_03",
+                            "intent": "Comparison",
+                            "question": "Compare the average nightly price and availability of short-term rentals in different urban neighborhoods to identify the most cost-effective options for travelers.",
+                            "answerShape": "comparison",
+                            "feasibility": {
+                                "note": "Requires aggregation to compare average prices and availability across neighborhoods using listings and listingsdetails data.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.9,
+                                "requiredTransform": [
+                                    "aggregate"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_04",
+                            "intent": "Trend",
+                            "question": "Analyze the trend in the number of reviews per month for urban short-term rentals to gauge market sentiment and growth over time.",
+                            "answerShape": "time_series",
+                            "feasibility": {
+                                "note": "Requires time-based analysis of reviews per month from listingsdetails to identify trends.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.85,
+                                "requiredTransform": [
+                                    "time_window"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_05",
+                            "intent": "Segmentation",
+                            "question": "What is the distribution of short-term rental properties by type and size across major urban centers, and how does this align with traveler demand?",
+                            "answerShape": "distribution",
+                            "feasibility": {
+                                "note": "Requires categorization and counting of property types and sizes across urban centers using listingsdetails data.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.8,
+                                "requiredTransform": [
+                                    "aggregate",
+                                    "bucket"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_06",
+                            "intent": "Prediction",
+                            "question": "Predict the future booking rates for urban short-term rentals based on historical data and current market trends.",
+                            "answerShape": "time_series",
+                            "feasibility": {
+                                "note": "Predictive analysis requires more specific modeling details and might depend on additional external data or advanced analytics not specified in the schema.",
+                                "status": "AMBIGUOUS",
+                                "confidence": 0.4,
+                                "requiredTransform": null
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Local Tourism Development Agencies",
+                    "analysis": {
+                        "D1": {
+                            "score": 8.5,
+                            "summary": "Expanding urban rental market with high demand and competitive landscape",
+                            "supporting_indicators": [
+                                "High urban population density",
+                                "Growing tourism sector",
+                                "Intense competition among hosts"
+                            ]
+                        },
+                        "D2": {
+                            "score": 9.0,
+                            "summary": "Targeting short-term rental seekers, both tourists and business travelers",
+                            "user_persona": {
+                                "role": "Short-term rental user",
+                                "pain_points": [
+                                    "Finding quality accommodations",
+                                    "Navigating pricing variations",
+                                    "Ensuring convenient locations"
+                                ],
+                                "company_type": "Individuals and companies"
+                            }
+                        },
+                        "D3": {
+                            "score": 7.8,
+                            "summary": "Strong booking rates expected with high seasonal peaks",
+                            "revenue_band": "$100-$300 per night",
+                            "retention_signal": "High",
+                            "conversion_rate_est": 0.15
+                        },
+                        "D4": {
+                            "score": 8.3,
+                            "summary": "Robust data on user preferences and booking patterns creating competitive edge",
+                            "moat_score": 8.0,
+                            "scalability_score": 8.5,
+                            "competitive_advantage": [
+                                "Rich user data from reviews",
+                                "Advanced pricing algorithms",
+                                "Strong brand recognition in urban markets"
+                            ]
+                        }
+                    },
+                    "segmentId": "seg_05",
+                    "valueQuestions": [
+                        {
+                            "id": "q_01",
+                            "intent": "Comparison",
+                            "question": "List the top-performing property types in urban areas based on estimated revenue and review scores for cleanliness and location.",
+                            "answerShape": "ranking",
+                            "feasibility": {
+                                "note": "Requires joining listingsdetails with reviewsdetails for review scores and aggregating by property type and neighbourhood for estimated revenue.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.85,
+                                "requiredTransform": [
+                                    "join",
+                                    "aggregate"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_02",
+                            "intent": "Correlation",
+                            "question": "What are the correlations between host response times and review scores communication in urban markets?",
+                            "answerShape": "correlation",
+                            "feasibility": {
+                                "note": "Requires joining listingsdetails for host response times with reviewsdetails for review scores communication and deriving correlation metrics.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.8,
+                                "requiredTransform": [
+                                    "join",
+                                    "derive"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_03",
+                            "intent": "Segmentation",
+                            "question": "Analyze the distribution of price variations during high seasonal peaks across different neighborhoods in urban areas.",
+                            "answerShape": "distribution",
+                            "feasibility": {
+                                "note": "Requires data on price variations from the calendar table and aggregating by neighbourhood, which needs to be joined with listingsdetails for urban area context.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.75,
+                                "requiredTransform": [
+                                    "join",
+                                    "aggregate"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_04",
+                            "intent": "Prediction",
+                            "question": "Predict the booking rates for short-term rentals in urban areas with high tourist influx, using data from availability metrics and historical booking patterns.",
+                            "answerShape": "time_series",
+                            "feasibility": {
+                                "note": "Prediction requires historical booking patterns from reviews and availability metrics from listingsdetails, necessitating time-based data aggregation and potentially complex model building.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.7,
+                                "requiredTransform": [
+                                    "join",
+                                    "time_window",
+                                    "aggregate"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "q_05",
+                            "intent": "Optimization",
+                            "question": "Rank urban neighborhoods based on the number of reviews per month and average review scores to identify top-performing areas for short-term rentals.",
+                            "answerShape": "ranking",
+                            "feasibility": {
+                                "note": "Requires joining listingsdetails with reviewsdetails to calculate average review scores and number of reviews per month, then aggregating by neighbourhood.",
+                                "status": "NEEDS_TRANSFORM",
+                                "confidence": 0.85,
+                                "requiredTransform": [
+                                    "join",
+                                    "aggregate"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ],
+            "anchIndex": [
+                {
+                    "index": 0,
+                    "table": "calendar",
+                    "columns": [
+                        "listing_id",
+                        "date",
+                        "available",
+                        "price",
+                        "adjusted_price",
+                        "minimum_nights",
+                        "maximum_nights"
+                    ]
+                },
+                {
+                    "index": 1,
+                    "table": "listings",
+                    "columns": [
+                        "id",
+                        "name",
+                        "host_id",
+                        "host_name",
+                        "neighbourhood_group",
+                        "neighbourhood",
+                        "latitude",
+                        "longitude",
+                        "room_type",
+                        "price",
+                        "minimum_nights",
+                        "number_of_reviews",
+                        "last_review",
+                        "reviews_per_month",
+                        "calculated_host_listings_count",
+                        "availability_365",
+                        "number_of_reviews_ltm",
+                        "license"
+                    ]
+                },
+                {
+                    "index": 2,
+                    "table": "listingsdetails",
+                    "columns": [
+                        "id",
+                        "listing_url",
+                        "scrape_id",
+                        "last_scraped",
+                        "source",
+                        "name",
+                        "description",
+                        "neighborhood_overview",
+                        "picture_url",
+                        "host_id",
+                        "host_url",
+                        "host_name",
+                        "host_since",
+                        "host_location",
+                        "host_about",
+                        "host_response_time",
+                        "host_response_rate",
+                        "host_acceptance_rate",
+                        "host_is_superhost",
+                        "host_thumbnail_url",
+                        "host_picture_url",
+                        "host_neighbourhood",
+                        "host_listings_count",
+                        "host_total_listings_count",
+                        "host_verifications",
+                        "host_has_profile_pic",
+                        "host_identity_verified",
+                        "neighbourhood",
+                        "neighbourhood_cleansed",
+                        "neighbourhood_group_cleansed",
+                        "latitude",
+                        "longitude",
+                        "property_type",
+                        "room_type",
+                        "accommodates",
+                        "bathrooms",
+                        "bathrooms_text",
+                        "bedrooms",
+                        "beds",
+                        "amenities",
+                        "price",
+                        "minimum_nights",
+                        "maximum_nights",
+                        "minimum_minimum_nights",
+                        "maximum_minimum_nights",
+                        "minimum_maximum_nights",
+                        "maximum_maximum_nights",
+                        "minimum_nights_avg_ntm",
+                        "maximum_nights_avg_ntm",
+                        "calendar_updated",
+                        "has_availability",
+                        "availability_30",
+                        "availability_60",
+                        "availability_90",
+                        "availability_365",
+                        "calendar_last_scraped",
+                        "number_of_reviews",
+                        "number_of_reviews_ltm",
+                        "number_of_reviews_l30d",
+                        "availability_eoy",
+                        "number_of_reviews_ly",
+                        "estimated_occupancy_l365d",
+                        "estimated_revenue_l365d",
+                        "first_review",
+                        "last_review",
+                        "review_scores_rating",
+                        "review_scores_accuracy",
+                        "review_scores_cleanliness",
+                        "review_scores_checkin",
+                        "review_scores_communication",
+                        "review_scores_location",
+                        "review_scores_value",
+                        "license",
+                        "instant_bookable",
+                        "calculated_host_listings_count",
+                        "calculated_host_listings_count_entire_homes",
+                        "calculated_host_listings_count_private_rooms",
+                        "calculated_host_listings_count_shared_rooms",
+                        "reviews_per_month"
+                    ]
+                },
+                {
+                    "index": 3,
+                    "table": "neighbourhoods",
+                    "columns": [
+                        "neighbourhood_group",
+                        "neighbourhood"
+                    ]
+                },
+                {
+                    "index": 4,
+                    "table": "reviews",
+                    "columns": [
+                        "listing_id",
+                        "date"
+                    ]
+                },
+                {
+                    "index": 5,
+                    "table": "reviewsdetails",
+                    "columns": [
+                        "listing_id",
+                        "id",
+                        "date",
+                        "reviewer_id",
+                        "reviewer_name",
+                        "comments"
+                    ]
+                }
+            ],
+            "parent_run_id": null
+        }
+}
