@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,9 @@ export function GenerateFlow() {
   const dbConnectionData = localStorage.getItem("dbConnectionData");
   const dbConnectionDataObj = JSON.parse(dbConnectionData || "{}");
   console.log(dbConnectionDataObj, "dbConnectionDataObj");
+  // 防重复调用与首渲染仅触发一次
+  const inFlightRef = useRef(false);
+  const mountedCalledRef = useRef(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("selectedProblems");
@@ -55,7 +58,10 @@ export function GenerateFlow() {
         console.error("Failed to parse selected problems", e);
       }
     }
-    generateBatchData();
+    if (!mountedCalledRef.current) {
+      mountedCalledRef.current = true;
+      generateBatchData();
+    }
     // testGenerateBatch();
   }, []);
   const testGenerateBatch = async () => {
@@ -65,33 +71,244 @@ export function GenerateFlow() {
   };
 
   const generateBatchData = async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setIsGenerating(true);
     setHasError(false);
     setErrorMessage("");
-
-    const batchData = {
-      queries: [
-        {
-          query:
-            "How do amenities correlate with review scores in accommodations frequented by short-term renters and tourists?",
-          sql: "SELECT amenities, AVG(review_scores_rating) AS average_review_score FROM listingsdetails GROUP BY amenities;",
-        },
-        {
-          query:
-            "Analyze the trend of estimated revenue over the last 365 days for properties managed by superhosts versus non-superhosts.",
-          sql: "SELECT host_is_superhost, DATE_TRUNC('''month''', calendar_last_scraped) AS month, SUM(estimated_revenue_l365d) AS total_revenue FROM listingsdetails GROUP BY host_is_superhost, month ORDER BY month;",
-        },
-      ],
-      anchorIndex:
-        '[{"table":"calendar","columns":["listing_id","date","available","price","adjusted_price","minimum_nights","maximum_nights"],"index":0},{"table":"listings","columns":["id","name","host_id","host_name","neighbourhood_group","neighbourhood","latitude","longitude","room_type","price","minimum_nights","number_of_reviews","last_review","reviews_per_month","calculated_host_listings_count","availability_365","number_of_reviews_ltm","license"],"index":1},{"table":"listingsdetails","columns":["id","listing_url","scrape_id","last_scraped","source","name","description","neighborhood_overview","picture_url","host_id","host_url","host_name","host_since","host_location","host_about","host_response_time","host_response_rate","host_acceptance_rate","host_is_superhost","host_thumbnail_url","host_picture_url","host_neighbourhood","host_listings_count","host_total_listings_count","host_verifications","host_has_profile_pic","host_identity_verified","neighbourhood","neighbourhood_cleansed","neighbourhood_group_cleansed","latitude","longitude","property_type","room_type","accommodates","bathrooms","bathrooms_text","bedrooms","beds","amenities","price","minimum_nights","maximum_nights","minimum_minimum_nights","maximum_minimum_nights","minimum_maximum_nights","maximum_maximum_nights","minimum_nights_avg_ntm","maximum_nights_avg_ntm","calendar_updated","has_availability","availability_30","availability_60","availability_90","availability_365","calendar_last_scraped","number_of_reviews","number_of_reviews_ltm","number_of_reviews_l30d","availability_eoy","number_of_reviews_ly","estimated_occupancy_l365d","estimated_revenue_l365d","first_review","last_review","review_scores_rating","review_scores_accuracy","review_scores_cleanliness","review_scores_checkin","review_scores_communication","review_scores_location","review_scores_value","license","instant_bookable","calculated_host_listings_count","calculated_host_listings_count_entire_homes","calculated_host_listings_count_private_rooms","calculated_host_listings_count_shared_rooms","reviews_per_month"],"index":2},{"table":"neighbourhoods","columns":["neighbourhood_group","neighbourhood"],"index":3},{"table":"reviews","columns":["listing_id","date"],"index":4},{"table":"reviewsdetails","columns":["listing_id","id","date","reviewer_id","reviewer_name","comments"],"index":5}]',
-      user_id: user?.id || "",
-      supabase_config: {
-        supabase_url: dbConnectionDataObj.connectionUrl,
-        supabase_key: dbConnectionDataObj.apiKey,
-      },
-    };
+    // 提前声明供两个阶段复用的变量
+    let extractedQueries: any[] = [];
+    let runResultForNext: any = null;
 
     try {
+      // 先调用业务预处理接口：standal_sql
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 600_000);
+        let segmentsPayload: any[] = [];
+        try {
+          const raw = localStorage.getItem("marketsData");
+          if (raw) {
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) {
+              segmentsPayload = arr.map((seg: any) => ({
+                name: seg.name || seg.title,
+                analysis: seg.analysis || undefined,
+                valueQuestions: seg.valueQuestions || [],
+                segmentId: seg.segmentId || seg.id || undefined,
+              }));
+            }
+          }
+        } catch {}
+
+        // const taskId =
+        //   (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
+        const taskId = "66cb45e4-5d87-49f2-a90d-6f4b76b5b0e2";
+        const run_result = {
+          domain: { primaryDomain: "Hospitality Management" },
+          ingest: { schemaHash: "sha256-3c7459f15975eae5" },
+          run_id: "r_1",
+          status: "complete",
+          task_id: taskId,
+          segments: segmentsPayload,
+          anchIndex: [
+            {
+              index: 0,
+              table: "calendar",
+              columns: [
+                "listing_id",
+                "date",
+                "available",
+                "price",
+                "adjusted_price",
+                "minimum_nights",
+                "maximum_nights",
+              ],
+            },
+            {
+              index: 1,
+              table: "listings",
+              columns: [
+                "id",
+                "name",
+                "host_id",
+                "host_name",
+                "neighbourhood_group",
+                "neighbourhood",
+                "latitude",
+                "longitude",
+                "room_type",
+                "price",
+                "minimum_nights",
+                "number_of_reviews",
+                "last_review",
+                "reviews_per_month",
+                "calculated_host_listings_count",
+                "availability_365",
+                "number_of_reviews_ltm",
+                "license",
+              ],
+            },
+            {
+              index: 2,
+              table: "listingsdetails",
+              columns: [
+                "id",
+                "listing_url",
+                "scrape_id",
+                "last_scraped",
+                "source",
+                "name",
+                "description",
+                "neighborhood_overview",
+                "picture_url",
+                "host_id",
+                "host_url",
+                "host_name",
+                "host_since",
+                "host_location",
+                "host_about",
+                "host_response_time",
+                "host_response_rate",
+                "host_acceptance_rate",
+                "host_is_superhost",
+                "host_thumbnail_url",
+                "host_picture_url",
+                "host_neighbourhood",
+                "host_listings_count",
+                "host_total_listings_count",
+                "host_verifications",
+                "host_has_profile_pic",
+                "host_identity_verified",
+                "neighbourhood",
+                "neighbourhood_cleansed",
+                "neighbourhood_group_cleansed",
+                "latitude",
+                "longitude",
+                "property_type",
+                "room_type",
+                "accommodates",
+                "bathrooms",
+                "bathrooms_text",
+                "bedrooms",
+                "beds",
+                "amenities",
+                "price",
+                "minimum_nights",
+                "maximum_nights",
+                "minimum_minimum_nights",
+                "maximum_minimum_nights",
+                "minimum_maximum_nights",
+                "maximum_maximum_nights",
+                "minimum_nights_avg_ntm",
+                "maximum_nights_avg_ntm",
+                "calendar_updated",
+                "has_availability",
+                "availability_30",
+                "availability_60",
+                "availability_90",
+                "availability_365",
+                "calendar_last_scraped",
+                "number_of_reviews",
+                "number_of_reviews_ltm",
+                "number_of_reviews_l30d",
+                "availability_eoy",
+                "number_of_reviews_ly",
+                "estimated_occupancy_l365d",
+                "estimated_revenue_l365d",
+                "first_review",
+                "last_review",
+                "review_scores_rating",
+                "review_scores_accuracy",
+                "review_scores_cleanliness",
+                "review_scores_checkin",
+                "review_scores_communication",
+                "review_scores_location",
+                "review_scores_value",
+                "license",
+                "instant_bookable",
+                "calculated_host_listings_count",
+                "calculated_host_listings_count_entire_homes",
+                "calculated_host_listings_count_private_rooms",
+                "calculated_host_listings_count_shared_rooms",
+                "reviews_per_month",
+              ],
+            },
+            {
+              index: 3,
+              table: "neighbourhoods",
+              columns: ["neighbourhood_group", "neighbourhood"],
+            },
+            {
+              index: 4,
+              table: "reviews",
+              columns: ["listing_id", "date"],
+            },
+            {
+              index: 5,
+              table: "reviewsdetails",
+              columns: [
+                "listing_id",
+                "id",
+                "date",
+                "reviewer_id",
+                "reviewer_name",
+                "comments",
+              ],
+            },
+          ],
+          parent_run_id: null,
+        };
+        runResultForNext = run_result;
+
+        const standalRes = await fetch(
+          "https://business-insight.datail.ai/api/v1/standal_sql",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ run_result }),
+            signal: controller.signal,
+          }
+        );
+        clearTimeout(timeout);
+        const standalText = await standalRes.text();
+        console.log(standalText, "standalText");
+        let standalJson: any = standalText;
+        try {
+          standalJson = JSON.parse(standalText);
+        } catch {}
+        if (!standalRes.ok) {
+          throw new Error(
+            typeof standalJson === "string"
+              ? standalJson.slice(0, 200)
+              : standalJson?.error || `standal_sql HTTP ${standalRes.status}`
+          );
+        }
+        // 将 standal_sql 成功返回的 queries 作为下一步 batchData.queries
+        extractedQueries = Array.isArray((standalJson as any)?.queries)
+          ? (standalJson as any).queries
+          : Array.isArray((standalJson as any)?.data?.queries)
+          ? (standalJson as any).data.queries
+          : [];
+        if (!Array.isArray(extractedQueries) || extractedQueries.length === 0) {
+          throw new Error("standal_sql 未返回有效的 queries 数组");
+        }
+      } catch (e) {
+        console.error("standal_sql 调用失败", e);
+        throw e instanceof Error ? e : new Error("standal_sql 调用失败");
+      }
+
+      const batchData = {
+        queries: extractedQueries,
+        anchorIndex:
+          '[{"table":"calendar","columns":["listing_id","date","available","price","adjusted_price","minimum_nights","maximum_nights"],"index":0},{"table":"listings","columns":["id","name","host_id","host_name","neighbourhood_group","neighbourhood","latitude","longitude","room_type","price","minimum_nights","number_of_reviews","last_review","reviews_per_month","calculated_host_listings_count","availability_365","number_of_reviews_ltm","license"],"index":1},{"table":"listingsdetails","columns":["id","listing_url","scrape_id","last_scraped","source","name","description","neighborhood_overview","picture_url","host_id","host_url","host_name","host_since","host_location","host_about","host_response_time","host_response_rate","host_acceptance_rate","host_is_superhost","host_thumbnail_url","host_picture_url","host_neighbourhood","host_listings_count","host_total_listings_count","host_verifications","host_has_profile_pic","host_identity_verified","neighbourhood","neighbourhood_cleansed","neighbourhood_group_cleansed","latitude","longitude","property_type","room_type","accommodates","bathrooms","bathrooms_text","bedrooms","beds","amenities","price","minimum_nights","maximum_nights","minimum_minimum_nights","maximum_minimum_nights","minimum_maximum_nights","maximum_maximum_nights","minimum_nights_avg_ntm","maximum_nights_avg_ntm","calendar_updated","has_availability","availability_30","availability_60","availability_90","availability_365","calendar_last_scraped","number_of_reviews","number_of_reviews_ltm","number_of_reviews_l30d","availability_eoy","number_of_reviews_ly","estimated_occupancy_l365d","estimated_revenue_l365d","first_review","last_review","review_scores_rating","review_scores_accuracy","review_scores_cleanliness","review_scores_checkin","review_scores_communication","review_scores_location","review_scores_value","license","instant_bookable","calculated_host_listings_count","calculated_host_listings_count_entire_homes","calculated_host_listings_count_private_rooms","calculated_host_listings_count_shared_rooms","reviews_per_month"],"index":2},{"table":"neighbourhoods","columns":["neighbourhood_group","neighbourhood"],"index":3},{"table":"reviews","columns":["listing_id","date"],"index":4},{"table":"reviewsdetails","columns":["listing_id","id","date","reviewer_id","reviewer_name","comments"],"index":5}]',
+        user_id: user?.id || "",
+        supabase_config: {
+          supabase_url: dbConnectionDataObj.connectionUrl,
+          supabase_key: dbConnectionDataObj.apiKey,
+        },
+      };
+
       const response = await fetch("/api/generate-batch", {
         method: "POST",
         headers: {
@@ -115,6 +332,7 @@ export function GenerateFlow() {
       setErrorMessage(err instanceof Error ? err.message : "生成失败，请重试");
     } finally {
       setIsGenerating(false);
+      inFlightRef.current = false;
     }
   };
   const startGeneration = (problems: SelectedProblem[]) => {
