@@ -806,7 +806,6 @@ export function ConnectFlow() {
         );
       }
       if (
-        data.progress === 100 ||
         data.status === "completed" ||
         data.status === "failed" ||
         data.status === "error"
@@ -871,31 +870,51 @@ export function ConnectFlow() {
     console.log(aaaa, "--------------------------------");
     try {
       console.log("Step 0: Validating connection...");
-      const validateRes = await fetch("/api/validate-connection", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          projectId: connectionUrl,
-          accessToken: accessToken,
-        }),
-      });
-      if (!validateRes.ok) {
-        const errorData = await validateRes.json();
-        throw new Error(
-          errorData.error || `Data validation failed: ${validateRes.status}`
-        );
+      // const validateRes = await fetch("/api/validate-connection", {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //   },
+      //   body: JSON.stringify({
+      //     projectId: connectionUrl,
+      //     accessToken: accessToken,
+      //   }),
+      // });
+      // if (!validateRes.ok) {
+      //   const errorData = await validateRes.json();
+      //   throw new Error(
+      //     errorData.error || `Data validation failed: ${validateRes.status}`
+      //   );
+      // }
+      // const validateResData = await validateRes.json();
+      // console.log("Data validation successful:", validateResData);
+      // if (!validateResData.success) {
+      //   setDataValidationError(
+      //     "Data authenticity validation failed: No available data tables or empty data in database"
+      //   );
+      //   return;
+      // }
+      // 连接成功，存入data_connections表
+      try {
+        await fetch("/api/data-connections", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user?.id || "",
+            connectionInfo: {
+              project_id: connectionUrl,
+              access_token: accessToken,
+              api_key: apiKey,
+            },
+            connectionSource: "supabase",
+            status: "active",
+          }),
+        });
+      } catch (e) {
+        console.warn("save data_connections failed", e);
       }
-      const validateResData = await validateRes.json();
-      console.log("Data validation successful:", validateResData);
-      if (!validateResData.success) {
-        setDataValidationError(
-          "Data authenticity validation failed: No available data tables or empty data in database"
-        );
-        return;
-      }
-      // 连接成功，进入数据验证步骤
+
+      // 进入数据验证步骤
 
       // 第一步：数据验证
       console.log("Step 1: Validating data...");
@@ -1014,10 +1033,7 @@ export function ConnectFlow() {
         10000, // 2s轮询一次
         6 // 最多轮询6分钟
       );
-      if (
-        pollingResult.status === "completed" ||
-        pollingResult.progress === 100
-      ) {
+      if (pollingResult.status === "completed") {
         setJobStatus("done");
         console.log("pollingResult:", pollingResult);
       } else {
@@ -1025,17 +1041,21 @@ export function ConnectFlow() {
         setConnectionError(pollingResult.error || "Job failed");
         return;
       }
-      setMarkets([
-        {
-          id: pollingResult.result.integrated_analysis.markets
-            .market_segments[0].market_name,
-          title:
-            pollingResult.result.integrated_analysis.markets.market_segments[0]
-              .market_name,
-          analysis:
-            pollingResult.result.integrated_analysis.markets.market_segments[0],
-        },
-      ]);
+      const segments = pollingResult?.run_results?.run_result?.segments || [];
+      localStorage.setItem(
+        "run_result",
+        JSON.stringify(pollingResult?.run_results.run_result)
+      );
+      const mapped = segments.map((seg: any) => ({
+        id: seg.segmentId || seg.name,
+        title: seg.name,
+        analysis: seg.analysis,
+        valueQuestions: seg.valueQuestions,
+      }));
+      setMarkets(mapped);
+      try {
+        localStorage.setItem("marketsData", JSON.stringify(mapped));
+      } catch {}
 
       // 数据验证成功，继续后续步骤
       setAnalysisStep("reading-schema");
@@ -1052,21 +1072,7 @@ export function ConnectFlow() {
         setAnalysisStep(steps[i] as AnalysisStep);
       }
 
-      // 获取分析结果
-      // const analyzeResponse = await fetch("/api/analyze", {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({ url: connectionUrl, key: accessToken }),
-      // });
-
-      // if (!analyzeResponse.ok) {
-      //   throw new Error("分析失败");
-      // }
-
-      // const analyzeData = await analyzeResponse.json();
-      // setAnalysisResults(analyzeData.results || []);
+      // 获取分析结果（此页面由 markets 渲染，不再使用本地演示数据）
       setAnalysisResults(testAnalysisData);
       setStep("results");
       setIsAnalyzing(false);

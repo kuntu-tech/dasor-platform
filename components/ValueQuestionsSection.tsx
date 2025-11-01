@@ -229,12 +229,28 @@ type RefreshType =
   | "add-question"
   | "edit-question"
   | "delete-question";
+interface ExternalSegment {
+  id?: string;
+  segmentId?: string;
+  name: string;
+  subtitle?: string;
+  analysis?: any;
+  valueQuestions?: Array<{
+    id: string;
+    intent?: string;
+    question: string;
+    answerShape?: string;
+    feasibility?: { status?: string };
+  }>;
+}
+
 interface ValueQuestionsSectionProps {
   onAnalysisClick: (analysis: AnalysisData) => void;
   isGenerating: boolean;
   generationProgress: number;
   refreshType: RefreshType;
   refreshKey: number;
+  segmentsData?: ExternalSegment[]; // 新增：外部传入的段数据（来自接口）
 }
 // Helper function to generate random question
 const generateRandomQuestion = (): string => {
@@ -365,11 +381,149 @@ export function ValueQuestionsSection({
   generationProgress,
   refreshType,
   refreshKey,
+  segmentsData,
 }: ValueQuestionsSectionProps) {
   const [activeTab, setActiveTab] = useState(segments[0].id);
   const [isCompact, setIsCompact] = useState(false);
   const [currentSegments, setCurrentSegments] = useState(segments);
   const [currentAnalysisData, setCurrentAnalysisData] = useState(analysisData);
+
+  // 将外部 segmentsData 转换为内部所需结构
+  useEffect(() => {
+    console.log("segmentsData", segmentsData);
+    if (!segmentsData || segmentsData.length === 0) return;
+
+    const mapStatus = (s?: string): Question["status"] => {
+      if (!s) return "info";
+      const v = s.toUpperCase();
+      if (v === "IMPOSSIBLE") return "error";
+      if (v === "NEEDS_TRANSFORM") return "warning";
+      if (v === "AMBIGUOUS") return "info";
+      return "success";
+    };
+
+    const mappedSegments: Segment[] = segmentsData.map((seg) => ({
+      id: seg.segmentId || seg.id || seg.name || (seg as any).title,
+      name: seg.name || (seg as any).title,
+      subtitle: seg.subtitle || "",
+      questions: (seg.valueQuestions || []).map((q) => ({
+        id: q.id,
+        text: q.question,
+        tags: [q.intent || "", q.answerShape || ""].filter(Boolean) as string[],
+        status: mapStatus(q.feasibility?.status),
+      })),
+    }));
+
+    // 分析数据：从第一个有 analysis 的段抽取 D1-D4
+    const firstWithAnalysis = segmentsData.find((s) => s.analysis);
+    const a = (firstWithAnalysis?.analysis || {}) as any;
+    const mappedAnalysis: AnalysisData[] = [
+      {
+        id: "D1",
+        dimensionName: "Market Opportunity",
+        score: a?.D1?.score ?? 0,
+        summary: a?.D1?.summary ?? "",
+        tags: a?.D1?.supporting_indicators ?? [],
+        fullDetails: a?.D1?.summary ?? "",
+      },
+      {
+        id: "D2",
+        dimensionName: "Customer Persona",
+        score: a?.D2?.score ?? 0,
+        summary: a?.D2?.summary ?? "",
+        tags: [],
+        userPersona: a?.D2?.user_persona
+          ? {
+              role: a.D2.user_persona.role,
+              companyType: a.D2.user_persona.company_type,
+              painPoints: a.D2.user_persona.pain_points || [],
+              goals: [],
+            }
+          : undefined,
+        fullDetails: a?.D2?.summary ?? "",
+      },
+      {
+        id: "D3",
+        dimensionName: "Competitive Advantage",
+        score: a?.D3?.score ?? 0,
+        summary: a?.D3?.summary ?? "",
+        tags: [a?.D3?.revenue_band, a?.D3?.retention_signal].filter(Boolean),
+        fullDetails: a?.D3?.summary ?? "",
+      },
+      {
+        id: "D4",
+        dimensionName: "Revenue Potential",
+        score: a?.D4?.score ?? 0,
+        summary: a?.D4?.summary ?? "",
+        tags: a?.D4?.competitive_advantage || [],
+        fullDetails: a?.D4?.summary ?? "",
+      },
+    ];
+
+    setCurrentSegments(mappedSegments.length ? mappedSegments : segments);
+    setCurrentAnalysisData(mappedAnalysis);
+    setActiveTab(mappedSegments[0]?.id || segments[0].id);
+  }, [segmentsData]);
+
+  // 当切换 Tab 时，若外部数据提供了每个 segment 的 analysis，则同步更新下方分析面板
+  useEffect(() => {
+    if (!segmentsData || segmentsData.length === 0) return;
+    const active = currentSegments.find((s) => s.id === activeTab);
+    if (!active) return;
+
+    // 在原始 segmentsData 中定位对应段（兼容 id/name/title/segmentId）
+    const raw = segmentsData.find((seg: any) => {
+      const segId = seg.segmentId || seg.id || seg.name || seg.title;
+      const segName = seg.name || seg.title;
+      return segId === active.id || segName === active.name;
+    });
+    const a = (raw?.analysis || {}) as any;
+    if (!a || Object.keys(a).length === 0) return;
+
+    const mappedAnalysis: AnalysisData[] = [
+      {
+        id: "D1",
+        dimensionName: "Market Opportunity",
+        score: a?.D1?.score ?? 0,
+        summary: a?.D1?.summary ?? "",
+        tags: a?.D1?.supporting_indicators ?? [],
+        fullDetails: a?.D1?.summary ?? "",
+      },
+      {
+        id: "D2",
+        dimensionName: "Customer Persona",
+        score: a?.D2?.score ?? 0,
+        summary: a?.D2?.summary ?? "",
+        tags: [],
+        userPersona: a?.D2?.user_persona
+          ? {
+              role: a.D2.user_persona.role,
+              companyType: a.D2.user_persona.company_type,
+              painPoints: a.D2.user_persona.pain_points || [],
+              goals: [],
+            }
+          : undefined,
+        fullDetails: a?.D2?.summary ?? "",
+      },
+      {
+        id: "D3",
+        dimensionName: "Competitive Advantage",
+        score: a?.D3?.score ?? 0,
+        summary: a?.D3?.summary ?? "",
+        tags: [a?.D3?.revenue_band, a?.D3?.retention_signal].filter(Boolean),
+        fullDetails: a?.D3?.summary ?? "",
+      },
+      {
+        id: "D4",
+        dimensionName: "Revenue Potential",
+        score: a?.D4?.score ?? 0,
+        summary: a?.D4?.summary ?? "",
+        tags: a?.D4?.competitive_advantage || [],
+        fullDetails: a?.D4?.summary ?? "",
+      },
+    ];
+    setCurrentAnalysisData(mappedAnalysis);
+  }, [activeTab, currentSegments, segmentsData]);
   // Handle segment refresh - switch to second tab
   useEffect(() => {
     if (refreshType === "segment" && !isGenerating) {
@@ -543,6 +697,19 @@ export function ValueQuestionsSection({
   }, [refreshKey, refreshType, isGenerating]);
   const activeSegment =
     currentSegments.find((s) => s.id === activeTab) || currentSegments[0];
+
+  // 持久化：仅存当前选中 Tab 的 valueQuestions
+  useEffect(() => {
+    console.log("activeSegment", activeSegment);
+    console.log("activeTab", activeTab);
+    console.log("currentSegments", currentSegments);
+    try {
+      localStorage.setItem(
+        "selectedProblems",
+        JSON.stringify(activeSegment?.questions.map((q) => q.text))
+      );
+    } catch {}
+  }, [activeTab, activeSegment, currentSegments]);
   const handleGenerateApp = () => {
     console.log("Generating app for segment:", activeSegment.name);
   };
@@ -619,7 +786,7 @@ export function ValueQuestionsSection({
                 <Sparkles
                   className="w-16 h-16"
                   style={{
-                    color: "#8F56BE",
+                    color: "#000000",
                   }}
                 />
               </motion.div>
@@ -648,7 +815,7 @@ export function ValueQuestionsSection({
                     }}
                     className="h-full rounded-full"
                     style={{
-                      backgroundColor: "#8F56BE",
+                      backgroundColor: "#000000",
                     }}
                   />
                 </div>
@@ -928,7 +1095,6 @@ export function ValueQuestionsSection({
               className="pt-2 relative"
               onMouseEnter={() => setIsCompact(true)}
             >
-              {/* Question List overlay */}
               <AnimatePresence>
                 {showQuestionListOverlay && (
                   <motion.div
