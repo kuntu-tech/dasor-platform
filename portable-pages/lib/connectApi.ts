@@ -272,3 +272,99 @@ export async function syncSubscriptionStatus(
 
   return json;
 }
+
+// App 支付相关接口
+export interface CreateAppPaymentRequestBody {
+  appId: string;
+  userId: string;
+  successUrl?: string; // 支付成功回调地址（可选）
+  cancelUrl?: string; // 支付取消回调地址（可选）
+}
+
+export interface CreateAppPaymentResponse {
+  success: boolean;
+  data?: {
+    type: "free" | "paid";
+    url?: string; // 付费 App 的支付链接
+    sessionId?: string; // 付费 App 的 session ID
+    paymentModel?: string; // 支付模式 (subscription/one_time)
+    priceAmount?: number; // 价格
+    message?: string; // 免费 App 的提示信息
+  };
+  message?: string;
+  error?: string;
+  details?: any; // 错误详情（可选）
+}
+
+/**
+ * 创建 App 支付会话
+ * @param body 请求参数 { appId, userId }
+ * @returns 支付信息
+ */
+export async function createAppPayment(
+  body: CreateAppPaymentRequestBody
+): Promise<CreateAppPaymentResponse> {
+  // 使用后端代理 API 避免 CORS 问题
+  const url = `/api/app-payments/create`;
+  console.log("Calling createAppPayment:", url, body);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    console.log("createAppPayment response status:", res.status);
+
+    // 尝试解析响应
+    let json: CreateAppPaymentResponse;
+    try {
+      json = (await res.json()) as CreateAppPaymentResponse;
+    } catch (error) {
+      console.error("Failed to parse JSON response:", error);
+      return {
+        success: false,
+        error: `Failed to parse response: ${res.status}`,
+      };
+    }
+
+    // 检查响应状态
+    if (!res.ok) {
+      console.error("App Payment API HTTP error:", res.status, json);
+      // 尝试获取更详细的错误信息
+      const errorMessage = 
+        json.error || 
+        json.details?.error || 
+        json.message || 
+        json.details?.message ||
+        `HTTP error: ${res.status}`;
+      
+      return {
+        success: false,
+        error: errorMessage,
+        details: json.details,
+      };
+    }
+
+    // 检查响应数据
+    if (json.success === false) {
+      console.error("App Payment API error:", res.status, json);
+      return {
+        success: false,
+        error: json.error || json.message || "创建支付链接失败",
+      };
+    }
+
+    return json;
+  } catch (error) {
+    console.error("createAppPayment error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "网络错误",
+    };
+  }
+}
