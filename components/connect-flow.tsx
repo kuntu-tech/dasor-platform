@@ -354,8 +354,7 @@ export function ConnectFlow() {
   const [analysisResults, setAnalysisResults] = useState<AnalysisResultItem[]>(
     []
   );
-  const [analysisStep, setAnalysisStep] =
-    useState<AnalysisStep>("validating-data");
+  const [analysisStep, setAnalysisStep] = useState<AnalysisStep>("connecting");
   const [chatInput, setChatInput] = useState("");
   const [pendingChatInput, setPendingChatInput] = useState("");
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -865,35 +864,50 @@ export function ConnectFlow() {
 
     // 开始分析流程
     setStep("analyzing");
-    setAnalysisStep("validating-data");
+    setAnalysisStep("connecting");
     setIsAnalyzing(true);
     console.log(aaaa, "--------------------------------");
     try {
       console.log("Step 0: Validating connection...");
-      // const validateRes = await fetch("/api/validate-connection", {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     projectId: connectionUrl,
-      //     accessToken: accessToken,
-      //   }),
-      // });
-      // if (!validateRes.ok) {
-      //   const errorData = await validateRes.json();
-      //   throw new Error(
-      //     errorData.error || `Data validation failed: ${validateRes.status}`
-      //   );
-      // }
-      // const validateResData = await validateRes.json();
-      // console.log("Data validation successful:", validateResData);
-      // if (!validateResData.success) {
-      //   setDataValidationError(
-      //     "Data authenticity validation failed: No available data tables or empty data in database"
-      //   );
-      //   return;
-      // }
+      const validateRes = await fetch("/api/validate-connection", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectId: connectionUrl,
+          accessToken: accessToken,
+        }),
+      });
+      if (!validateRes.ok) {
+        let errorMsg = `Connection validation failed: ${validateRes.status}`;
+        try {
+          const errorData = await validateRes.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch {
+          const errorText = await validateRes.text();
+          errorMsg = errorText?.slice(0, 200) || errorMsg;
+        }
+        setConnectionError(errorMsg);
+        setDataValidationError(null);
+        setAnalysisStep("connecting"); // 重置到连接步骤，表示在连接阶段失败
+        setStep("analyzing");
+        setIsAnalyzing(false);
+        return; // 直接返回，不执行后续步骤
+      }
+      const validateResData = await validateRes.json();
+      console.log("Data validation successful:", validateResData);
+      if (!validateResData.success) {
+        setConnectionError(
+          validateResData.error || "Connection validation failed"
+        );
+        setDataValidationError(null);
+        setAnalysisStep("connecting"); // 重置到连接步骤，表示在连接阶段失败
+        setStep("analyzing");
+        setIsAnalyzing(false);
+        return; // 直接返回，不执行后续步骤
+      }
+      // validate-connection 成功，继续后续步骤
       // 连接成功，存入data_connections表
       try {
         await fetch("/api/data-connections", {
@@ -915,6 +929,7 @@ export function ConnectFlow() {
       }
 
       // 进入数据验证步骤
+      setAnalysisStep("validating-data");
 
       // 第一步：数据验证
       console.log("Step 1: Validating data...");
@@ -952,7 +967,9 @@ export function ConnectFlow() {
       // 第二步：连接数据库
       console.log("Step 2: Connecting to database...");
 
-      setAnalysisStep("connecting");
+      // 数据验证成功，继续后续步骤
+      setAnalysisStep("reading-schema");
+
       // 连接方式一
       // const connectResponse = await fetch("/api/connect", {
       //   method: "POST",
@@ -1014,31 +1031,60 @@ export function ConnectFlow() {
       );
 
       if (!connectResponse.ok) {
-        const errorData = await connectResponse.json();
-        throw new Error(
-          errorData.error ||
-            `Data validation failed: ${connectResponse.statusText}`
-        );
+        let errorMsg = `Pipeline run failed: ${connectResponse.status}`;
+        try {
+          const errorData = await connectResponse.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch {
+          const errorText = await connectResponse.text();
+          errorMsg = errorText?.slice(0, 200) || errorMsg;
+        }
+        setConnectionError(errorMsg);
+        setDataValidationError(null);
+        setAnalysisStep("reading-schema"); // 重置到 reading-schema 步骤，表示在该步骤失败
+        setStep("analyzing");
+        setIsAnalyzing(false);
+        return; // 直接返回，不执行后续步骤
       }
 
       const connectData1 = await connectResponse.json();
-      console.log("Connect successful:", connectData1);
+      console.log("Pipeline run successful, job_id:", connectData1.job_id);
+
+      // 进入轮询阶段，根据进度更新 analysisStep
       setJobStatus("waiting");
       const pollingResult = await pollJobProgress(
         connectData1.job_id,
         (progress, status, data) => {
-          if (progress !== null) setProgress(progress); // 假如progress是0~1
+          if (progress !== null) {
+            setProgress(progress);
+            // 根据进度自动更新 analysisStep
+            if (progress >= 0 && progress < 20) {
+              setAnalysisStep("reading-schema");
+            } else if (progress >= 20 && progress < 40) {
+              setAnalysisStep("sampling-data");
+            } else if (progress >= 40 && progress < 80) {
+              setAnalysisStep("evaluating");
+            } else if (progress >= 80 && progress < 100) {
+              setAnalysisStep("evaluating");
+            } else if (progress === 100) {
+              setAnalysisStep("complete");
+            }
+          }
           if (status) setJobStatus(status);
         },
-        10000, // 2s轮询一次
+        10000, // 10秒轮询一次
         6 // 最多轮询6分钟
       );
       if (pollingResult.status === "completed") {
         setJobStatus("done");
+        setAnalysisStep("complete");
+        setProgress(100);
         console.log("pollingResult:", pollingResult);
       } else {
         setJobStatus(pollingResult.status || "error");
         setConnectionError(pollingResult.error || "Job failed");
+        setStep("analyzing");
+        setIsAnalyzing(false);
         return;
       }
       const segments = pollingResult?.run_results?.run_result?.segments || [];
@@ -1056,21 +1102,6 @@ export function ConnectFlow() {
       try {
         localStorage.setItem("marketsData", JSON.stringify(mapped));
       } catch {}
-
-      // 数据验证成功，继续后续步骤
-      setAnalysisStep("reading-schema");
-
-      // 模拟后续步骤的进度
-      const steps = [
-        "reading-schema",
-        "sampling-data",
-        "evaluating",
-        "complete",
-      ];
-      for (let i = 0; i < steps.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setAnalysisStep(steps[i] as AnalysisStep);
-      }
 
       // 获取分析结果（此页面由 markets 渲染，不再使用本地演示数据）
       setAnalysisResults(testAnalysisData);
@@ -1817,9 +1848,10 @@ export function ConnectFlow() {
   };
 
   const getStepStatus = (stepName: AnalysisStep) => {
+    // 步骤执行顺序：connecting -> validating-data -> reading-schema -> sampling-data -> evaluating -> complete
     const steps: AnalysisStep[] = [
-      "validating-data",
       "connecting",
+      "validating-data",
       "reading-schema",
       "sampling-data",
       "evaluating",
@@ -1828,6 +1860,63 @@ export function ConnectFlow() {
     const currentIndex = steps.indexOf(analysisStep);
     const stepIndex = steps.indexOf(stepName);
 
+    // 如果有连接错误，根据步骤位置判断状态
+    if (connectionError) {
+      const connectingIndex = steps.indexOf("connecting");
+      const readingSchemaIndex = steps.indexOf("reading-schema");
+
+      // 连接步骤失败，显示错误（由 UI 层处理）
+      if (stepName === "connecting") {
+        return "error";
+      }
+      // 如果当前停留在 reading-schema 且有错误，说明在该步骤失败
+      if (stepName === "reading-schema" && analysisStep === "reading-schema") {
+        return "error";
+      }
+      // 连接失败后，后续步骤都应该是等待状态
+      if (stepIndex > connectingIndex) {
+        // 如果当前步骤是 reading-schema 且有错误，显示错误
+        if (
+          stepIndex === readingSchemaIndex &&
+          analysisStep === "reading-schema"
+        ) {
+          return "error";
+        }
+        return "waiting";
+      }
+      // 连接之前的步骤（如 validating-data）可能已完成或失败
+      if (stepIndex < connectingIndex) {
+        // 如果 validating-data 也有错误，则失败
+        if (stepName === "validating-data" && dataValidationError) {
+          return "error";
+        }
+        // 否则可能已完成（如果已经通过了验证）
+        return currentIndex > stepIndex ? "completed" : "waiting";
+      }
+    }
+
+    // 如果有数据验证错误，且当前步骤是 validating-data
+    if (dataValidationError && stepName === "validating-data") {
+      return "error";
+    }
+
+    // 特殊处理：当 analysisStep 是 "connecting" 时，validating-data 应该显示等待状态
+    // 因为 validating-data 是在 connecting 过程中完成的，只有当 connecting 完成后才标记为 completed
+    // if (analysisStep === "connecting") {
+    //   if (stepName === "validating-data") {
+    //     // 如果连接正在进行中，数据验证可能正在进行或已完成
+    //     // 但为了安全起见，只有在连接完成后才标记为 completed
+    //     // 这里我们检查是否有连接错误，如果没有错误，说明验证可能正在进行
+    //     return "waiting";
+    //   }
+    //   if (stepName === "connecting") {
+    //     return "in-progress";
+    //   }
+    //   // 后续步骤都等待
+    //   return "waiting";
+    // }
+
+    // 正常流程：根据当前步骤位置判断
     if (stepIndex < currentIndex) return "completed";
     if (stepIndex === currentIndex) return "in-progress";
     return "waiting";
@@ -2071,82 +2160,6 @@ export function ConnectFlow() {
                 <CardTitle>AI is Analyzing Your Database</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6 py-8">
-                {/* Data Availability Validation */}
-                <div className="flex items-start gap-4">
-                  <div className="mt-1">
-                    {dataValidationError ? (
-                      <XCircle className="size-6 text-red-600" />
-                    ) : getStepStatus("validating-data") === "completed" ? (
-                      <CheckCircle2 className="size-6 text-green-600" />
-                    ) : getStepStatus("validating-data") === "in-progress" ? (
-                      <Loader2 className="size-6 text-primary animate-spin" />
-                    ) : (
-                      <Clock className="size-6 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium">
-                        Data Availability Validation
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {dataValidationError
-                        ? "Data validation failed, please check data availability"
-                        : "Check data integrity and accessibility"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* 如果数据真实性验证失败，显示错误信息和建议 */}
-                {dataValidationError && (
-                  <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
-                    <div className="flex items-start gap-3">
-                      <XCircle className="size-6 text-red-600 mt-0.5 shrink-0" />
-                      <div className="space-y-3">
-                        <h4 className="font-bold text-red-900 text-lg">
-                          🚨 Data Authenticity Validation Failed
-                        </h4>
-                        <p className="text-red-800 font-medium">
-                          {dataValidationError}
-                        </p>
-                        <div className="bg-red-100 border border-red-200 rounded-lg p-4">
-                          <p className="font-semibold text-red-900 mb-2">
-                            🔍 Data Problem Diagnosis:
-                          </p>
-                        </div>
-                        <div className="bg-red-200 border border-red-300 rounded-lg p-4">
-                          <p className="font-semibold text-red-900 mb-2">
-                            💡 Suggested Solutions:
-                          </p>
-                        </div>
-                        <div className="flex gap-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              // setConnectionUrl("");
-                              // setAccessToken("");
-                              // setConnectionError(null);
-                              // setDataValidationError(null);
-                              // setHasValidated(false); // Reset validation status
-                              setIsAnalyzing(false);
-                              setStep("connect");
-                              setConnectionError(null);
-                              setDataValidationError(null);
-                              setHasValidated(false);
-                              setShowInputError(true);
-                            }}
-                            className="border-red-300 text-red-700 hover:bg-red-50"
-                          >
-                            Back
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Database Connection */}
                 <div className="flex items-start gap-4">
                   <div className="mt-1">
@@ -2164,11 +2177,11 @@ export function ConnectFlow() {
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium">Database Connection</span>
 
-                      {getStepStatus("connecting") === "in-progress" && (
+                      {/* {getStepStatus("connecting") === "in-progress" && (
                         <span className="text-xs text-muted-foreground ml-2">
                           [{jobStatus} —— {progress}%]
                         </span>
-                      )}
+                      )} */}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {connectionError
@@ -2263,6 +2276,86 @@ export function ConnectFlow() {
                           >
                             Clear and Refill
                           </Button> */}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* Data Availability Validation */}
+                <div className="flex items-start gap-4">
+                  <div className="mt-1">
+                    {dataValidationError ? (
+                      <XCircle className="size-6 text-red-600" />
+                    ) : connectionError ? (
+                      // 如果连接失败，第二步应该显示等待状态（灰色时钟），而不是已完成
+                      <Clock className="size-6 text-muted-foreground" />
+                    ) : getStepStatus("validating-data") === "completed" ? (
+                      <CheckCircle2 className="size-6 text-green-600" />
+                    ) : getStepStatus("validating-data") === "in-progress" ? (
+                      <Loader2 className="size-6 text-primary animate-spin" />
+                    ) : (
+                      <Clock className="size-6 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium">
+                        Data Availability Validation
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {dataValidationError
+                        ? "Data validation failed, please check data availability"
+                        : connectionError
+                        ? "Waiting for database connection..."
+                        : "Check data integrity and accessibility"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 如果数据真实性验证失败，显示错误信息和建议 */}
+                {dataValidationError && (
+                  <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <XCircle className="size-6 text-red-600 mt-0.5 shrink-0" />
+                      <div className="space-y-3">
+                        <h4 className="font-bold text-red-900 text-lg">
+                          🚨 Data Authenticity Validation Failed
+                        </h4>
+                        <p className="text-red-800 font-medium">
+                          {dataValidationError}
+                        </p>
+                        <div className="bg-red-100 border border-red-200 rounded-lg p-4">
+                          <p className="font-semibold text-red-900 mb-2">
+                            🔍 Data Problem Diagnosis:
+                          </p>
+                        </div>
+                        <div className="bg-red-200 border border-red-300 rounded-lg p-4">
+                          <p className="font-semibold text-red-900 mb-2">
+                            💡 Suggested Solutions:
+                          </p>
+                        </div>
+                        <div className="flex gap-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              // setConnectionUrl("");
+                              // setAccessToken("");
+                              // setConnectionError(null);
+                              // setDataValidationError(null);
+                              // setHasValidated(false); // Reset validation status
+                              setIsAnalyzing(false);
+                              setStep("connect");
+                              setConnectionError(null);
+                              setDataValidationError(null);
+                              setHasValidated(false);
+                              setShowInputError(true);
+                            }}
+                            className="border-red-300 text-red-700 hover:bg-red-50"
+                          >
+                            Back
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -2370,15 +2463,17 @@ export function ConnectFlow() {
                             className="h-full bg-primary transition-all duration-500"
                             style={{
                               width: `${
-                                analysisStep === "validating-data"
+                                analysisStep === "connecting"
                                   ? 20
-                                  : analysisStep === "connecting"
+                                  : analysisStep === "validating-data"
                                   ? 40
                                   : analysisStep === "reading-schema"
                                   ? 60
                                   : analysisStep === "sampling-data"
                                   ? 80
-                                  : 100
+                                  : analysisStep === "evaluating"
+                                  ? 100
+                                  : 0
                               }%`,
                             }}
                           />
