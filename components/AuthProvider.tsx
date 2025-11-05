@@ -130,21 +130,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log("AuthProvider useEffect");
     // 获取初始会话
     const getInitialSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("获取会话错误:", error);
+        }
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
 
-      // 如果已有会话，打印用户信息并检查是否为新用户
-      if (session?.user) {
-        printUserInfo(session.user, "初始会话");
-        await checkAndSaveNewUser(session.user, "初始会话");
+        // 如果已有会话，打印用户信息并检查是否为新用户
+        if (session?.user) {
+          printUserInfo(session.user, "初始会话");
+          await checkAndSaveNewUser(session.user, "初始会话");
+        }
+      } catch (error) {
+        console.error("获取初始会话异常:", error);
+        // 即使出错也要设置 loading 为 false，避免页面一直加载
+        setLoading(false);
       }
     };
 
-    getInitialSession();
+    // 添加超时保护，避免无限等待
+    let loadingFinished = false;
+    const timeoutId = setTimeout(() => {
+      if (!loadingFinished) {
+        console.warn("获取会话超时，强制设置 loading 为 false");
+        setLoading(false);
+      }
+    }, 5000); // 5秒超时
+
+    getInitialSession().then(() => {
+      loadingFinished = true;
+      clearTimeout(timeoutId);
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
 
     // 监听认证状态变化
     const {

@@ -19,35 +19,34 @@ import { Loader2, ExternalLink, CheckCircle2, XCircle } from "lucide-react";
 
 export default function TestPurchasePage() {
   const { user } = useAuth();
-  const [appId, setAppId] = useState("");
-  const [userId, setUserId] = useState(user?.id || "");
+  const [app_userid, setApp_userid] = useState("");
   
   // 生成默认的回调地址（基于当前域名）
-  const getDefaultSuccessUrl = (appIdValue: string) => {
+  const getDefaultSuccessUrl = () => {
     if (typeof window !== "undefined") {
       const baseUrl = window.location.origin;
-      return `${baseUrl}/purchase/success?session_id={CHECKOUT_SESSION_ID}&app_id=${appIdValue || "{APP_ID}"}`;
+      return `${baseUrl}/purchase/success?session_id={CHECKOUT_SESSION_ID}&app_userid=${app_userid || "{APP_USERID}"}`;
     }
     return "";
   };
 
-  const getDefaultCancelUrl = (appIdValue: string) => {
+  const getDefaultCancelUrl = () => {
     if (typeof window !== "undefined") {
       const baseUrl = window.location.origin;
-      return `${baseUrl}/purchase/cancel?app_id=${appIdValue || "{APP_ID}"}`;
+      return `${baseUrl}/purchase/cancel?app_userid=${app_userid || "{APP_USERID}"}`;
     }
     return "";
   };
 
   const [successUrl, setSuccessUrl] = useState(() => {
     if (typeof window !== "undefined") {
-      return getDefaultSuccessUrl("");
+      return getDefaultSuccessUrl();
     }
     return "";
   });
   const [cancelUrl, setCancelUrl] = useState(() => {
     if (typeof window !== "undefined") {
-      return getDefaultCancelUrl("");
+      return getDefaultCancelUrl();
     }
     return "";
   });
@@ -56,39 +55,29 @@ export default function TestPurchasePage() {
   const [result, setResult] = useState<CreateAppPaymentResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // 如果用户已登录，自动填充 userId
-  if (user?.id && !userId) {
-    setUserId(user.id);
-  }
-
-  // 当 appId 变化时，自动更新回调地址中的 app_id 参数
+  // 当 app_userid 变化时，自动更新回调地址中的 app_userid 参数
   useEffect(() => {
-    if (appId && typeof window !== "undefined") {
+    if (app_userid && typeof window !== "undefined") {
       const baseUrl = window.location.origin;
-      // 更新成功回调地址中的 app_id
-      const newSuccessUrl = `${baseUrl}/purchase/success?session_id={CHECKOUT_SESSION_ID}&app_id=${appId}`;
-      // 只有在当前地址是默认值或包含 {APP_ID} 时才更新
-      if (!successUrl || successUrl.includes("{APP_ID}") || successUrl.includes("app_id=")) {
+      // 更新成功回调地址中的 app_userid
+      const newSuccessUrl = `${baseUrl}/purchase/success?session_id={CHECKOUT_SESSION_ID}&app_userid=${app_userid}`;
+      // 只有在当前地址是默认值或包含 {APP_USERID} 时才更新
+      if (!successUrl || successUrl.includes("{APP_USERID}") || successUrl.includes("app_userid=")) {
         setSuccessUrl(newSuccessUrl);
       }
       
-      // 更新取消回调地址中的 app_id
-      const newCancelUrl = `${baseUrl}/purchase/cancel?app_id=${appId}`;
-      if (!cancelUrl || cancelUrl.includes("{APP_ID}") || cancelUrl.includes("app_id=")) {
+      // 更新取消回调地址中的 app_userid
+      const newCancelUrl = `${baseUrl}/purchase/cancel?app_userid=${app_userid}`;
+      if (!cancelUrl || cancelUrl.includes("{APP_USERID}") || cancelUrl.includes("app_userid=")) {
         setCancelUrl(newCancelUrl);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appId]);
+  }, [app_userid]);
 
   const handleCreatePayment = async () => {
-    if (!appId.trim()) {
-      setError("请输入 App ID");
-      return;
-    }
-
-    if (!userId.trim()) {
-      setError("请输入 User ID");
+    if (!app_userid.trim()) {
+      setError("请输入 App User ID");
       return;
     }
 
@@ -99,13 +88,11 @@ export default function TestPurchasePage() {
     try {
       // 构建请求参数，包含可选的回调地址
       const requestBody: {
-        appId: string;
-        userId: string;
+        app_userid: string;
         successUrl?: string;
         cancelUrl?: string;
       } = {
-        appId: appId.trim(),
-        userId: userId.trim(),
+        app_userid: app_userid.trim(),
       };
 
       // 如果传入了回调地址，添加到请求中
@@ -138,7 +125,7 @@ export default function TestPurchasePage() {
   };
 
   const handleClear = () => {
-    setAppId("");
+    setApp_userid("");
     setSuccessUrl("");
     setCancelUrl("");
     setResult(null);
@@ -161,39 +148,23 @@ export default function TestPurchasePage() {
           <CardHeader>
             <CardTitle>输入参数</CardTitle>
             <CardDescription>
-              填写 App ID 和 User ID，点击按钮生成支付链接
+              填写 App User ID（app_users.id），点击按钮生成支付链接
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="appId">
-                App ID <span className="text-destructive">*</span>
+              <Label htmlFor="app_userid">
+                App User ID <span className="text-destructive">*</span>
               </Label>
               <Input
-                id="appId"
-                placeholder="例如: febbd834-0e85-433a-9086-14436083dc20"
-                value={appId}
-                onChange={(e) => setAppId(e.target.value)}
-                disabled={loading}
-              />
-              <p className="text-xs text-muted-foreground">
-                要购买的 App 的唯一标识（UUID）
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="userId">
-                User ID <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="userId"
+                id="app_userid"
                 placeholder="例如: ee61a3d1-d16a-4d0b-a635-062f7e4750de"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
+                value={app_userid}
+                onChange={(e) => setApp_userid(e.target.value)}
                 disabled={loading}
               />
               <p className="text-xs text-muted-foreground">
-                购买用户的 ID（{user?.id ? "当前已登录，可手动修改" : "请手动输入"}）
+                app_users 表的 id（对应 app_users.id），系统会通过此 ID 查询获取 app_id 和用户信息
               </p>
             </div>
 
@@ -233,7 +204,7 @@ export default function TestPurchasePage() {
             <div className="flex gap-2">
               <Button
                 onClick={handleCreatePayment}
-                disabled={loading || !appId.trim() || !userId.trim()}
+                disabled={loading || !app_userid.trim()}
                 className="flex-1"
               >
                 {loading ? (
@@ -374,11 +345,14 @@ export default function TestPurchasePage() {
             <CardTitle>使用说明</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>1. 输入 App ID 和 User ID（必填）</p>
+            <p>1. 输入 App User ID（必填）- 对应 app_users.id</p>
             <p>2. （可选）输入支付成功和取消的回调地址</p>
             <p>3. 点击"生成支付链接"按钮</p>
             <p>4. 如果是付费 App，会返回支付链接，点击按钮跳转到 Stripe 支付</p>
             <p>5. 如果是免费 App，会显示"免费应用，已自动激活"</p>
+            <p className="mt-4 font-semibold text-foreground">关于参数说明：</p>
+            <p>• <strong>app_userid</strong>：对应 app_users 表的 id 字段，系统会通过此 ID 查询获取 app_id 和用户信息</p>
+            <p>• <strong>数据流程</strong>：接收 app_userid → 查询 app_users 表获取 app_id → 使用 app_id 查询 apps 表 → 继续支付流程</p>
             <p className="mt-4 font-semibold text-foreground">关于 CHECKOUT_SESSION_ID：</p>
             <p>• <strong>获取方式 1</strong>：生成支付链接后，在返回结果中查看 "Session ID"，这就是当前的 CHECKOUT_SESSION_ID</p>
             <p>• <strong>获取方式 2</strong>：支付完成后，从回调 URL 的 <code className="bg-muted px-1 rounded">session_id</code> 参数中获取</p>
@@ -387,7 +361,7 @@ export default function TestPurchasePage() {
             <p>• 如果传入 successUrl，支付成功后会返回到指定的地址</p>
             <p>• 如果传入 cancelUrl，支付取消后会返回到指定的地址</p>
             <p>• 如果不传入回调地址，会使用默认地址（当前项目）</p>
-            <p>• 在回调地址中可以使用 {`{CHECKOUT_SESSION_ID}`} 和 {`{APP_ID}`} 占位符，会被自动替换</p>
+            <p>• 在回调地址中可以使用 {`{CHECKOUT_SESSION_ID}`} 和 {`{APP_USERID}`} 占位符，会被自动替换</p>
           </CardContent>
         </Card>
       </div>

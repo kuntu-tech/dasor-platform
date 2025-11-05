@@ -275,8 +275,7 @@ export async function syncSubscriptionStatus(
 
 // App 支付相关接口
 export interface CreateAppPaymentRequestBody {
-  appId: string;
-  userId: string;
+  app_userid: string; // app_users.id - 通过此ID查询获取app_id和用户信息
   successUrl?: string; // 支付成功回调地址（可选）
   cancelUrl?: string; // 支付取消回调地址（可选）
 }
@@ -298,7 +297,7 @@ export interface CreateAppPaymentResponse {
 
 /**
  * 创建 App 支付会话
- * @param body 请求参数 { appId, userId }
+ * @param body 请求参数 { app_userid } - app_userid 对应 app_users.id
  * @returns 支付信息
  */
 export async function createAppPayment(

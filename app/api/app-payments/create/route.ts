@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
 
 const CONNECT_API_BASE =
   process.env.NEXT_PUBLIC_CONNECT_API_BASE?.replace(/\/$/, "") ||
@@ -8,24 +9,44 @@ const SERVICE_API_TOKEN = process.env.NEXT_PUBLIC_SERVICE_API_TOKEN || "";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { appId, userId, successUrl, cancelUrl } = body;
+    const { app_userid, successUrl, cancelUrl } = body;
 
-    if (!appId || !userId) {
+    // 验证必填字段
+    if (!app_userid) {
       return NextResponse.json(
-        { success: false, error: "appId 和 userId 是必填字段" },
+        { success: false, error: "app_userid 是必填字段" },
         { status: 400 }
       );
     }
 
-    // 构建请求体，包含可选的回调地址
+    // 通过 app_userid 查询 app_users 表获取 app_id
+    const { data: appUser, error: appUserError } = await supabaseAdmin
+      .from("app_users")
+      .select("id, app_id")
+      .eq("id", app_userid)
+      .single();
+
+    if (appUserError || !appUser) {
+      return NextResponse.json(
+        { success: false, error: "用户不存在或未关联到任何应用" },
+        { status: 404 }
+      );
+    }
+
+    if (!appUser.app_id) {
+      return NextResponse.json(
+        { success: false, error: "用户未关联到任何应用" },
+        { status: 400 }
+      );
+    }
+
+    // 构建请求体，只传入 app_userid（后端会通过 app_userid 查询获取所需信息）
     const requestBody: {
-      appId: string;
-      userId: string;
+      app_userid: string;
       successUrl?: string;
       cancelUrl?: string;
     } = {
-      appId,
-      userId,
+      app_userid,
     };
 
     // 如果传入了回调地址，添加到请求体中

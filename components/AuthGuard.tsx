@@ -20,17 +20,20 @@ export function AuthGuard({ children }: AuthGuardProps) {
     "/auth/callback",
     "/auth/forgot-password",
     "/auth/reset-password",
+    "/purchase/success",
+    "/purchase/cancel",
   ];
 
   useEffect(() => {
-    console.log("loading", loading);
-    // 如果正在加载，等待加载完成
-    if (loading) return;
-
-    // 如果是公开页面，允许访问
+    console.log("loading", loading, "pathname", pathname);
+    
+    // 如果是公开页面，直接允许访问（不需要等待 loading 完成）
     if (publicPaths.includes(pathname)) {
       return;
     }
+
+    // 如果正在加载，等待加载完成
+    if (loading) return;
 
     // 如果没有用户且不在公开页面，重定向到登录页
     if (!user) {
@@ -47,6 +50,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
   }, [user, loading, pathname, router]);
 
+  // 如果是公开页面，直接显示内容（不需要等待 loading 完成）
+  if (publicPaths.includes(pathname)) {
+    return <>{children}</>;
+  }
+
   // 如果正在加载，显示加载界面
   if (loading) {
     return (
@@ -57,11 +65,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
         </div>
       </div>
     );
-  }
-
-  // 如果是公开页面，直接显示内容
-  if (publicPaths.includes(pathname)) {
-    return <>{children}</>;
   }
 
   // 如果没有用户且不在公开页面，不显示内容（等待重定向）
