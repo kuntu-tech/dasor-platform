@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Copy, ExternalLink, Calendar, Tag, Globe, FileText } from "lucide-react"
+import { ArrowLeft, Copy, ExternalLink, Calendar, Tag, Globe, FileText, Users, DollarSign } from "lucide-react"
 
 // Mock data for app versions
 const mockVersions = [
@@ -24,7 +24,9 @@ const mockVersions = [
       "Real-time sales performance tracking",
       "Inventory optimization recommendations",
       "Predictive analytics dashboard"
-    ]
+    ],
+    paidUsers: 1247,
+    totalRevenue: 15680
   },
   {
     id: "v1.1.0",
@@ -40,7 +42,9 @@ const mockVersions = [
       "Improved inventory management",
       "User behavior analytics",
       "Modern UI components"
-    ]
+    ],
+    paidUsers: 892,
+    totalRevenue: 10704
   },
   {
     id: "v1.0.0",
@@ -55,7 +59,9 @@ const mockVersions = [
       "Inventory management queries",
       "User behavior analysis dashboard",
       "Simple reporting tools"
-    ]
+    ],
+    paidUsers: 456,
+    totalRevenue: 5472
   }
 ]
 
@@ -102,6 +108,29 @@ export default function AppVersionsPage({ params }: { params: { id: string } }) 
               </CardHeader>
               
               <CardContent className="space-y-4">
+                {/* Revenue Statistics */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="border border-blue-500 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="size-4 text-muted-foreground" />
+                      <label className="text-sm font-medium text-muted-foreground">付费人数</label>
+                    </div>
+                    <div className="text-2xl font-bold text-foreground">{version.paidUsers.toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground mt-1">Active Subscribers</div>
+                  </div>
+                  
+                  <div className="border border-blue-500 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <DollarSign className="size-4 text-muted-foreground" />
+                      <label className="text-sm font-medium text-muted-foreground">总收入额</label>
+                    </div>
+                    <div className="text-2xl font-bold text-foreground">¥{version.totalRevenue.toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground mt-1">Total Revenue</div>
+                  </div>
+                </div>
+
+                <Separator />
+
                 {/* App Name */}
                 <div>
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">

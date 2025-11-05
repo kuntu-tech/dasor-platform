@@ -17,13 +17,15 @@ import {
   Infinity,
   Download,
   X,
-  Camera
+  Camera,
+  Wallet
 } from "lucide-react"
+import PaymentAccount from "@/portable-pages/components/settings/PaymentAccount"
 
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
   { id: "billing", label: "Usage & Billing", icon: CreditCard },
- 
+  { id: "payout", label: "Payout Account", icon: Wallet },
 ]
 
 interface SettingsModalProps {
@@ -348,6 +350,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
         <div className="flex-1 p-8 overflow-y-auto">
           {activeTab === "account" && renderAccountContent()}
           {activeTab === "billing" && renderBillingContent()}
+          {activeTab === "payout" && <PaymentAccount />}
         </div>
       </div>
     </div>
