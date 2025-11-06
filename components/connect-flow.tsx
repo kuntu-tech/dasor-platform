@@ -1353,7 +1353,7 @@ export function ConnectFlow() {
                 <div className="relative">
                   <Input
                     id="supabase-url"
-                    placeholder="please input project id"
+                    placeholder="Please input Project ID"
                     value={connectionUrl}
                     onChange={(e) => {
                       setConnectionUrl(e.target.value);
@@ -1369,7 +1369,10 @@ export function ConnectFlow() {
                 </div>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <Info className="size-4 mt-0.5 shrink-0" />
-                  <span>You can find this URL in your Supabase APP</span>
+                  <span>
+                    Project ID can be found in "Project Settings → General
+                    Settings"
+                  </span>
                 </div>
               </div>
 
@@ -1384,7 +1387,7 @@ export function ConnectFlow() {
                 <div className="relative">
                   <Input
                     id="access-token"
-                    placeholder="please input access token"
+                    placeholder="Please input Access Token"
                     value={accessToken}
                     onChange={(e) => {
                       setAccessToken(e.target.value);
@@ -1401,7 +1404,10 @@ export function ConnectFlow() {
                 </div>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <Info className="size-4 mt-0.5 shrink-0" />
-                  <span>Use access token, can be found in API settings</span>
+                  <span>
+                    Access Token can be found in "Account Preferences → Access
+                    Tokens"
+                  </span>
                 </div>
               </div>
               <div className="space-y-3">
@@ -1414,7 +1420,7 @@ export function ConnectFlow() {
                 <div className="relative">
                   <Input
                     id="api-key"
-                    placeholder="please input api key"
+                    placeholder="Please input API Key"
                     value={apiKey}
                     onChange={(e) => {
                       setApiKey(e.target.value);
@@ -1431,23 +1437,11 @@ export function ConnectFlow() {
                 </div>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <Info className="size-4 mt-0.5 shrink-0" />
-                  <span>Use api key, can be found in API settings</span>
+                  <span>
+                    APl Key can be found in "Project Settings → API Keys →
+                    Publishable key"
+                  </span>
                 </div>
-              </div>
-
-              {/* Read-only Checkbox */}
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  id="read-only"
-                  checked={readOnly}
-                  onCheckedChange={(checked) => setReadOnly(checked as boolean)}
-                />
-                <Label
-                  htmlFor="read-only"
-                  className="text-base font-normal cursor-pointer"
-                >
-                  Read-only access (we will not modify your data)
-                </Label>
               </div>
 
               {/* Action Button */}
@@ -1465,7 +1459,7 @@ export function ConnectFlow() {
                     Analyzing...
                   </>
                 ) : (
-                  "Import and Analyse"
+                  "Connect and Analyse"
                 )}
               </Button>
 
@@ -1475,14 +1469,20 @@ export function ConnectFlow() {
                   <Info className="size-5 text-blue-600 mt-0.5 shrink-0" />
                   <div className="space-y-2">
                     <h4 className="font-semibold text-blue-900">
-                      Why do we need this information?
+                      You're in Control
                     </h4>
                     <p className="text-sm text-blue-800 leading-relaxed">
-                      Datail needs access to your Supabase database to analyze
-                      its structure and small sample data, in order to generate
-                      AI Applicationpp recommendations that best fit your data.
-                      We do not store your data, and all analysis is performed
-                      securely in your browser.
+                      Datail do not modify or upload any of your database
+                      content. Access is strictly read-only.
+                    </p>
+                    <h4 className="font-semibold text-blue-900">
+                      Data Access Details
+                    </h4>
+                    <p className="text-sm text-blue-800 leading-relaxed">
+                      Access permissions are used solely to read your database
+                      structure and content for generating analysis results. No
+                      data will be written to, updated, or deleted from your
+                      database.{" "}
                     </p>
                   </div>
                 </div>
@@ -1537,7 +1537,10 @@ export function ConnectFlow() {
         )}
 
         {step === "analyzing" && (
-          <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <h1 className="text-3xl font-bold mb-6 text-center">
+              Analyzing Your Database
+            </h1>
             <Card className="max-w-2xl mx-auto w-full">
               <CardHeader>
                 <CardTitle>Analyzing Your Database</CardTitle>
@@ -1562,7 +1565,7 @@ export function ConnectFlow() {
 
                       {/* {getStepStatus("connecting") === "in-progress" && (
                         <span className="text-xs text-muted-foreground ml-2">
-                          [{jobStatus} —— {progress}%]
+                          {progress}%
                         </span>
                       )} */}
                     </div>

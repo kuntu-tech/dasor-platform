@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { useAuth } from "@/components/AuthProvider";
+// import { useEffect } from "react";
+// import { useRouter, usePathname } from "next/navigation";
+// import { useAuth } from "@/components/AuthProvider";
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
+  // 跳过登录验证，直接允许访问所有页面
+  return <>{children}</>;
+
+  // 以下代码已禁用，如需恢复认证，请取消注释
+  /*
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -81,4 +86,5 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   // 已认证用户，显示受保护的内容
   return <>{children}</>;
+  */
 }
