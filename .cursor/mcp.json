@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "mode": {
+      "command": "node",
+      "args": [
+        "tools/mode-mcp/index.js"
+      ]
+    }
+  }
+}
+
+

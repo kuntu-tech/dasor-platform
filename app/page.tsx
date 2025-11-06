@@ -17,6 +17,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,7 +34,6 @@ import {
 import {
   Plus,
   Search,
-  Filter,
   LayoutGrid,
   List as ListIcon,
   MoreHorizontal,
@@ -37,15 +43,17 @@ import {
 } from "lucide-react";
 import { Trash2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { PricingModal } from "@/components/pricing-modal";
 type AppItem = {
   id: string;
   name: string;
   description: string;
-  status: "published" | "draft";
+  status: "published" | "draft" | "generating";
   data_connections?: {
     connection_info?: {
       project_id?: string;
       access_token?: string;
+      api_key?: string;
     } | null;
   } | null;
 
@@ -61,9 +69,10 @@ export default function DashboardPage() {
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"list" | "grid">("list");
   const [statusFilter, setStatusFilter] = useState<
-    "all" | "published" | "draft"
+    "all" | "published" | "draft" | "generating"
   >("all");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
   const { user, session } = useAuth();
 
   const getApps = async () => {
@@ -86,6 +95,30 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user) {
       getApps();
+      
+      // 添加fake data用于展示Generating状态
+      const fakeGeneratingApp: AppItem = {
+        id: "fake-generating-app",
+        name: "E-commerce Analytics Dashboard",
+        description: "Real-time analytics dashboard for e-commerce operations with user behavior tracking",
+        status: "generating",
+        features: 8,
+        createdAt: new Date().toISOString().split("T")[0],
+        updated_at: new Date().toISOString().split("T")[0],
+        published_at: "",
+        visits: 0,
+      };
+      
+      // 延迟添加fake data，确保在真实数据加载后
+      setTimeout(() => {
+        setAppItems(prev => {
+          // 检查是否已存在fake app，避免重复添加
+          if (!prev.find(app => app.id === "fake-generating-app")) {
+            return [...prev, fakeGeneratingApp];
+          }
+          return prev;
+        });
+      }, 500);
     }
   }, [user]);
 
@@ -199,6 +232,41 @@ export default function DashboardPage() {
     return filtered;
   }, [appItems, query, statusFilter]);
 
+  // 处理创建应用的按钮点击
+  const handleCreateApp = async (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    if (!user?.id) {
+      alert("请先登录");
+      return;
+    }
+
+    try {
+      // 检查订阅状态
+      const response = await fetch("/api/check-subscription", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      const data = await response.json();
+
+      if (data.hasActiveSubscription) {
+        // 订阅有效，进入连接页面
+        router.push("/connect");
+      } else {
+        // 订阅无效，打开支付弹窗
+        setIsPricingOpen(true);
+      }
+    } catch (error) {
+      console.error("检查订阅状态失败:", error);
+      // 出错时也打开支付弹窗，确保用户可以支付
+      setIsPricingOpen(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <main className="px-6 py-8">
@@ -207,22 +275,24 @@ export default function DashboardPage() {
           <div className="flex flex-col items-center justify-center space-y-4">
             <Button
               size="lg"
-              asChild
+              onClick={handleCreateApp}
               className="h-12 px-6 text-base rounded-lg bg-transparent text-white hover:bg-white hover:text-black hover:backdrop-blur-sm hover:border-transparent border border-transparent transition-all duration-300"
             >
-              <Link href="/connect">
-                <Plus className="size-5 mr-2" /> Create Your App
-              </Link>
+              <Plus className="size-5 mr-2" /> Create Your App
             </Button>
           </div>
         </section>
+
+        {/* Pricing Modal */}
+        <PricingModal
+          isOpen={isPricingOpen}
+          onClose={() => setIsPricingOpen(false)}
+        />
         {/* 主标题区 */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold">MyApps</h1>
-            <p className="text-sm text-muted-foreground">
-              {filteredApps.length} apps
-            </p>
+          
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -230,53 +300,27 @@ export default function DashboardPage() {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="search App"
+                placeholder="Search App"
                 className="pl-9 w-72"
               />
             </div>
             <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9">
-                    <Filter className="size-4 mr-1" />
-                    {statusFilter === "all"
-                      ? "All Status"
-                      : statusFilter === "published"
-                      ? "Published"
-                      : "Draft"}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuItem
-                    onClick={() => setStatusFilter("all")}
-                    className={statusFilter === "all" ? "bg-accent" : ""}
-                  >
-                    All Status
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setStatusFilter("published")}
-                    className={statusFilter === "published" ? "bg-accent" : ""}
-                  >
-                    Published
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setStatusFilter("draft")}
-                    className={statusFilter === "draft" ? "bg-accent" : ""}
-                  >
-                    Draft
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {statusFilter !== "all" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setStatusFilter("all")}
-                  className="h-9 text-xs"
-                >
-                  Clear Filter
-                </Button>
-              )}
+              <Select
+                value={statusFilter}
+                onValueChange={(value: "all" | "published" | "draft" | "generating") =>
+                  setStatusFilter(value)
+                }
+              >
+                <SelectTrigger className="w-[140px] h-9">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="generating">Generating</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center rounded-md border border-border p-1">
               <Button
@@ -305,7 +349,13 @@ export default function DashboardPage() {
                 <Card
                   key={app.id}
                   className="hover:shadow-sm transition-shadow cursor-pointer"
-                  onClick={() => router.push(`/preview?id=${app.id}`)}
+                  onClick={() => {
+                    if (app.status === "generating") {
+                      router.push("/generate");
+                    } else {
+                      router.push(`/preview?id=${app.id}`);
+                    }
+                  }}
                 >
                   <CardContent className="px-4 py-0.5">
                     <div className="flex items-start justify-between">
@@ -316,17 +366,19 @@ export default function DashboardPage() {
                             className={`px-2 py-0.5 rounded-full text-xs ${
                               app.status === "published"
                                 ? "bg-green-100 text-green-700"
+                                : app.status === "generating"
+                                ? "bg-blue-100 text-blue-700"
                                 : "bg-gray-100 text-gray-700"
                             }`}
                           >
-                            {app.status}
+                            {app.status === "generating" ? "Generating" : app.status}
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-2">
                           {app.description}
                         </p>
                       </div>
-                      {app.status === "published" ? (
+                      {app.status === "generating" ? null : app.status === "published" ? (
                         // <DropdownMenu>
                         //   <DropdownMenuTrigger asChild>
                         //     <Button
@@ -447,6 +499,7 @@ export default function DashboardPage() {
                     <TableHead>Description</TableHead>
                     <TableHead className="w-[15%]">Project ID</TableHead>
                     <TableHead className="w-[15%]">Access Token</TableHead>
+                    <TableHead className="w-[15%]">API Key</TableHead>
                     <TableHead className="w-[10%] text-center">
                       Valued Questions
                     </TableHead>
@@ -459,7 +512,13 @@ export default function DashboardPage() {
                   {filteredApps.map((app) => (
                     <TableRow
                       key={app.id}
-                      onClick={() => router.push(`/preview?id=${app.id}`)}
+                      onClick={() => {
+                        if (app.status === "generating") {
+                          router.push("/generate");
+                        } else {
+                          router.push(`/preview?id=${app.id}`);
+                        }
+                      }}
                       className="cursor-pointer hover:bg-muted/40"
                     >
                       <TableCell className="font-medium truncate">
@@ -470,10 +529,12 @@ export default function DashboardPage() {
                           className={`px-2 py-0.5 rounded-full text-xs ${
                             app.status === "published"
                               ? "bg-green-100 text-green-700"
+                              : app.status === "generating"
+                              ? "bg-blue-100 text-blue-700"
                               : "bg-gray-100 text-gray-700"
                           }`}
                         >
-                          {app.status}
+                          {app.status === "generating" ? "Generating" : app.status}
                         </span>
                       </TableCell>
                       <TableCell className="text-muted-foreground truncate max-w-[260px]">
@@ -485,6 +546,10 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell className="truncate text-xs text-muted-foreground font-mono max-w-[260px]">
                         {app.data_connections?.connection_info?.access_token ||
+                          "-"}
+                      </TableCell>
+                      <TableCell className="truncate text-xs text-muted-foreground font-mono max-w-[260px]">
+                        {app.data_connections?.connection_info?.api_key ||
                           "-"}
                       </TableCell>
                       <TableCell className="text-center tabular-nums">
@@ -504,7 +569,7 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {app.status === "published" ? (
+                          {app.status === "generating" ? null : app.status === "published" ? (
                             // <DropdownMenu>
                             //   <DropdownMenuTrigger asChild>
                             //     <Button

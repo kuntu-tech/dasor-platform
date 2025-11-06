@@ -20,7 +20,7 @@ const Prism = ({
   suspendWhenOffscreen = false,
   timeScale = 0.5,
 }) => {
-  const containerRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -28,7 +28,7 @@ const Prism = ({
 
     // 创建一个临时的渐变背景作为占位符
     // 等安装ogl依赖后可以替换为完整的WebGL实现
-    const gradientDiv = document.createElement('div');
+    const gradientDiv = document.createElement("div");
     gradientDiv.style.cssText = `
       position: absolute;
       inset: 0;
@@ -42,7 +42,7 @@ const Prism = ({
     `;
 
     // 添加动画样式
-    const style = document.createElement('style');
+    const style = document.createElement("style");
     style.textContent = `
       @keyframes prism-animation {
         0%, 100% { 

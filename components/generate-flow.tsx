@@ -10,7 +10,7 @@ import {
   CardDescription,
   CardTitle,
 } from "@/components/ui/card";
-import { Sparkles, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Sparkles, Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 type SelectedProblem = {
   id: string;
@@ -21,6 +21,14 @@ type SelectedProblem = {
   implementationDifficulty: number;
 };
 
+type QuestionStatus = "pending" | "generating" | "done";
+
+interface QuestionItem {
+  id: string;
+  text: string;
+  status: QuestionStatus;
+}
+
 const templates = [
   { id: "query", name: "Information Display" },
   { id: "carousel", name: "Carousel" },
@@ -28,14 +36,27 @@ const templates = [
   { id: "list-filter", name: "List" },
 ];
 
+// 假数据：全部10个问题
+const mockAllQuestions: QuestionItem[] = [
+  { id: "q1", text: "筛选高价值用户", status: "pending" },
+  { id: "q2", text: "统计商品品类销售额", status: "pending" },
+  { id: "q3", text: "分析新用户来源", status: "pending" },
+  { id: "q4", text: "预测用户流失风险", status: "pending" },
+  { id: "q5", text: "分析用户购买行为模式", status: "pending" },
+  { id: "q6", text: "评估营销活动效果", status: "pending" },
+  { id: "q7", text: "识别高潜力产品", status: "pending" },
+  { id: "q8", text: "分析用户满意度趋势", status: "pending" },
+  { id: "q9", text: "预测库存需求", status: "pending" },
+  { id: "q10", text: "优化推荐算法", status: "pending" },
+];
+
 export function GenerateFlow() {
   const router = useRouter();
   const [selectedProblems, setSelectedProblems] = useState<SelectedProblem[]>(
     []
   );
+  const [allQuestions, setAllQuestions] = useState<QuestionItem[]>(mockAllQuestions);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationStep, setGenerationStep] = useState<string>("");
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const { user } = useAuth();
@@ -45,6 +66,75 @@ export function GenerateFlow() {
   // 防重复调用与首渲染仅触发一次
   const inFlightRef = useRef(false);
   const mountedCalledRef = useRef(false);
+  const statusUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 模拟状态更新：每个问题从pending -> generating -> done
+  useEffect(() => {
+    if (!isGenerating) {
+      // 重置所有问题为pending
+      setAllQuestions(mockAllQuestions.map(q => ({ ...q, status: "pending" as QuestionStatus })));
+      return;
+    }
+
+    // 初始化：根据selectedProblems判断哪些是选中的（选中的先设为generating）
+    const selectedTexts = selectedProblems.map(p => p.toString());
+    setAllQuestions(prev => prev.map(q => {
+      const isSelected = selectedTexts.some(text => q.text.includes(text) || text.includes(q.text));
+      return { ...q, status: isSelected ? "generating" as QuestionStatus : "pending" as QuestionStatus };
+    }));
+
+    let currentIndex = 0;
+    const totalQuestions = mockAllQuestions.length;
+
+    // 模拟状态转换：每隔2-3秒更新一个问题的状态
+    const updateStatus = () => {
+      setAllQuestions(prev => {
+        const updated = [...prev];
+        
+        // 找到当前正在生成中的问题，将其标记为done
+        const generatingIndex = updated.findIndex(q => q.status === "generating");
+        if (generatingIndex !== -1) {
+          updated[generatingIndex] = { ...updated[generatingIndex], status: "done" };
+        }
+
+        // 找到下一个pending的问题，将其标记为generating
+        const nextPendingIndex = updated.findIndex(q => q.status === "pending");
+        if (nextPendingIndex !== -1) {
+          updated[nextPendingIndex] = { ...updated[nextPendingIndex], status: "generating" };
+          currentIndex++;
+          return updated;
+        }
+
+        // 如果所有问题都done了，停止更新
+        if (updated.every(q => q.status === "done")) {
+          if (statusUpdateIntervalRef.current) {
+            clearInterval(statusUpdateIntervalRef.current);
+            statusUpdateIntervalRef.current = null;
+          }
+        }
+
+        return updated;
+      });
+    };
+
+    // 首次立即更新一次（让选中的问题开始generating）
+    const firstUpdate = setTimeout(() => {
+      updateStatus();
+    }, 1000);
+
+    // 然后每隔2-3秒更新一次
+    statusUpdateIntervalRef.current = setInterval(() => {
+      updateStatus();
+    }, 2500) as unknown as NodeJS.Timeout;
+
+    return () => {
+      clearTimeout(firstUpdate);
+      if (statusUpdateIntervalRef.current) {
+        clearInterval(statusUpdateIntervalRef.current);
+        statusUpdateIntervalRef.current = null;
+      }
+    };
+  }, [isGenerating, selectedProblems]);
 
   useEffect(() => {
     const stored = localStorage.getItem("selectedProblems");
@@ -371,56 +461,33 @@ export function GenerateFlow() {
       "Marketing ROI": "metrics",
     };
 
-    // Generate steps for the generation process
-    const steps = [
-      "Initializing AI models...",
-      "Analyzing selected features...",
-      "Generating ChatApp architecture...",
-      "Creating user interface components...",
-      "Implementing data integration...",
-      "Optimizing performance...",
-      "Finalizing ChatApp...",
-    ];
+    // Complete generation
+    const features = problems.map((problem, index) => {
+      const templateId = defaultTemplateMapping[problem.problem] || "query";
+      return {
+        id: `feature-${index + 1}`,
+        name: problem.problem,
+        userProfile: problem.userProfile,
+        marketValue: problem.marketValue,
+        templateType: templateId,
+        templateName:
+          templates.find((t) => t.id === templateId)?.name ||
+          "Information Display",
+        implementationMethod: problem.implementationMethod,
+        implementationDifficulty: problem.implementationDifficulty,
+      };
+    });
 
-    let currentStep = 0;
-    setGenerationStep(steps[0]);
+    const app = {
+      id: `app-${Date.now()}`,
+      name: "MY First APP Hello GPT1",
+      features: features,
+      status: "draft",
+      createdAt: new Date().toISOString().split("T")[0],
+      featureCount: features.length,
+    };
 
-    const stepInterval = setInterval(() => {
-      currentStep++;
-      if (currentStep < steps.length) {
-        setGenerationStep(steps[currentStep]);
-        setCurrentStepIndex(currentStep);
-      } else {
-        clearInterval(stepInterval);
-        // Complete generation
-        const features = problems.map((problem, index) => {
-          const templateId = defaultTemplateMapping[problem.problem] || "query";
-          return {
-            id: `feature-${index + 1}`,
-            name: problem.problem,
-            userProfile: problem.userProfile,
-            marketValue: problem.marketValue,
-            templateType: templateId,
-            templateName:
-              templates.find((t) => t.id === templateId)?.name ||
-              "Information Display",
-            implementationMethod: problem.implementationMethod,
-            implementationDifficulty: problem.implementationDifficulty,
-          };
-        });
-
-        const app = {
-          id: `app-${Date.now()}`,
-          name: "MY First APP Hello GPT1",
-          features: features,
-          status: "draft",
-          createdAt: new Date().toISOString().split("T")[0],
-          featureCount: features.length,
-        };
-
-        localStorage.setItem("currentApp", JSON.stringify(app));
-      }
-    }, 1500); // Each step takes 1.5 seconds
+    localStorage.setItem("currentApp", JSON.stringify(app));
   };
 
   return (
@@ -431,10 +498,7 @@ export function GenerateFlow() {
       <main className="container mx-auto px-4 py-12 max-w-4xl">
         <div className="mb-12 text-center">
           <h1 className="text-3xl font-bold mb-2">Generating Your ChatAPP</h1>
-          <p className="text-muted-foreground">
-            AI is creating your ChatAPP with {selectedProblems.length} selected
-            features
-          </p>
+       
         </div>
 
         <Card>
@@ -442,11 +506,11 @@ export function GenerateFlow() {
             {hasError ? (
               <XCircle className="size-12 text-red-500 mb-6" />
             ) : (
-              <Loader2 className="size-12 text-primary animate-spin mb-6" />
+              <Loader2 className="size-12 text-blue-600 animate-spin mb-6" />
             )}
 
             <CardTitle className="mb-4 text-xl">
-              {hasError ? "Generation Failed" : "Generating ChatAPP"}
+              {hasError ? "Generation Failed" : ""}
             </CardTitle>
 
             <div className="w-full max-w-md space-y-4">
@@ -470,45 +534,66 @@ export function GenerateFlow() {
               ) : (
                 /* Loading State */
                 <div className="text-center">
-                  <p className="text-lg font-medium text-primary mb-2">
-                    {generationStep}
-                  </p>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full transition-all duration-300"
-                      style={{
-                        width: `${((currentStepIndex + 1) / 7) * 100}%`,
-                      }}
-                    />
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Step {currentStepIndex + 1} of 7
-                  </p>
+                 
                 </div>
               )}
 
               {/* Selected Features Preview */}
-              <div className="mt-8">
-                <h3 className="text-sm font-medium text-muted-foreground mb-3">
+              <div className="mt-8 w-full">
+                <h2 className="text-lg font-medium text-muted-foreground mb-3">
                   Selected Features:
-                </h3>
-                <div className="space-y-2 max-h-32 overflow-y-auto">
-                  {selectedProblems.map((problem, index) => (
-                    <div
-                      key={index + "-" + problem.toString()}
-                      className="flex items-center gap-2 text-sm"
-                    >
-                      <CheckCircle2 className="size-4 text-green-600 shrink-0" />
-                      <span className="truncate">{problem.toString()}</span>
-                    </div>
-                  ))}
+                </h2>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {allQuestions.map((question, index) => {
+                    const statusConfig = {
+                      pending: {
+                        icon: Clock,
+                        color: "text-muted-foreground",
+                        label: "",
+                        bgColor: "bg-gray-50",
+                      },
+                      generating: {
+                        icon: Loader2,
+                        color: "text-blue-600",
+                        label: "Generating",
+                        bgColor: "bg-blue-50",
+                      },
+                      done: {
+                        icon: CheckCircle2,
+                        color: "text-green-600",
+                        label: "",
+                        bgColor: "bg-green-50",
+                      },
+                    };
+
+                    const config = statusConfig[question.status];
+                    const Icon = config.icon;
+
+                    return (
+                      <div
+                        key={question.id}
+                        className={`flex items-center gap-3 text-sm p-3 rounded-lg transition-colors ${config.bgColor}`}
+                      >
+                        {question.status === "generating" ? (
+                          <Icon className={`size-5 ${config.color} shrink-0 animate-spin`} />
+                        ) : (
+                          <Icon className={`size-5 ${config.color} shrink-0`} />
+                        )}
+                        <span className={`${config.color} font-medium`}>
+                          {config.label}
+                        </span>
+                        <span className="text-foreground flex-1">
+                           {index + 1}. {question.text}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
             <CardDescription className="text-center max-w-md mt-6">
-              This process typically takes 10-15 seconds. Please wait while we
-              generate your ChatAPP ...
+              This process will take a few minutes. You can close this page. We will notify you once everything is complete.
             </CardDescription>
           </CardContent>
         </Card>
