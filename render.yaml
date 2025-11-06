@@ -8,7 +8,7 @@ services:
     plan: free
     region: frankfurt
     repo: https://github.com/kuntu-tech/dasor-platform
-    branch: dev
+    branch: wby
     autoDeploy: true
     buildCommand: npm ci || npm install --legacy-peer-deps && npm run build
     startCommand: npm start
