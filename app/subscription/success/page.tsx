@@ -1,68 +1,84 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle2, ArrowRight, Home, Loader2 } from "lucide-react"
-import { syncSubscriptionStatus } from "@/portable-pages/lib/connectApi"
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { CheckCircle2, ArrowRight, Home, Loader2 } from "lucide-react";
+import { syncSubscriptionStatus } from "@/portable-pages/lib/connectApi";
 
 export default function SubscriptionSuccessPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const [vendorId, setVendorId] = useState<string | null>(null)
-  const [isSyncing, setIsSyncing] = useState(false)
-  const [syncError, setSyncError] = useState<string | null>(null)
-  const [syncSuccess, setSyncSuccess] = useState(false)
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [vendorId, setVendorId] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncSuccess, setSyncSuccess] = useState(false);
 
   // 同步订阅状态
-  const handleSyncStatus = async (vendorId: string, sessionIdValue?: string | null) => {
-    setIsSyncing(true)
-    setSyncError(null)
-    setSyncSuccess(false)
+  const handleSyncStatus = async (
+    vendorId: string,
+    sessionIdValue?: string | null
+  ) => {
+    setIsSyncing(true);
+    setSyncError(null);
+    setSyncSuccess(false);
 
     try {
       // 调用 API 库函数，传递 sessionId（如果有）
-      const data = await syncSubscriptionStatus(Number(vendorId), sessionIdValue || undefined)
-      
+      const data = await syncSubscriptionStatus(
+        Number(vendorId),
+        sessionIdValue || undefined
+      );
+
       if (data.success) {
-        setSyncSuccess(true)
-        console.log("订阅状态同步成功:", data)
+        setSyncSuccess(true);
+        console.log("订阅状态同步成功:", data);
+        // 同步成功后，延迟 2 秒自动跳转到 connect 页面
+        setTimeout(() => {
+          router.push("/connect");
+        }, 2000);
       } else {
-        throw new Error(data.error || "同步失败")
+        throw new Error(data.error || "同步失败");
       }
     } catch (error) {
-      console.error("同步订阅状态错误:", error)
-      setSyncError(error instanceof Error ? error.message : "同步订阅状态失败")
+      console.error("同步订阅状态错误:", error);
+      setSyncError(error instanceof Error ? error.message : "同步订阅状态失败");
       // 即使同步失败，也不阻止用户继续，因为 Webhook 可能已经处理
     } finally {
-      setIsSyncing(false)
+      setIsSyncing(false);
     }
-  }
+  };
 
   useEffect(() => {
     // 从 URL 参数中获取 Stripe 返回的信息
-    const sessionIdParam = searchParams.get("session_id")
-    const vendorIdParam = searchParams.get("vendorId")
+    const sessionIdParam = searchParams.get("session_id");
+    const vendorIdParam = searchParams.get("vendorId");
 
-    setSessionId(sessionIdParam)
-    setVendorId(vendorIdParam)
+    setSessionId(sessionIdParam);
+    setVendorId(vendorIdParam);
 
     // 调用同步接口确保数据完整（即使 Webhook 已经处理，这里也会确保数据同步）
     if (vendorIdParam) {
-      handleSyncStatus(vendorIdParam, sessionIdParam)
+      handleSyncStatus(vendorIdParam, sessionIdParam);
     }
-  }, [searchParams])
+  }, [searchParams]);
 
   const handleGoHome = () => {
-    router.push("/")
-  }
+    router.push("/");
+  };
 
   const handleViewSubscription = () => {
     // 跳转到订阅管理页面
-    router.push("/settings?tab=billing")
-  }
+    router.push("/settings?tab=billing");
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -73,9 +89,7 @@ export default function SubscriptionSuccessPage() {
               <CheckCircle2 className="size-10 text-green-600 dark:text-green-400" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold mb-2">
-            订阅成功！
-          </CardTitle>
+          <CardTitle className="text-3xl font-bold mb-2">订阅成功！</CardTitle>
           <CardDescription className="text-lg">
             您的订阅已成功激活
           </CardDescription>
@@ -109,8 +123,20 @@ export default function SubscriptionSuccessPage() {
           )}
 
           <div className="flex flex-col gap-3">
-            <Button 
+            {syncSuccess && (
+              <Button
+                onClick={() => router.push("/connect")}
+                className="w-full"
+                size="lg"
+              >
+                开始创建应用
+                <ArrowRight className="ml-2 size-4" />
+              </Button>
+            )}
+
+            <Button
               onClick={handleViewSubscription}
+              variant={syncSuccess ? "outline" : "default"}
               className="w-full"
               size="lg"
             >
@@ -118,7 +144,7 @@ export default function SubscriptionSuccessPage() {
               <ArrowRight className="ml-2 size-4" />
             </Button>
 
-            <Button 
+            <Button
               onClick={handleGoHome}
               variant="outline"
               className="w-full"
@@ -135,6 +161,5 @@ export default function SubscriptionSuccessPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
-

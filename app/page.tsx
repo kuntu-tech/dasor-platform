@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { Trash2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { PricingModal } from "@/components/pricing-modal";
 type AppItem = {
   id: string;
   name: string;
@@ -64,6 +65,7 @@ export default function DashboardPage() {
     "all" | "published" | "draft"
   >("all");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
   const { user, session } = useAuth();
 
   const getApps = async () => {
@@ -199,6 +201,41 @@ export default function DashboardPage() {
     return filtered;
   }, [appItems, query, statusFilter]);
 
+  // 处理创建应用的按钮点击
+  const handleCreateApp = async (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    if (!user?.id) {
+      alert("请先登录");
+      return;
+    }
+
+    try {
+      // 检查订阅状态
+      const response = await fetch("/api/check-subscription", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      const data = await response.json();
+
+      if (data.hasActiveSubscription) {
+        // 订阅有效，进入连接页面
+        router.push("/connect");
+      } else {
+        // 订阅无效，打开支付弹窗
+        setIsPricingOpen(true);
+      }
+    } catch (error) {
+      console.error("检查订阅状态失败:", error);
+      // 出错时也打开支付弹窗，确保用户可以支付
+      setIsPricingOpen(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <main className="px-6 py-8">
@@ -207,15 +244,19 @@ export default function DashboardPage() {
           <div className="flex flex-col items-center justify-center space-y-4">
             <Button
               size="lg"
-              asChild
+              onClick={handleCreateApp}
               className="h-12 px-6 text-base rounded-lg bg-transparent text-white hover:bg-white hover:text-black hover:backdrop-blur-sm hover:border-transparent border border-transparent transition-all duration-300"
             >
-              <Link href="/connect">
-                <Plus className="size-5 mr-2" /> Create Your App
-              </Link>
+              <Plus className="size-5 mr-2" /> Create Your App
             </Button>
           </div>
         </section>
+
+        {/* Pricing Modal */}
+        <PricingModal
+          isOpen={isPricingOpen}
+          onClose={() => setIsPricingOpen(false)}
+        />
         {/* 主标题区 */}
         <div className="flex items-center justify-between mb-6">
           <div>
