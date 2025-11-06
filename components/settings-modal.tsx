@@ -21,6 +21,8 @@ import {
   Wallet
 } from "lucide-react"
 import PaymentAccount from "@/portable-pages/components/settings/PaymentAccount"
+import { useAuth } from "@/components/AuthProvider"
+import { openBillingPortal } from "@/lib/billingPortal"
 
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
@@ -36,6 +38,7 @@ interface SettingsModalProps {
 
 export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState(defaultTab)
+  const { user } = useAuth()
 
   // 处理ESC键关闭
   useEffect(() => {
@@ -153,7 +156,18 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2"
+            onClick={() => {
+              if (user?.id) {
+                openBillingPortal(user.id, window.location.href);
+              } else {
+                alert('Please log in first');
+              }
+            }}
+          >
             Manage subscription
             <ExternalLink className="size-4" />
           </Button>

@@ -40,10 +40,10 @@ export default function PurchaseCancelPage() {
             </div>
           </div>
           <CardTitle className="text-3xl font-bold mb-2">
-            支付已取消
+            Payment Cancelled
           </CardTitle>
           <CardDescription className="text-lg">
-            您取消了此次支付
+            You have cancelled this payment
           </CardDescription>
         </CardHeader>
 
@@ -60,22 +60,22 @@ export default function PurchaseCancelPage() {
           )}
 
           <div className="rounded-md bg-orange-50 dark:bg-orange-900/20 p-3 text-sm text-orange-700 dark:text-orange-400">
-            💡 这是一个测试页面。在生产环境中，这个回调应该由另一个平台处理。
+            💡 This is a test page. In production, this callback should be handled by another platform.
           </div>
 
           <div className="flex flex-col gap-3">
             <Button onClick={handleGoBack} variant="outline" className="w-full" size="lg">
               <ArrowLeft className="mr-2 size-5" />
-              返回
+              Go Back
             </Button>
             <Button onClick={handleGoHome} className="w-full" size="lg">
               <Home className="mr-2 size-5" />
-              返回首页
+              Return to Home
             </Button>
           </div>
 
           <div className="text-center text-sm text-muted-foreground mt-4">
-            <p>您可以随时重新尝试支付。</p>
+            <p>You can try to pay again at any time.</p>
           </div>
         </CardContent>
       </Card>

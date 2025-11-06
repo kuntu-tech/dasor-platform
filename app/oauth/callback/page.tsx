@@ -25,14 +25,14 @@ export default function OAuthCallbackPage() {
         // 如果有 error，说明 Stripe 授权被拒绝
         if (error) {
           setStatus("error");
-          setMessage(decodeURIComponent(error || "Stripe 授权被拒绝"));
+          setMessage(decodeURIComponent(error || "Stripe authorization was denied"));
           return;
         }
 
         // 如果已经是后端处理后的结果（有 oauth 参数）
         if (oauth === "success") {
           setStatus("success");
-          setMessage("账户关联成功！");
+          setMessage("Account linked successfully!");
           setTimeout(() => {
             // 获取保存的来源页面，如果没有则使用首页
             const returnPath = typeof window !== "undefined" 
@@ -49,7 +49,7 @@ export default function OAuthCallbackPage() {
 
         if (oauth === "error") {
           setStatus("error");
-          setMessage("授权失败");
+          setMessage("Authorization failed");
           return;
         }
 
@@ -81,7 +81,7 @@ export default function OAuthCallbackPage() {
               const text = await response.text();
               console.error("Non-JSON response:", text.substring(0, 500));
               setStatus("error");
-              setMessage("服务器返回了错误格式的数据");
+              setMessage("Server returned invalid data format");
               return;
             }
 
@@ -89,7 +89,7 @@ export default function OAuthCallbackPage() {
 
             if (data.success) {
               setStatus("success");
-              setMessage("账户关联成功！");
+              setMessage("Account linked successfully!");
               setTimeout(() => {
                 // 获取保存的来源页面，如果没有则使用首页
                 const returnPath = typeof window !== "undefined" 
@@ -103,23 +103,23 @@ export default function OAuthCallbackPage() {
               }, 3000);
             } else {
               setStatus("error");
-              setMessage(data.error || "关联失败");
+              setMessage(data.error || "Failed to link account");
             }
           } catch (err) {
             console.error("OAuth callback processing error:", err);
             setStatus("error");
-            setMessage("网络错误，请重试");
+            setMessage("Network error, please try again");
           }
           return;
         }
 
         // 既不是 Stripe 回调也不是后端结果
         setStatus("error");
-        setMessage("回调参数无效");
+        setMessage("Invalid callback parameters");
       } catch (error) {
         console.error("OAuth callback error:", error);
         setStatus("error");
-        setMessage("处理回调时发生错误");
+        setMessage("An error occurred while processing the callback");
       }
     };
 
@@ -132,7 +132,7 @@ export default function OAuthCallbackPage() {
         {status === "loading" && (
           <>
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">正在处理授权...</p>
+            <p className="text-gray-600">Processing authorization...</p>
           </>
         )}
 
@@ -152,7 +152,7 @@ export default function OAuthCallbackPage() {
               </svg>
             </div>
             <p className="text-lg font-semibold text-gray-900">{message}</p>
-            <p className="mt-2 text-sm text-gray-500">正在跳转到设置页面...</p>
+            <p className="mt-2 text-sm text-gray-500">Redirecting to settings page...</p>
           </>
         )}
 
@@ -184,7 +184,7 @@ export default function OAuthCallbackPage() {
               }}
               className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
-              返回设置页面
+              Return to Settings
             </button>
           </>
         )}

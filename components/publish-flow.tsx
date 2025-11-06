@@ -156,10 +156,10 @@ export function PublishFlow() {
       if (!response.ok) {
         if (response.status === 409) {
           // 重名错误，显示特定提示
-          alert(data.error || "应用名称已存在，请使用其他名称");
+          alert(data.error || "App name already exists. Please use a different name");
           return;
         }
-        throw new Error(data.error || "保存失败");
+        throw new Error(data.error || "Save failed");
       }
 
       console.log("应用保存成功:", data);

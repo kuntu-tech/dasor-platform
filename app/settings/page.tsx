@@ -22,6 +22,8 @@ import {
   Wallet
 } from "lucide-react"
 import PaymentAccount from "@/portable-pages/components/settings/PaymentAccount"
+import { useAuth } from "@/components/AuthProvider"
+import { openBillingPortal } from "@/lib/billingPortal"
 
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
@@ -31,6 +33,7 @@ const settingsMenu = [
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("account")
+  const { user } = useAuth()
 
   const renderAccountContent = () => (
     <div className="space-y-6">
@@ -121,7 +124,18 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2"
+            onClick={() => {
+              if (user?.id) {
+                openBillingPortal(user.id, window.location.href);
+              } else {
+                alert('Please log in first');
+              }
+            }}
+          >
             Manage subscription
             <ExternalLink className="size-4" />
           </Button>

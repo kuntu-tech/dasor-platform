@@ -40,16 +40,16 @@ export default function SubscriptionCancelPage() {
             </div>
           </div>
           <CardTitle className="text-3xl font-bold mb-2">
-            订阅已取消
+            Subscription Cancelled
           </CardTitle>
           <CardDescription className="text-lg">
-            您取消了订阅流程
+            You have cancelled the subscription process
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
           <div className="text-center text-sm text-muted-foreground">
-            <p>您的订阅流程已被取消。您可以随时重新开始订阅。</p>
+            <p>Your subscription process has been cancelled. You can start a new subscription at any time.</p>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -58,7 +58,7 @@ export default function SubscriptionCancelPage() {
               className="w-full"
               size="lg"
             >
-              重新订阅
+              Subscribe Again
               <ArrowLeft className="ml-2 size-4" />
             </Button>
 
@@ -68,7 +68,7 @@ export default function SubscriptionCancelPage() {
               className="w-full"
               size="lg"
             >
-              返回上一页
+              Go Back
             </Button>
 
             <Button 
@@ -78,7 +78,7 @@ export default function SubscriptionCancelPage() {
               size="lg"
             >
               <Home className="mr-2 size-5" />
-              返回首页
+              Return to Home
             </Button>
           </div>
         </CardContent>

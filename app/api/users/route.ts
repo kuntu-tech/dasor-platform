@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error("获取用户列表错误:", error);
       return NextResponse.json(
-        { error: "获取用户列表失败", details: error.message },
+        { error: "Failed to fetch user list", details: error.message },
         { status: 500 }
       );
     }
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("API错误:", error);
-    return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     // 验证必填字段
     if (!email || !name) {
       return NextResponse.json(
-        { error: "邮箱和姓名是必填字段" },
+        { error: "Email and name are required fields" },
         { status: 400 }
       );
     }
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existingUser) {
-      return NextResponse.json({ error: "该邮箱已被使用" }, { status: 409 });
+      return NextResponse.json({ error: "This email is already in use" }, { status: 409 });
     }
 
     // 创建新用户
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error("创建用户错误:", error);
       return NextResponse.json(
-        { error: "创建用户失败", details: error.message },
+        { error: "Failed to create user", details: error.message },
         { status: 500 }
       );
     }
@@ -105,10 +105,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: user,
-      message: "用户创建成功",
+      message: "User created successfully",
     });
   } catch (error) {
     console.error("API错误:", error);
-    return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

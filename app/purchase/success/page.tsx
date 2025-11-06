@@ -40,10 +40,10 @@ export default function PurchaseSuccessPage() {
             </div>
           </div>
           <CardTitle className="text-3xl font-bold mb-2">
-            支付成功！
+            Payment Successful!
           </CardTitle>
           <CardDescription className="text-lg">
-            您的支付已完成
+            Your payment has been completed
           </CardDescription>
         </CardHeader>
 
@@ -71,18 +71,18 @@ export default function PurchaseSuccessPage() {
           )}
 
           <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-3 text-sm text-green-700 dark:text-green-400">
-            💡 这是一个测试页面。在生产环境中，这个回调应该由另一个平台处理。
+            💡 This is a test page. In production, this callback should be handled by another platform.
           </div>
 
           <div className="flex flex-col gap-3">
             <Button onClick={handleGoHome} className="w-full" size="lg">
               <Home className="mr-2 size-5" />
-              返回首页
+              Return to Home
             </Button>
           </div>
 
           <div className="text-center text-sm text-muted-foreground mt-4">
-            <p>感谢您的支付！</p>
+            <p>Thank you for your payment!</p>
           </div>
         </CardContent>
       </Card>
