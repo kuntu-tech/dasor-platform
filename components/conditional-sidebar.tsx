@@ -139,10 +139,17 @@ export function ConditionalSidebar({
                 variant="destructive"
                 size="sm"
                 className="w-full justify-start gap-2"
-                onClick={() => {
-                  signOut().then(() => {
-                    router.push("/auth/login");
-                  });
+                onClick={async () => {
+                  try {
+                    await signOut();
+                    // 等待状态更新后再跳转，确保状态同步
+                    setTimeout(() => {
+                      router.push("/auth/login");
+                      router.refresh();
+                    }, 50);
+                  } catch (error) {
+                    console.error("登出失败:", error);
+                  }
                 }}
               >
                 <LogOut className="size-4" />

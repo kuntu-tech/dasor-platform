@@ -55,6 +55,7 @@ export async function bindVendor(body: BindRequestBody): Promise<BindResponse> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
       ...(SERVICE_API_TOKEN ? { Authorization: `Bearer ${SERVICE_API_TOKEN}` } : {}),
     },
     body: JSON.stringify(body),
@@ -118,6 +119,7 @@ export async function startOAuth(body: OAuthStartRequestBody): Promise<OAuthStar
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
       ...(SERVICE_API_TOKEN ? { Authorization: `Bearer ${SERVICE_API_TOKEN}` } : {}),
     },
     body: JSON.stringify(body),
@@ -133,6 +135,7 @@ export async function linkVendorAccount(body: OAuthLinkRequestBody): Promise<OAu
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
       ...(SERVICE_API_TOKEN ? { Authorization: `Bearer ${SERVICE_API_TOKEN}` } : {}),
     },
     body: JSON.stringify(body),
