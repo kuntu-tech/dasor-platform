@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Check, X } from "lucide-react"
 import { useAuth } from "@/components/AuthProvider"
 import { getVendorStatus, createSubscription } from "@/portable-pages/lib/connectApi"
@@ -14,7 +13,6 @@ interface PricingModalProps {
 }
 
 export function PricingModal({ isOpen, onClose }: PricingModalProps) {
-  const [billingCycle, setBillingCycle] = useState<"yearly" | "monthly">("yearly")
   const [selectedPlan, setSelectedPlan] = useState<string>("pro")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -69,13 +67,22 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
       const successUrl = `${baseUrl}/subscription/success`
       const cancelUrl = `${baseUrl}/subscription/cancel`
 
-      // 3. 调用订阅接口
-      const interval = billingCycle === "yearly" ? "year" : "month"
+      // 3. 调用订阅接口（固定为月付）
       const subscriptionResponse = await createSubscription(vendorId, {
-        interval,
+        interval: "month",
         successUrl,
         cancelUrl,
       })
+
+      // 检查是否已经有活跃订阅
+      if (subscriptionResponse.success && subscriptionResponse.data) {
+        if (subscriptionResponse.data.alreadySubscribed === true || 
+            subscriptionResponse.message?.toLowerCase().includes("already has an active subscription")) {
+          setError("You already have an active subscription")
+          setIsLoading(false)
+          return
+        }
+      }
 
       if (!subscriptionResponse.success || !subscriptionResponse.data?.checkoutUrl) {
         setError(subscriptionResponse.error || "Failed to create subscription")
@@ -97,15 +104,15 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
       id: "pro",
       name: "Pro",
       description: "For more projects and usage",
-      price: billingCycle === "yearly" ? "US$330" : "US$35",
-      period: billingCycle === "yearly" ? "billed yearly" : "per month",
+      price: "$35",
+      period: "per month",
       buttonText: "Subscribe",
       buttonVariant: "default" as const,
       features: [
-        "100 credits included",
-        "Everything from Free",
-        "Clone site feature",
-        "Support in Email"
+        "Unlimited generating ChatAPP",
+        "Unlimited import dasebase",
+        "Unlimited times business analyst",
+        "Unlock McKinsey-level AI analytics"
       ],
       isPopular: false
     }
@@ -122,86 +129,62 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
       />
       
       {/* 窗口 */}
-      <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-5xl mx-4 p-8">
-        {/* 关闭按钮 */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          className="absolute top-4 right-4"
-        >
-          <X className="size-4" />
-        </Button>
-
-        {/* 顶部切换 */}
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center bg-gray-100 rounded-lg p-1">
-            <div className="flex flex-col items-center relative">
-              {billingCycle === "yearly" && (
-                <Badge className="absolute -top-6 bg-green-500 text-white text-xs px-2 py-0.5">
-                  Save 21%
-                </Badge>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setBillingCycle("yearly")}
-                className={`${
-                  billingCycle === "yearly" 
-                    ? "bg-white border-2 border-blue-500 text-blue-600" 
-                    : "hover:bg-gray-200"
-                }`}
-              >
-                Yearly
-              </Button>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setBillingCycle("monthly")}
-              className={`${
-                billingCycle === "monthly" 
-                  ? "bg-white border-2 border-blue-500 text-blue-600" 
-                  : "hover:bg-gray-200"
-              }`}
-            >
-              Monthly
-            </Button>
-          </div>
-        </div>
-
+      <div className="relative w-full max-w-md mx-4 p-4">
         {/* 价格计划卡片 */}
         <div className="flex justify-center">
           {plans.map((plan) => (
             <Card 
               key={plan.id} 
-              className={`relative w-full max-w-md transition-all duration-200 ${
+              className={`relative w-full max-w-md transition-all duration-200 bg-white rounded-lg shadow-2xl ${
                 selectedPlan === plan.id 
                   ? 'ring-2 ring-blue-500 bg-blue-50' 
                   : 'hover:ring-2 hover:ring-gray-300'
               }`}
               onClick={() => setSelectedPlan(plan.id)}
             >
-              <CardHeader className="text-center pb-4">
+              {/* 关闭按钮 */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onClose()
+                }}
+                className="absolute top-3 right-3 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </button>
+
+              <CardHeader className="text-center pb-2 pt-6">
                 <CardTitle className="text-xl">{plan.name}</CardTitle>
                 <CardDescription className="text-sm">{plan.description}</CardDescription>
                 
-                <div className="mt-4">
-                  <div className="flex items-center justify-center gap-2">
+                <div className="mt-2">
+                  <div className="flex items-baseline justify-center gap-1">
                     <span className="text-3xl font-bold">{plan.price}</span>
+                    <span className="text-sm text-muted-foreground font-normal">/mo</span>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">{plan.period}</p>
                 </div>
               </CardHeader>
 
               <CardContent className="pt-0">
                 {error && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-md">
                     <p className="text-sm text-red-600">{error}</p>
                   </div>
                 )}
+                
+                <div className="space-y-2 mb-4">
+                  {plan.features.map((feature, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Check className="size-4 text-green-600 flex-shrink-0" />
+                      <span className="text-sm">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
                 <Button 
-                  className="w-full mb-6" 
+                  className="w-full" 
                   variant={plan.buttonVariant}
                   disabled={isLoading}
                   onClick={(e) => {
@@ -211,15 +194,6 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
                 >
                   {isLoading ? "Processing..." : plan.buttonText}
                 </Button>
-
-                <div className="space-y-3">
-                  {plan.features.map((feature, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Check className="size-4 text-green-600 flex-shrink-0" />
-                      <span className="text-sm">{feature}</span>
-                    </div>
-                  ))}
-                </div>
               </CardContent>
             </Card>
           ))}

@@ -24,6 +24,7 @@ import { SettingsModal } from "@/components/settings-modal";
 import { PricingModal } from "@/components/pricing-modal";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 export function ConditionalSidebar({
   children,
 }: {
@@ -37,6 +38,35 @@ export function ConditionalSidebar({
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const { signOut, user } = useAuth();
   const router = useRouter();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  // 获取用户头像
+  useEffect(() => {
+    const fetchUserAvatar = async () => {
+      if (user?.id) {
+        try {
+          const { data, error } = await supabase
+            .from("users")
+            .select("avatar_url")
+            .eq("id", user.id)
+            .single();
+          
+          if (!error && data?.avatar_url) {
+            setAvatarUrl(data.avatar_url);
+          } else {
+            setAvatarUrl(null);
+          }
+        } catch (error) {
+          console.log("获取用户头像失败:", error);
+          setAvatarUrl(null);
+        }
+      } else {
+        setAvatarUrl(null);
+      }
+    };
+    
+    fetchUserAvatar();
+  }, [user?.id]);
 
   // 检查 URL 参数，如果需要打开设置对话框
   useEffect(() => {
@@ -88,7 +118,9 @@ export function ConditionalSidebar({
               <Avatar className="size-10">
                 <AvatarImage
                   src={
-                    user?.user_metadata?.avatar_url || "/placeholder-user.jpg"
+                    avatarUrl || 
+                    user?.user_metadata?.avatar_url || 
+                    "/placeholder-user.jpg"
                   }
                   alt={user?.user_metadata?.full_name || "Account"}
                 />

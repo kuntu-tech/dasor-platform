@@ -155,10 +155,14 @@ export interface CreateSubscriptionRequestBody {
 export interface CreateSubscriptionResponse {
   success: boolean;
   data?: {
-    sessionId: string;
-    customerId: string;
-    checkoutUrl: string;
-    priceId: string;
+    sessionId?: string;
+    customerId?: string;
+    checkoutUrl?: string;
+    priceId?: string;
+    subscriptionId?: string;
+    status?: string;
+    alreadySubscribed?: boolean;
+    message?: string;
   };
   message?: string;
   error?: string;
