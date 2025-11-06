@@ -17,6 +17,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,7 +34,6 @@ import {
 import {
   Plus,
   Search,
-  Filter,
   LayoutGrid,
   List as ListIcon,
   MoreHorizontal,
@@ -46,6 +52,7 @@ type AppItem = {
     connection_info?: {
       project_id?: string;
       access_token?: string;
+      api_key?: string;
     } | null;
   } | null;
 
@@ -218,9 +225,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold">MyApps</h1>
-            <p className="text-sm text-muted-foreground">
-              {filteredApps.length} apps
-            </p>
+          
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -228,53 +233,26 @@ export default function DashboardPage() {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="search App"
+                placeholder="Search App"
                 className="pl-9 w-72"
               />
             </div>
             <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9">
-                    <Filter className="size-4 mr-1" />
-                    {statusFilter === "all"
-                      ? "All Status"
-                      : statusFilter === "published"
-                      ? "Published"
-                      : "Draft"}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuItem
-                    onClick={() => setStatusFilter("all")}
-                    className={statusFilter === "all" ? "bg-accent" : ""}
-                  >
-                    All Status
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setStatusFilter("published")}
-                    className={statusFilter === "published" ? "bg-accent" : ""}
-                  >
-                    Published
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setStatusFilter("draft")}
-                    className={statusFilter === "draft" ? "bg-accent" : ""}
-                  >
-                    Draft
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {statusFilter !== "all" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setStatusFilter("all")}
-                  className="h-9 text-xs"
-                >
-                  Clear Filter
-                </Button>
-              )}
+              <Select
+                value={statusFilter}
+                onValueChange={(value: "all" | "published" | "draft") =>
+                  setStatusFilter(value)
+                }
+              >
+                <SelectTrigger className="w-[140px] h-9">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center rounded-md border border-border p-1">
               <Button
@@ -445,6 +423,7 @@ export default function DashboardPage() {
                     <TableHead>Description</TableHead>
                     <TableHead className="w-[15%]">Project ID</TableHead>
                     <TableHead className="w-[15%]">Access Token</TableHead>
+                    <TableHead className="w-[15%]">API Key</TableHead>
                     <TableHead className="w-[10%] text-center">
                       Valued Questions
                     </TableHead>
@@ -483,6 +462,10 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell className="truncate text-xs text-muted-foreground font-mono max-w-[260px]">
                         {app.data_connections?.connection_info?.access_token ||
+                          "-"}
+                      </TableCell>
+                      <TableCell className="truncate text-xs text-muted-foreground font-mono max-w-[260px]">
+                        {app.data_connections?.connection_info?.api_key ||
                           "-"}
                       </TableCell>
                       <TableCell className="text-center tabular-nums">

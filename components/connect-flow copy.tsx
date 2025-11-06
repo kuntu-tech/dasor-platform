@@ -1327,7 +1327,7 @@ export function ConnectFlow() {
                 </div>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <Info className="size-4 mt-0.5 shrink-0" />
-                  <span>You can find this URL in your Supabase APP</span>
+                  <span>Project ID can be found in "Project Settings → General Settings"</span>
                 </div>
               </div>
 
@@ -1358,20 +1358,7 @@ export function ConnectFlow() {
                 </div>
               </div>
 
-              {/* Read-only Checkbox */}
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  id="read-only"
-                  checked={readOnly}
-                  onCheckedChange={(checked) => setReadOnly(checked as boolean)}
-                />
-                <Label
-                  htmlFor="read-only"
-                  className="text-base font-normal cursor-pointer"
-                >
-                  Read-only access (we will not modify your data)
-                </Label>
-              </div>
+            
 
               {/* Action Button */}
               <Button
@@ -1389,14 +1376,10 @@ export function ConnectFlow() {
                   <Info className="size-5 text-blue-600 mt-0.5 shrink-0" />
                   <div className="space-y-2">
                     <h4 className="font-semibold text-blue-900">
-                      Why do we need this information?
+                      You're in Control
                     </h4>
                     <p className="text-sm text-blue-800 leading-relaxed">
-                      Datail needs access to your Supabase database to analyze
-                      its structure and small sample data, in order to generate
-                      AI Applicationpp recommendations that best fit your data.
-                      We do not store your data, and all analysis is performed
-                      securely in your browser.
+                     Datail do not modify or upload any of your database content. Access is strictly read-only.
                     </p>
                   </div>
                 </div>
@@ -1454,7 +1437,7 @@ export function ConnectFlow() {
           <div className="flex items-center justify-center min-h-[60vh]">
             <Card className="max-w-2xl mx-auto w-full">
               <CardHeader>
-                <CardTitle>AI is Analyzing Your Database</CardTitle>
+                <CardTitle>Analyzing Your Database</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6 py-8">
                 <div className="flex items-start gap-4">
@@ -1493,27 +1476,7 @@ export function ConnectFlow() {
                         <p className="text-red-800 font-medium">
                           {connectionError}
                         </p>
-                        <div className="bg-red-100 border border-red-200 rounded-lg p-4">
-                          <p className="font-semibold text-red-900 mb-2">
-                            🔍 Connection Problem Diagnosis:
-                          </p>
-                          <ul className="list-disc list-inside space-y-1 text-sm text-red-800">
-                            <li>
-                              Invalid Supabase URL format or project not found
-                            </li>
-                            <li>
-                              Incorrect API Key or insufficient permissions
-                            </li>
-                            <li>
-                              Network connectivity issues or firewall blocking
-                            </li>
-                            <li>Supabase service temporarily unavailable</li>
-                            <li>
-                              Database project may have been deleted or
-                              suspended
-                            </li>
-                          </ul>
-                        </div>
+                      
                         <div className="bg-red-200 border border-red-300 rounded-lg p-4">
                           <p className="font-semibold text-red-900 mb-2">
                             💡 Suggested Solutions:
