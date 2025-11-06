@@ -703,6 +703,7 @@ export function ValueQuestionsSection({
     console.log("activeSegment", activeSegment);
     console.log("activeTab", activeTab);
     console.log("currentSegments", currentSegments);
+
     try {
       localStorage.setItem(
         "selectedProblems",
@@ -710,6 +711,86 @@ export function ValueQuestionsSection({
       );
     } catch {}
   }, [activeTab, activeSegment, currentSegments]);
+
+  // 根据 activeTab 筛选 standalJson 中 segments 对应 segmentId 的数据，提取 valueQuestions 的 question 和 sql
+  useEffect(() => {
+    if (!activeTab) return;
+    const standalJsonStr = localStorage.getItem("standalJson");
+    let standalJson: any = null;
+    try {
+      // 从 localStorage 获取 standalJson
+      let segments: any[] = [];
+      if (typeof window !== "undefined") {
+        if (standalJsonStr) {
+          try {
+            standalJson = JSON.parse(standalJsonStr);
+            // 支持多种数据结构
+            if (standalJson.segments && Array.isArray(standalJson.segments)) {
+              segments = standalJson.segments;
+            } else if (
+              standalJson.run_results?.run_result?.segments &&
+              Array.isArray(standalJson.run_results.run_result.segments)
+            ) {
+              segments = standalJson.run_results.run_result.segments;
+            }
+          } catch (e) {
+            console.error("Failed to parse standalJson:", e);
+          }
+        }
+      }
+
+      if (!segments || segments.length === 0) {
+        console.warn("No segments found in standalJson");
+        return;
+      }
+
+      // 在 segments 中查找对应 activeTab 的 segment
+      // activeTab 可能是 segmentId、id 或 name
+      const matchedSegment = segments.find((seg: any) => {
+        const segId = seg.segmentId || seg.id;
+        const segName = seg.name;
+        // 检查是否匹配 activeTab（可能是 id、segmentId 或 name）
+        return (
+          segId === activeTab ||
+          segName === activeTab ||
+          segId === activeSegment?.id ||
+          segName === activeSegment?.name
+        );
+      });
+
+      if (!matchedSegment || !matchedSegment.valueQuestions) {
+        console.warn("No matching segment found for activeTab:", activeTab);
+        return;
+      }
+
+      // 提取 valueQuestions 中的 question 和 sql，格式化为指定格式
+      const questionsWithSql = matchedSegment.valueQuestions.map((q: any) => {
+        return {
+          query: q.question || q.text || "",
+          sql: q.sql || "",
+        };
+      });
+
+      console.log("Extracted questions with SQL:", questionsWithSql);
+
+      // 存储到 localStorage
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(
+            "selectedQuestionsWithSql",
+            JSON.stringify({
+              anchIndex: standalJson?.anchIndex,
+              questionsWithSql,
+            })
+          );
+        } catch (e) {
+          console.error("Failed to save questions with SQL:", e);
+        }
+      }
+    } catch (error) {
+      console.error("Error extracting questions and SQL:", error);
+    }
+  }, [activeTab, activeSegment]);
   const handleGenerateApp = () => {
     console.log("Generating app for segment:", activeSegment.name);
   };
