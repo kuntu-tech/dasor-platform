@@ -11,7 +11,7 @@ services:
     branch: wby
     autoDeploy: true
     buildCommand: npm ci || npm install --legacy-peer-deps && npm run build
-    startCommand: npm start
+    startCommand: node .next/standalone/server.js
     # If your app lives in a subdirectory, set rootDir, e.g. "app" or "packages/web"
     # rootDir: .
     healthCheckPath: /
