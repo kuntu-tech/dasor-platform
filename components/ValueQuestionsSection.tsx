@@ -228,7 +228,8 @@ type RefreshType =
   | "edit-d4"
   | "add-question"
   | "edit-question"
-  | "delete-question";
+  | "delete-question"
+  | "switching-version";
 interface ExternalSegment {
   id?: string;
   segmentId?: string;
@@ -800,7 +801,8 @@ export function ValueQuestionsSection({
       refreshType === "none" ||
       refreshType === "add-segment" ||
       refreshType === "merge-segments" ||
-      refreshType === "edit-d1");
+      refreshType === "edit-d1" ||
+      refreshType === "switching-version");
   const showSegmentOverlay = isGenerating && refreshType === "segment";
   const show4DAndQuestionsOverlay =
     isGenerating &&
@@ -876,6 +878,8 @@ export function ValueQuestionsSection({
                   ? "Adding New Segment"
                   : refreshType === "merge-segments"
                   ? "Merging Segments"
+                  : refreshType === "switching-version"
+                  ? "Switching to New Version"
                   : "Generating New Version"}
               </h3>
               <p className="text-gray-600 mb-6">

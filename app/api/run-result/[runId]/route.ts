@@ -3,13 +3,16 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/run-result/[runId] - 根据 run_id 获取完整的数据
+// GET /api/run-result/[runId] - 根据 user_id、task_id 和 run_id 获取完整的数据
 export async function GET(
   request: NextRequest,
   { params }: { params: { runId: string } }
 ) {
   try {
     const { runId } = params;
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("user_id");
+    const taskId = searchParams.get("task_id");
 
     if (!runId) {
       return NextResponse.json(
@@ -18,13 +21,36 @@ export async function GET(
       );
     }
 
-    console.log("Fetching run_result for runId:", runId);
+    if (!userId) {
+      return NextResponse.json(
+        { error: "user_id is required" },
+        { status: 400 }
+      );
+    }
 
-    // 查询 run_results 表，获取 run_result 字段
+    if (!taskId) {
+      return NextResponse.json(
+        { error: "task_id is required" },
+        { status: 400 }
+      );
+    }
+
+    console.log(
+      "Fetching run_result for runId:",
+      runId,
+      "user_id:",
+      userId,
+      "task_id:",
+      taskId
+    );
+
+    // 查询 run_results 表，根据 user_id、task_id 和 run_id 获取 run_result 字段
     const { data, error } = await supabaseAdmin
       .from("run_results")
       .select("run_result, run_id, task_id, user_id")
-      .eq("run_id", runId);
+      .eq("run_id", runId)
+      .eq("user_id", userId)
+      .eq("task_id", taskId);
 
     if (error) {
       console.error("查询 run_results 错误:", error);

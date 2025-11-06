@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+// 确保路由是动态的
+export const dynamic = "force-dynamic";
+
 // GET /api/run-results - 根据 user_id 和 task_id 获取 run_id 列表
 export async function GET(request: NextRequest) {
   try {
@@ -23,6 +26,7 @@ export async function GET(request: NextRequest) {
       "task_id:",
       taskId
     );
+
     const { data, error } = await supabaseAdmin
       .from("run_results")
       .select("run_id, task_id, user_id, created_at")
@@ -35,8 +39,14 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("查询 run_results 错误:", error);
+      console.error("Error code:", error.code);
+      console.error("Error details:", JSON.stringify(error, null, 2));
       return NextResponse.json(
-        { error: "Failed to fetch run results", details: error.message },
+        {
+          error: "Failed to fetch run results",
+          details: error.message || "Database query failed",
+          code: error.code,
+        },
         { status: 500 }
       );
     }
@@ -47,8 +57,15 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("获取 run_results 异常:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error("Error details:", errorDetails);
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Failed to fetch run results",
+        details: errorMessage,
+      },
       { status: 500 }
     );
   }
