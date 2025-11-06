@@ -30,13 +30,13 @@ export default function ForgotPasswordPage() {
       });
 
       if (error) {
-        console.error("发送重置邮件错误:", error);
+        console.log("发送重置邮件错误:", error);
         setError(error.message || "发送重置邮件失败");
       } else {
         setSuccess("重置密码邮件已发送，请检查您的邮箱");
       }
     } catch (error: any) {
-      console.error("发送重置邮件异常:", error);
+      console.log("发送重置邮件异常:", error);
       setError("发送重置邮件失败，请稍后重试");
     } finally {
       setLoading(false);

@@ -35,7 +35,7 @@ export default function RegisterPage() {
       await signUpWithEmail(email, password, fullName);
       setSuccess("注册成功！请检查邮箱验证链接。");
     } catch (error: any) {
-      console.error("注册失败:", error);
+      console.log("注册失败:", error);
       setError(error.message || "注册失败，请稍后重试");
     }
   };

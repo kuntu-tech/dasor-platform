@@ -49,7 +49,7 @@ export default function SubscriptionSuccessPage() {
         throw new Error(data.error || "Sync failed");
       }
     } catch (error) {
-      console.error("同步订阅状态错误:", error);
+      console.log("同步订阅状态错误:", error);
       setSyncError(
         error instanceof Error
           ? error.message

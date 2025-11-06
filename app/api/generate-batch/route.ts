@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("外部API调用失败:", response.status, errorText);
+      console.log("外部API调用失败:", response.status, errorText);
 
       return NextResponse.json(
         {
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       data: data,
     });
   } catch (error) {
-    console.error("生成接口错误:", error);
+    console.log("生成接口错误:", error);
     const msg = error instanceof Error ? error.message : String(error);
     const isAbort =
       msg.toLowerCase().includes("aborted") ||

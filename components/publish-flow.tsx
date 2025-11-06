@@ -39,7 +39,7 @@ export function PublishFlow() {
         const app = JSON.parse(stored);
         setFeatureCount(app.features?.length || 0);
       } catch (e) {
-        console.error("Failed to parse current app", e);
+        console.log("Failed to parse current app", e);
       }
     }
   }, []);
@@ -55,7 +55,7 @@ export function PublishFlow() {
     //     app.status = "published";
     //     localStorage.setItem("currentApp", JSON.stringify(app));
     //   } catch (e) {
-    //     console.error("Failed to update app", e);
+    //     console.log("Failed to update app", e);
     //   }
     // }
 

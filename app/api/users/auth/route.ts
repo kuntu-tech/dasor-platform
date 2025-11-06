@@ -8,7 +8,7 @@ export async function GET() {
     const { data, error } = await supabaseAdmin.auth.admin.listUsers();
 
     if (error) {
-      console.error("获取用户失败:", error);
+      console.log("获取用户失败:", error);
       return NextResponse.json(
         { error: "获取用户失败", details: error.message },
         { status: 500 }
@@ -27,7 +27,7 @@ export async function GET() {
 
     return NextResponse.json({ data: users, message: "获取用户成功" });
   } catch (error) {
-    console.error("API错误:", error);
+    console.log("API错误:", error);
     return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
   }
 }

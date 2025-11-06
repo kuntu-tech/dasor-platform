@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const { data: users, error, count } = await query;
 
     if (error) {
-      console.error("获取用户列表错误:", error);
+      console.log("获取用户列表错误:", error);
       return NextResponse.json(
         { error: "Failed to fetch user list", details: error.message },
         { status: 500 }
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("API错误:", error);
+    console.log("API错误:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error("创建用户错误:", error);
+      console.log("创建用户错误:", error);
       return NextResponse.json(
         { error: "Failed to create user", details: error.message },
         { status: 500 }
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       message: "User created successfully",
     });
   } catch (error) {
-    console.error("API错误:", error);
+    console.log("API错误:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -1226,7 +1226,7 @@ export function ConnectFlow() {
         })
       );
     } catch (error) {
-      console.error("API call failed:", error);
+      console.log("API call failed:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 

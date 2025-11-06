@@ -1,16 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function OAuthCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "success" | "error" | "no-payment">("loading");
   const [message, setMessage] = useState("");
+  const hasProcessed = useRef(false);
 
   useEffect(() => {
+    // 防止重复执行
+    if (hasProcessed.current) {
+      return;
+    }
+
     const handleCallback = async () => {
+      // 标记为已处理
+      hasProcessed.current = true;
       try {
         // Stripe OAuth 回调参数
         const code = searchParams.get("code");
@@ -56,6 +65,39 @@ export default function OAuthCallbackPage() {
         // 如果是 Stripe 回调（有 code 和 state）
         if (code && state) {
           try {
+            // 先检查当前用户是否有支付记录
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.user?.id) {
+              setStatus("error");
+              setMessage("User not authenticated");
+              return;
+            }
+
+            // 检查用户是否有支付记录
+            const checkResponse = await fetch(
+              `/api/check-payment-history?userId=${session.user.id}`,
+              {
+                method: "GET",
+                headers: {
+                  "Accept": "application/json",
+                },
+              }
+            );
+
+            if (!checkResponse.ok) {
+              console.log("Error checking payment history");
+              // 如果检查失败，继续执行 OAuth 流程
+            } else {
+              const checkData = await checkResponse.json();
+              
+              // 如果没有支付记录，显示静态页面
+              if (checkData.success && !checkData.hasPaymentHistory) {
+                setStatus("no-payment");
+                return;
+              }
+            }
+
+            // 如果有支付记录，继续执行 OAuth 流程
             // 通过本地 API 代理转发请求，绕过浏览器限制
             const callbackUrl = `/api/proxy-oauth-callback?code=${code}&state=${state}`;
             console.log("Calling OAuth callback:", callbackUrl);
@@ -72,14 +114,14 @@ export default function OAuthCallbackPage() {
 
             if (!response.ok) {
               const text = await response.text();
-              console.error("Error response:", text);
+              console.log("Error response:", text);
               throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const contentType = response.headers.get("content-type");
             if (!contentType || !contentType.includes("application/json")) {
               const text = await response.text();
-              console.error("Non-JSON response:", text.substring(0, 500));
+              console.log("Non-JSON response:", text.substring(0, 500));
               setStatus("error");
               setMessage("Server returned invalid data format");
               return;
@@ -106,7 +148,7 @@ export default function OAuthCallbackPage() {
               setMessage(data.error || "Failed to link account");
             }
           } catch (err) {
-            console.error("OAuth callback processing error:", err);
+            console.log("OAuth callback processing error:", err);
             setStatus("error");
             setMessage("Network error, please try again");
           }
@@ -117,7 +159,7 @@ export default function OAuthCallbackPage() {
         setStatus("error");
         setMessage("Invalid callback parameters");
       } catch (error) {
-        console.error("OAuth callback error:", error);
+        console.log("OAuth callback error:", error);
         setStatus("error");
         setMessage("An error occurred while processing the callback");
       }
@@ -134,6 +176,48 @@ export default function OAuthCallbackPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
             <p className="text-gray-600">Processing authorization...</p>
           </>
+        )}
+
+        {status === "no-payment" && (
+          <div className="max-w-lg mx-auto px-6 py-12">
+            <div className="mb-8">
+              <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+              </div>
+              <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+                No payment history
+              </h1>
+              <p className="text-gray-600 text-base leading-relaxed">
+                You don't have any payment records yet. Once you receive payments, they will appear here.
+              </p>
+            </div>
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  const returnPath = typeof window !== "undefined" 
+                    ? sessionStorage.getItem("oauth_return_path") || "/"
+                    : "/";
+                  if (typeof window !== "undefined") {
+                    sessionStorage.removeItem("oauth_return_path");
+                  }
+                  router.push(returnPath || "/");
+                }}
+                className="w-full inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                Go back
+              </button>
+            </div>
+          </div>
         )}
 
         {status === "success" && (

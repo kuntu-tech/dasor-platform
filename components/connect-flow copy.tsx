@@ -528,7 +528,7 @@ export function ConnectFlow() {
     //   const data = await response.json();
     //   console.log(data);
     // } catch (error) {
-    //   console.error("Error connecting to API:", error);
+    //   console.log("Error connecting to API:", error);
     //   setConnectionError(
     //     `Error connecting to API: ${
     //       error instanceof Error ? error.message : "Unknown error"
@@ -1178,7 +1178,7 @@ export function ConnectFlow() {
         // setStep("results")
         // }, 1000)
       } catch (error) {
-        console.error("Database connection failed:", error);
+        console.log("Database connection failed:", error);
         setConnectionError(
           `Database connection failed: ${
             error instanceof Error ? error.message : "Unknown error"

@@ -42,11 +42,11 @@ export async function getBillingPortalUrl(
       console.log("获取 Customer Portal URL 成功:", result.data.url);
       return result.data.url;
     } else {
-      console.error("获取 Customer Portal URL 失败:", result);
+      console.log("获取 Customer Portal URL 失败:", result);
       return null;
     }
   } catch (error) {
-    console.error("请求失败:", error);
+    console.log("请求失败:", error);
     return null;
   }
 }

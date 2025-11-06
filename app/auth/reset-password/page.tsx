@@ -44,7 +44,7 @@ export default function ResetPasswordPage() {
         })
         .then(({ data, error }) => {
           if (error) {
-            console.error("设置会话错误:", error);
+            console.log("设置会话错误:", error);
             setError("重置密码链接无效或已过期");
           } else {
             console.log("会话设置成功:", data);
@@ -94,7 +94,7 @@ export default function ResetPasswordPage() {
       } = await supabase.auth.getSession();
 
       if (sessionError || !session) {
-        console.error("会话检查失败:", sessionError);
+        console.log("会话检查失败:", sessionError);
         setError("会话无效，请重新申请密码重置");
         return;
       }
@@ -106,7 +106,7 @@ export default function ResetPasswordPage() {
       });
 
       if (error) {
-        console.error("重置密码错误:", error);
+        console.log("重置密码错误:", error);
         setError(error.message || "重置密码失败");
       } else {
         setSuccess("密码重置成功！正在跳转到登录页...");
@@ -115,7 +115,7 @@ export default function ResetPasswordPage() {
         }, 2000);
       }
     } catch (error: any) {
-      console.error("重置密码异常:", error);
+      console.log("重置密码异常:", error);
       setError("重置密码失败，请稍后重试");
     } finally {
       setLoading(false);

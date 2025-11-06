@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     //   { status: 500 }
     // );
   } catch (error) {
-    console.error("验证数据接口错误:", error);
+    console.log("验证数据接口错误:", error);
     return NextResponse.json(
       {
         error: "服务器内部错误",

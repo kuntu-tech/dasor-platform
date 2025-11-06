@@ -23,7 +23,7 @@ export async function GET(
       if (error.code === "PGRST116") {
         return NextResponse.json({ error: "用户不存在" }, { status: 404 });
       }
-      console.error("获取用户错误:", error);
+      console.log("获取用户错误:", error);
       return NextResponse.json(
         { error: "获取用户失败", details: error.message },
         { status: 500 }
@@ -35,7 +35,7 @@ export async function GET(
       data: user,
     });
   } catch (error) {
-    console.error("API错误:", error);
+    console.log("API错误:", error);
     return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
   }
 }
@@ -99,7 +99,7 @@ export async function PUT(
       .single();
 
     if (error) {
-      console.error("更新用户错误:", error);
+      console.log("更新用户错误:", error);
       return NextResponse.json(
         { error: "更新用户失败", details: error.message },
         { status: 500 }
@@ -112,7 +112,7 @@ export async function PUT(
       message: "用户信息更新成功",
     });
   } catch (error) {
-    console.error("API错误:", error);
+    console.log("API错误:", error);
     return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
   }
 }
@@ -143,7 +143,7 @@ export async function DELETE(
     const { error } = await supabaseAdmin.from("users").delete().eq("id", id);
 
     if (error) {
-      console.error("删除用户错误:", error);
+      console.log("删除用户错误:", error);
       return NextResponse.json(
         { error: "删除用户失败", details: error.message },
         { status: 500 }
@@ -155,7 +155,7 @@ export async function DELETE(
       message: "用户删除成功",
     });
   } catch (error) {
-    console.error("API错误:", error);
+    console.log("API错误:", error);
     return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
   }
 }
