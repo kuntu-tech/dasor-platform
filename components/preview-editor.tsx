@@ -122,7 +122,7 @@ export function PreviewEditor() {
           "*"
         );
       } catch (error) {
-        console.error("Failed to send message to iframe:", error);
+        console.log("Failed to send message to iframe:", error);
       }
     }
   };
@@ -136,7 +136,7 @@ export function PreviewEditor() {
         setCurrentApp(app);
         // 不再处理 features，因为现在使用 selectedProblems
       } catch (e) {
-        console.error("Failed to parse current app", e);
+        console.log("Failed to parse current app", e);
       }
     }
   }, [appId]);
@@ -154,7 +154,7 @@ export function PreviewEditor() {
         //   setSelectedFeatureId(problems[0]);
         // }
       } catch (e) {
-        console.error("Failed to parse selectedProblems", e);
+        console.log("Failed to parse selectedProblems", e);
       }
     } else {
       console.log("No selectedProblems found in localStorage");

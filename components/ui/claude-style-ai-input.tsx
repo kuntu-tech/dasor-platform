@@ -601,7 +601,7 @@ const ClaudeChatInput: React.FC<ChatInputProps> = ({
               );
             })
             .catch((error) => {
-              console.error("Error reading file content:", error);
+              console.log("Error reading file content:", error);
               setFiles((prev) =>
                 prev.map((f) =>
                   f.id === fileToUpload.id

@@ -148,7 +148,7 @@ export function ConditionalSidebar({
                       router.refresh();
                     }, 50);
                   } catch (error) {
-                    console.error("登出失败:", error);
+                    console.log("登出失败:", error);
                   }
                 }}
               >

@@ -119,7 +119,7 @@ export function BreadcrumbNav() {
             setAppStatus(data.data?.status || null);
           }
         } catch (error) {
-          console.error("获取应用状态失败:", error);
+          console.log("获取应用状态失败:", error);
         }
       };
 
@@ -178,7 +178,7 @@ export function BreadcrumbNav() {
       // 跳转到保存成功页面
       router.push("/save-success");
     } catch (error) {
-      console.error("保存应用失败:", error);
+      console.log("保存应用失败:", error);
       alert(`保存失败: ${error instanceof Error ? error.message : "未知错误"}`);
     } finally {
       setIsSaving(false);

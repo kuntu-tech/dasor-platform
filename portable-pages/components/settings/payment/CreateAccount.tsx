@@ -41,7 +41,7 @@ const CreateAccount = ({ onBack, onConnect }: CreateAccountProps) => {
       }
       onConnect(loginEmail);
     } catch (err) {
-      console.error("Bind vendor error:", err);
+      console.log("Bind vendor error:", err);
       alert("创建账户失败，请重试");
     } finally {
       setLoading(false);

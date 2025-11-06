@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      console.error("获取vendor错误:", error);
+      console.log("获取vendor错误:", error);
       return NextResponse.json({ success: false, error: "Failed to fetch vendor data", details: error.message }, { status: 500 });
     }
 
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       data: vendor,
     });
   } catch (error) {
-    console.error("API错误:", error);
+    console.log("API错误:", error);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

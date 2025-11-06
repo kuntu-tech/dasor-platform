@@ -943,7 +943,7 @@ export function ConnectFlow() {
         })
       );
     } catch (error) {
-      console.error("API call failed:", error);
+      console.log("API call failed:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 
@@ -1603,7 +1603,7 @@ export function ConnectFlow() {
         // setStep("results")
         // }, 1000)
       } catch (error) {
-        console.error("Database connection failed:", error);
+        console.log("Database connection failed:", error);
         setConnectionError(
           `Database connection failed: ${
             error instanceof Error ? error.message : "Unknown error"

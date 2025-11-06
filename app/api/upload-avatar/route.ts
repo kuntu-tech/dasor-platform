@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       });
 
     if (uploadError) {
-      console.error("上传文件错误:", uploadError);
+      console.log("上传文件错误:", uploadError);
       
       // 检查是否是 bucket 不存在
       if (uploadError.message?.includes("Bucket not found") || uploadError.message?.includes("not found")) {
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       .eq("id", userId);
 
     if (updateError) {
-      console.error("更新用户头像URL错误:", updateError);
+      console.log("更新用户头像URL错误:", updateError);
       // 如果更新失败，尝试删除刚上传的文件
       await supabaseAdmin.storage.from(BUCKET_NAME).remove([fileName]);
       return NextResponse.json(
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
       message: "Avatar uploaded successfully",
     });
   } catch (error) {
-    console.error("API错误:", error);
+    console.log("API错误:", error);
     return NextResponse.json(
       { error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }

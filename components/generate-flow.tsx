@@ -145,7 +145,7 @@ export function GenerateFlow() {
         // Auto-start generation process
         startGeneration(problems);
       } catch (e) {
-        console.error("Failed to parse selected problems", e);
+        console.log("Failed to parse selected problems", e);
       }
     }
     if (!mountedCalledRef.current) {
@@ -384,7 +384,7 @@ export function GenerateFlow() {
           throw new Error("standal_sql 未返回有效的 queries 数组");
         }
       } catch (e) {
-        console.error("standal_sql 调用失败", e);
+        console.log("standal_sql 调用失败", e);
         throw e instanceof Error ? e : new Error("standal_sql 调用失败");
       }
 
@@ -417,7 +417,7 @@ export function GenerateFlow() {
       localStorage.setItem("currentAppUrl", data.data.domain);
       router.push(`/preview?id=${data.data.serviceId}`);
     } catch (err) {
-      console.error("Error generating batch", err);
+      console.log("Error generating batch", err);
       setHasError(true);
       setErrorMessage(err instanceof Error ? err.message : "生成失败，请重试");
     } finally {

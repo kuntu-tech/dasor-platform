@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
           message: "No subscription found",
         });
       }
-      console.error("Error checking subscription:", error);
+      console.log("Error checking subscription:", error);
       return NextResponse.json(
         { error: "Failed to check subscription" },
         { status: 500 }
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
           periodEnd = null;
         }
       } catch (e) {
-        console.error("Invalid date format:", data.subscription_period_end);
+        console.log("Invalid date format:", data.subscription_period_end);
         periodEnd = null;
       }
     }
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       subscriptionPeriodEnd: data.subscription_period_end,
     });
   } catch (error) {
-    console.error("Error in check-subscription:", error);
+    console.log("Error in check-subscription:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

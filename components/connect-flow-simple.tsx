@@ -138,7 +138,7 @@ export function ConnectFlow() {
       setAnalysisResults(data.results || []);
       setStep("results");
     } catch (error) {
-      console.error("分析失败:", error);
+      console.log("分析失败:", error);
       setConnectionError(
         `分析失败: ${error instanceof Error ? error.message : "未知错误"}`
       );
@@ -227,7 +227,7 @@ export function ConnectFlow() {
       // API调用成功，继续到下一步
       setAnalysisStep("validating-data");
     } catch (error) {
-      console.error("Error connecting to API:", error);
+      console.log("Error connecting to API:", error);
       setConnectionError(
         `连接失败: ${error instanceof Error ? error.message : "未知错误"}`
       );
@@ -251,7 +251,7 @@ export function ConnectFlow() {
       // 连接成功后，继续分析流程
       setAnalysisStep("validating-data");
     } catch (error) {
-      console.error("Database validation failed:", error);
+      console.log("Database validation failed:", error);
       setConnectionError(
         error instanceof Error ? error.message : "数据库连接失败"
       );
@@ -291,7 +291,7 @@ export function ConnectFlow() {
         throw new Error(data.error || "数据真实性验证失败");
       }
     } catch (error) {
-      console.error("Data validation failed:", error);
+      console.log("Data validation failed:", error);
       setDataValidationError(
         error instanceof Error ? error.message : "数据验证失败"
       );
@@ -388,7 +388,7 @@ export function ConnectFlow() {
       const data = await response.json();
       console.log("聊天响应:", data);
     } catch (error) {
-      console.error("Chat failed:", error);
+      console.log("Chat failed:", error);
     }
   };
 

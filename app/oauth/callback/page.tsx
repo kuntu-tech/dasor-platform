@@ -72,14 +72,14 @@ export default function OAuthCallbackPage() {
 
             if (!response.ok) {
               const text = await response.text();
-              console.error("Error response:", text);
+              console.log("Error response:", text);
               throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const contentType = response.headers.get("content-type");
             if (!contentType || !contentType.includes("application/json")) {
               const text = await response.text();
-              console.error("Non-JSON response:", text.substring(0, 500));
+              console.log("Non-JSON response:", text.substring(0, 500));
               setStatus("error");
               setMessage("Server returned invalid data format");
               return;
@@ -106,7 +106,7 @@ export default function OAuthCallbackPage() {
               setMessage(data.error || "Failed to link account");
             }
           } catch (err) {
-            console.error("OAuth callback processing error:", err);
+            console.log("OAuth callback processing error:", err);
             setStatus("error");
             setMessage("Network error, please try again");
           }
@@ -117,7 +117,7 @@ export default function OAuthCallbackPage() {
         setStatus("error");
         setMessage("Invalid callback parameters");
       } catch (error) {
-        console.error("OAuth callback error:", error);
+        console.log("OAuth callback error:", error);
         setStatus("error");
         setMessage("An error occurred while processing the callback");
       }

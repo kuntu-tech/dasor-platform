@@ -41,7 +41,7 @@ export default function LoginPage() {
       await signInWithEmail(email, trimmedPassword);
       // 登录成功，状态会通过 useEffect 监听自动跳转
     } catch (error: any) {
-      console.error("登录失败:", error);
+      console.log("登录失败:", error);
       setError(error.message || "登录失败，请检查邮箱和密码");
     }
   };

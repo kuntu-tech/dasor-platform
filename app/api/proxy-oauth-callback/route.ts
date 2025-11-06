@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       data = await response.json();
     } else {
       const text = await response.text();
-      console.error("Non-JSON response from proxy:", text.substring(0, 500));
+      console.log("Non-JSON response from proxy:", text.substring(0, 500));
       return NextResponse.json(
         { success: false, error: "Invalid response from backend" },
         { status: 500 }
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Proxy OAuth callback error:", error);
+    console.log("Proxy OAuth callback error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to process OAuth callback" },
       { status: 500 }

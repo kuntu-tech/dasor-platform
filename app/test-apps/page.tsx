@@ -76,7 +76,7 @@ export default function TestAppsPage() {
       });
       setShowForm(false);
     } catch (err) {
-      console.error("操作失败:", err);
+      console.log("操作失败:", err);
     }
   };
 
@@ -99,7 +99,7 @@ export default function TestAppsPage() {
       try {
         await deleteApp(id);
       } catch (err) {
-        console.error("删除失败:", err);
+        console.log("删除失败:", err);
       }
     }
   };

@@ -367,7 +367,7 @@ export function PreviewEditor() {
           setFeatureDesigns(newFeatureDesigns);
         }
       } catch (e) {
-        console.error("Failed to parse current app", e);
+        console.log("Failed to parse current app", e);
       }
     }
   }, [appId]);

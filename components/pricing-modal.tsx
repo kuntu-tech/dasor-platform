@@ -86,7 +86,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
       // 3. 跳转到支付页面
       window.location.href = subscriptionResponse.data.checkoutUrl
     } catch (err) {
-      console.error("订阅处理错误:", err)
+      console.log("订阅处理错误:", err)
       setError(err instanceof Error ? err.message : "Subscription processing failed. Please try again later")
       setIsLoading(false)
     }

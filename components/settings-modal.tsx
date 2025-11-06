@@ -90,7 +90,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
             setAvatarUrl(data.avatar_url)
           }
         } catch (error) {
-          console.error("获取用户头像失败:", error)
+          console.log("获取用户头像失败:", error)
         }
       }
     }
@@ -122,7 +122,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
           }
         })
         .catch((error) => {
-          console.error("加载 Customer Portal 失败:", error)
+          console.log("加载 Customer Portal 失败:", error)
           setBillingPortalError("Network error. Please try again later.")
         })
         .finally(() => {
@@ -239,7 +239,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
         setUploadSuccess(null)
       }, 3000)
     } catch (error) {
-      console.error("上传头像失败:", error)
+      console.log("上传头像失败:", error)
       setUploadError(error instanceof Error ? error.message : "Upload failed")
       setPreviewUrl(null)
       if (preview) {
@@ -438,7 +438,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
                     }
                   })
                   .catch((error) => {
-                    console.error("加载 Customer Portal 失败:", error)
+                    console.log("加载 Customer Portal 失败:", error)
                     setBillingPortalError("Network error. Please try again later.")
                   })
                   .finally(() => {

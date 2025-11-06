@@ -183,7 +183,7 @@ export async function createSubscription(
   try {
     json = (await res.json()) as CreateSubscriptionResponse;
   } catch (error) {
-    console.error("Failed to parse JSON response:", error);
+    console.log("Failed to parse JSON response:", error);
     return {
       success: false,
       error: `Failed to parse response: ${res.status}`,
@@ -192,7 +192,7 @@ export async function createSubscription(
 
   // 检查响应状态和数据
   if (!res.ok) {
-    console.error("Subscription API HTTP error:", res.status, json);
+    console.log("Subscription API HTTP error:", res.status, json);
     return {
       success: false,
       error: json.error || `HTTP error: ${res.status}`,
@@ -201,7 +201,7 @@ export async function createSubscription(
 
   // 检查响应数据是否有 success 字段
   if (json.success === false || (json.success === undefined && !json.data?.checkoutUrl)) {
-    console.error("Subscription API error:", res.status, json);
+    console.log("Subscription API error:", res.status, json);
     return {
       success: false,
       error: json.error || json.message || "Subscription request failed",
@@ -248,7 +248,7 @@ export async function syncSubscriptionStatus(
   try {
     json = (await res.json()) as SyncSubscriptionStatusResponse;
   } catch (error) {
-    console.error("Failed to parse JSON response:", error);
+    console.log("Failed to parse JSON response:", error);
     return {
       success: false,
       error: `Failed to parse response: ${res.status}`,
@@ -257,7 +257,7 @@ export async function syncSubscriptionStatus(
 
   // 检查响应状态和数据
   if (!res.ok) {
-    console.error("Sync-status API HTTP error:", res.status, json);
+    console.log("Sync-status API HTTP error:", res.status, json);
     return {
       success: false,
       error: json.error || `HTTP error: ${res.status}`,
@@ -266,7 +266,7 @@ export async function syncSubscriptionStatus(
 
   // 检查响应数据是否有 success 字段
   if (json.success === false) {
-    console.error("Sync-status API error:", res.status, json);
+    console.log("Sync-status API error:", res.status, json);
     return {
       success: false,
       error: json.error || json.message || "Sync status request failed",
@@ -327,7 +327,7 @@ export async function createAppPayment(
     try {
       json = (await res.json()) as CreateAppPaymentResponse;
     } catch (error) {
-      console.error("Failed to parse JSON response:", error);
+      console.log("Failed to parse JSON response:", error);
       return {
         success: false,
         error: `Failed to parse response: ${res.status}`,
@@ -336,7 +336,7 @@ export async function createAppPayment(
 
     // 检查响应状态
     if (!res.ok) {
-      console.error("App Payment API HTTP error:", res.status, json);
+      console.log("App Payment API HTTP error:", res.status, json);
       // 尝试获取更详细的错误信息
       const errorMessage = 
         json.error || 
@@ -354,7 +354,7 @@ export async function createAppPayment(
 
     // 检查响应数据
     if (json.success === false) {
-      console.error("App Payment API error:", res.status, json);
+      console.log("App Payment API error:", res.status, json);
       return {
         success: false,
         error: json.error || json.message || "创建支付链接失败",
@@ -363,7 +363,7 @@ export async function createAppPayment(
 
     return json;
   } catch (error) {
-    console.error("createAppPayment error:", error);
+    console.log("createAppPayment error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "网络错误",
