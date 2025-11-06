@@ -46,11 +46,15 @@ export default function SubscriptionSuccessPage() {
           router.push("/connect");
         }, 2000);
       } else {
-        throw new Error(data.error || "同步失败");
+        throw new Error(data.error || "Sync failed");
       }
     } catch (error) {
       console.error("同步订阅状态错误:", error);
-      setSyncError(error instanceof Error ? error.message : "同步订阅状态失败");
+      setSyncError(
+        error instanceof Error
+          ? error.message
+          : "Failed to sync subscription status"
+      );
       // 即使同步失败，也不阻止用户继续，因为 Webhook 可能已经处理
     } finally {
       setIsSyncing(false);
@@ -89,9 +93,11 @@ export default function SubscriptionSuccessPage() {
               <CheckCircle2 className="size-10 text-green-600 dark:text-green-400" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold mb-2">订阅成功！</CardTitle>
+          <CardTitle className="text-3xl font-bold mb-2">
+            Subscription Successful!
+          </CardTitle>
           <CardDescription className="text-lg">
-            您的订阅已成功激活
+            Your subscription has been successfully activated
           </CardDescription>
         </CardHeader>
 
@@ -100,19 +106,20 @@ export default function SubscriptionSuccessPage() {
           {isSyncing && (
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              <span>正在同步订阅状态...</span>
+              <span>Syncing subscription status...</span>
             </div>
           )}
 
           {syncSuccess && (
             <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-3 text-sm text-green-700 dark:text-green-400">
-              ✓ 订阅状态已同步，数据已保存
+              ✓ Subscription status synced, data saved
             </div>
           )}
 
           {syncError && (
             <div className="rounded-md bg-orange-50 dark:bg-orange-900/20 p-3 text-sm text-orange-700 dark:text-orange-400">
-              ⚠ {syncError}（如果 Webhook 已处理，数据可能已保存）
+              ⚠ {syncError} (Data may have been saved if Webhook has already
+              processed it)
             </div>
           )}
 
@@ -140,7 +147,7 @@ export default function SubscriptionSuccessPage() {
               className="w-full"
               size="lg"
             >
-              查看订阅详情
+              View Subscription Details
               <ArrowRight className="ml-2 size-4" />
             </Button>
 
@@ -151,12 +158,14 @@ export default function SubscriptionSuccessPage() {
               size="lg"
             >
               <Home className="mr-2 size-5" />
-              返回首页
+              Return to Home
             </Button>
           </div>
 
           <div className="text-center text-sm text-muted-foreground mt-4">
-            <p>感谢您的订阅！您可以使用所有 Pro 功能。</p>
+            <p>
+              Thank you for your subscription! You can now use all Pro features.
+            </p>
           </div>
         </CardContent>
       </Card>

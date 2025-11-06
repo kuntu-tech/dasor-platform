@@ -175,7 +175,7 @@ export default function DashboardPage() {
 
   const handleDelete = async (id: string) => {
     // 确认删除
-    if (!confirm("确定要删除这个应用吗？此操作不可撤销。")) {
+    if (!confirm("Are you sure you want to delete this app? This action cannot be undone.")) {
       return;
     }
 
@@ -195,7 +195,7 @@ export default function DashboardPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "删除应用失败");
+        throw new Error(errorData.error || "Failed to delete app");
       }
 
       // 删除成功后重新获取数据，确保数据同步
@@ -204,7 +204,7 @@ export default function DashboardPage() {
       console.log("应用删除成功");
     } catch (error) {
       console.error("删除应用失败:", error);
-      alert(`删除失败: ${error instanceof Error ? error.message : "未知错误"}`);
+      alert(`Delete failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setDeletingId(null);
     }

@@ -94,18 +94,18 @@ export function PreviewEditor() {
   // Predefined question texts for each feature
   const getQuestionText = (featureName: string) => {
     const questionMap: Record<string, string> = {
-      "Product Catalog and Inventory Display": "请显示产品目录和库存情况",
-      "User Feedback Collection and Analysis": "请分析用户反馈数据",
-      "A/B Testing Results Analysis": "请展示A/B测试结果分析",
-      "Target User Segmentation": "请进行目标用户分群分析",
-      "User Journey Visualization": "请展示用户旅程可视化",
-      "User Churn Early Warning System": "请分析用户流失预警情况",
-      "Feature Usage Statistics": "请显示功能使用统计数据",
-      "Competitor Feature Comparison Analysis": "请进行竞品功能对比分析",
-      "Product Roadmap Priority Ranking": "请展示产品路线图优先级排序",
-      "New Feature Adoption Rate Prediction": "请预测新功能采用率",
+      "Product Catalog and Inventory Display": "Please show the product catalog and inventory status",
+      "User Feedback Collection and Analysis": "Please analyze user feedback data",
+      "A/B Testing Results Analysis": "Please show A/B testing results analysis",
+      "Target User Segmentation": "Please perform target user segmentation analysis",
+      "User Journey Visualization": "Please show user journey visualization",
+      "User Churn Early Warning System": "Please analyze user churn early warning",
+      "Feature Usage Statistics": "Please show feature usage statistics",
+      "Competitor Feature Comparison Analysis": "Please perform competitor feature comparison analysis",
+      "Product Roadmap Priority Ranking": "Please show product roadmap priority ranking",
+      "New Feature Adoption Rate Prediction": "Please predict new feature adoption rate",
     };
-    return questionMap[featureName] || `请提供关于${featureName}的信息`;
+    return questionMap[featureName] || `Please provide information about ${featureName}`;
   };
 
   // 向iframe发送消息的函数
@@ -310,21 +310,21 @@ export function PreviewEditor() {
               <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-8">
                 <div className="text-6xl mb-4">📊</div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                  数据分析洞察
+                  Data Analysis Insights
                 </h2>
                 <p className="text-lg text-gray-600 leading-relaxed">
-                  基于您的数据，我们发现了重要的业务趋势和增长机会。通过智能分析，我们为您提供了可操作的洞察，帮助您做出更明智的决策。
+                  Based on your data, we have discovered important business trends and growth opportunities. Through intelligent analysis, we provide actionable insights to help you make better decisions.
                 </p>
               </div>
 
               <div className="mt-8 grid grid-cols-2 gap-4">
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-green-800">+23%</div>
-                  <div className="text-sm text-green-600">本月增长</div>
+                  <div className="text-sm text-green-600">Monthly Growth</div>
                 </div>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-blue-800">98%</div>
-                  <div className="text-sm text-blue-600">准确率</div>
+                  <div className="text-sm text-blue-600">Accuracy</div>
                 </div>
               </div>
             </div>
@@ -346,7 +346,7 @@ export function PreviewEditor() {
           <div className="grid grid-cols-2 gap-8">
             {/* 饼状图区域 */}
             <div className="space-y-6">
-              <h3 className="text-lg font-semibold">数据分布分析</h3>
+              <h3 className="text-lg font-semibold">Data Distribution Analysis</h3>
               <div className="relative w-64 h-64 mx-auto">
                 {/* 模拟饼状图 */}
                 <div className="relative w-full h-full">
@@ -378,7 +378,7 @@ export function PreviewEditor() {
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
                       <div className="text-2xl font-bold">100%</div>
-                      <div className="text-sm text-muted-foreground">总计</div>
+                      <div className="text-sm text-muted-foreground">Total</div>
                     </div>
                   </div>
                 </div>
@@ -387,29 +387,29 @@ export function PreviewEditor() {
 
             {/* 图例和数据 */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">详细数据</h3>
+              <h3 className="text-lg font-semibold">Detailed Data</h3>
               <div className="space-y-3">
                 {[
                   {
-                    label: "产品A",
+                    label: "Product A",
                     value: 35,
                     color: "bg-blue-500",
                     percentage: "35%",
                   },
                   {
-                    label: "产品B",
+                    label: "Product B",
                     value: 28,
                     color: "bg-green-500",
                     percentage: "28%",
                   },
                   {
-                    label: "产品C",
+                    label: "Product C",
                     value: 22,
                     color: "bg-yellow-500",
                     percentage: "22%",
                   },
                   {
-                    label: "产品D",
+                    label: "Product D",
                     value: 15,
                     color: "bg-red-500",
                     percentage: "15%",
@@ -427,7 +427,7 @@ export function PreviewEditor() {
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="text-sm text-muted-foreground">
-                        {item.value} 项
+                        {item.value} items
                       </span>
                       <span className="font-semibold">{item.percentage}</span>
                     </div>
@@ -437,8 +437,8 @@ export function PreviewEditor() {
 
               <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="text-sm text-blue-800">
-                  <strong>关键洞察：</strong>{" "}
-                  产品A占据最大市场份额，建议重点关注其增长策略。
+                  <strong>Key Insight:</strong>{" "}
+                  Product A holds the largest market share. It is recommended to focus on its growth strategy.
                 </div>
               </div>
             </div>

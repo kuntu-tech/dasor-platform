@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("获取应用列表错误:", error);
-      return NextResponse.json({ error: "获取应用列表失败" }, { status: 500 });
+      return NextResponse.json({ error: "Failed to fetch app list" }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("获取应用列表异常:", error);
-    return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     // 验证必填字段
     if (!name) {
-      return NextResponse.json({ error: "应用名称不能为空" }, { status: 400 });
+      return NextResponse.json({ error: "App name cannot be empty" }, { status: 400 });
     }
 
     // 获取当前用户（从请求头或token中获取）
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         error: authError,
       } = await supabaseAdmin.auth.getUser(token);
       if (authError || !user) {
-        return NextResponse.json({ error: "无效的认证token" }, { status: 401 });
+        return NextResponse.json({ error: "Invalid authentication token" }, { status: 401 });
       }
 
       // 从users表获取用户ID
@@ -118,12 +118,12 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (userError || !userProfile) {
-        return NextResponse.json({ error: "用户信息不存在" }, { status: 404 });
+        return NextResponse.json({ error: "User information not found" }, { status: 404 });
       }
 
       userId = userProfile.id;
     } else {
-      return NextResponse.json({ error: "缺少认证token" }, { status: 401 });
+      return NextResponse.json({ error: "Missing authentication token" }, { status: 401 });
     }
 
     // 检查应用名称是否已存在（同一用户下）
@@ -136,13 +136,13 @@ export async function POST(request: NextRequest) {
 
     if (checkError) {
       console.error("检查应用名称错误:", checkError);
-      return NextResponse.json({ error: "检查应用名称失败" }, { status: 500 });
+      return NextResponse.json({ error: "Failed to check app name" }, { status: 500 });
     }
 
     if (existingApp) {
       return NextResponse.json(
         {
-          error: "应用名称已存在，请使用其他名称",
+          error: "App name already exists. Please use a different name",
         },
         { status: 409 }
       );
@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error("创建应用错误:", error);
       return NextResponse.json(
-        { error: "创建应用失败", details: error.message || String(error) },
+        { error: "Failed to create app", details: error.message || String(error) },
         { status: 500 }
       );
     }
@@ -266,6 +266,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("创建应用异常:", error);
-    return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -45,7 +45,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
   // 处理订阅
   const handleSubscribe = async () => {
     if (!user?.id) {
-      setError("请先登录")
+      setError("Please log in first")
       return
     }
 
@@ -57,7 +57,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
       const vendorStatus = await getVendorStatus(user.id)
       
       if (!vendorStatus.success || !vendorStatus.data?.id) {
-        setError("未找到商家信息，请先绑定 Stripe 账户")
+        setError("Vendor information not found. Please connect your Stripe account first")
         setIsLoading(false)
         return
       }
@@ -78,7 +78,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
       })
 
       if (!subscriptionResponse.success || !subscriptionResponse.data?.checkoutUrl) {
-        setError(subscriptionResponse.error || "创建订阅失败")
+        setError(subscriptionResponse.error || "Failed to create subscription")
         setIsLoading(false)
         return
       }
@@ -87,7 +87,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
       window.location.href = subscriptionResponse.data.checkoutUrl
     } catch (err) {
       console.error("订阅处理错误:", err)
-      setError(err instanceof Error ? err.message : "订阅处理失败，请稍后重试")
+      setError(err instanceof Error ? err.message : "Subscription processing failed. Please try again later")
       setIsLoading(false)
     }
   }
@@ -209,7 +209,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
                     handleSubscribe()
                   }}
                 >
-                  {isLoading ? "处理中..." : plan.buttonText}
+                  {isLoading ? "Processing..." : plan.buttonText}
                 </Button>
 
                 <div className="space-y-3">

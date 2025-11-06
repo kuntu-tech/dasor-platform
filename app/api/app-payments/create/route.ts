@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     // 验证必填字段
     if (!app_userid) {
       return NextResponse.json(
-        { success: false, error: "app_userid 是必填字段" },
+        { success: false, error: "app_userid is a required field" },
         { status: 400 }
       );
     }
@@ -28,14 +28,14 @@ export async function POST(request: NextRequest) {
 
     if (appUserError || !appUser) {
       return NextResponse.json(
-        { success: false, error: "用户不存在或未关联到任何应用" },
+        { success: false, error: "User does not exist or is not associated with any app" },
         { status: 404 }
       );
     }
 
     if (!appUser.app_id) {
       return NextResponse.json(
-        { success: false, error: "用户未关联到任何应用" },
+        { success: false, error: "User is not associated with any app" },
         { status: 400 }
       );
     }
