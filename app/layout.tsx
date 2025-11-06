@@ -68,11 +68,15 @@ export default function RootLayout({
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <AuthProvider>
           <AuthGuard>
-            <ConditionalSidebar>
-              <ConditionalBreadcrumb />
-              <Suspense fallback={null}>{children}</Suspense>
-              <Analytics />
-            </ConditionalSidebar>
+            <Suspense fallback={null}>
+              <ConditionalSidebar>
+                <Suspense fallback={null}>
+                  <ConditionalBreadcrumb />
+                </Suspense>
+                <Suspense fallback={null}>{children}</Suspense>
+                <Analytics />
+              </ConditionalSidebar>
+            </Suspense>
           </AuthGuard>
         </AuthProvider>
       </body>
