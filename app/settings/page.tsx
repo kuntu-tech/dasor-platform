@@ -39,6 +39,9 @@ export default function SettingsPage() {
   const [billingPortalUrl, setBillingPortalUrl] = useState<string | null>(null)
   const [billingPortalLoading, setBillingPortalLoading] = useState(false)
   const [billingPortalError, setBillingPortalError] = useState<string | null>(null)
+  const [hasPaymentHistory, setHasPaymentHistory] = useState<boolean | null>(null)
+  const [checkingPaymentHistory, setCheckingPaymentHistory] = useState(false)
+  const [paymentStatus, setPaymentStatus] = useState<"no_vendor" | "no_payment_history" | "has_payment_history" | null>(null)
   
   // Avatar upload states
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
@@ -72,29 +75,78 @@ export default function SettingsPage() {
     fetchUserAvatar()
   }, [user?.id])
 
-  // 当切换到 billing 标签时，自动加载 Customer Portal
+  // 当切换到 billing 标签时，先检查支付记录，再决定是否加载 Customer Portal
   useEffect(() => {
-    if (activeTab === "billing" && user?.id && !billingPortalUrl && !billingPortalLoading) {
-      setBillingPortalLoading(true)
-      setBillingPortalError(null)
-      
-      getBillingPortalUrl(user.id, window.location.href)
-        .then((url) => {
-          if (url) {
-            setBillingPortalUrl(url)
-          } else {
-            setBillingPortalError("Failed to load billing portal. Please try again later.")
-          }
-        })
-        .catch((error) => {
-          console.log("加载 Customer Portal 失败:", error)
-          setBillingPortalError("Network error. Please try again later.")
-        })
-        .finally(() => {
-          setBillingPortalLoading(false)
-        })
+    if (activeTab === "billing" && user?.id) {
+      // 如果还没有检查过支付记录，先检查
+      if (hasPaymentHistory === null && !checkingPaymentHistory) {
+        setCheckingPaymentHistory(true)
+        
+        fetch(`/api/check-payment-history?userId=${user.id}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success) {
+              setHasPaymentHistory(data.hasPaymentHistory)
+              setPaymentStatus(data.status || null)
+              
+              // 如果有支付记录，才加载 Customer Portal
+              if (data.status === "has_payment_history" && !billingPortalUrl && !billingPortalLoading) {
+                setBillingPortalLoading(true)
+                setBillingPortalError(null)
+                
+                getBillingPortalUrl(user.id, window.location.href)
+                  .then((url) => {
+                    if (url) {
+                      setBillingPortalUrl(url)
+                    } else {
+                      setBillingPortalError("Failed to load billing portal. Please try again later.")
+                    }
+                  })
+                  .catch((error) => {
+                    console.log("加载 Customer Portal 失败:", error)
+                    setBillingPortalError("Network error. Please try again later.")
+                  })
+                  .finally(() => {
+                    setBillingPortalLoading(false)
+                  })
+              }
+            } else {
+              // 检查失败，默认显示无支付记录
+              setHasPaymentHistory(false)
+              setPaymentStatus("no_payment_history")
+            }
+          })
+          .catch((error) => {
+            console.log("检查支付记录失败:", error)
+            setHasPaymentHistory(false)
+            setPaymentStatus("no_payment_history")
+          })
+          .finally(() => {
+            setCheckingPaymentHistory(false)
+          })
+      } else if (paymentStatus === "has_payment_history" && !billingPortalUrl && !billingPortalLoading) {
+        // 如果已经有支付记录，但还没有加载 Portal，则加载
+        setBillingPortalLoading(true)
+        setBillingPortalError(null)
+        
+        getBillingPortalUrl(user.id, window.location.href)
+          .then((url) => {
+            if (url) {
+              setBillingPortalUrl(url)
+            } else {
+              setBillingPortalError("Failed to load billing portal. Please try again later.")
+            }
+          })
+          .catch((error) => {
+            console.log("加载 Customer Portal 失败:", error)
+            setBillingPortalError("Network error. Please try again later.")
+          })
+          .finally(() => {
+            setBillingPortalLoading(false)
+          })
+      }
     }
-  }, [activeTab, user?.id, billingPortalUrl, billingPortalLoading])
+  }, [activeTab, user?.id, billingPortalUrl, billingPortalLoading, hasPaymentHistory, checkingPaymentHistory, paymentStatus])
 
   // 处理文件上传
   const handleFileUpload = async (file: File) => {
@@ -198,6 +250,11 @@ export default function SettingsPage() {
       
       setUploadProgress(100)
       setUploadSuccess("Avatar updated successfully")
+
+      // 触发自定义事件，通知其他组件更新头像
+      window.dispatchEvent(new CustomEvent('avatar-updated', { 
+        detail: { avatarUrl: avatarUrlWithCache } 
+      }))
 
       // 3秒后自动清除成功提示
       setTimeout(() => {
@@ -366,6 +423,76 @@ export default function SettingsPage() {
         <div className="flex items-center justify-center h-full min-h-[400px]">
           <div className="text-center">
             <p className="text-muted-foreground">Please log in to view billing information</p>
+          </div>
+        </div>
+      )
+    }
+
+    // 如果正在检查支付记录，显示加载状态
+    if (checkingPaymentHistory) {
+      return (
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Checking payment history...</p>
+          </div>
+        </div>
+      )
+    }
+
+    // 如果未绑定 Stripe 账户，显示提示
+    if (paymentStatus === "no_vendor") {
+      return (
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <div className="text-center max-w-md px-6">
+            <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <svg
+                className="w-8 h-8 text-gray-400"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+              </svg>
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+              Stripe account not connected
+            </h2>
+            <p className="text-gray-600 text-base leading-relaxed">
+              Please connect your Stripe account to view billing information and payment history.
+            </p>
+          </div>
+        </div>
+      )
+    }
+
+    // 如果没有支付记录，显示提示
+    if (paymentStatus === "no_payment_history") {
+      return (
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <div className="text-center max-w-md px-6">
+            <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <svg
+                className="w-8 h-8 text-gray-400"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+              No payment history
+            </h2>
+            <p className="text-gray-600 text-base leading-relaxed">
+              You don't have any payment records yet. Once you receive payments, they will appear here.
+            </p>
           </div>
         </div>
       )

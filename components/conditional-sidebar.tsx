@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -41,32 +41,48 @@ export function ConditionalSidebar({
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // 获取用户头像
-  useEffect(() => {
-    const fetchUserAvatar = async () => {
-      if (user?.id) {
-        try {
-          const { data, error } = await supabase
-            .from("users")
-            .select("avatar_url")
-            .eq("id", user.id)
-            .single();
-          
-          if (!error && data?.avatar_url) {
-            setAvatarUrl(data.avatar_url);
-          } else {
-            setAvatarUrl(null);
-          }
-        } catch (error) {
-          console.log("获取用户头像失败:", error);
+  const fetchUserAvatar = useCallback(async () => {
+    if (user?.id) {
+      try {
+        const { data, error } = await supabase
+          .from("users")
+          .select("avatar_url")
+          .eq("id", user.id)
+          .single();
+        
+        if (!error && data?.avatar_url) {
+          // 添加缓存破坏参数，确保获取最新头像
+          const avatarUrlWithCache = `${data.avatar_url}?t=${Date.now()}`;
+          setAvatarUrl(avatarUrlWithCache);
+        } else {
           setAvatarUrl(null);
         }
-      } else {
+      } catch (error) {
+        console.log("获取用户头像失败:", error);
         setAvatarUrl(null);
       }
-    };
-    
-    fetchUserAvatar();
+    } else {
+      setAvatarUrl(null);
+    }
   }, [user?.id]);
+
+  useEffect(() => {
+    fetchUserAvatar();
+  }, [fetchUserAvatar]);
+
+  // 监听头像更新事件
+  useEffect(() => {
+    const handleAvatarUpdated = () => {
+      // 当头像更新时，重新获取头像
+      fetchUserAvatar();
+    };
+
+    window.addEventListener('avatar-updated', handleAvatarUpdated);
+
+    return () => {
+      window.removeEventListener('avatar-updated', handleAvatarUpdated);
+    };
+  }, [fetchUserAvatar]);
 
   // 检查 URL 参数，如果需要打开设置对话框
   useEffect(() => {
