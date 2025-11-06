@@ -868,12 +868,14 @@ export function ConnectFlow() {
     // 开始分析流程
     setStep("analyzing");
     setAnalysisStep("connecting");
+    setProgress(0); // 初始化进度
     setIsAnalyzing(true);
     console.log(aaaa, "--------------------------------");
     let connectionId = "";
     let runData = {};
     try {
       console.log("Step 0: Validating connection...");
+      setProgress(5); // 连接验证中，进度 5%
       const validateRes = await fetch("/api/validate-connection", {
         method: "POST",
         headers: {
@@ -947,9 +949,11 @@ export function ConnectFlow() {
 
       // 进入数据验证步骤
       setAnalysisStep("validating-data");
+      setProgress(10); // 连接成功，进度 10%
 
       // 第一步：数据验证
       console.log("Step 1: Validating data...");
+      setProgress(15); // 数据验证中，进度 15%
       // const validateResponse = await fetch(
       //   "https://my-connector.onrender.com/review",
       //   {
@@ -1008,6 +1012,7 @@ export function ConnectFlow() {
 
       // 数据验证成功，继续后续步骤
       setAnalysisStep("reading-schema");
+      setProgress(20); // 数据验证成功，进度 20%
 
       // 连接方式一
       // const connectResponse = await fetch("/api/connect", {
@@ -1083,23 +1088,30 @@ export function ConnectFlow() {
       console.log("Pipeline run successful, job_id:", connectData.job_id);
 
       // 进入轮询阶段，根据进度更新 analysisStep
+      // 进度分配：轮询阶段占 0-85%，standal_sql 占 85-100%
       setJobStatus("waiting");
       const pollingResult = await pollJobProgress(
         connectData.job_id,
         (progress, status, data) => {
           if (progress !== null) {
-            setProgress(progress);
-            // 根据进度自动更新 analysisStep
+            // 根据进度自动更新 analysisStep，并将轮询进度映射到 20-85% 范围
+            // 轮询进度 0-20% 映射到 20-60% (reading-schema)
+            // 轮询进度 20-40% 映射到 60-75% (sampling-data)
+            // 轮询进度 40-100% 映射到 75-85% (evaluating 轮询部分)
             if (progress >= 0 && progress < 20) {
               setAnalysisStep("reading-schema");
+              const mappedProgress = 20 + Math.floor((progress / 20) * 40); // 20-60%
+              setProgress(mappedProgress);
             } else if (progress >= 20 && progress < 40) {
               setAnalysisStep("sampling-data");
-            } else if (progress >= 40 && progress < 80) {
+              const mappedProgress =
+                60 + Math.floor(((progress - 20) / 20) * 15); // 60-75%
+              setProgress(mappedProgress);
+            } else if (progress >= 40 && progress < 100) {
               setAnalysisStep("evaluating");
-            } else if (progress >= 80 && progress < 100) {
-              setAnalysisStep("evaluating");
-            } else if (progress === 100) {
-              setAnalysisStep("complete");
+              const mappedProgress =
+                75 + Math.floor(((progress - 40) / 60) * 10); // 75-85%
+              setProgress(mappedProgress);
             }
           }
           if (status) setJobStatus(status);
@@ -1109,22 +1121,86 @@ export function ConnectFlow() {
       );
       if (pollingResult.status === "completed") {
         setJobStatus("done");
-        setAnalysisStep("complete");
-        setProgress(100);
+        setAnalysisStep("evaluating"); // 保持在 evaluating 步骤
+        setProgress(85); // 轮询完成，进度到 85%
         console.log("pollingResult:", pollingResult);
       } else {
         setJobStatus(pollingResult.status || "error");
-        setConnectionError(
-          "Please check your API Key, Project ID or Access Token"
-        );
+        setRunError(pollingResult.error || "Pipeline run failed");
         setStep("analyzing");
         setIsAnalyzing(false);
         return;
       }
-      const segments = pollingResult?.run_results?.run_result?.segments || [];
+
+      // 第五步：evaluating - 调用 standal_sql 接口
+      // 在调用 standal_sql 期间，进度从 85% 到 100%
+      console.log("Step 5: Evaluating - calling standal_sql...");
+      setProgress(90); // 开始调用 standal_sql，进度到 90%
+      let standalJson: any = {};
+      try {
+        const run_results = pollingResult?.run_results;
+        if (!run_results) {
+          throw new Error("No run_result found in polling result");
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 600_000); // 10分钟超时
+
+        setProgress(95); // standal_sql 调用中，进度到 95%
+        const standalRes = await fetch(
+          "http://192.168.30.159:8900/api/v1/standal_sql",
+          // "https://business-insight.datail.ai/api/v1/standal_sql",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ run_results }),
+            signal: controller.signal,
+          }
+        );
+
+        clearTimeout(timeout);
+        const standalText = await standalRes.text();
+        console.log(standalText, "standal_sql response");
+
+        try {
+          standalJson = JSON.parse(standalText);
+        } catch {}
+
+        if (!standalRes.ok) {
+          throw new Error(
+            typeof standalJson === "string"
+              ? standalJson.slice(0, 200)
+              : standalJson?.error || `standal_sql HTTP ${standalRes.status}`
+          );
+        }
+
+        console.log("standal_sql completed successfully:", standalJson);
+        localStorage.setItem(
+          "standalJson",
+          JSON.stringify({
+            anchIndex: standalJson.run_results?.run_result?.anchIndex,
+            segments: standalJson.run_results.run_result.segments,
+          })
+        );
+        setProgress(100); // standal_sql 完成，进度到 100%
+        // standal_sql 调用成功，继续后续步骤
+      } catch (e) {
+        console.error("standal_sql 调用失败", e);
+        const errorMsg =
+          e instanceof Error ? e.message : "standal_sql 调用失败";
+        setRunError(errorMsg);
+        setAnalysisStep("evaluating");
+        setStep("analyzing");
+        setIsAnalyzing(false);
+        return;
+      }
+
+      // evaluating 步骤完成，标记为 complete
+      setAnalysisStep("complete");
+      const segments = standalJson?.run_results?.run_result?.segments || [];
       localStorage.setItem(
         "run_result",
-        JSON.stringify(pollingResult?.run_results.run_result)
+        JSON.stringify(standalJson?.run_results.run_result)
       );
       const mapped = segments.map((seg: any) => ({
         id: seg.segmentId || seg.name,
@@ -1156,13 +1232,12 @@ export function ConnectFlow() {
 
       // 根据错误发生的位置直接设置错误类型
       // 如果是在 run-analysis 接口调用失败，设置连接错误
-      setConnectionError(
-        "Please check your API Key, Project ID or Access Token"
-      );
+      setRunError(errorMessage);
       setDataValidationError(null); // 清除数据验证错误
 
       // 停留在 analyzing step 显示错误状态
       setStep("analyzing");
+      setAnalysisStep("reading-schema");
       setIsAnalyzing(false);
     }
   };
@@ -1898,19 +1973,7 @@ export function ConnectFlow() {
                                 <div
                                   className="h-full bg-primary transition-all duration-500"
                                   style={{
-                                    width: `${
-                                      analysisStep === "connecting"
-                                        ? 20
-                                        : analysisStep === "validating-data"
-                                        ? 40
-                                        : analysisStep === "reading-schema"
-                                        ? 60
-                                        : analysisStep === "sampling-data"
-                                        ? 80
-                                        : analysisStep === "evaluating"
-                                        ? 100
-                                        : 0
-                                    }%`,
+                                    width: `${progress}%`,
                                   }}
                                 />
                               </div>
