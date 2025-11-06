@@ -1198,10 +1198,21 @@ export function ConnectFlow() {
       // evaluating 步骤完成，标记为 complete
       setAnalysisStep("complete");
       const segments = standalJson?.run_results?.run_result?.segments || [];
-      localStorage.setItem(
-        "run_result",
-        JSON.stringify(standalJson?.run_results.run_result)
-      );
+
+      // 保存 run_result，确保包含 task_id
+      const runResultToSave = {
+        ...standalJson?.run_results.run_result,
+        task_id:
+          pollingResult?.run_results?.task_id ||
+          pollingResult?.task_id ||
+          standalJson?.run_results?.task_id,
+      };
+      localStorage.setItem("run_result", JSON.stringify(runResultToSave));
+
+      // 同时保存 task_id 到单独的 localStorage 项，确保持久化
+      if (runResultToSave.task_id) {
+        localStorage.setItem("originalTaskId", runResultToSave.task_id);
+      }
       const mapped = segments.map((seg: any) => ({
         id: seg.segmentId || seg.name,
         title: seg.name,
