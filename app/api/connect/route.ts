@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       analyzeResult: analyzeData,
     });
   } catch (error) {
-    console.error("连接数据库接口错误:", error);
+    console.log("连接数据库接口错误:", error);
     return NextResponse.json(
       {
         error: "连接失败",

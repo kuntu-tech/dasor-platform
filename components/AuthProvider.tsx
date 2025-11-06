@@ -137,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } = await supabase.auth.getSession();
         
         if (error) {
-          console.error("获取会话错误:", error);
+          console.log("获取会话错误:", error);
         }
         
         setSession(session);
@@ -150,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await checkAndSaveNewUser(session.user, "初始会话");
         }
       } catch (error) {
-        console.error("获取初始会话异常:", error);
+        console.log("获取初始会话异常:", error);
         // 即使出错也要设置 loading 为 false，避免页面一直加载
         setLoading(false);
       }

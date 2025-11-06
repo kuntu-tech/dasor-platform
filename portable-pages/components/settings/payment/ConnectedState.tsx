@@ -25,7 +25,7 @@ const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
             setVendorData({ email: resp.data.email, stripe_account_id: resp.data.stripe_account_id });
           }
         } catch (err) {
-          console.error("Failed to fetch vendor:", err);
+          console.log("Failed to fetch vendor:", err);
         } finally {
           setLoading(false);
         }

@@ -111,7 +111,7 @@ export default function TestPurchasePage() {
         setError(response.error || "Failed to create payment link");
       }
     } catch (err) {
-      console.error("创建支付链接错误:", err);
+      console.log("创建支付链接错误:", err);
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);

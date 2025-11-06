@@ -54,7 +54,7 @@ export async function POST(
       console.log("Sync-status response data:", JSON.stringify(data));
     } else {
       const text = await response.text();
-      console.error("Non-JSON response from sync-status:", text.substring(0, 500));
+      console.log("Non-JSON response from sync-status:", text.substring(0, 500));
       return NextResponse.json(
         { success: false, error: "Invalid response from backend", details: text.substring(0, 200) },
         { status: 500 }
@@ -63,7 +63,7 @@ export async function POST(
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Proxy sync-status error:", error);
+    console.log("Proxy sync-status error:", error);
     return NextResponse.json(
       {
         success: false,

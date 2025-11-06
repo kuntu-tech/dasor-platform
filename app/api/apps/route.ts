@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     const { data: apps, error, count } = await query;
 
     if (error) {
-      console.error("获取应用列表错误:", error);
+      console.log("获取应用列表错误:", error);
       return NextResponse.json({ error: "Failed to fetch app list" }, { status: 500 });
     }
 
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       //   },
     });
   } catch (error) {
-    console.error("获取应用列表异常:", error);
+    console.log("获取应用列表异常:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (checkError) {
-      console.error("检查应用名称错误:", checkError);
+      console.log("检查应用名称错误:", checkError);
       return NextResponse.json({ error: "Failed to check app name" }, { status: 500 });
     }
 
@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
     const { data: app, error } = appInsert;
 
     if (error) {
-      console.error("创建应用错误:", error);
+      console.log("创建应用错误:", error);
       return NextResponse.json(
         { error: "Failed to create app", details: error.message || String(error) },
         { status: 500 }
@@ -265,7 +265,7 @@ export async function POST(request: NextRequest) {
       data: app,
     });
   } catch (error) {
-    console.error("创建应用异常:", error);
+    console.log("创建应用异常:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

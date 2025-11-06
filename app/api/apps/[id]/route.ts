@@ -37,7 +37,7 @@ export async function GET(
       if (error.code === "PGRST116") {
         return NextResponse.json({ error: "应用不存在" }, { status: 404 });
       }
-      console.error("获取应用错误:", error);
+      console.log("获取应用错误:", error);
       return NextResponse.json({ error: "获取应用失败" }, { status: 500 });
     }
 
@@ -46,7 +46,7 @@ export async function GET(
       data: app,
     });
   } catch (error) {
-    console.error("获取应用异常:", error);
+    console.log("获取应用异常:", error);
     return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
   }
 }
@@ -162,7 +162,7 @@ export async function PUT(
       .single();
 
     if (error) {
-      console.error("更新应用错误:", error);
+      console.log("更新应用错误:", error);
       return NextResponse.json({ error: "更新应用失败" }, { status: 500 });
     }
 
@@ -171,7 +171,7 @@ export async function PUT(
       data: app,
     });
   } catch (error) {
-    console.error("更新应用异常:", error);
+    console.log("更新应用异常:", error);
     return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
   }
 }
@@ -238,7 +238,7 @@ export async function DELETE(
     const { error } = await supabaseAdmin.from("apps").delete().eq("id", id);
 
     if (error) {
-      console.error("删除应用错误:", error);
+      console.log("删除应用错误:", error);
       return NextResponse.json({ error: "删除应用失败" }, { status: 500 });
     }
 
@@ -247,7 +247,7 @@ export async function DELETE(
       message: "应用删除成功",
     });
   } catch (error) {
-    console.error("删除应用异常:", error);
+    console.log("删除应用异常:", error);
     return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
   }
 }

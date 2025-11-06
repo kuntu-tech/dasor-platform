@@ -203,7 +203,7 @@ export default function DashboardPage() {
 
       console.log("应用删除成功");
     } catch (error) {
-      console.error("删除应用失败:", error);
+      console.log("删除应用失败:", error);
       alert(`Delete failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setDeletingId(null);
@@ -261,7 +261,7 @@ export default function DashboardPage() {
         setIsPricingOpen(true);
       }
     } catch (error) {
-      console.error("检查订阅状态失败:", error);
+      console.log("检查订阅状态失败:", error);
       // 出错时也打开支付弹窗，确保用户可以支付
       setIsPricingOpen(true);
     }

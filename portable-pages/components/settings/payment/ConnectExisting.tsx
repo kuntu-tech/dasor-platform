@@ -49,7 +49,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
       // 跳转到 Stripe 授权页面
       window.location.href = resp.data!.authUrl;
     } catch (err) {
-      console.error("OAuth start error:", err);
+      console.log("OAuth start error:", err);
       alert("启动 OAuth 失败，请重试");
     } finally {
       setLoading(false);
@@ -100,7 +100,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
       }
       onConnect(resp.data!.stripeAccountId);
     } catch (err) {
-      console.error("Link account error:", err);
+      console.log("Link account error:", err);
       alert("关联账户失败，请重试");
     } finally {
       setLoading(false);

@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         console.log("Proxy response data:", JSON.stringify(data));
       } else {
         const text = await response.text();
-        console.error("Non-JSON response from proxy:", text.substring(0, 500));
+        console.log("Non-JSON response from proxy:", text.substring(0, 500));
         return NextResponse.json(
           {
             success: false,
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
         );
       }
     } catch (parseError) {
-      console.error("Failed to parse response:", parseError);
+      console.log("Failed to parse response:", parseError);
       return NextResponse.json(
         { success: false, error: "Failed to parse response from backend" },
         { status: 500 }
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     // 如果外部 API 返回错误状态码，也返回错误信息
     if (!response.ok) {
-      console.error("External API error:", response.status, data);
+      console.log("External API error:", response.status, data);
       return NextResponse.json(
         {
           success: false,
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     // 检查返回的数据是否为空
     if (!data || Object.keys(data).length === 0) {
-      console.error("Empty response from backend");
+      console.log("Empty response from backend");
       return NextResponse.json(
         { success: false, error: "Empty response from backend" },
         { status: 500 }
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Proxy app-payment error:", error);
+    console.log("Proxy app-payment error:", error);
     return NextResponse.json(
       {
         success: false,

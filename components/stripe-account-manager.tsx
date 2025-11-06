@@ -99,7 +99,7 @@ export function StripeAccountManager({ onAccountChange }: StripeAccountManagerPr
       setAccount(updatedAccount)
       onAccountChange?.(updatedAccount)
     } catch (error) {
-      console.error('Failed to update permissions:', error)
+      console.log('Failed to update permissions:', error)
     }
   }
 

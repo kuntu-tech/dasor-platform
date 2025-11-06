@@ -13,7 +13,7 @@ export default function AuthCallbackPage() {
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
-          console.error("Callback processing error:", error);
+          console.log("Callback processing error:", error);
           router.push("/auth/login?error=auth_failed");
           return;
         }
@@ -26,7 +26,7 @@ export default function AuthCallbackPage() {
           router.push("/auth/login");
         }
       } catch (error) {
-        console.error("Callback processing error:", error);
+        console.log("Callback processing error:", error);
         router.push("/auth/login?error=callback_error");
       }
     };
