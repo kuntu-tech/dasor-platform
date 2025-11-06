@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import PaymentAccount from "@/portable-pages/components/settings/PaymentAccount"
 import { useAuth } from "@/components/AuthProvider"
-import { openBillingPortal } from "@/lib/billingPortal"
+import { getBillingPortalUrl } from "@/lib/billingPortal"
 
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
@@ -34,6 +34,33 @@ const settingsMenu = [
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("account")
   const { user } = useAuth()
+  const [billingPortalUrl, setBillingPortalUrl] = useState<string | null>(null)
+  const [billingPortalLoading, setBillingPortalLoading] = useState(false)
+  const [billingPortalError, setBillingPortalError] = useState<string | null>(null)
+
+  // 当切换到 billing 标签时，自动加载 Customer Portal
+  useEffect(() => {
+    if (activeTab === "billing" && user?.id && !billingPortalUrl && !billingPortalLoading) {
+      setBillingPortalLoading(true)
+      setBillingPortalError(null)
+      
+      getBillingPortalUrl(user.id, window.location.href)
+        .then((url) => {
+          if (url) {
+            setBillingPortalUrl(url)
+          } else {
+            setBillingPortalError("Failed to load billing portal. Please try again later.")
+          }
+        })
+        .catch((error) => {
+          console.error("加载 Customer Portal 失败:", error)
+          setBillingPortalError("Network error. Please try again later.")
+        })
+        .finally(() => {
+          setBillingPortalLoading(false)
+        })
+    }
+  }, [activeTab, user?.id, billingPortalUrl, billingPortalLoading])
 
   const renderAccountContent = () => (
     <div className="space-y-6">
@@ -109,185 +136,110 @@ export default function SettingsPage() {
     </div>
   )
 
-  const renderBillingContent = () => (
-    <div className="space-y-6">
-      {/* Billing Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Usage & Billing</h1>
-          <div className="mt-1">
-            <h2 className="text-lg font-semibold">Billing</h2>
-            <p className="text-sm text-muted-foreground">
-              For questions about billing,{" "}
-              <a href="#" className="text-blue-600 hover:underline">contact us</a>
+  const renderBillingContent = () => {
+    // 如果未登录，显示提示
+    if (!user?.id) {
+      return (
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <div className="text-center">
+            <p className="text-muted-foreground">Please log in to view billing information</p>
+          </div>
+        </div>
+      )
+    }
+
+    // 如果正在加载，显示加载状态
+    if (billingPortalLoading) {
+      return (
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading billing portal...</p>
+          </div>
+        </div>
+      )
+    }
+
+    // 如果加载失败，显示错误信息
+    if (billingPortalError) {
+      return (
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{billingPortalError}</p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setBillingPortalUrl(null)
+                setBillingPortalError(null)
+                setBillingPortalLoading(true)
+                getBillingPortalUrl(user.id, window.location.href)
+                  .then((url) => {
+                    if (url) {
+                      setBillingPortalUrl(url)
+                    } else {
+                      setBillingPortalError("Failed to load billing portal. Please try again later.")
+                    }
+                  })
+                  .catch((error) => {
+                    console.error("加载 Customer Portal 失败:", error)
+                    setBillingPortalError("Network error. Please try again later.")
+                  })
+                  .finally(() => {
+                    setBillingPortalLoading(false)
+                  })
+              }}
+            >
+              Retry
+            </Button>
+          </div>
+        </div>
+      )
+    }
+
+    // 如果有 URL，显示提示信息和新窗口打开按钮
+    // 注意：Stripe Customer Portal 不支持在 iframe 中嵌入（CSP 限制）
+    if (billingPortalUrl) {
+      return (
+        <div className="h-full w-full flex flex-col items-center justify-center p-8 space-y-6" style={{ minHeight: '600px' }}>
+          <div className="text-center max-w-md">
+            <div className="mb-4">
+              <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <ExternalLink className="h-8 w-8 text-primary" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-semibold mb-2">Billing Portal</h2>
+            <p className="text-muted-foreground mb-6">
+              Stripe Customer Portal 需要在新的窗口中打开以查看和管理您的订阅信息。
+            </p>
+            <Button
+              onClick={() => {
+                if (billingPortalUrl) {
+                  window.open(billingPortalUrl, '_blank', 'noopener,noreferrer');
+                }
+              }}
+              size="lg"
+              className="gap-2"
+            >
+              <ExternalLink className="size-4" />
+              Open Billing Portal
+            </Button>
+            <p className="text-xs text-muted-foreground mt-4">
+              点击按钮将在新标签页中打开 Stripe Customer Portal
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="gap-2"
-            onClick={() => {
-              if (user?.id) {
-                openBillingPortal(user.id, window.location.href);
-              } else {
-                alert('Please log in first');
-              }
-            }}
-          >
-            Manage subscription
-            <ExternalLink className="size-4" />
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2">
-            All plans
-            <ArrowRight className="size-4" />
-          </Button>
+      )
+    }
+
+    // 默认状态（不应该到达这里）
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
-
-      {/* Account Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Account Info</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm font-medium">Balance</p>
-              <p className="text-xs text-muted-foreground">Will be used for your future payments</p>
-            </div>
-            <p className="text-lg font-semibold">$0.00</p>
-          </div>
-          <Separator />
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm font-medium">Next payment</p>
-              <p className="text-xs text-muted-foreground">Pro (monthly)</p>
-            </div>
-            <p className="text-sm">October 17th, 2025</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Current Plan */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-lg">Pro</CardTitle>
-            <Badge variant="secondary">Current plan</Badge>
-          </div>
-          <CardDescription>For more projects and usage</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-                </div>
-                <span className="text-sm font-medium">New UI Generations</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">67.69 / 100</span>
-                <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="w-2/3 h-full bg-blue-600 rounded-full"></div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Infinity className="size-4 text-green-600" />
-                <span className="text-sm font-medium">UI Inspirations</span>
-              </div>
-              <span className="text-sm text-green-600 font-medium">unlimited</span>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Infinity className="size-4 text-green-600" />
-                <span className="text-sm font-medium">SVG Logo Searches</span>
-              </div>
-              <span className="text-sm text-green-600 font-medium">unlimited</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Upgrade to Pro Plus */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="text-lg">Upgrade to Pro Plus</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">$40 per month</p>
-              <p className="text-sm text-muted-foreground">For power users</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">View all plans</Button>
-              <Button size="sm">Upgrade plan</Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Check className="size-4 text-green-600" />
-              <span className="text-sm">200 credits per month</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="size-4 text-green-600" />
-              <span className="text-sm">Everything from Pro</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="size-4 text-green-600" />
-              <span className="text-sm">Early access to new features</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Payment History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Payment history</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>№</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-mono text-sm">SKVGEW24-0001</TableCell>
-                <TableCell>2025/9/17</TableCell>
-                <TableCell>$20.00</TableCell>
-                <TableCell>2025/9/17 - 2025/9/17</TableCell>
-                <TableCell>
-                  <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
-                    Paid
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="sm">
-                    <Download className="size-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  )
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -320,7 +272,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-8">
+        <div className="flex-1 p-8 overflow-auto">
           {activeTab === "account" && renderAccountContent()}
           {activeTab === "billing" && renderBillingContent()}
           {activeTab === "payout" && <PaymentAccount />}

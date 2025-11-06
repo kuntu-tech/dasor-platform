@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -15,8 +15,17 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { signInWithGoogle, signInWithEmail, loading } = useAuth();
+  const { signInWithGoogle, signInWithEmail, loading, user } = useAuth();
   const [error, setError] = useState("");
+
+  // 监听用户状态，登录成功后自动跳转
+  useEffect(() => {
+    if (user && !loading) {
+      console.log("用户已登录，跳转到首页");
+      router.push("/");
+      router.refresh();
+    }
+  }, [user, loading, router]);
 
   const handleEmailLogin = async () => {
     // 去除密码中的所有空格（前后和中间）
@@ -29,12 +38,11 @@ export default function LoginPage() {
 
     try {
       setError("");
-      await signInWithEmail(email, trimmedPassword).then(() => {
-        router.push("/");
-      });
+      await signInWithEmail(email, trimmedPassword);
+      // 登录成功，状态会通过 useEffect 监听自动跳转
     } catch (error: any) {
       console.error("登录失败:", error);
-      setError("登录失败，请检查邮箱和密码");
+      setError(error.message || "登录失败，请检查邮箱和密码");
     }
   };
 

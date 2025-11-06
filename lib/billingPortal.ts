@@ -1,16 +1,17 @@
 import { CONNECT_API_BASE } from "@/portable-pages/lib/connectApi";
 
 /**
- * 打开 Customer Portal (账单门户)
+ * 获取 Customer Portal URL（不直接打开）
  * @param userId 用户 ID (必填)
  * @param returnUrl 客户完成操作后返回的 URL (可选)
  * @param sessionId Checkout Session ID，用于快速获取 customer ID (可选)
+ * @returns Promise<string | null> 返回 URL 或 null（如果失败）
  */
-export async function openBillingPortal(
+export async function getBillingPortalUrl(
   userId: string,
   returnUrl?: string,
   sessionId?: string
-) {
+): Promise<string | null> {
   try {
     const params = new URLSearchParams({
       userId: userId,
@@ -30,6 +31,7 @@ export async function openBillingPortal(
         method: "GET",
         headers: {
           "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
         },
       }
     );
@@ -37,19 +39,33 @@ export async function openBillingPortal(
     const result = await response.json();
 
     if (result.success && result.data?.url) {
-      // 在新窗口打开 Customer Portal
-      window.open(result.data.url, "_blank");
+      console.log("获取 Customer Portal URL 成功:", result.data.url);
+      return result.data.url;
     } else {
-      console.error("获取 Customer Portal URL 失败:", result.error);
-      // 处理错误情况
-      if (result.error?.includes("未找到客户的 Stripe Customer ID")) {
-        alert("请先完成支付后再访问客户门户");
-      } else {
-        alert(result.message || "获取客户门户失败");
-      }
+      console.error("获取 Customer Portal URL 失败:", result);
+      return null;
     }
   } catch (error) {
     console.error("请求失败:", error);
-    alert("网络错误，请稍后重试");
+    return null;
+  }
+}
+
+/**
+ * 打开 Customer Portal (账单门户) - 在新窗口打开
+ * @param userId 用户 ID (必填)
+ * @param returnUrl 客户完成操作后返回的 URL (可选)
+ * @param sessionId Checkout Session ID，用于快速获取 customer ID (可选)
+ */
+export async function openBillingPortal(
+  userId: string,
+  returnUrl?: string,
+  sessionId?: string
+) {
+  const url = await getBillingPortalUrl(userId, returnUrl, sessionId);
+  if (url) {
+    window.open(url, "_blank");
+  } else {
+    alert("获取客户门户失败，请稍后重试");
   }
 }

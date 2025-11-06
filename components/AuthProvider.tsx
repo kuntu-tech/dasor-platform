@@ -245,11 +245,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log("✅ 邮箱登录成功:", data);
-      // 登录成功，状态会通过 onAuthStateChange 自动更新
+      
+      // 登录成功后立即更新状态，确保状态同步
+      // onAuthStateChange 会稍后触发，但为了确保及时响应，我们立即更新状态
+      // 业务逻辑（如 checkAndSaveNewUser）由 onAuthStateChange 统一处理
+      if (data.session) {
+        setSession(data.session);
+        setUser(data.session.user);
+        setLoading(false);
+        // 注意：checkAndSaveNewUser 会在 onAuthStateChange 中调用，避免重复处理
+      } else {
+        setLoading(false);
+      }
     } catch (error) {
       console.log("❌ 邮箱登录失败:", error);
       setLoading(false);
-      alert((error as any).message);
+      throw error;
     }
   };
 
@@ -300,11 +311,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("❌ 登出错误:", error);
         throw error;
       }
+      
       console.log("✅ 登出成功");
+      
+      // 登出成功后立即更新状态，确保状态同步
+      // onAuthStateChange 会稍后触发，但为了确保及时响应，我们立即更新状态
+      setSession(null);
+      setUser(null);
+      setLoading(false);
     } catch (error) {
       console.log("❌ 登出失败:", error);
-    } finally {
       setLoading(false);
+      throw error;
     }
   };
 
