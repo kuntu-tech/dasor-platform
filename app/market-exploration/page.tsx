@@ -47,7 +47,8 @@ type RefreshType =
   | "edit-d4"
   | "add-question"
   | "edit-question"
-  | "delete-question";
+  | "delete-question"
+  | "switching-version";
 export default function MarketExplorationPage({
   marketsData,
 }: MarketExplorationPageProps) {
@@ -68,16 +69,46 @@ export default function MarketExplorationPage({
 
   // 加载指定版本的数据
   const loadVersionData = async (runId: string) => {
+    // 如果正在生成中，不允许切换版本
+    if (isGenerating) {
+      console.warn("Cannot switch version while generating is in progress");
+      return;
+    }
+
     try {
       console.log("Loading data for run_id:", runId);
 
-      // 显示加载状态
+      // 显示加载状态（切换版本）
       setIsGenerating(true);
       setGenerationProgress(0);
+      setRefreshType("switching-version");
 
-      // 调用 API 获取对应版本的数据
+      // 从 localStorage 获取 user_id 和 task_id
+      const runResultStr = localStorage.getItem("run_result");
+      let userId = user?.id || "";
+      let taskId = "";
+
+      if (runResultStr) {
+        try {
+          const runResult = JSON.parse(runResultStr);
+          taskId = runResult.task_id || "";
+        } catch (e) {
+          console.error("Failed to parse run_result:", e);
+        }
+      }
+
+      if (!userId || !taskId) {
+        console.error("Missing user_id or task_id, cannot load version data");
+        setIsGenerating(false);
+        setGenerationProgress(0);
+        return;
+      }
+
+      // 调用 API 获取对应版本的数据（需要传递 user_id 和 task_id）
       setGenerationProgress(30);
-      const response = await fetch(`/api/run-result/${runId}`);
+      const response = await fetch(
+        `/api/run-result/${runId}?user_id=${userId}&task_id=${taskId}`
+      );
 
       if (!response.ok) {
         throw new Error(`Failed to fetch version data: ${response.status}`);
@@ -132,6 +163,7 @@ export default function MarketExplorationPage({
       setTimeout(() => {
         setIsGenerating(false);
         setGenerationProgress(0);
+        setRefreshType("none");
       }, 300);
     } catch (error) {
       console.error("Error loading version data:", error);
@@ -146,14 +178,14 @@ export default function MarketExplorationPage({
   };
 
   // 获取版本列表的函数
-  const fetchVersions = async () => {
+  const fetchVersions = async (shouldLoadData = true) => {
     if (!user?.id) {
       console.warn("No user ID, cannot fetch versions");
       return;
     }
 
     try {
-      // 从 localStorage 获取 task_id
+      // 只从 run_result 中获取 task_id，不更新，保持不变
       const runResultStr = localStorage.getItem("run_result");
       let taskId = "";
 
@@ -161,16 +193,19 @@ export default function MarketExplorationPage({
         try {
           const runResult = JSON.parse(runResultStr);
           taskId = runResult.task_id || "";
-          console.log(
-            "Fetching versions for task_id:",
-            taskId,
-            "user_id:",
-            user.id
-          );
         } catch (e) {
           console.error("Failed to parse run_result:", e);
         }
       }
+
+      console.log(
+        "Fetching versions for task_id:",
+        taskId,
+        "user_id:",
+        user.id,
+        "shouldLoadData:",
+        shouldLoadData
+      );
 
       if (!taskId) {
         console.warn("No task_id found, cannot fetch versions");
@@ -182,68 +217,134 @@ export default function MarketExplorationPage({
 
       console.log("Fetching versions from:", apiUrl);
       console.log("Query params - user_id:", user.id, "task_id:", taskId);
-      const response = await fetch(apiUrl);
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch versions: ${response.status}`);
-      }
+      try {
+        const response = await fetch(apiUrl, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          cache: "no-store", // 禁用缓存，避免使用缓存的错误响应
+        });
 
-      const result = await response.json();
-      const runResults = result.data || [];
-      console.log("Fetched run results:", runResults);
-
-      // 将 run_id (r_1, r_2...) 映射为显示格式 (v1, v2...)
-      const versionList = runResults.map((item: any) => {
-        const runId = item.run_id || "";
-        // 提取数字部分：r_1 -> 1, r_2 -> 2
-        const match = runId.match(/r_(\d+)/);
-        const number = match ? match[1] : "";
-        const display = number ? `v${number}` : runId;
-
-        return {
-          display,
-          runId,
-        };
-      });
-
-      // 按 run_id 降序排列（最新的在前）
-      versionList.sort((a: any, b: any) => {
-        const numA = parseInt(a.runId.match(/r_(\d+)/)?.[1] || "0");
-        const numB = parseInt(b.runId.match(/r_(\d+)/)?.[1] || "0");
-        return numB - numA;
-      });
-
-      console.log("Version list after sorting:", versionList);
-
-      setVersions(versionList);
-
-      // 创建映射表
-      const map = new Map<string, string>();
-      versionList.forEach((v: any) => {
-        map.set(v.display, v.runId);
-      });
-      setVersionMap(map);
-
-      // 设置默认选中第一个版本（最新的版本）
-      if (versionList.length > 0) {
-        const firstVersion = versionList[0];
-        console.log("Setting selected version to:", firstVersion.display);
-        setSelectedVersion(firstVersion.display);
-        // 自动加载第一个版本的数据
-        if (firstVersion.runId) {
-          await loadVersionData(firstVersion.runId);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({
+            error: "Unknown error",
+            details: `HTTP ${response.status}`,
+          }));
+          throw new Error(
+            errorData.details || `Failed to fetch versions: ${response.status}`
+          );
         }
-      } else {
-        console.warn("No versions found in the list");
+
+        const result = await response.json();
+        const runResults = result.data || [];
+        console.log("Fetched run results:", runResults);
+
+        // 将 run_id (r_1, r_2...) 映射为显示格式 (v1, v2...)
+        const versionList = runResults.map((item: any) => {
+          const runId = item.run_id || "";
+          // 提取数字部分：r_1 -> 1, r_2 -> 2
+          const match = runId.match(/r_(\d+)/);
+          const number = match ? match[1] : "";
+          const display = number ? `v${number}` : runId;
+
+          return {
+            display,
+            runId,
+          };
+        });
+
+        // 按 run_id 降序排列（最新的在前）
+        versionList.sort((a: any, b: any) => {
+          const numA = parseInt(a.runId.match(/r_(\d+)/)?.[1] || "0");
+          const numB = parseInt(b.runId.match(/r_(\d+)/)?.[1] || "0");
+          return numB - numA;
+        });
+
+        console.log("Version list after sorting:", versionList);
+
+        setVersions(versionList);
+
+        // 创建映射表
+        const map = new Map<string, string>();
+        versionList.forEach((v: any) => {
+          map.set(v.display, v.runId);
+        });
+        setVersionMap(map);
+
+        // 设置默认选中第一个版本（最新的版本）
+        if (versionList.length > 0) {
+          const firstVersion = versionList[0];
+          console.log("Setting selected version to:", firstVersion.display);
+          console.log("Total versions found:", versionList.length);
+
+          // 只有在 shouldLoadData 为 true 时才加载数据
+          // 首次进入时（shouldLoadData = false），只设置选中版本，不加载数据
+          if (shouldLoadData) {
+            setSelectedVersion(firstVersion.display);
+            // 自动加载第一个版本的数据
+            if (firstVersion.runId) {
+              await loadVersionData(firstVersion.runId);
+            }
+          } else {
+            // 首次进入时，只设置选中版本，不加载数据（避免刷新页面）
+            // 但如果 selectedVersion 为空，则设置默认值
+            if (!selectedVersion) {
+              setSelectedVersion(firstVersion.display);
+            }
+          }
+        } else {
+          console.warn("No versions found in the list");
+        }
+      } catch (error) {
+        console.error("Error fetching versions:", error);
       }
     } catch (error) {
-      console.error("Error fetching versions:", error);
+      console.error("Error in fetchVersions:", error);
     }
   };
 
-  // 初始加载时获取版本列表
+  // 初始加载时获取版本列表（不加载数据，避免刷新页面）
   useEffect(() => {
-    fetchVersions();
+    // 检查是否是首次生成进入（从 connect-flow 跳转过来的）
+    // 如果是首次生成进入，localStorage 中应该已经有 run_result 和 marketsData
+    const runResultStr = localStorage.getItem("run_result");
+    const marketsDataStr = localStorage.getItem("marketsData");
+
+    // 如果已经有数据，说明是首次生成进入，不需要调用接口获取版本列表
+    if (runResultStr && marketsDataStr) {
+      console.log("首次生成进入，已有数据，跳过版本列表接口调用");
+
+      // 只从 localStorage 中提取版本信息（如果有的话）
+      try {
+        const runResult = JSON.parse(runResultStr);
+        if (runResult.run_id) {
+          // 提取 run_id 并设置版本显示
+          const match = runResult.run_id.match(/r_(\d+)/);
+          const number = match ? match[1] : "";
+          const display = number ? `v${number}` : runResult.run_id;
+
+          // 设置版本信息（不调用接口）
+          setVersions([{ display, runId: runResult.run_id }]);
+          setVersionMap(new Map([[display, runResult.run_id]]));
+          if (!selectedVersion) {
+            setSelectedVersion(display);
+          }
+
+          // task_id 只从 run_result 中读取，不更新，保持不变
+          // 不需要保存到 localStorage 或更新状态
+        }
+      } catch (e) {
+        console.error("Failed to parse run_result:", e);
+      }
+
+      return; // 首次生成进入，不调用接口
+    }
+
+    // 如果不是首次生成进入（刷新页面或直接访问），才调用接口获取版本列表
+    console.log("非首次进入，调用接口获取版本列表");
+    fetchVersions(false);
   }, [user?.id]);
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisData | null>(
     null
@@ -259,6 +360,8 @@ export default function MarketExplorationPage({
     Array<{ display: string; runId: string }>
   >([]);
   const [versionMap, setVersionMap] = useState<Map<string, string>>(new Map()); // display -> runId 映射
+  // task_id 只从 run_result 中读取，不保存状态，不更新
+
   const handleSend = async () => {
     if (!inputValue.trim()) return;
 
@@ -293,13 +396,23 @@ export default function MarketExplorationPage({
       const baseRunId =
         versionMap.get(selectedVersion) || runResult?.run_id || "r_1";
 
+      // 获取 task_id：只从 run_result 中读取，不更新，保持不变
+      const taskId = runResult?.task_id || "";
+
+      if (!taskId) {
+        alert("无法获取 task_id，请重新连接数据库");
+        return;
+      }
+
+      console.log("聊天生成：使用 task_id（从 run_result 读取）:", taskId);
+
       // 准备请求参数
       const requestBody = {
         feedback_text: inputValue.trim(),
         base_run_id: baseRunId,
         policy: "standard",
         user_id: user?.id || "4748756a-5682-4807-8ced-dd4c3aea5a08",
-        task_id: runResult?.task_id || "5b0f631a-8a83-4836-a2fb-ad4219cdf358",
+        task_id: taskId,
         connection_id: connectionId || "c433813a-da09-436f-81f0-d383261f5890",
       };
 
@@ -307,6 +420,8 @@ export default function MarketExplorationPage({
 
       setIsGenerating(true);
       setGenerationProgress(0);
+      // 生成开始时关闭版本下拉框
+      setIsVersionDropdownOpen(false);
 
       // 第一步：调用 feedback-mrf/process 接口 (0% -> 30%)
       setGenerationProgress(10);
@@ -405,12 +520,104 @@ export default function MarketExplorationPage({
 
         // 第四步：刷新版本列表 (90% -> 100%)
         setGenerationProgress(90);
-        // 确保在 localStorage 更新后再调用，并添加延迟确保数据已写入
-        setTimeout(async () => {
-          console.log("Refreshing versions after data update...");
-          await fetchVersions();
-          setGenerationProgress(100); // 所有操作完成，进度 100%
-        }, 100);
+        // 确保在 localStorage 更新后再调用，并添加延迟确保数据库写入完成
+        // 使用重试机制，确保能够获取到最新版本
+        const refreshVersionsWithRetry = async (
+          retries = 5,
+          delay = 1000,
+          initialDelay = 2000
+        ) => {
+          // 记录刷新前的版本数量
+          const previousVersionCount = versions.length;
+          console.log(
+            `Previous version count: ${previousVersionCount}, waiting ${initialDelay}ms for database write...`
+          );
+
+          // 先等待初始延迟，给数据库足够时间写入
+          await new Promise((resolve) => setTimeout(resolve, initialDelay));
+
+          for (let i = 0; i < retries; i++) {
+            try {
+              console.log(
+                `Refreshing versions (attempt ${i + 1}/${retries})...`
+              );
+
+              // 调用 fetchVersions 获取最新版本列表
+              // 注意：这里不能直接调用 fetchVersions，因为它会触发 loadVersionData
+              // 我们需要手动获取版本列表并检查数量
+              const taskId =
+                localStorage.getItem("originalTaskId") ||
+                JSON.parse(localStorage.getItem("run_result") || "{}")
+                  ?.task_id ||
+                "";
+
+              if (!taskId) {
+                console.warn("No task_id found, cannot refresh versions");
+                setGenerationProgress(100);
+                return;
+              }
+
+              const apiUrl = `/api/run-results?user_id=${user?.id}&task_id=${taskId}`;
+              const response = await fetch(apiUrl, {
+                method: "GET",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                cache: "no-store",
+              });
+
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+              }
+
+              const result = await response.json();
+              const runResults = result.data || [];
+              const currentVersionCount = runResults.length;
+
+              console.log(
+                `Current version count: ${currentVersionCount}, previous: ${previousVersionCount}`
+              );
+
+              // 检查版本数量是否增加（说明新版本已写入数据库）
+              if (currentVersionCount > previousVersionCount) {
+                console.log(
+                  `New version detected! Count increased from ${previousVersionCount} to ${currentVersionCount}`
+                );
+                // 版本数量增加了，调用完整的 fetchVersions 来更新 UI（需要加载数据）
+                await fetchVersions(true);
+                setGenerationProgress(100); // 所有操作完成，进度 100%
+                return;
+              } else if (i < retries - 1) {
+                // 版本数量还没增加，继续等待并重试
+                console.log(
+                  `Version count not increased yet, waiting ${delay}ms before retry...`
+                );
+                await new Promise((resolve) => setTimeout(resolve, delay));
+              } else {
+                // 最后一次重试，即使版本数量没增加也更新（可能是数据库延迟）
+                console.log("Max retries reached, updating versions anyway...");
+                await fetchVersions(true);
+                setGenerationProgress(100);
+              }
+            } catch (error) {
+              console.error(
+                `Error refreshing versions (attempt ${i + 1}):`,
+                error
+              );
+              if (i < retries - 1) {
+                // 如果不是最后一次重试，等待后重试
+                await new Promise((resolve) => setTimeout(resolve, delay));
+              } else {
+                // 最后一次重试失败，仍然完成进度
+                console.error("Failed to refresh versions after all retries");
+                setGenerationProgress(100);
+              }
+            }
+          }
+        };
+
+        // 立即开始刷新流程（内部会先等待初始延迟）
+        refreshVersionsWithRetry();
       } else {
         // 如果没有数据，直接完成
         setGenerationProgress(100);
@@ -507,8 +714,19 @@ export default function MarketExplorationPage({
             {/* Version Selector */}
             <div className="relative">
               <button
-                onClick={() => setIsVersionDropdownOpen(!isVersionDropdownOpen)}
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={() => {
+                  // 生成过程中不允许打开下拉框
+                  if (isGenerating) {
+                    return;
+                  }
+                  setIsVersionDropdownOpen(!isVersionDropdownOpen);
+                }}
+                disabled={isGenerating}
+                className={`flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg transition-colors ${
+                  isGenerating
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-gray-50 cursor-pointer"
+                }`}
               >
                 <RotateCcw className="w-4 h-4 text-gray-600" />
                 <span className="text-sm font-medium text-gray-700">
@@ -518,7 +736,7 @@ export default function MarketExplorationPage({
                 <ChevronDown className="w-4 h-4 text-gray-600" />
               </button>
               {/* Dropdown Menu */}
-              {isVersionDropdownOpen && (
+              {isVersionDropdownOpen && !isGenerating && (
                 <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
                   {versions.length > 0 ? (
                     versions.map((version) => (
@@ -527,6 +745,15 @@ export default function MarketExplorationPage({
                         onClick={async (e) => {
                           e.preventDefault();
                           e.stopPropagation();
+
+                          // 生成过程中不允许切换版本（双重检查）
+                          if (isGenerating) {
+                            console.warn(
+                              "Cannot switch version while generating"
+                            );
+                            setIsVersionDropdownOpen(false);
+                            return;
+                          }
 
                           // 如果选择的是当前版本，不重复加载
                           if (version.display === selectedVersion) {
@@ -540,23 +767,30 @@ export default function MarketExplorationPage({
                             currentVersion: selectedVersion,
                           });
 
-                          setSelectedVersion(version.display);
+                          // 先关闭下拉框，防止重复点击
                           setIsVersionDropdownOpen(false);
 
                           // 切换版本时加载对应的数据
+                          // loadVersionData 内部会再次检查 isGenerating 状态
                           try {
                             await loadVersionData(version.runId);
+                            // 只有在成功加载后才更新选中版本
+                            setSelectedVersion(version.display);
                           } catch (error) {
                             console.error(
                               "Failed to load version data:",
                               error
                             );
+                            // 如果加载失败，恢复原来的选中版本
                           }
                         }}
-                        className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
-                          version.display === selectedVersion
-                            ? "bg-gray-100 font-medium text-gray-900"
-                            : "text-gray-700"
+                        disabled={isGenerating}
+                        className={`w-full px-4 py-2 text-left text-sm first:rounded-t-lg last:rounded-b-lg transition-colors ${
+                          isGenerating
+                            ? "opacity-50 cursor-not-allowed"
+                            : version.display === selectedVersion
+                            ? "bg-gray-100 font-medium text-gray-900 hover:bg-gray-100"
+                            : "text-gray-700 hover:bg-gray-50"
                         }`}
                       >
                         {version.display}
