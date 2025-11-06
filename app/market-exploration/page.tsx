@@ -5,6 +5,7 @@ import { Send, RotateCcw, ChevronDown, ArrowRight } from "lucide-react";
 import { DetailModal } from "@/components/DetailModal";
 import { ValueQuestionsSection } from "@/components/ValueQuestionsSection";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
 interface MarketSegment {
   id: string;
   title: string;
@@ -51,6 +52,7 @@ export default function MarketExplorationPage({
   marketsData,
 }: MarketExplorationPageProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [segmentsData, setSegmentsData] = useState<any[] | undefined>(
     marketsData
   );
@@ -63,22 +65,360 @@ export default function MarketExplorationPage({
       } catch {}
     }
   }, [segmentsData]);
+
+  // 加载指定版本的数据
+  const loadVersionData = async (runId: string) => {
+    try {
+      console.log("Loading data for run_id:", runId);
+
+      // 显示加载状态
+      setIsGenerating(true);
+      setGenerationProgress(0);
+
+      // 调用 API 获取对应版本的数据
+      setGenerationProgress(30);
+      const response = await fetch(`/api/run-result/${runId}`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch version data: ${response.status}`);
+      }
+
+      setGenerationProgress(60);
+      const result = await response.json();
+      const runResult = result.data;
+
+      if (!runResult) {
+        console.warn("No data found for run_id:", runId);
+        setIsGenerating(false);
+        setGenerationProgress(0);
+        return;
+      }
+
+      console.log("Loaded version data:", runResult);
+
+      // 更新 localStorage
+      setGenerationProgress(70);
+      localStorage.setItem("run_result", JSON.stringify(runResult));
+
+      // 如果有 segments 数据，更新页面
+      setGenerationProgress(85);
+      if (runResult.segments && Array.isArray(runResult.segments)) {
+        const mapped = runResult.segments.map((seg: any) => ({
+          id: seg.segmentId || seg.id || seg.name,
+          name: seg.name,
+          segmentId: seg.segmentId || seg.id,
+          analysis: seg.analysis,
+          valueQuestions: seg.valueQuestions,
+        }));
+
+        setSegmentsData(mapped);
+        localStorage.setItem("marketsData", JSON.stringify(mapped));
+      }
+
+      // 更新 standalJson（如果存在）
+      if (runResult.anchIndex !== undefined || runResult.segments) {
+        localStorage.setItem(
+          "standalJson",
+          JSON.stringify({
+            anchIndex: runResult.anchIndex,
+            segments: runResult.segments || [],
+          })
+        );
+      }
+
+      setGenerationProgress(100);
+
+      // 延迟后隐藏加载状态
+      setTimeout(() => {
+        setIsGenerating(false);
+        setGenerationProgress(0);
+      }, 300);
+    } catch (error) {
+      console.error("Error loading version data:", error);
+      setIsGenerating(false);
+      setGenerationProgress(0);
+      alert(
+        `加载版本数据失败: ${
+          error instanceof Error ? error.message : "未知错误"
+        }`
+      );
+    }
+  };
+
+  // 获取版本列表的函数
+  const fetchVersions = async () => {
+    if (!user?.id) {
+      console.warn("No user ID, cannot fetch versions");
+      return;
+    }
+
+    try {
+      // 从 localStorage 获取 task_id
+      const runResultStr = localStorage.getItem("run_result");
+      let taskId = "";
+
+      if (runResultStr) {
+        try {
+          const runResult = JSON.parse(runResultStr);
+          taskId = runResult.task_id || "";
+          console.log(
+            "Fetching versions for task_id:",
+            taskId,
+            "user_id:",
+            user.id
+          );
+        } catch (e) {
+          console.error("Failed to parse run_result:", e);
+        }
+      }
+
+      if (!taskId) {
+        console.warn("No task_id found, cannot fetch versions");
+        return;
+      }
+
+      // 调用 API 获取版本列表（必须同时提供 user_id 和 task_id）
+      const apiUrl = `/api/run-results?user_id=${user.id}&task_id=${taskId}`;
+
+      console.log("Fetching versions from:", apiUrl);
+      console.log("Query params - user_id:", user.id, "task_id:", taskId);
+      const response = await fetch(apiUrl);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch versions: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const runResults = result.data || [];
+      console.log("Fetched run results:", runResults);
+
+      // 将 run_id (r_1, r_2...) 映射为显示格式 (v1, v2...)
+      const versionList = runResults.map((item: any) => {
+        const runId = item.run_id || "";
+        // 提取数字部分：r_1 -> 1, r_2 -> 2
+        const match = runId.match(/r_(\d+)/);
+        const number = match ? match[1] : "";
+        const display = number ? `v${number}` : runId;
+
+        return {
+          display,
+          runId,
+        };
+      });
+
+      // 按 run_id 降序排列（最新的在前）
+      versionList.sort((a: any, b: any) => {
+        const numA = parseInt(a.runId.match(/r_(\d+)/)?.[1] || "0");
+        const numB = parseInt(b.runId.match(/r_(\d+)/)?.[1] || "0");
+        return numB - numA;
+      });
+
+      console.log("Version list after sorting:", versionList);
+
+      setVersions(versionList);
+
+      // 创建映射表
+      const map = new Map<string, string>();
+      versionList.forEach((v: any) => {
+        map.set(v.display, v.runId);
+      });
+      setVersionMap(map);
+
+      // 设置默认选中第一个版本（最新的版本）
+      if (versionList.length > 0) {
+        const firstVersion = versionList[0];
+        console.log("Setting selected version to:", firstVersion.display);
+        setSelectedVersion(firstVersion.display);
+        // 自动加载第一个版本的数据
+        if (firstVersion.runId) {
+          await loadVersionData(firstVersion.runId);
+        }
+      } else {
+        console.warn("No versions found in the list");
+      }
+    } catch (error) {
+      console.error("Error fetching versions:", error);
+    }
+  };
+
+  // 初始加载时获取版本列表
+  useEffect(() => {
+    fetchVersions();
+  }, [user?.id]);
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisData | null>(
     null
   );
   const [inputValue, setInputValue] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [selectedVersion, setSelectedVersion] = useState("v12");
+  const [selectedVersion, setSelectedVersion] = useState("");
   const [isVersionDropdownOpen, setIsVersionDropdownOpen] = useState(false);
   const [refreshType, setRefreshType] = useState<RefreshType>("none");
   const [refreshKey, setRefreshKey] = useState(0);
-  const versions = ["v12", "v11", "v10", "v9", "v8"];
-  const handleSend = () => {
-    if (inputValue.trim()) {
+  const [versions, setVersions] = useState<
+    Array<{ display: string; runId: string }>
+  >([]);
+  const [versionMap, setVersionMap] = useState<Map<string, string>>(new Map()); // display -> runId 映射
+  const handleSend = async () => {
+    if (!inputValue.trim()) return;
+
+    // 调用 feedback-mrf/process 接口
+    try {
+      // 从 localStorage 获取必要的数据
+      const runResultStr = localStorage.getItem("run_result");
+      const dbConnectionDataStr = localStorage.getItem("dbConnectionData");
+
+      let runResult: any = null;
+      let connectionId = "";
+
+      if (runResultStr) {
+        try {
+          runResult = JSON.parse(runResultStr);
+        } catch (e) {
+          console.error("Failed to parse run_result:", e);
+        }
+      }
+
+      if (dbConnectionDataStr) {
+        try {
+          const dbConnectionData = JSON.parse(dbConnectionDataStr);
+          connectionId =
+            dbConnectionData.connection_id || dbConnectionData.id || "";
+        } catch (e) {
+          console.error("Failed to parse dbConnectionData:", e);
+        }
+      }
+
+      // 根据选中的版本获取对应的 run_id
+      const baseRunId =
+        versionMap.get(selectedVersion) || runResult?.run_id || "r_1";
+
+      // 准备请求参数
+      const requestBody = {
+        feedback_text: inputValue.trim(),
+        base_run_id: baseRunId,
+        policy: "standard",
+        user_id: user?.id || "4748756a-5682-4807-8ced-dd4c3aea5a08",
+        task_id: runResult?.task_id || "5b0f631a-8a83-4836-a2fb-ad4219cdf358",
+        connection_id: connectionId || "c433813a-da09-436f-81f0-d383261f5890",
+      };
+
+      console.log("Calling feedback-mrf/process with:", requestBody);
+
+      setIsGenerating(true);
+      setGenerationProgress(0);
+
+      // 第一步：调用 feedback-mrf/process 接口 (0% -> 30%)
+      setGenerationProgress(10);
+      const response = await fetch(
+        "http://192.168.30.159:8900/api/v1/feedback-mrf/process",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API call failed: ${response.status} - ${errorText}`);
+      }
+
+      setGenerationProgress(30); // feedback-mrf/process 完成，进度 30%
+      const result = await response.json();
+      console.log("Feedback API response:", result);
+
+      // 检查返回结果中是否有 run_results
+      if (!result.run_results) {
+        throw new Error("No run_results in feedback API response");
+      }
+
+      // 第二步：调用 standal_sql 接口 (30% -> 70%)
+      console.log("Calling standal_sql with run_results...");
+      setGenerationProgress(40); // 开始调用 standal_sql，进度 40%
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 600_000); // 10分钟超时
+
+      const standalRes = await fetch(
+        "http://192.168.30.159:8900/api/v1/standal_sql",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ run_results: result.run_results }),
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeout);
+      setGenerationProgress(70); // standal_sql 调用完成，进度 70%
+      const standalText = await standalRes.text();
+      console.log("standal_sql response:", standalText);
+
+      let standalJson: any = null;
+      try {
+        standalJson = JSON.parse(standalText);
+      } catch (e) {
+        console.error("Failed to parse standal_sql response:", e);
+        throw new Error("Invalid JSON response from standal_sql");
+      }
+
+      if (!standalRes.ok) {
+        throw new Error(
+          typeof standalJson === "string"
+            ? standalJson.slice(0, 200)
+            : standalJson?.error || `standal_sql HTTP ${standalRes.status}`
+        );
+      }
+
+      console.log("standal_sql completed successfully:", standalJson);
+
+      // 第三步：处理数据并更新 localStorage (70% -> 90%)
+      setGenerationProgress(80);
+      if (standalJson?.run_results?.run_result) {
+        localStorage.setItem(
+          "standalJson",
+          JSON.stringify({
+            anchIndex: standalJson.run_results?.run_result?.anchIndex,
+            segments: standalJson.run_results.run_result.segments,
+          })
+        );
+
+        // 更新 run_result（必须在调用 fetchVersions 之前更新）
+        const updatedRunResult = standalJson.run_results.run_result;
+        localStorage.setItem("run_result", JSON.stringify(updatedRunResult));
+
+        // 更新 segmentsData 以刷新页面
+        setGenerationProgress(85);
+        const segments = updatedRunResult.segments || [];
+        const mapped = segments.map((seg: any) => ({
+          id: seg.segmentId || seg.id || seg.name,
+          name: seg.name,
+          segmentId: seg.segmentId || seg.id,
+          analysis: seg.analysis,
+          valueQuestions: seg.valueQuestions,
+        }));
+
+        setSegmentsData(mapped);
+        localStorage.setItem("marketsData", JSON.stringify(mapped));
+
+        // 第四步：刷新版本列表 (90% -> 100%)
+        setGenerationProgress(90);
+        // 确保在 localStorage 更新后再调用，并添加延迟确保数据已写入
+        setTimeout(async () => {
+          console.log("Refreshing versions after data update...");
+          await fetchVersions();
+          setGenerationProgress(100); // 所有操作完成，进度 100%
+        }, 100);
+      } else {
+        // 如果没有数据，直接完成
+        setGenerationProgress(100);
+      }
+
+      // 原有的刷新逻辑（保留用于 UI 更新）
       const lowerInput = inputValue.toLowerCase();
       const isVersionChange = lowerInput.includes("change segment");
-      // Determine refresh type based on keywords (check in priority order)
       let detectedRefreshType: RefreshType = "none";
       if (lowerInput.includes("add segment")) {
         detectedRefreshType = "add-segment";
@@ -108,54 +448,42 @@ export default function MarketExplorationPage({
         detectedRefreshType = "question";
       }
       setRefreshType(detectedRefreshType);
-      setIsGenerating(true);
-      setGenerationProgress(0);
-      const interval = setInterval(() => {
-        setGenerationProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            return 100;
-          }
-          return prev + 2;
-        });
-      }, 60);
+
+      // 延迟后重置状态
       setTimeout(() => {
-        clearInterval(interval);
-        setGenerationProgress(100);
-        setTimeout(() => {
-          // For version change, keep loading and switch version
-          if (isVersionChange) {
-            const currentVersionNumber = parseInt(
-              selectedVersion.replace("v", "")
-            );
-            const nextVersion = `v${currentVersionNumber + 1}`;
-            setSelectedVersion(nextVersion);
-            // Slow smooth scroll to top
-            const scrollToTop = () => {
-              const currentPosition = window.pageYOffset;
-              if (currentPosition > 0) {
-                window.scrollTo(0, currentPosition - currentPosition / 15);
-                requestAnimationFrame(scrollToTop);
-              }
-            };
-            scrollToTop();
-            // Keep loading for version change animation
-            setTimeout(() => {
-              setIsGenerating(false);
-              setInputValue("");
-              setGenerationProgress(0);
-              setRefreshType("none");
-            }, 1000);
-          } else {
-            // For other refresh types, proceed normally
+        if (isVersionChange) {
+          const currentVersionNumber = parseInt(
+            selectedVersion.replace("v", "")
+          );
+          const nextVersion = `v${currentVersionNumber + 1}`;
+          setSelectedVersion(nextVersion);
+          const scrollToTop = () => {
+            const currentPosition = window.pageYOffset;
+            if (currentPosition > 0) {
+              window.scrollTo(0, currentPosition - currentPosition / 15);
+              requestAnimationFrame(scrollToTop);
+            }
+          };
+          scrollToTop();
+          setTimeout(() => {
             setIsGenerating(false);
             setInputValue("");
             setGenerationProgress(0);
             setRefreshType("none");
-            setRefreshKey((prev) => prev + 1);
-          }
-        }, 500);
-      }, 3000);
+          }, 1000);
+        } else {
+          setIsGenerating(false);
+          setInputValue("");
+          setGenerationProgress(0);
+          setRefreshType("none");
+          setRefreshKey((prev) => prev + 1);
+        }
+      }, 500);
+    } catch (error) {
+      console.error("Error calling feedback API:", error);
+      alert(`发送失败: ${error instanceof Error ? error.message : "未知错误"}`);
+      setIsGenerating(false);
+      setGenerationProgress(0);
     }
   };
   const handleGenerateApp = () => {
@@ -184,29 +512,61 @@ export default function MarketExplorationPage({
               >
                 <RotateCcw className="w-4 h-4 text-gray-600" />
                 <span className="text-sm font-medium text-gray-700">
-                  {selectedVersion}
+                  {selectedVersion ||
+                    (versions.length > 0 ? versions[0].display : "v1")}
                 </span>
                 <ChevronDown className="w-4 h-4 text-gray-600" />
               </button>
               {/* Dropdown Menu */}
               {isVersionDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                  {versions.map((version) => (
-                    <button
-                      key={version}
-                      onClick={() => {
-                        setSelectedVersion(version);
-                        setIsVersionDropdownOpen(false);
-                      }}
-                      className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
-                        version === selectedVersion
-                          ? "bg-gray-100 font-medium text-gray-900"
-                          : "text-gray-700"
-                      }`}
-                    >
-                      {version}
-                    </button>
-                  ))}
+                  {versions.length > 0 ? (
+                    versions.map((version) => (
+                      <button
+                        key={version.display}
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+
+                          // 如果选择的是当前版本，不重复加载
+                          if (version.display === selectedVersion) {
+                            setIsVersionDropdownOpen(false);
+                            return;
+                          }
+
+                          console.log("Version switch clicked:", {
+                            display: version.display,
+                            runId: version.runId,
+                            currentVersion: selectedVersion,
+                          });
+
+                          setSelectedVersion(version.display);
+                          setIsVersionDropdownOpen(false);
+
+                          // 切换版本时加载对应的数据
+                          try {
+                            await loadVersionData(version.runId);
+                          } catch (error) {
+                            console.error(
+                              "Failed to load version data:",
+                              error
+                            );
+                          }
+                        }}
+                        className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
+                          version.display === selectedVersion
+                            ? "bg-gray-100 font-medium text-gray-900"
+                            : "text-gray-700"
+                        }`}
+                      >
+                        {version.display}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-2 text-sm text-gray-500">
+                      暂无版本
+                    </div>
+                  )}
                 </div>
               )}
             </div>
