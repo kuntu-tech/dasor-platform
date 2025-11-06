@@ -19,14 +19,17 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   const handleEmailLogin = async () => {
-    if (!email || !password) {
+    // 去除密码中的所有空格（前后和中间）
+    const trimmedPassword = password.replace(/\s/g, "");
+    
+    if (!email || !trimmedPassword) {
       setError("请输入邮箱和密码");
       return;
     }
 
     try {
       setError("");
-      await signInWithEmail(email, password).then(() => {
+      await signInWithEmail(email, trimmedPassword).then(() => {
         router.push("/");
       });
     } catch (error: any) {
