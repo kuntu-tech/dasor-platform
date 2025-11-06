@@ -24,22 +24,22 @@ type BatchPayload = {
 
 const requiredFieldError = (payload: BatchPayload): string | null => {
   if (!payload || typeof payload !== "object") {
-    return "请求体不能为空";
+    return "request body cannot be empty";
   }
   if (!payload.user_id) {
-    return "user_id 为必填";
+    return "user_id is required";
   }
   if (
     !payload.supabase_config?.supabase_url ||
     !payload.supabase_config?.supabase_key
   ) {
-    return "supabase_config 中需包含 supabase_url 与 supabase_key";
+    return "supabase_config must contain supabase_url and supabase_key";
   }
   if (!Array.isArray(payload.queries) || payload.queries.length === 0) {
-    return "queries 数组不能为空";
+    return "queries array cannot be empty";
   }
   if (!payload.anchorIndex) {
-    return "anchorIndex 为必填";
+    return "anchorIndex is required";
   }
   return null;
 };
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       console.log("外部批量任务调用失败:", response.status, parsed);
       return NextResponse.json(
         {
-          error: parsed?.error || "外部批量服务调用失败",
+          error: parsed?.error || "Generate batch service call failed",
           status: response.status,
           details: parsed,
         },
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       msg.includes("The user aborted a request");
     return NextResponse.json(
       {
-        error: isAbort ? "Request timeout" : "服务器内部错误",
+        error: isAbort ? "Request timeout" : "Internal server error",
         details: msg,
       },
       { status: isAbort ? 504 : 500 }

@@ -315,7 +315,8 @@ export function PreviewEditor() {
     // Close dialog and navigate to success page
     setIsSaveDialogOpen(false);
     setSaveFormData({ name: "", description: "" });
-    router.push("/save-success");
+    const publishUrl = appId ? `/publish?id=${appId}` : "/publish";
+    router.push(publishUrl);
   };
 
   const iframeSrc = (() => {

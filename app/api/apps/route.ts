@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       payment_model,
       published_at,
       connection_id: bodyConnectionId,
-      apps_meta_info,
+      app_meta_info,
     } = body;
 
     // 验证必填字段
@@ -166,24 +166,17 @@ export async function POST(request: NextRequest) {
     }
 
     // 创建应用
-    // 规范化 apps_meta_info：允许传字符串/对象，统一包裹为 { app_meta_info: <object> }
-    let normalizedAppsMetaInfo: any = null;
+    // 规范化 app_meta_info：允许传字符串/对象，直接写入 JSON 字段
+    let normalizedAppMetaInfo: any = null;
     try {
-      if (typeof apps_meta_info === "string") {
-        const parsed = JSON.parse(apps_meta_info);
-        normalizedAppsMetaInfo = { app_meta_info: parsed };
-      } else if (apps_meta_info && typeof apps_meta_info === "object") {
-        // 若已是 { app_meta_info: {...} } 则直接使用，否则包裹
-        normalizedAppsMetaInfo = Object.prototype.hasOwnProperty.call(
-          apps_meta_info,
-          "app_meta_info"
-        )
-          ? apps_meta_info
-          : { app_meta_info: apps_meta_info };
+      if (typeof app_meta_info === "string") {
+        normalizedAppMetaInfo = JSON.parse(app_meta_info);
+      } else if (app_meta_info && typeof app_meta_info === "object") {
+        normalizedAppMetaInfo = app_meta_info;
       }
     } catch (e) {
-      console.warn("apps_meta_info 解析失败，按空处理", e);
-      normalizedAppsMetaInfo = null;
+      console.warn("app_meta_info 解析失败，按空处理", e);
+      normalizedAppMetaInfo = null;
     }
 
     const basePayload: any = {
@@ -198,8 +191,8 @@ export async function POST(request: NextRequest) {
       payment_model,
       published_at,
     };
-    if (normalizedAppsMetaInfo) {
-      basePayload.apps_meta_info = normalizedAppsMetaInfo;
+    if (normalizedAppMetaInfo !== null) {
+      basePayload.app_meta_info = normalizedAppMetaInfo;
     }
 
     let appInsert = await supabaseAdmin
@@ -222,12 +215,12 @@ export async function POST(request: NextRequest) {
       )
       .single();
 
-    // 如果因为列不存在导致失败，回退去掉 apps_meta_info 再试
-    if (appInsert.error && normalizedAppsMetaInfo) {
+    // 如果因为列不存在导致失败，回退去掉 app_meta_info 再试
+    if (appInsert.error && normalizedAppMetaInfo) {
       const msg = appInsert.error.message || "";
-      if (msg.includes("apps_meta_info") || msg.includes("column")) {
+      if (msg.includes("app_meta_info") || msg.includes("column")) {
         const fallbackPayload = { ...basePayload };
-        delete (fallbackPayload as any).apps_meta_info;
+        delete (fallbackPayload as any).app_meta_info;
         appInsert = await supabaseAdmin
           .from("apps")
           .insert([fallbackPayload])
