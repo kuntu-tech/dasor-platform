@@ -2055,11 +2055,9 @@ Access Tokens"</span>
         )}
 
         {step === "analyzing" && (
-          <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <h1 className="text-3xl font-bold mb-6 text-center">Analyzing Your Database</h1>
             <Card className="max-w-2xl mx-auto w-full">
-              <CardHeader>
-                <CardTitle>Analyzing Your Database</CardTitle>
-              </CardHeader>
               <CardContent className="space-y-6 py-8">
                 {/* Data Availability Validation */}
                 <div className="flex items-start gap-4">
@@ -2156,7 +2154,7 @@ Access Tokens"</span>
 
                       {getStepStatus("connecting") === "in-progress" && (
                         <span className="text-xs text-muted-foreground ml-2">
-                          [ {progress}%]
+                          {progress}%
                         </span>
                       )}
                     </div>

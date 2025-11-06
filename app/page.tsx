@@ -47,7 +47,7 @@ type AppItem = {
   id: string;
   name: string;
   description: string;
-  status: "published" | "draft";
+  status: "published" | "draft" | "generating";
   data_connections?: {
     connection_info?: {
       project_id?: string;
@@ -68,7 +68,7 @@ export default function DashboardPage() {
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"list" | "grid">("list");
   const [statusFilter, setStatusFilter] = useState<
-    "all" | "published" | "draft"
+    "all" | "published" | "draft" | "generating"
   >("all");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { user, session } = useAuth();
@@ -93,6 +93,30 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user) {
       getApps();
+      
+      // 添加fake data用于展示Generating状态
+      const fakeGeneratingApp: AppItem = {
+        id: "fake-generating-app",
+        name: "E-commerce Analytics Dashboard",
+        description: "Real-time analytics dashboard for e-commerce operations with user behavior tracking",
+        status: "generating",
+        features: 8,
+        createdAt: new Date().toISOString().split("T")[0],
+        updated_at: new Date().toISOString().split("T")[0],
+        published_at: "",
+        visits: 0,
+      };
+      
+      // 延迟添加fake data，确保在真实数据加载后
+      setTimeout(() => {
+        setAppItems(prev => {
+          // 检查是否已存在fake app，避免重复添加
+          if (!prev.find(app => app.id === "fake-generating-app")) {
+            return [...prev, fakeGeneratingApp];
+          }
+          return prev;
+        });
+      }, 500);
     }
   }, [user]);
 
@@ -240,7 +264,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2">
               <Select
                 value={statusFilter}
-                onValueChange={(value: "all" | "published" | "draft") =>
+                onValueChange={(value: "all" | "published" | "draft" | "generating") =>
                   setStatusFilter(value)
                 }
               >
@@ -251,6 +275,7 @@ export default function DashboardPage() {
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="published">Published</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="generating">Generating</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -281,7 +306,13 @@ export default function DashboardPage() {
                 <Card
                   key={app.id}
                   className="hover:shadow-sm transition-shadow cursor-pointer"
-                  onClick={() => router.push(`/preview?id=${app.id}`)}
+                  onClick={() => {
+                    if (app.status === "generating") {
+                      router.push("/generate");
+                    } else {
+                      router.push(`/preview?id=${app.id}`);
+                    }
+                  }}
                 >
                   <CardContent className="px-4 py-0.5">
                     <div className="flex items-start justify-between">
@@ -292,17 +323,19 @@ export default function DashboardPage() {
                             className={`px-2 py-0.5 rounded-full text-xs ${
                               app.status === "published"
                                 ? "bg-green-100 text-green-700"
+                                : app.status === "generating"
+                                ? "bg-blue-100 text-blue-700"
                                 : "bg-gray-100 text-gray-700"
                             }`}
                           >
-                            {app.status}
+                            {app.status === "generating" ? "Generating" : app.status}
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-2">
                           {app.description}
                         </p>
                       </div>
-                      {app.status === "published" ? (
+                      {app.status === "generating" ? null : app.status === "published" ? (
                         // <DropdownMenu>
                         //   <DropdownMenuTrigger asChild>
                         //     <Button
@@ -436,7 +469,13 @@ export default function DashboardPage() {
                   {filteredApps.map((app) => (
                     <TableRow
                       key={app.id}
-                      onClick={() => router.push(`/preview?id=${app.id}`)}
+                      onClick={() => {
+                        if (app.status === "generating") {
+                          router.push("/generate");
+                        } else {
+                          router.push(`/preview?id=${app.id}`);
+                        }
+                      }}
                       className="cursor-pointer hover:bg-muted/40"
                     >
                       <TableCell className="font-medium truncate">
@@ -447,10 +486,12 @@ export default function DashboardPage() {
                           className={`px-2 py-0.5 rounded-full text-xs ${
                             app.status === "published"
                               ? "bg-green-100 text-green-700"
+                              : app.status === "generating"
+                              ? "bg-blue-100 text-blue-700"
                               : "bg-gray-100 text-gray-700"
                           }`}
                         >
-                          {app.status}
+                          {app.status === "generating" ? "Generating" : app.status}
                         </span>
                       </TableCell>
                       <TableCell className="text-muted-foreground truncate max-w-[260px]">
@@ -485,7 +526,7 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {app.status === "published" ? (
+                          {app.status === "generating" ? null : app.status === "published" ? (
                             // <DropdownMenu>
                             //   <DropdownMenuTrigger asChild>
                             //     <Button
