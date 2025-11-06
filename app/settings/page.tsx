@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Separator } from "@/components/ui/separator"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { 
   User, 
   CreditCard, 
@@ -19,11 +19,13 @@ import {
   Download,
   X,
   Camera,
-  Wallet
+  Wallet,
+  Loader2
 } from "lucide-react"
 import PaymentAccount from "@/portable-pages/components/settings/PaymentAccount"
 import { useAuth } from "@/components/AuthProvider"
 import { getBillingPortalUrl } from "@/lib/billingPortal"
+import { supabase } from "@/lib/supabase"
 
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
@@ -37,6 +39,38 @@ export default function SettingsPage() {
   const [billingPortalUrl, setBillingPortalUrl] = useState<string | null>(null)
   const [billingPortalLoading, setBillingPortalLoading] = useState(false)
   const [billingPortalError, setBillingPortalError] = useState<string | null>(null)
+  
+  // Avatar upload states
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarLoading, setAvatarLoading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 获取用户头像
+  useEffect(() => {
+    const fetchUserAvatar = async () => {
+      if (user?.id) {
+        try {
+          const { data, error } = await supabase
+            .from("users")
+            .select("avatar_url")
+            .eq("id", user.id)
+            .single()
+          
+          if (!error && data?.avatar_url) {
+            setAvatarUrl(data.avatar_url)
+          }
+        } catch (error) {
+          console.error("获取用户头像失败:", error)
+        }
+      }
+    }
+    
+    fetchUserAvatar()
+  }, [user?.id])
 
   // 当切换到 billing 标签时，自动加载 Customer Portal
   useEffect(() => {
@@ -62,6 +96,154 @@ export default function SettingsPage() {
     }
   }, [activeTab, user?.id, billingPortalUrl, billingPortalLoading])
 
+  // 处理文件上传
+  const handleFileUpload = async (file: File) => {
+    if (!user?.id) {
+      setUploadError("Please log in first")
+      return
+    }
+
+    // 验证文件类型
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError("Unsupported file type. Supported: JPG, PNG, WebP, GIF")
+      return
+    }
+
+    // 验证文件大小 (5MB)
+    const maxSize = 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      setUploadError("File size exceeds limit (Max 5MB)")
+      return
+    }
+
+    // 创建预览
+    const preview = URL.createObjectURL(file)
+    setPreviewUrl(preview)
+    setUploadError(null)
+    setUploadSuccess(null)
+    setAvatarLoading(true)
+    setUploadProgress(0)
+
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("userId", user.id)
+
+      const response = await fetch("/api/upload-avatar", {
+        method: "POST",
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Upload failed")
+      }
+
+      // 更新头像URL（添加缓存破坏参数）
+      const avatarUrlWithCache = `${result.url}?t=${Date.now()}`
+      
+      // 预加载新图片，确保加载完成后再切换
+      const img = new Image()
+      
+      // 设置加载完成和错误处理回调
+      let imageLoaded = false
+      
+      img.onload = () => {
+        if (!imageLoaded) {
+          imageLoaded = true
+          // 图片加载成功后，更新状态并清除预览
+          setAvatarUrl(avatarUrlWithCache)
+          setPreviewUrl(null)
+          // 清理预览URL
+          if (preview) {
+            URL.revokeObjectURL(preview)
+          }
+        }
+      }
+      
+      img.onerror = () => {
+        if (!imageLoaded) {
+          imageLoaded = true
+          // 即使加载失败，也更新URL（可能是网络问题，但URL是正确的）
+          // 保持预览URL一段时间，避免显示fallback
+          setAvatarUrl(avatarUrlWithCache)
+          // 延迟清除预览，给用户更多时间看到预览图
+          setTimeout(() => {
+            setPreviewUrl(null)
+            if (preview) {
+              URL.revokeObjectURL(preview)
+            }
+          }, 1000)
+        }
+      }
+      
+      // 设置图片源（这会触发加载）
+      img.src = avatarUrlWithCache
+      
+      // 如果图片已经在缓存中（complete 为 true），onload 可能不会触发
+      // 所以需要检查 complete 状态
+      if (img.complete && img.naturalWidth > 0) {
+        // 图片已在缓存中且有效，立即触发切换
+        if (!imageLoaded) {
+          imageLoaded = true
+          setAvatarUrl(avatarUrlWithCache)
+          setPreviewUrl(null)
+          if (preview) {
+            URL.revokeObjectURL(preview)
+          }
+        }
+      }
+      
+      setUploadProgress(100)
+      setUploadSuccess("Avatar updated successfully")
+
+      // 3秒后自动清除成功提示
+      setTimeout(() => {
+        setUploadSuccess(null)
+      }, 3000)
+    } catch (error) {
+      console.error("上传头像失败:", error)
+      setUploadError(error instanceof Error ? error.message : "Upload failed")
+      setPreviewUrl(null)
+      if (preview) {
+        URL.revokeObjectURL(preview)
+      }
+    } finally {
+      setAvatarLoading(false)
+      setUploadProgress(0)
+    }
+  }
+
+  // 处理文件选择
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleFileUpload(file)
+    }
+    // 重置input，允许重复选择同一文件
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+
+  // 获取头像显示URL（优先使用预览，然后是已保存的头像）
+  // avatarUrl 已经包含了缓存破坏参数，直接使用即可
+  const displayAvatarUrl = previewUrl || avatarUrl
+
+  // 获取用户首字母（用于头像占位符）
+  const getInitials = () => {
+    if (user?.user_metadata?.full_name) {
+      return user.user_metadata.full_name.charAt(0).toUpperCase()
+    }
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase()
+    }
+    return "U"
+  }
+
   const renderAccountContent = () => (
     <div className="space-y-6">
       {/* Account Header */}
@@ -78,17 +260,58 @@ export default function SettingsPage() {
           {/* Avatar Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-orange-500 flex items-center justify-center">
-                <span className="text-white text-2xl font-bold">G</span>
+              <Avatar className="w-20 h-20">
+                <AvatarImage 
+                  src={displayAvatarUrl || undefined} 
+                  alt="Avatar"
+                  key={displayAvatarUrl} // 添加key强制重新渲染，避免缓存问题
+                />
+                <AvatarFallback className="bg-orange-500 text-white text-2xl font-bold">
+                  {getInitials()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col gap-2">
+                <Button 
+                  variant="outline" 
+                  className="gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={avatarLoading}
+                >
+                  {avatarLoading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="size-4" />
+                      Change Avatar
+                    </>
+                  )}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
               </div>
-              <Button variant="outline" className="gap-2">
-                <Camera className="size-4" />
-                Change Avatar
-              </Button>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Or drag and drop an image anywhere on this area
-            </p>
+
+            {/* Upload Error */}
+            {uploadError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{uploadError}</p>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {uploadSuccess && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-600">{uploadSuccess}</p>
+              </div>
+            )}
           </div>
 
           {/* Display Name */}
