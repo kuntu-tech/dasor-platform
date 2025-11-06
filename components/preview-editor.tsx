@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -83,6 +83,7 @@ export function PreviewEditor() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [rightPanelLeft, setRightPanelLeft] = useState<number>(256);
   const [panelLayout, setPanelLayout] = useState<number[] | null>(null);
+  const [previewMcpParam, setPreviewMcpParam] = useState<string | null>(null);
 
   // Save dialog states
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
@@ -140,6 +141,109 @@ export function PreviewEditor() {
       }
     }
   }, [appId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storedMcp = localStorage.getItem("currentAppUrl");
+    if (storedMcp) {
+      setPreviewMcpParam((prev) => prev ?? storedMcp);
+    }
+  }, []);
+
+  const resolveMcpParam = useCallback((value: any): string | null => {
+    if (!value) return null;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : null;
+    }
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        const candidate = resolveMcpParam(entry);
+        if (candidate) return candidate;
+      }
+      return null;
+    }
+    if (typeof value === "object") {
+      if (typeof value.mcp === "string" && value.mcp.trim()) {
+        return value.mcp.trim();
+      }
+      if (typeof value.domain === "string" && value.domain.trim()) {
+        return value.domain.trim();
+      }
+      if (typeof value.serviceId === "string" && value.serviceId.trim()) {
+        return value.serviceId.trim();
+      }
+      if (typeof value.id === "string" && value.id.trim()) {
+        return value.id.trim();
+      }
+      if (Array.isArray(value.ids)) {
+        const candidate = resolveMcpParam(value.ids);
+        if (candidate) return candidate;
+      }
+      if (Array.isArray(value.domains)) {
+        const candidate = resolveMcpParam(value.domains);
+        if (candidate) return candidate;
+      }
+    }
+    return null;
+  }, []);
+
+  useEffect(() => {
+    if (!appId) return;
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const fetchAppDetail = async () => {
+      try {
+        const response = await fetch(`/api/apps/${appId}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error || `HTTP ${response.status}`);
+        }
+        if (cancelled) return;
+
+        const record = payload?.data;
+        if (record) {
+          setCurrentApp((prev) => prev ?? (record as App));
+          let nextMcp = resolveMcpParam(record.mcp_server_ids);
+
+          if (!nextMcp && Array.isArray(record.generator_servers)) {
+            const preferred =
+              record.generator_servers.find(
+                (server: any) => server?.status === "running"
+              ) || record.generator_servers[0];
+            nextMcp = resolveMcpParam(preferred);
+          }
+
+          if (!nextMcp && typeof window !== "undefined") {
+            nextMcp = localStorage.getItem("currentAppUrl");
+          }
+
+          if (nextMcp) {
+            setPreviewMcpParam(nextMcp);
+            if (typeof window !== "undefined" && nextMcp.startsWith("http")) {
+              localStorage.setItem("currentAppUrl", nextMcp);
+            }
+          }
+        }
+      } catch (error) {
+        if (cancelled || (error as Error).name === "AbortError") {
+          return;
+        }
+        console.warn("Failed to load app detail:", error);
+      }
+    };
+
+    fetchAppDetail();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [appId, resolveMcpParam]);
 
   // 从 localStorage 读取 selectedProblems
   useEffect(() => {
@@ -213,6 +317,20 @@ export function PreviewEditor() {
     setSaveFormData({ name: "", description: "" });
     router.push("/save-success");
   };
+
+  const iframeSrc = (() => {
+    const baseUrl = "https://app-preview.datail.ai/?embed=1";
+    if (previewMcpParam) {
+      return `${baseUrl}&mcp=${encodeURIComponent(previewMcpParam)}`;
+    }
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("currentAppUrl");
+      if (stored) {
+        return `${baseUrl}&mcp=${encodeURIComponent(stored)}`;
+      }
+    }
+    return baseUrl;
+  })();
 
   const renderPreview = () => {
     if (isPreviewUpdating) {
@@ -738,9 +856,7 @@ export function PreviewEditor() {
             >
               <iframe
                 ref={iframeRef}
-                src={`https://app-preview.datail.ai/?embed=1&mcp=${localStorage.getItem(
-                  "currentAppUrl"
-                )}`}
+                src={iframeSrc}
                 // "https://app-preview.datail.ai/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
                 // src="http://192.168.30.153:5174/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
                 className="w-full h-full border-0"
