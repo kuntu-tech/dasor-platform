@@ -55,58 +55,113 @@ export function GenerateFlow() {
   const [selectedProblems, setSelectedProblems] = useState<SelectedProblem[]>(
     []
   );
-  const [allQuestions, setAllQuestions] = useState<QuestionItem[]>(mockAllQuestions);
+  // 将 selectedProblems 转换为 QuestionItem 格式用于显示
+  const getQuestionsFromProblems = (
+    problems: SelectedProblem[]
+  ): QuestionItem[] => {
+    return problems.map((problem, index) => ({
+      id: problem.id || `problem-${index}`,
+      text: problem.problem || problem.toString(),
+      status: "pending" as QuestionStatus,
+    }));
+  };
+  const [allQuestions, setAllQuestions] = useState<QuestionItem[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const { user } = useAuth();
-  const dbConnectionData = localStorage.getItem("dbConnectionData");
-  const dbConnectionDataObj = JSON.parse(dbConnectionData || "{}");
-  console.log(dbConnectionDataObj, "dbConnectionDataObj");
+  const [dbConnectionDataObj, setDbConnectionDataObj] = useState<any>({});
   // 防重复调用与首渲染仅触发一次
   const inFlightRef = useRef(false);
   const mountedCalledRef = useRef(false);
   const statusUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // 在客户端获取 dbConnectionData
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const dbConnectionData = localStorage.getItem("dbConnectionData");
+      if (dbConnectionData) {
+        try {
+          const parsed = JSON.parse(dbConnectionData);
+          setDbConnectionDataObj(parsed);
+          console.log(parsed, "dbConnectionDataObj");
+        } catch (e) {
+          console.error("Failed to parse dbConnectionData:", e);
+        }
+      }
+    }
+  }, []);
+
+  // 当 selectedProblems 变化时，更新 allQuestions
+  useEffect(() => {
+    if (selectedProblems.length > 0) {
+      const questions = getQuestionsFromProblems(selectedProblems);
+      setAllQuestions(questions);
+    }
+  }, [selectedProblems]);
+
   // 模拟状态更新：每个问题从pending -> generating -> done
   useEffect(() => {
     if (!isGenerating) {
       // 重置所有问题为pending
-      setAllQuestions(mockAllQuestions.map(q => ({ ...q, status: "pending" as QuestionStatus })));
+      if (selectedProblems.length > 0) {
+        const questions = getQuestionsFromProblems(selectedProblems);
+        setAllQuestions(questions);
+      }
       return;
     }
 
-    // 初始化：根据selectedProblems判断哪些是选中的（选中的先设为generating）
-    const selectedTexts = selectedProblems.map(p => p.toString());
-    setAllQuestions(prev => prev.map(q => {
-      const isSelected = selectedTexts.some(text => q.text.includes(text) || text.includes(q.text));
-      return { ...q, status: isSelected ? "generating" as QuestionStatus : "pending" as QuestionStatus };
-    }));
+    // 初始化：将第一个问题设为generating
+    if (
+      allQuestions.length > 0 &&
+      allQuestions.every((q) => q.status === "pending")
+    ) {
+      setAllQuestions((prev) => {
+        const updated = [...prev];
+        if (updated.length > 0) {
+          updated[0] = {
+            ...updated[0],
+            status: "generating" as QuestionStatus,
+          };
+        }
+        return updated;
+      });
+    }
 
     let currentIndex = 0;
-    const totalQuestions = mockAllQuestions.length;
+    const totalQuestions = allQuestions.length;
 
     // 模拟状态转换：每隔2-3秒更新一个问题的状态
     const updateStatus = () => {
-      setAllQuestions(prev => {
+      setAllQuestions((prev) => {
         const updated = [...prev];
-        
+
         // 找到当前正在生成中的问题，将其标记为done
-        const generatingIndex = updated.findIndex(q => q.status === "generating");
+        const generatingIndex = updated.findIndex(
+          (q) => q.status === "generating"
+        );
         if (generatingIndex !== -1) {
-          updated[generatingIndex] = { ...updated[generatingIndex], status: "done" };
+          updated[generatingIndex] = {
+            ...updated[generatingIndex],
+            status: "done",
+          };
         }
 
         // 找到下一个pending的问题，将其标记为generating
-        const nextPendingIndex = updated.findIndex(q => q.status === "pending");
+        const nextPendingIndex = updated.findIndex(
+          (q) => q.status === "pending"
+        );
         if (nextPendingIndex !== -1) {
-          updated[nextPendingIndex] = { ...updated[nextPendingIndex], status: "generating" };
+          updated[nextPendingIndex] = {
+            ...updated[nextPendingIndex],
+            status: "generating",
+          };
           currentIndex++;
           return updated;
         }
 
         // 如果所有问题都done了，停止更新
-        if (updated.every(q => q.status === "done")) {
+        if (updated.every((q) => q.status === "done")) {
           if (statusUpdateIntervalRef.current) {
             clearInterval(statusUpdateIntervalRef.current);
             statusUpdateIntervalRef.current = null;
@@ -134,7 +189,7 @@ export function GenerateFlow() {
         statusUpdateIntervalRef.current = null;
       }
     };
-  }, [isGenerating, selectedProblems]);
+  }, [isGenerating, allQuestions.length, selectedProblems.length]);
 
   useEffect(() => {
     const stored = localStorage.getItem("selectedProblems");
@@ -177,7 +232,10 @@ export function GenerateFlow() {
         const timeout = setTimeout(() => controller.abort(), 600_000);
         let segmentsPayload: any[] = [];
         try {
-          const raw = localStorage.getItem("marketsData");
+          const raw =
+            typeof window !== "undefined"
+              ? localStorage.getItem("marketsData")
+              : null;
           if (raw) {
             const arr = JSON.parse(raw);
             if (Array.isArray(arr)) {
@@ -414,7 +472,9 @@ export function GenerateFlow() {
       }
 
       console.log(data);
-      localStorage.setItem("currentAppUrl", data.data.domain);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("currentAppUrl", data.data.domain);
+      }
       router.push(`/preview?id=${data.data.serviceId}`);
     } catch (err) {
       console.log("Error generating batch", err);
@@ -487,7 +547,9 @@ export function GenerateFlow() {
       featureCount: features.length,
     };
 
-    localStorage.setItem("currentApp", JSON.stringify(app));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("currentApp", JSON.stringify(app));
+    }
   };
 
   return (
@@ -498,7 +560,6 @@ export function GenerateFlow() {
       <main className="container mx-auto px-4 py-12 max-w-4xl">
         <div className="mb-12 text-center">
           <h1 className="text-3xl font-bold mb-2">Generating Your ChatAPP</h1>
-       
         </div>
 
         <Card>
@@ -533,9 +594,7 @@ export function GenerateFlow() {
                 </div>
               ) : (
                 /* Loading State */
-                <div className="text-center">
-                 
-                </div>
+                <div className="text-center"></div>
               )}
 
               {/* Selected Features Preview */}
@@ -544,57 +603,79 @@ export function GenerateFlow() {
                   Selected Features:
                 </h2>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {allQuestions.map((question, index) => {
-                    const statusConfig = {
-                      pending: {
-                        icon: Clock,
-                        color: "text-muted-foreground",
-                        label: "",
-                        bgColor: "bg-gray-50",
-                      },
-                      generating: {
-                        icon: Loader2,
-                        color: "text-blue-600",
-                        label: "Generating",
-                        bgColor: "bg-blue-50",
-                      },
-                      done: {
-                        icon: CheckCircle2,
-                        color: "text-green-600",
-                        label: "",
-                        bgColor: "bg-green-50",
-                      },
-                    };
+                  {allQuestions.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8">
+                      <p>
+                        No features selected. Please go back and select
+                        features.
+                      </p>
+                    </div>
+                  ) : (
+                    allQuestions.map((question, index) => {
+                      const statusConfig = {
+                        pending: {
+                          icon: Clock,
+                          color: "text-muted-foreground",
+                          label: "",
+                          bgColor: "bg-gray-50",
+                        },
+                        generating: {
+                          icon: Loader2,
+                          color: "text-blue-600",
+                          label: "Generating",
+                          bgColor: "bg-blue-50",
+                        },
+                        done: {
+                          icon: CheckCircle2,
+                          color: "text-green-600",
+                          label: "",
+                          bgColor: "bg-green-50",
+                        },
+                      };
 
-                    const config = statusConfig[question.status];
-                    const Icon = config.icon;
+                      const config = statusConfig[question.status];
+                      const Icon = config.icon;
 
-                    return (
-                      <div
-                        key={question.id}
-                        className={`flex items-center gap-3 text-sm p-3 rounded-lg transition-colors ${config.bgColor}`}
-                      >
-                        {question.status === "generating" ? (
-                          <Icon className={`size-5 ${config.color} shrink-0 animate-spin`} />
-                        ) : (
-                          <Icon className={`size-5 ${config.color} shrink-0`} />
-                        )}
-                        <span className={`${config.color} font-medium`}>
-                          {config.label}
-                        </span>
-                        <span className="text-foreground flex-1">
-                           {index + 1}. {question.text}
-                        </span>
-                      </div>
-                    );
-                  })}
+                      return (
+                        <div
+                          key={question.id}
+                          className={`flex items-center gap-3 text-sm p-3 rounded-lg transition-colors ${config.bgColor}`}
+                        >
+                          {question.status === "generating" ? (
+                            <Icon
+                              className={`size-5 ${config.color} shrink-0 animate-spin`}
+                            />
+                          ) : (
+                            <Icon
+                              className={`size-5 ${config.color} shrink-0`}
+                            />
+                          )}
+                          <span className={`${config.color} font-medium`}>
+                            {config.label}
+                          </span>
+                          <span className="text-foreground flex-1">
+                            {index + 1}. {question.text}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
 
             <CardDescription className="text-center max-w-md mt-6">
-              This process will take a few minutes. You can close this page. We will notify you once everything is complete.
+              This process will take a few minutes. You can close this page. We
+              will notify you once everything is complete.
             </CardDescription>
+            <Button
+              className="mt-4"
+              onClick={() => {
+                router.push("/");
+              }}
+            >
+              Back to Home
+            </Button>
           </CardContent>
         </Card>
       </main>

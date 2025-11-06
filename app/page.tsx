@@ -95,12 +95,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user) {
       getApps();
-      
+
       // 添加fake data用于展示Generating状态
       const fakeGeneratingApp: AppItem = {
         id: "fake-generating-app",
         name: "E-commerce Analytics Dashboard",
-        description: "Real-time analytics dashboard for e-commerce operations with user behavior tracking",
+        description:
+          "Real-time analytics dashboard for e-commerce operations with user behavior tracking",
         status: "generating",
         features: 8,
         createdAt: new Date().toISOString().split("T")[0],
@@ -108,17 +109,17 @@ export default function DashboardPage() {
         published_at: "",
         visits: 0,
       };
-      
+
       // 延迟添加fake data，确保在真实数据加载后
-      setTimeout(() => {
-        setAppItems(prev => {
-          // 检查是否已存在fake app，避免重复添加
-          if (!prev.find(app => app.id === "fake-generating-app")) {
-            return [...prev, fakeGeneratingApp];
-          }
-          return prev;
-        });
-      }, 500);
+      // setTimeout(() => {
+      //   setAppItems(prev => {
+      //     // 检查是否已存在fake app，避免重复添加
+      //     if (!prev.find(app => app.id === "fake-generating-app")) {
+      //       return [...prev, fakeGeneratingApp];
+      //     }
+      //     return prev;
+      //   });
+      // }, 500);
     }
   }, [user]);
 
@@ -175,7 +176,11 @@ export default function DashboardPage() {
 
   const handleDelete = async (id: string) => {
     // 确认删除
-    if (!confirm("Are you sure you want to delete this app? This action cannot be undone.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this app? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
@@ -204,7 +209,11 @@ export default function DashboardPage() {
       console.log("应用删除成功");
     } catch (error) {
       console.log("删除应用失败:", error);
-      alert(`Delete failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      alert(
+        `Delete failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     } finally {
       setDeletingId(null);
     }
@@ -292,7 +301,6 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold">MyApps</h1>
-          
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -307,9 +315,9 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2">
               <Select
                 value={statusFilter}
-                onValueChange={(value: "all" | "published" | "draft" | "generating") =>
-                  setStatusFilter(value)
-                }
+                onValueChange={(
+                  value: "all" | "published" | "draft" | "generating"
+                ) => setStatusFilter(value)}
               >
                 <SelectTrigger className="w-[140px] h-9">
                   <SelectValue placeholder="All Status" />
@@ -371,14 +379,17 @@ export default function DashboardPage() {
                                 : "bg-gray-100 text-gray-700"
                             }`}
                           >
-                            {app.status === "generating" ? "Generating" : app.status}
+                            {app.status === "generating"
+                              ? "Generating"
+                              : app.status}
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-2">
                           {app.description}
                         </p>
                       </div>
-                      {app.status === "generating" ? null : app.status === "published" ? (
+                      {app.status === "generating" ? null : app.status ===
+                        "published" ? (
                         // <DropdownMenu>
                         //   <DropdownMenuTrigger asChild>
                         //     <Button
@@ -534,7 +545,9 @@ export default function DashboardPage() {
                               : "bg-gray-100 text-gray-700"
                           }`}
                         >
-                          {app.status === "generating" ? "Generating" : app.status}
+                          {app.status === "generating"
+                            ? "Generating"
+                            : app.status}
                         </span>
                       </TableCell>
                       <TableCell className="text-muted-foreground truncate max-w-[260px]">
@@ -549,8 +562,7 @@ export default function DashboardPage() {
                           "-"}
                       </TableCell>
                       <TableCell className="truncate text-xs text-muted-foreground font-mono max-w-[260px]">
-                        {app.data_connections?.connection_info?.api_key ||
-                          "-"}
+                        {app.data_connections?.connection_info?.api_key || "-"}
                       </TableCell>
                       <TableCell className="text-center tabular-nums">
                         {app.features}
@@ -569,7 +581,8 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {app.status === "generating" ? null : app.status === "published" ? (
+                          {app.status === "generating" ? null : app.status ===
+                            "published" ? (
                             // <DropdownMenu>
                             //   <DropdownMenuTrigger asChild>
                             //     <Button
