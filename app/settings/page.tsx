@@ -112,7 +112,7 @@ export default function SettingsPage() {
                     }
                   })
                   .catch((error) => {
-                    console.log("Failed to load Customer Portal:", error)
+                console.log("Failed to load Customer Portal:", error)
                     setBillingPortalError("Network error. Please try again later.")
                   })
                   .finally(() => {

@@ -142,7 +142,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
                     }
                   })
                   .catch((error) => {
-                    console.log("Failed to load Customer Portal:", error)
+                console.log("Failed to load Customer Portal:", error)
                     setBillingPortalError("Network error. Please try again later.")
                   })
                   .finally(() => {

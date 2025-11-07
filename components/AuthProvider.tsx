@@ -301,27 +301,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    setLoading(true);
     console.log("🚪 开始登出流程...");
+    setLoading(true);
+
+    // 立即更新本地状态，避免界面长时间停留在受保护页面
+    setSession(null);
+    setUser(null);
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.log("❌ 登出错误:", error);
-        throw error;
+      const result = await Promise.race([
+        supabase.auth.signOut(),
+        new Promise<"timeout">((resolve) => {
+          timeoutId = setTimeout(() => {
+            console.warn("⚠️ Supabase signOut 超时，继续本地登出流程");
+            resolve("timeout");
+          }, 5000);
+        }),
+      ]);
+
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
-      
-      console.log("✅ 登出成功");
-      
-      // 登出成功后立即更新状态，确保状态同步
-      // onAuthStateChange 会稍后触发，但为了确保及时响应，我们立即更新状态
-      setSession(null);
-      setUser(null);
-      setLoading(false);
+
+      if (result !== "timeout") {
+        if (result.error) {
+          console.log("❌ 登出错误:", result.error);
+          throw result.error;
+        }
+
+        console.log("✅ 登出成功");
+      }
     } catch (error) {
       console.log("❌ 登出失败:", error);
-      setLoading(false);
       throw error;
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      setLoading(false);
     }
   };
 

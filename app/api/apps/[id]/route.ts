@@ -39,7 +39,21 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id: appId } = await params;
+  return handleUpdate(request, params);
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return handleUpdate(request, params);
+}
+
+async function handleUpdate(
+  request: NextRequest,
+  paramsPromise: Promise<{ id: string }>
+) {
+  const { id: appId } = await paramsPromise;
   if (!appId) {
     return NextResponse.json({ error: "缺少 appId" }, { status: 400 });
   }

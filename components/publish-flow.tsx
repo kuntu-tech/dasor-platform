@@ -199,6 +199,8 @@ export function PublishFlow() {
           }
           if (typeof chatMeta.domain === "string" && chatMeta.domain.trim()) {
             setCurrentAppUrl(chatMeta.domain.trim());
+          } else {
+            setCurrentAppUrl(appData?.mcp_server_ids || "");
           }
         }
       }
@@ -326,7 +328,7 @@ export function PublishFlow() {
       chatMeta.description = description.trim();
       appMetaInfo.chatAppMeta = chatMeta;
 
-      const response = await fetch("/api/apps", {
+      const response = await fetch(`/api/apps/${appId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -366,6 +368,11 @@ export function PublishFlow() {
       setIsPublished(true);
     } catch (error) {
       console.log("应用保存失败:", error);
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to publish the app. Please try again.";
+      alert(message);
     }
   };
 
