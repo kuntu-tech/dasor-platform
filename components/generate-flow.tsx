@@ -496,7 +496,11 @@ export function GenerateFlow() {
         if (storedPublish) {
           const parsedPublish = JSON.parse(storedPublish);
           if (parsedPublish && typeof parsedPublish === "object") {
-            anchIndexNum = parsedPublish.anchorIndex;
+            anchIndexNum =
+              parsedPublish?.anchIndex ??
+              parsedPublish?.anchorIndex ??
+              parsedPublish?.anchor_index ??
+              null;
           }
         }
       } catch (err) {
