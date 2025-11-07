@@ -261,6 +261,7 @@ export function GenerateFlow() {
         if (payload?.status === "succeeded") {
           setJobState("succeeded");
           await hydrateAppRecord(appId);
+          router.push(`/preview?id=${appId}`);
           return;
         }
 
@@ -427,11 +428,7 @@ export function GenerateFlow() {
     }
   };
 
-  const handleViewApp = () => {
-    if (!jobAppId) return;
-    router.push(`/preview?id=${jobAppId}`);
-  };
-  const startGeneration = (problems: SelectedProblem[]) => {
+    const startGeneration = (problems: SelectedProblem[]) => {
 
     // Auto-assign default templates based on problem type
     const defaultTemplateMapping: Record<string, string> = {
@@ -661,24 +658,13 @@ export function GenerateFlow() {
                 ? "Batch generation completed, you can jump to the preview to view the application details."
                 : "Batch generation process may take several minutes, we will continue to synchronize the progress."}
             </CardDescription>
-            {isSucceeded ? (
-              <div className="mt-4 flex flex-wrap gap-3 justify-center">
-                <Button onClick={handleViewApp} disabled={!jobAppId}>
-                  View Generated App
-                </Button>
-                <Button variant="outline" onClick={() => router.push("/")}>
-                  Back to Home
-                </Button>
-              </div>
-            ) : (
-              <Button
-                className="mt-4"
-                variant="outline"
-                onClick={() => router.push("/")}
-              >
-                Back to Home
-              </Button>
-            )}
+            <Button
+              className="mt-4"
+              variant="outline"
+              onClick={() => router.push("/")}
+            >
+              Back to Home
+            </Button>
           </CardContent>
         </Card>
       </main>
