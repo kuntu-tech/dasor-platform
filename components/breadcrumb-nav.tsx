@@ -243,14 +243,14 @@ export function BreadcrumbNav() {
       {/* 右侧按钮组 - 只在 preview 页面显示，且应用未发布时显示 */}
       {isPreviewPage && appStatus !== "published" && (
         <div className="flex items-center gap-2">
-          <Button
+          {/* <Button
             size="sm"
             variant="ghost"
             className="h-8 px-3"
             onClick={() => setIsSaveDialogOpen(true)}
           >
             Save
-          </Button>
+          </Button> */}
           <Button
             size="sm"
             variant="default"
