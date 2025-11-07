@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { X } from "lucide-react"
+
 import { useAuth } from "@/components/AuthProvider"
 import { getVendorStatus, createSubscription } from "@/portable-pages/lib/connectApi"
+import { ensureVendor } from "@/portable-pages/lib/vendorEnsure"
 import { PricingCard, type Plan } from "@/components/ui/pricing"
 
 interface PricingModalProps {
@@ -16,7 +18,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
 
-  // 处理ESC键关闭和错误状态
+  // Handle ESC key closure and reset error state when opening
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -26,9 +28,9 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
 
     if (isOpen) {
       document.addEventListener("keydown", handleEscape)
-      // 防止背景滚动
+      // Prevent background scrolling
       document.body.style.overflow = "hidden"
-      // 清除错误状态
+      // Reset any previous error when the modal opens
       setError(null)
     }
 
@@ -38,7 +40,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
     }
   }, [isOpen, onClose])
 
-  // 处理订阅
+  // Handle subscription flow
   const handleSubscribe = async () => {
     if (!user?.id) {
       setError("Please log in first")
@@ -48,34 +50,61 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
     setIsLoading(true)
     setError(null)
 
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
+
     try {
-      // 1. 获取 vendorId
-      const vendorStatus = await getVendorStatus(user.id)
-      
-      if (!vendorStatus.success || !vendorStatus.data?.id) {
-        setError("Vendor information not found. Please connect your Stripe account first")
+      let vendorId: number | undefined
+
+      try {
+        const vendorStatus = await getVendorStatus(user.id)
+        if (vendorStatus.success && vendorStatus.data?.id) {
+          vendorId = vendorStatus.data.id
+        }
+      } catch (statusError) {
+        console.log("Failed to fetch vendor status, will attempt auto provisioning:", statusError)
+      }
+
+      if (!vendorId) {
+        const email = user.email
+        if (!email) {
+          setError("Unable to retrieve your login email. Please sign out and sign in again.")
+          setIsLoading(false)
+          return
+        }
+
+        const ensureResponse = await ensureVendor({
+          email,
+          userId: user.id,
+          redirectUri: baseUrl ? `${baseUrl}/oauth/callback` : undefined,
+        })
+
+        if (!ensureResponse.success || !ensureResponse.data?.vendorId) {
+          setError(ensureResponse.error || "We could not prepare your vendor account. Please try again later or contact support.")
+          setIsLoading(false)
+          return
+        }
+
+        vendorId = ensureResponse.data.vendorId
+      }
+
+      if (!vendorId) {
+        setError("Vendor account could not be determined. Please retry later.")
         setIsLoading(false)
         return
       }
 
-      const vendorId = vendorStatus.data.id
-
-      // 2. 构建回调 URL
-      const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
-      const successUrl = `${baseUrl}/subscription/success`
-      const cancelUrl = `${baseUrl}/subscription/cancel`
-
-      // 3. 调用订阅接口（固定为月付）
       const subscriptionResponse = await createSubscription(vendorId, {
         interval: "month",
-        successUrl,
-        cancelUrl,
+        successUrl: `${baseUrl}/subscription/success`,
+        cancelUrl: `${baseUrl}/subscription/cancel`,
       })
 
-      // 检查是否已经有活跃订阅
       if (subscriptionResponse.success && subscriptionResponse.data) {
-        if (subscriptionResponse.data.alreadySubscribed === true || 
-            subscriptionResponse.message?.toLowerCase().includes("already has an active subscription")) {
+        const alreadyActive =
+          subscriptionResponse.data.alreadySubscribed === true ||
+          subscriptionResponse.message?.toLowerCase().includes("already has an active subscription")
+
+        if (alreadyActive) {
           setError("You already have an active subscription")
           setIsLoading(false)
           return
@@ -88,10 +117,9 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
         return
       }
 
-      // 3. 跳转到支付页面
       window.location.href = subscriptionResponse.data.checkoutUrl
     } catch (err) {
-      console.log("订阅处理错误:", err)
+      console.log("Subscription processing error:", err)
       setError(err instanceof Error ? err.message : "Subscription processing failed. Please try again later")
       setIsLoading(false)
     }
@@ -127,13 +155,13 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
-      {/* 蒙版 */}
-      <div 
+      {/* Overlay */}
+      <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      
-      {/* 窗口 */}
+
+      {/* Dialog */}
       <div className="relative mx-auto flex w-full max-w-lg flex-col items-center">
         <div className="relative w-full max-w-[19rem]">
           <PricingCard
@@ -160,3 +188,4 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
     </div>
   )
 }
+
