@@ -172,7 +172,7 @@ export default function LoginPage() {
                     disabled={loading}
                   >
                     {loading ? (
-                      "登录中..."
+                      "be logging in..."
                     ) : (
                       <div className="flex items-center gap-2">
                         <svg className="w-5 h-5" viewBox="0 0 24 24">
