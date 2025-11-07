@@ -1,66 +1,65 @@
 "use client";
 
-// import { useEffect } from "react";
-// import { useRouter, usePathname } from "next/navigation";
-// import { useAuth } from "@/components/AuthProvider";
+import { useEffect, useMemo } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  // 跳过登录验证，直接允许访问所有页面
-  return <>{children}</>;
-
-  // 以下代码已禁用，如需恢复认证，请取消注释
-  /*
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
-  // 不需要认证的页面路径
-  const publicPaths = [
-    "/auth/login",
-    "/auth/register",
-    "/auth/callback",
-    "/auth/forgot-password",
-    "/auth/reset-password",
-    "/purchase/success",
-    "/purchase/cancel",
-  ];
+  const isPublicPath = useMemo(() => {
+    if (!pathname) return false;
+
+    const publicExact = new Set([
+      "/auth/login",
+      "/auth/register",
+      "/auth/callback",
+      "/auth/forgot-password",
+      "/auth/reset-password",
+      "/purchase/success",
+      "/purchase/cancel",
+    ]);
+
+    if (publicExact.has(pathname)) {
+      return true;
+    }
+
+    const publicPrefixes = ["/auth/"];
+
+    return publicPrefixes.some((prefix) => pathname.startsWith(prefix));
+  }, [pathname]);
 
   useEffect(() => {
-    console.log("loading", loading, "pathname", pathname);
-    
-    // 如果是公开页面，直接允许访问（不需要等待 loading 完成）
-    if (publicPaths.includes(pathname)) {
+    if (isPublicPath) {
       return;
     }
 
-    // 如果正在加载，等待加载完成
-    if (loading) return;
+    if (loading) {
+      return;
+    }
 
-    // 如果没有用户且不在公开页面，重定向到登录页
     if (!user) {
-      console.log("未认证用户访问受保护页面，重定向到登录页");
-      router.push("/auth/login");
+      router.replace("/auth/login");
       return;
     }
+  }, [user, loading, router, isPublicPath]);
 
-    // 如果已登录用户在登录页，重定向到首页
-    if (user && pathname === "/auth/login") {
-      console.log("已认证用户访问登录页，重定向到首页");
-      router.push("/");
-      return;
+  useEffect(() => {
+    if (!loading && user && pathname === "/auth/login") {
+      router.replace("/");
     }
-  }, [user, loading, pathname, router]);
+  }, [loading, user, pathname, router]);
 
-  // 如果是公开页面，直接显示内容（不需要等待 loading 完成）
-  if (publicPaths.includes(pathname)) {
+  if (isPublicPath) {
     return <>{children}</>;
   }
 
-  // 如果正在加载，显示加载界面
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -72,7 +71,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // 如果没有用户且不在公开页面，不显示内容（等待重定向）
   if (!user) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -84,7 +82,5 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // 已认证用户，显示受保护的内容
   return <>{children}</>;
-  */
 }
