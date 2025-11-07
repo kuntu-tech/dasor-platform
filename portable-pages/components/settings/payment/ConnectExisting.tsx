@@ -28,6 +28,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
   // OAuth 授权流程
   const handleOAuthConnect = async () => {
     if (!loginEmail) {
+      console.log(user,'user')
       alert("Login required: missing email");
       return;
     }
