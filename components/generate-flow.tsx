@@ -172,7 +172,7 @@ export function GenerateFlow() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(metadataPayload),
+          body: JSON.parse(localStorage.getItem("run_result_publish") || "{}"),
           cache: "no-store",
           signal,
         }
