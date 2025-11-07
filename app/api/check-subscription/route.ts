@@ -47,13 +47,25 @@ export async function POST(request: NextRequest) {
 
     if (data.subscription_period_end) {
       try {
-        periodEnd = new Date(data.subscription_period_end);
-        // 检查日期是否有效
+        const rawPeriodEnd = data.subscription_period_end.trim();
+        const normalizedPeriodEnd = rawPeriodEnd
+          .replace(" ", "T")
+          .replace(" +", "+");
+
+        periodEnd = new Date(normalizedPeriodEnd);
+
+        // 如果解析失败（返回 Invalid Date），尝试在末尾补充 Z
         if (isNaN(periodEnd.getTime())) {
+          periodEnd = new Date(`${normalizedPeriodEnd}Z`);
+        }
+
+        // 最终仍解析失败则视为无效
+        if (isNaN(periodEnd.getTime())) {
+          console.log("Invalid date format:", data.subscription_period_end);
           periodEnd = null;
         }
       } catch (e) {
-        console.log("Invalid date format:", data.subscription_period_end);
+        console.log("Invalid date format:", data.subscription_period_end, e);
         periodEnd = null;
       }
     }

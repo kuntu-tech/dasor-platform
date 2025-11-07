@@ -862,7 +862,7 @@ export default function MarketExplorationPage({
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isGenerating}
-                placeholder="Edit D2 Persona to xxx"
+                placeholder="Any thoughts or suggestions?"
                 rows={1}
                 className="flex-1 resize-none bg-transparent border-none outline-none text-gray-900 placeholder-gray-400 text-base py-2 max-h-48 overflow-y-auto disabled:opacity-50"
                 style={{

@@ -1,14 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PathSelection from "./payment/PathSelection";
 import CreateAccount from "./payment/CreateAccount";
 import ConnectExisting from "./payment/ConnectExisting";
 import ConnectedState from "./payment/ConnectedState";
+import { useAuth } from "../../../components/AuthProvider";
 
 type PaymentStep = "selection" | "create" | "connect" | "connected";
 
 const PaymentAccount = () => {
   const [currentStep, setCurrentStep] = useState<PaymentStep>("selection");
   const [connectedEmail, setConnectedEmail] = useState<string>("");
+  const { user, session, loading } = useAuth();
+
+  useEffect(() => {
+    console.log("[PaymentAccount] useAuth", { user, session, loading });
+  }, [user, session, loading]);
 
   const notifyStripeStatusChange = () => {
     if (typeof window !== "undefined") {

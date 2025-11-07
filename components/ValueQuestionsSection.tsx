@@ -705,6 +705,61 @@ export function ValueQuestionsSection({
     console.log("activeTab", activeTab);
     console.log("currentSegments", currentSegments);
 
+    // 根据 activeTab 过滤 run_result 中的 segments，只保留匹配的 segment
+    if (activeTab && typeof window !== "undefined") {
+      try {
+        const runResultStr = localStorage.getItem("run_result");
+        if (runResultStr) {
+          const runResult = JSON.parse(runResultStr);
+
+          if (runResult.segments && Array.isArray(runResult.segments)) {
+            // 根据 activeTab 匹配 segmentId
+            // activeTab 可能是 segmentId（如 "seg_01"）或者映射后的 id
+            // 需要找到对应的 segmentId
+            const matchedSegment = runResult.segments.find((seg: any) => {
+              // 尝试多种匹配方式
+              const segId = seg.segmentId || seg.id;
+              const segName = seg.name;
+              return (
+                segId === activeTab ||
+                segName === activeTab ||
+                (activeSegment &&
+                  (segId === activeSegment.id ||
+                    segName === activeSegment.name))
+              );
+            });
+
+            // 如果找到了匹配的 segment，只保留这一个
+            if (matchedSegment) {
+              const filteredRunResult = {
+                ...runResult,
+                segments: [matchedSegment],
+              };
+
+              // 更新 localStorage 中的 run_result
+              localStorage.setItem(
+                "run_result_publish",
+                JSON.stringify(filteredRunResult)
+              );
+              console.log(
+                "已过滤 run_result，只保留 segmentId:",
+                matchedSegment.segmentId || matchedSegment.id
+              );
+            } else {
+              console.warn(
+                "未找到匹配的 segment，activeTab:",
+                activeTab,
+                "可用 segments:",
+                runResult.segments.map((s: any) => s.segmentId || s.id)
+              );
+            }
+          }
+        }
+      } catch (e) {
+        console.error("过滤 run_result 时出错:", e);
+      }
+    }
+
     try {
       localStorage.setItem(
         "selectedProblems",
@@ -1144,7 +1199,7 @@ export function ValueQuestionsSection({
                         >
                           <AnalysisCard
                             analysis={analysis}
-                            onClick={() => onAnalysisClick(analysis)}
+                            onClick={() => {}}
                           />
                         </motion.div>
                       ))}
@@ -1175,7 +1230,7 @@ export function ValueQuestionsSection({
                         <CompactAnalysisCard
                           key={`${analysis.id}-${refreshKey}`}
                           analysis={analysis}
-                          onClick={() => onAnalysisClick(analysis)}
+                          onClick={() => {}}
                         />
                       ))}
                     </motion.div>
