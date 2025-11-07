@@ -184,6 +184,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
           handleSubscribe()
         },
         variant: "default",
+        className: "bg-white text-black hover:bg-white/90",
       },
     } satisfies Plan,
   ]

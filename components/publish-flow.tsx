@@ -30,6 +30,7 @@ export function PublishFlow() {
   const [isPublished, setIsPublished] = useState(false);
   const [featureCount, setFeatureCount] = useState(0);
   const [currentAppUrl, setCurrentAppUrl] = useState("");
+  const [appDataFromDb, setAppDataFromDb] = useState<any | null>(null);
   const [metadataFromService, setMetadataFromService] = useState<any | null>(
     null
   );
@@ -51,106 +52,65 @@ export function PublishFlow() {
     }
   }, []);
 
-  const buildMetadataPayload = useCallback(() => {
-    const taskId =
-      (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
-    let segmentsPayload: any[] = [];
+  const fetchAppFromDatabase = useCallback(async () => {
+    if (!appId) return;
     try {
-      const marketsRaw = localStorage.getItem("marketsData");
-      if (marketsRaw) {
-        const markets = JSON.parse(marketsRaw);
-        if (Array.isArray(markets)) {
-          segmentsPayload = markets.map((seg: any) => ({
-            name: seg.name || seg.title,
-            analysis: seg.analysis || undefined,
-            valueQuestions: seg.valueQuestions || undefined,
-          }));
-        }
-      }
-    } catch {}
-
-    let runResult: any = {};
-    try {
-      runResult = JSON.parse(localStorage.getItem("run_result") || "{}");
-    } catch {}
-
-    return {
-      run_result: runResult,
-      domain: { primaryDomain: "Hospitality Management" },
-      ingest: { schemaHash: "sha256-3c7459f15975eae5" },
-      run_id: "r_1",
-      status: "complete",
-      task_id: taskId,
-      segments: segmentsPayload,
-    };
-  }, []);
-
-  const fetchMetadataFromService = useCallback(
-    async (signal?: AbortSignal) => {
-      const metadataPayload = buildMetadataPayload();
-      const response = await fetch(
-        "https://business-insight.datail.ai/api/v1/apps/metadata",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(metadataPayload),
-          cache: "no-store",
-          signal,
-        }
-      );
-      const text = await response.text();
-      let parsed: any = text;
-      try {
-        parsed = JSON.parse(text);
-      } catch {}
+      const response = await fetch(`/api/apps/${appId}`, { cache: "no-store" });
+      const payload = await response.json();
       if (!response.ok) {
-        const err = new Error(
-          typeof parsed === "string"
-            ? parsed
-            : parsed?.error || `apps/metadata HTTP ${response.status}`
-        );
-        (err as any).meta = parsed;
-        throw err;
+        throw new Error(payload?.error || `HTTP ${response.status}`);
       }
-      return parsed;
-    },
-    [buildMetadataPayload]
-  );
+      return payload?.data || null;
+    } catch (err) {
+      console.warn("从数据库加载应用数据失败:", err);
+      return null;
+    }
+  }, [appId]);
 
   const applyMetadataDefaults = useCallback(
-    (metadata: any) => {
-      if (!metadata || metadataApplied) return;
+    (appData: any) => {
+      if (!appData || metadataApplied) return;
 
-      const chatMeta =
-        metadata?.chatAppMeta ||
-        metadata?.chatappmeta ||
-        metadata?.chat_app_meta ||
-        null;
+      // 从数据库的 app_meta_info 中提取数据
+      const appMetaInfo = appData?.app_meta_info;
+      if (appMetaInfo && typeof appMetaInfo === "object") {
+        const chatMeta =
+          appMetaInfo?.chatAppMeta ||
+          appMetaInfo?.chatappmeta ||
+          appMetaInfo?.chat_app_meta ||
+          null;
 
-      if (chatMeta) {
-        if (typeof chatMeta.name === "string" && chatMeta.name.trim()) {
-          setAppName(chatMeta.name.trim());
-        }
-        if (
-          typeof chatMeta.description === "string" &&
-          chatMeta.description.trim()
-        ) {
-          setDescription(chatMeta.description.trim());
-        }
-        if (typeof chatMeta.domain === "string" && chatMeta.domain.trim()) {
-          setCurrentAppUrl(chatMeta.domain.trim());
-        }
-      } else {
-        if (typeof metadata?.appName === "string" && metadata.appName.trim()) {
-          setAppName(metadata.appName.trim());
-        }
-        if (
-          typeof metadata?.description === "string" &&
-          metadata.description.trim()
-        ) {
-          setDescription(metadata.description.trim());
+        if (chatMeta) {
+          if (typeof chatMeta.name === "string" && chatMeta.name.trim()) {
+            setAppName(chatMeta.name.trim());
+          }
+          if (
+            typeof chatMeta.description === "string" &&
+            chatMeta.description.trim()
+          ) {
+            setDescription(chatMeta.description.trim());
+          }
+          if (typeof chatMeta.domain === "string" && chatMeta.domain.trim()) {
+            setCurrentAppUrl(chatMeta.domain.trim());
+          }
         }
       }
+
+      // 如果 app_meta_info 中没有，则使用数据库中的 name 和 description
+      setAppName((prev) => {
+        if (prev) return prev;
+        if (typeof appData?.name === "string" && appData.name.trim()) {
+          return appData.name.trim();
+        }
+        return prev;
+      });
+      setDescription((prev) => {
+        if (prev) return prev;
+        if (typeof appData?.description === "string" && appData.description.trim()) {
+          return appData.description.trim();
+        }
+        return prev;
+      });
 
       setMetadataApplied(true);
     },
@@ -158,90 +118,40 @@ export function PublishFlow() {
   );
 
   useEffect(() => {
+    if (!appId) return;
     const controller = new AbortController();
-    fetchMetadataFromService(controller.signal)
-      .then((meta) => {
-        setMetadataFromService(meta);
-        applyMetadataDefaults(meta);
+    fetchAppFromDatabase()
+      .then((appData) => {
+        if (appData) {
+          setAppDataFromDb(appData);
+          applyMetadataDefaults(appData);
+        }
       })
       .catch((err) => {
         if ((err as Error).name === "AbortError") return;
-        console.warn("加载 apps/metadata 失败:", err);
+        console.warn("加载应用数据失败:", err);
       });
 
     return () => controller.abort();
-  }, [applyMetadataDefaults, fetchMetadataFromService]);
+  }, [appId, fetchAppFromDatabase, applyMetadataDefaults]);
 
   const handlePublish = async () => {
-    // const stored = localStorage.getItem("currentApp");
-    // if (stored) {
-    //   try {
-    //     const app = JSON.parse(stored);
-    //     app.name = appName;
-    //     app.description = description;
-    //     app.monetization = monetization;
-    //     app.status = "published";
-    //     localStorage.setItem("currentApp", JSON.stringify(app));
-    //   } catch (e) {
-    //     console.log("Failed to update app", e);
-    //   }
-    // }
-
-    // setTimeout(() => {
-    //   setIsPublished(true);
-    // }, 1000);
     try {
-      // 先调用业务元数据接口，获取 app_meta_info
-      let appMetaFromService: any | null = metadataFromService;
-      if (!appMetaFromService) {
-        try {
-          const marketsRaw = localStorage.getItem("marketsData");
-          if (marketsRaw) {
-            const markets = JSON.parse(marketsRaw);
-            if (Array.isArray(markets)) {
-              appMetaFromService = markets.map((seg: any) => ({
-                name: seg.name || seg.title,
-                analysis: seg.analysis || undefined,
-                valueQuestions: seg.valueQuestions || undefined,
-              }));
-            }
-          }
-        } catch {}
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 20000);
-        const metaRes = await fetch(
-          "https://business-insight.datail.ai/api/v1/apps/metadata",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(
-              JSON.parse(localStorage.getItem("run_result_publish") || "{}")
-            ),
-            cache: "no-store",
-            signal: controller.signal,
-          }
-        );
-        clearTimeout(timeout);
-        const metaText = await metaRes.text();
-        try {
-          appMetaFromService = JSON.parse(metaText);
-        } catch {
-          appMetaFromService = { raw: metaText };
-        }
+      // 从数据库读取的 app_meta_info，如果没有则使用空对象
+      let appMetaInfo: any = {};
+      if (appDataFromDb?.app_meta_info && typeof appDataFromDb.app_meta_info === "object") {
+        appMetaInfo = { ...appDataFromDb.app_meta_info };
       }
 
-      if (!appMetaFromService || typeof appMetaFromService !== "object") {
-        appMetaFromService = {};
-      }
+      // 更新 chatMeta 中的 name 和 description
       const chatMeta =
-        appMetaFromService.chatAppMeta ||
-        appMetaFromService.chatappmeta ||
-        appMetaFromService.chat_app_meta ||
+        appMetaInfo.chatAppMeta ||
+        appMetaInfo.chatappmeta ||
+        appMetaInfo.chat_app_meta ||
         {};
       chatMeta.name = appName.trim();
       chatMeta.description = description.trim();
-      appMetaFromService.chatAppMeta = chatMeta;
+      appMetaInfo.chatAppMeta = chatMeta;
 
       const response = await fetch("/api/apps", {
         method: "POST",
@@ -262,7 +172,7 @@ export function PublishFlow() {
           deployment_status: "success",
           published_at: new Date().toISOString(),
           // 不显式传 connection_id，后端将为当前用户选择最近的激活连接
-          app_meta_info: appMetaFromService,
+          app_meta_info: appMetaInfo,
         }),
       });
 

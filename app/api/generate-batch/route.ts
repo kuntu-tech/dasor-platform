@@ -19,6 +19,7 @@ type BatchPayload = {
     name?: string;
     description?: string;
     connection_id?: string;
+    app_meta_info?: any;
   };
 };
 
