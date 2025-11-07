@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSubscriptionStatus } from "@/lib/subscription/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,74 +12,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 查询 dataset_vendors 表
-    const { data, error } = await supabaseAdmin
-      .from("dataset_vendors")
-      .select("subscription_status, subscription_period_end")
-      .eq("user_id", userId)
-      .single();
+    try {
+      const status = await getSubscriptionStatus(userId);
 
-    if (error) {
-      // 如果查询失败（可能是记录不存在），返回未订阅状态
-      if (error.code === "PGRST116") {
+      if (!status) {
         return NextResponse.json({
           hasActiveSubscription: false,
           message: "No subscription found",
         });
       }
+
+      return NextResponse.json(status);
+    } catch (error) {
       console.log("Error checking subscription:", error);
       return NextResponse.json(
         { error: "Failed to check subscription" },
         { status: 500 }
       );
     }
-
-    if (!data) {
-      return NextResponse.json({
-        hasActiveSubscription: false,
-        message: "No subscription found",
-      });
-    }
-
-    // 检查订阅状态和到期时间
-    const now = new Date();
-    let periodEnd: Date | null = null;
-
-    if (data.subscription_period_end) {
-      try {
-        const rawPeriodEnd = data.subscription_period_end.trim();
-        const normalizedPeriodEnd = rawPeriodEnd
-          .replace(" ", "T")
-          .replace(" +", "+");
-
-        periodEnd = new Date(normalizedPeriodEnd);
-
-        // 如果解析失败（返回 Invalid Date），尝试在末尾补充 Z
-        if (isNaN(periodEnd.getTime())) {
-          periodEnd = new Date(`${normalizedPeriodEnd}Z`);
-        }
-
-        // 最终仍解析失败则视为无效
-        if (isNaN(periodEnd.getTime())) {
-          console.log("Invalid date format:", data.subscription_period_end);
-          periodEnd = null;
-        }
-      } catch (e) {
-        console.log("Invalid date format:", data.subscription_period_end, e);
-        periodEnd = null;
-      }
-    }
-
-    const hasActiveSubscription =
-      data.subscription_status === "active" &&
-      periodEnd !== null &&
-      periodEnd.getTime() > now.getTime();
-
-    return NextResponse.json({
-      hasActiveSubscription,
-      subscriptionStatus: data.subscription_status,
-      subscriptionPeriodEnd: data.subscription_period_end,
-    });
   } catch (error) {
     console.log("Error in check-subscription:", error);
     return NextResponse.json(
