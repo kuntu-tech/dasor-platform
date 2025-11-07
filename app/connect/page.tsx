@@ -1,65 +1,65 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
-import { ConnectFlow } from "@/components/connect-flow"
-import { useAuth } from "@/components/AuthProvider"
-import { fetchSubscriptionStatus } from "@/lib/subscription/client"
+import { ConnectFlow } from "@/components/connect-flow";
+import { useAuth } from "@/components/AuthProvider";
+import { fetchSubscriptionStatus } from "@/lib/subscription/client";
 
 export default function ConnectPage() {
-  const router = useRouter()
-  const { user, loading } = useAuth()
-  const [checking, setChecking] = useState(true)
-  const [allowed, setAllowed] = useState(false)
+  const router = useRouter();
+  const { user, loading } = useAuth();
+  const [checking, setChecking] = useState(true);
+  const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
 
     const guard = async () => {
       if (loading) {
-        return
+        return;
       }
 
       if (!user?.id) {
         if (!cancelled) {
-          setChecking(false)
-          setAllowed(false)
+          setChecking(false);
+          setAllowed(false);
         }
-        router.replace("/?auth_required=1")
-        return
+        router.replace("/?auth_required=1");
+        return;
       }
 
       try {
-        setChecking(true)
-        const status = await fetchSubscriptionStatus(user.id)
+        setChecking(true);
+        const status = await fetchSubscriptionStatus(user.id);
 
-        if (cancelled) return
+        if (cancelled) return;
 
         if (status?.hasActiveSubscription) {
-          setAllowed(true)
+          setAllowed(true);
         } else {
-          router.replace("/?subscription_required=1")
+          router.replace("/?subscription_required=1");
         }
       } catch (error) {
-        console.log("Subscription guard failed:", error)
+        console.log("Subscription guard failed:", error);
         if (!cancelled) {
-          router.replace("/?subscription_required=1")
+          router.replace("/?subscription_required=1");
         }
       } finally {
         if (!cancelled) {
-          setChecking(false)
+          setChecking(false);
         }
       }
-    }
+    };
 
-    guard()
+    guard();
 
     return () => {
-      cancelled = true
-    }
-  }, [user, loading, router])
+      cancelled = true;
+    };
+  }, [user, loading, router]);
 
   if (checking) {
     return (
@@ -69,12 +69,12 @@ export default function ConnectPage() {
           <span>Verifying subscription...</span>
         </div>
       </div>
-    )
+    );
   }
 
   if (!allowed) {
-    return null
+    return null;
   }
 
-  return <ConnectFlow />
+  return <ConnectFlow />;
 }
