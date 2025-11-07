@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
 
-import { Button, type ButtonProps } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/AuthProvider";
 import { fetchSubscriptionStatus } from "@/lib/subscription/client";
 
-type NativeButtonProps = ButtonProps & {
+type NativeButtonProps = React.ComponentProps<"button"> & {
   successHref?: string;
   onRequireSubscription?: () => void;
 };
@@ -68,14 +68,8 @@ export function CreateAppButton({
   };
 
   return (
-    <Button
-      {...rest}
-      onClick={handleClick}
-      disabled={disabled || checking}
-    >
+    <Button {...rest} onClick={handleClick} disabled={disabled || checking}>
       {children}
     </Button>
   );
 }
-
-

@@ -61,7 +61,6 @@ const templates = [
 const DEFAULT_ANCHOR_INDEX =
   '[{"table":"calendar","columns":["listing_id","date","available","price","adjusted_price","minimum_nights","maximum_nights"],"index":0},{"table":"listings","columns":["id","name","host_id","host_name","neighbourhood_group","neighbourhood","latitude","longitude","room_type","price","minimum_nights","number_of_reviews","last_review","reviews_per_month","calculated_host_listings_count","availability_365","number_of_reviews_ltm","license"],"index":1},{"table":"listingsdetails","columns":["id","listing_url","scrape_id","last_scraped","source","name","description","neighborhood_overview","picture_url","host_id","host_url","host_name","host_since","host_location","host_about","host_response_time","host_response_rate","host_acceptance_rate","host_is_superhost","host_thumbnail_url","host_picture_url","host_neighbourhood","host_listings_count","host_total_listings_count","host_verifications","host_has_profile_pic","host_identity_verified","neighbourhood","neighbourhood_cleansed","neighbourhood_group_cleansed","latitude","longitude","property_type","room_type","accommodates","bathrooms","bathrooms_text","bedrooms","beds","amenities","price","minimum_nights","maximum_nights","minimum_minimum_nights","maximum_minimum_nights","minimum_maximum_nights","maximum_maximum_nights","minimum_nights_avg_ntm","maximum_nights_avg_ntm","calendar_updated","has_availability","availability_30","availability_60","availability_90","availability_365","calendar_last_scraped","number_of_reviews","number_of_reviews_ltm","number_of_reviews_l30d","availability_eoy","number_of_reviews_ly","estimated_occupancy_l365d","estimated_revenue_l365d","first_review","last_review","review_scores_rating","review_scores_accuracy","review_scores_cleanliness","review_scores_checkin","review_scores_communication","review_scores_location","review_scores_value","license","instant_bookable","calculated_host_listings_count","calculated_host_listings_count_entire_homes","calculated_host_listings_count_private_rooms","calculated_host_listings_count_shared_rooms","reviews_per_month"],"index":2},{"table":"neighbourhoods","columns":["neighbourhood_group","neighbourhood"],"index":3},{"table":"reviews","columns":["listing_id","date"],"index":4},{"table":"reviewsdetails","columns":["listing_id","id","date","reviewer_id","reviewer_name","comments"],"index":5}]';
 
-
 export function GenerateFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -209,68 +208,78 @@ export function GenerateFlow() {
     [buildMetadataPayload]
   );
 
-  const updateQuestionStatuses = useCallback((statusPayload: BatchJobStatus | null) => {
-    setAllQuestions((prev) => {
-      if (!prev.length) {
-        return prev;
-      }
+  const updateQuestionStatuses = useCallback(
+    (statusPayload: BatchJobStatus | null) => {
+      setAllQuestions((prev) => {
+        if (!prev.length) {
+          return prev;
+        }
 
-      if (!statusPayload) {
-        return prev.map((item) => ({ ...item, status: "pending" }));
-      }
+        if (!statusPayload) {
+          return prev.map((item) => ({ ...item, status: "pending" }));
+        }
 
-      if (statusPayload.status === "succeeded") {
-        return prev.map((item) => ({ ...item, status: "done" }));
-      }
+        if (statusPayload.status === "succeeded") {
+          return prev.map((item) => ({ ...item, status: "done" }));
+        }
 
-      const total = prev.length;
-      const rawIndex =
-        typeof statusPayload.currentQueryIndex === "number"
-          ? statusPayload.currentQueryIndex
-          : null;
-      const assumedOneBased =
-        rawIndex !== null && rawIndex > 0 ? rawIndex - 1 : rawIndex ?? 0;
-      const normalizedIndex =
-        rawIndex === null
-          ? null
-          : Math.min(total - 1, Math.max(0, assumedOneBased));
-      const completedCount = Math.max(
-        0,
-        Math.min(total, statusPayload.status === "failed" ? assumedOneBased : assumedOneBased)
-      );
+        const total = prev.length;
+        const rawIndex =
+          typeof statusPayload.currentQueryIndex === "number"
+            ? statusPayload.currentQueryIndex
+            : null;
+        const assumedOneBased =
+          rawIndex !== null && rawIndex > 0 ? rawIndex - 1 : rawIndex ?? 0;
+        const normalizedIndex =
+          rawIndex === null
+            ? null
+            : Math.min(total - 1, Math.max(0, assumedOneBased));
+        const completedCount = Math.max(
+          0,
+          Math.min(
+            total,
+            statusPayload.status === "failed"
+              ? assumedOneBased
+              : assumedOneBased
+          )
+        );
 
-      return prev.map((item, index) => {
-        if (statusPayload.status === "failed") {
+        return prev.map((item, index) => {
+          if (statusPayload.status === "failed") {
+            if (index < completedCount) {
+              return { ...item, status: "done" };
+            }
+            return { ...item, status: "pending" };
+          }
+
           if (index < completedCount) {
             return { ...item, status: "done" };
           }
+
+          if (
+            normalizedIndex !== null &&
+            index === normalizedIndex &&
+            (statusPayload.status === "generating" ||
+              statusPayload.status === "pending")
+          ) {
+            return { ...item, status: "generating" };
+          }
+
+          if (
+            normalizedIndex === null &&
+            index === 0 &&
+            (statusPayload.status === "pending" ||
+              statusPayload.status === "generating")
+          ) {
+            return { ...item, status: "generating" };
+          }
+
           return { ...item, status: "pending" };
-        }
-
-        if (index < completedCount) {
-          return { ...item, status: "done" };
-        }
-
-        if (
-          normalizedIndex !== null &&
-          index === normalizedIndex &&
-          (statusPayload.status === "generating" || statusPayload.status === "pending")
-        ) {
-          return { ...item, status: "generating" };
-        }
-
-        if (
-          normalizedIndex === null &&
-          index === 0 &&
-          (statusPayload.status === "pending" || statusPayload.status === "generating")
-        ) {
-          return { ...item, status: "generating" };
-        }
-
-        return { ...item, status: "pending" };
+        });
       });
-    });
-  }, []);
+    },
+    []
+  );
 
   const hydrateAppRecord = useCallback(async (appId: string) => {
     if (!appId) return;
@@ -346,7 +355,9 @@ export function GenerateFlow() {
 
         if (payload?.status === "failed") {
           setJobState("failed");
-          setErrorMessage(payload?.error || payload?.message || "生成失败，请重试");
+          setErrorMessage(
+            payload?.error || payload?.message || "生成失败，请重试"
+          );
           return;
         }
 
@@ -365,7 +376,12 @@ export function GenerateFlow() {
         }
       }
     },
-    [POLL_INTERVAL_MS, clearStatusTimer, hydrateAppRecord, updateQuestionStatuses]
+    [
+      POLL_INTERVAL_MS,
+      clearStatusTimer,
+      hydrateAppRecord,
+      updateQuestionStatuses,
+    ]
   );
 
   useEffect(() => {
@@ -421,9 +437,9 @@ export function GenerateFlow() {
     // 提前声明供两个阶段复用的变量
     let extractedQueries: any[] = [];
     const currentProblems =
-        problemsOverride && problemsOverride.length > 0
-          ? problemsOverride
-          : selectedProblems;
+      problemsOverride && problemsOverride.length > 0
+        ? problemsOverride
+        : selectedProblems;
 
     let anchIndexNum: any = null;
     const selectedQuestionsWithSql = localStorage.getItem(
@@ -468,8 +484,7 @@ export function GenerateFlow() {
       const appDescription =
         (typeof chatMeta.description === "string" && chatMeta.description.trim()
           ? chatMeta.description.trim()
-          : null) ||
-        "Batch generated app";
+          : null) || "Batch generated app";
 
       // 更新 chatMeta 以确保包含最新的 name 和 description
       chatMeta.name = appName;
@@ -528,7 +543,8 @@ export function GenerateFlow() {
             ? data.totalQueries
             : extractedQueries.length,
         message:
-          data?.message || "Batch generation task submitted, please check the progress later",
+          data?.message ||
+          "Batch generation task submitted, please check the progress later",
       };
 
       setBatchStatus(initialStatus);
@@ -538,14 +554,17 @@ export function GenerateFlow() {
     } catch (err) {
       console.log("Error generating batch", err);
       setJobState("failed");
-      setErrorMessage(err instanceof Error ? err.message : "Batch generation failed, please try again");
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : "Batch generation failed, please try again"
+      );
     } finally {
       inFlightRef.current = false;
     }
   };
 
-    const startGeneration = (problems: SelectedProblem[]) => {
-
+  const startGeneration = (problems: SelectedProblem[]) => {
     // Auto-assign default templates based on problem type
     const defaultTemplateMapping: Record<string, string> = {
       "Order Management": "query",

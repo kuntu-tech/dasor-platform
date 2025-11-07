@@ -280,7 +280,6 @@ export default function DashboardPage() {
         <section className="py-16 md:py-24 mb-12 flex items-center justify-center bg-black">
           <div className="flex flex-col items-center justify-center space-y-4">
             <CreateAppButton
-              size="lg"
               onRequireSubscription={() => setIsPricingOpen(true)}
               className="h-12 px-6 text-base rounded-lg bg-transparent text-white hover:bg-white hover:text-black hover:backdrop-blur-sm hover:border-transparent border border-transparent transition-all duration-300"
             >
@@ -357,6 +356,10 @@ export default function DashboardPage() {
                   onClick={() => {
                     if (app.status === "generating") {
                       router.push(`/generate?appId=${app.id}`);
+                    } else if (app.status === "published") {
+                      // 提取并保存 queries 到 localStorage
+                      extractAndSaveQueries(app);
+                      router.push(`/app/${app.id}/versions`);
                     } else {
                       // 提取并保存 queries 到 localStorage
                       extractAndSaveQueries(app);
@@ -422,7 +425,11 @@ export default function DashboardPage() {
                           onClick={(e) => {
                             e.stopPropagation();
                             extractAndSaveQueries(app);
-                            router.push(`/preview?id=${app.id}`);
+                            if (app.status === "published") {
+                              router.push(`/app/${app.id}/versions`);
+                            } else {
+                              router.push(`/preview?id=${app.id}`);
+                            }
                           }}
                         >
                           <Info className="size-4 text-blue-600" />
@@ -523,6 +530,9 @@ export default function DashboardPage() {
                       onClick={() => {
                         if (app.status === "generating") {
                           router.push(`/generate?appId=${app.id}`);
+                        } else if (app.status === "published") {
+                          extractAndSaveQueries(app);
+                          router.push(`/app/${app.id}/versions`);
                         } else {
                           extractAndSaveQueries(app);
                           router.push(`/preview?id=${app.id}`);
@@ -613,7 +623,11 @@ export default function DashboardPage() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 extractAndSaveQueries(app);
-                                router.push(`/preview?id=${app.id}`);
+                                if (app.status === "published") {
+                                  router.push(`/app/${app.id}/versions`);
+                                } else {
+                                  router.push(`/preview?id=${app.id}`);
+                                }
                               }}
                             >
                               <Info className="size-4 text-blue-600" />
