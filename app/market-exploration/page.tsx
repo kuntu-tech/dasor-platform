@@ -426,7 +426,8 @@ export default function MarketExplorationPage({
       // 第一步：调用 feedback-mrf/process 接口 (0% -> 30%)
       setGenerationProgress(10);
       const response = await fetch(
-        "http://192.168.30.159:8900/api/v1/feedback-mrf/process",
+        // "http://192.168.30.159:8900/api/v1/feedback-mrf/process",
+        "https://business-insight.datail.ai/api/v1/feedback-mrf/process",
         {
           method: "POST",
           headers: {
@@ -457,7 +458,8 @@ export default function MarketExplorationPage({
       const timeout = setTimeout(() => controller.abort(), 600_000); // 10分钟超时
 
       const standalRes = await fetch(
-        "http://192.168.30.159:8900/api/v1/standal_sql",
+        "https://business-insight.datail.ai/api/v1/standal_sql",
+        // "http://192.168.30.159:8900/api/v1/standal_sql",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -1056,7 +1056,8 @@ export function ConnectFlow() {
       // );
       // 连接方式三
       const connectResponse = await fetch(
-        "http://192.168.30.159:8900/api/v1/pipeline/run",
+        "https://business-insight.datail.ai/api/v1/pipeline/run",
+        // "http://192.168.30.159:8900/api/v1/pipeline/run",
         // "https://business-insight.datail.ai/api/v1/pipeline/run",
         // "https://business-insighter.onrender.com/api/v1/run-analysis",
         {
@@ -1148,8 +1149,8 @@ export function ConnectFlow() {
 
         setProgress(95); // standal_sql 调用中，进度到 95%
         const standalRes = await fetch(
-          "http://192.168.30.159:8900/api/v1/standal_sql",
-          // "https://business-insight.datail.ai/api/v1/standal_sql",
+          // "http://192.168.30.159:8900/api/v1/standal_sql",
+          "https://business-insight.datail.ai/api/v1/standal_sql",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
