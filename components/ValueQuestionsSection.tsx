@@ -1392,7 +1392,7 @@ export function ValueQuestionsSection({
                   )
                 ) : (
                   <div className="text-center py-8 text-gray-500">
-                    <p>暂无问题数据</p>
+                    <p>No value questions data</p>
                   </div>
                 )}
               </div>
