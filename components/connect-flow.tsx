@@ -947,13 +947,15 @@ export function ConnectFlow() {
         console.warn("save data_connections failed", e);
       }
 
-      // 进入数据验证步骤
-      setAnalysisStep("validating-data");
-      setProgress(10); // 连接成功，进度 10%
+      // 第一步：Database Connection 已完成，进度 10%
+      setProgress(10);
 
-      // 第一步：数据验证
-      console.log("Step 1: Validating data...");
-      setProgress(15); // 数据验证中，进度 15%
+      // 第二步和第三步：执行数据验证接口
+      // UI第2步：Read Data Table Structure (reading-schema) - 进度 0-20%
+      // UI第3步：Data Availability Validation (validating-data) - 进度 20-40%
+      console.log("Step 2-3: Validating data...");
+      setAnalysisStep("reading-schema"); // UI第2步开始
+      setProgress(15); // 开始数据验证，进度 15%
       // const validateResponse = await fetch(
       //   "https://my-connector.onrender.com/review",
       //   {
@@ -986,33 +988,47 @@ export function ConnectFlow() {
 
       if (!validateResponse.ok) {
         const errorData = await validateResponse.json();
-        throw new Error(
+        const errorMsg =
           errorData.error ||
-            `Data validation failed: ${validateResponse.status}`
-        );
+          `Data validation failed: ${validateResponse.status}`;
+        setDataValidationError(errorMsg);
+        setAnalysisStep("validating-data"); // 显示在UI第3步
+        setStep("analyzing");
+        setIsAnalyzing(false);
+        return;
       }
 
       const validateData = await validateResponse.json();
       console.log("Data validation successful:", validateData);
+
+      // 数据验证进行到一半，切换到UI第3步
+      setAnalysisStep("validating-data"); // UI第3步
+      setProgress(30); // 数据验证进行中，进度 30%
+
       if (validateData.validation_report.summary.status == "unusable") {
         setDataValidationError(
           validateData.validation_report.summary.note ||
             "Data validation failed"
         );
+        setAnalysisStep("validating-data"); // 显示在UI第3步
+        setStep("analyzing");
+        setIsAnalyzing(false);
         return;
       }
+
+      // 数据验证完成，进度到 40%
+      setProgress(40);
       runData = {
         user_id: user?.id || validateData.user_id,
         trace_id: validateData.trace_id,
         connection_id: connectionId || validateData.connection_id,
         data_structure: validateData.data_structure,
       };
-      // 第二步：连接数据库
-      console.log("Step 2: Connecting to database...");
 
-      // 数据验证成功，继续后续步骤
-      setAnalysisStep("reading-schema");
-      setProgress(20); // 数据验证成功，进度 20%
+      // 第四步：执行 pipeline/run 和轮询
+      console.log("Step 4: Running pipeline...");
+      setAnalysisStep("sampling-data"); // UI第4步
+      setProgress(45); // 开始 pipeline/run，进度 45%
 
       // 连接方式一
       // const connectResponse = await fetch("/api/connect", {
@@ -1079,7 +1095,7 @@ export function ConnectFlow() {
           errorMsg = errorText?.slice(0, 200) || errorMsg;
         }
         setRunError(errorMsg);
-        setAnalysisStep("reading-schema"); // 设置为 reading-schema 步骤，表示在该步骤失败
+        setAnalysisStep("sampling-data"); // 设置为 sampling-data 步骤，表示在该步骤失败
         setStep("analyzing");
         setIsAnalyzing(false);
         return;
@@ -1089,31 +1105,17 @@ export function ConnectFlow() {
       console.log("Pipeline run successful, job_id:", connectData.job_id);
 
       // 进入轮询阶段，根据进度更新 analysisStep
-      // 进度分配：轮询阶段占 0-85%，standal_sql 占 85-100%
+      // 进度分配：轮询阶段占 40-80%，standal_sql 占 80-100%
       setJobStatus("waiting");
       const pollingResult = await pollJobProgress(
         connectData.job_id,
         (progress, status, data) => {
           if (progress !== null) {
-            // 根据进度自动更新 analysisStep，并将轮询进度映射到 20-85% 范围
-            // 轮询进度 0-20% 映射到 20-60% (reading-schema)
-            // 轮询进度 20-40% 映射到 60-75% (sampling-data)
-            // 轮询进度 40-100% 映射到 75-85% (evaluating 轮询部分)
-            if (progress >= 0 && progress < 20) {
-              setAnalysisStep("reading-schema");
-              const mappedProgress = 20 + Math.floor((progress / 20) * 40); // 20-60%
-              setProgress(mappedProgress);
-            } else if (progress >= 20 && progress < 40) {
-              setAnalysisStep("sampling-data");
-              const mappedProgress =
-                60 + Math.floor(((progress - 20) / 20) * 15); // 60-75%
-              setProgress(mappedProgress);
-            } else if (progress >= 40 && progress < 100) {
-              setAnalysisStep("evaluating");
-              const mappedProgress =
-                75 + Math.floor(((progress - 40) / 60) * 10); // 75-85%
-              setProgress(mappedProgress);
-            }
+            // 根据进度自动更新 analysisStep，并将轮询进度映射到 40-80% 范围
+            // 轮询进度 0-100% 映射到 45-80% (sampling-data)
+            const mappedProgress = 45 + Math.floor((progress / 100) * 35); // 45-80%
+            setProgress(mappedProgress);
+            // 保持在 sampling-data 步骤（UI第4步）
           }
           if (status) setJobStatus(status);
         },
@@ -1122,8 +1124,7 @@ export function ConnectFlow() {
       );
       if (pollingResult.status === "completed") {
         setJobStatus("done");
-        setAnalysisStep("evaluating"); // 保持在 evaluating 步骤
-        setProgress(85); // 轮询完成，进度到 85%
+        setProgress(80); // 轮询完成，进度到 80%
         console.log("pollingResult:", pollingResult);
       } else {
         setJobStatus(pollingResult.status || "error");
@@ -1134,9 +1135,10 @@ export function ConnectFlow() {
       }
 
       // 第五步：evaluating - 调用 standal_sql 接口
-      // 在调用 standal_sql 期间，进度从 85% 到 100%
+      // 在调用 standal_sql 期间，进度从 80% 到 100%
       console.log("Step 5: Evaluating - calling standal_sql...");
-      setProgress(90); // 开始调用 standal_sql，进度到 90%
+      setAnalysisStep("evaluating"); // UI第5步
+      setProgress(85); // 开始调用 standal_sql，进度到 85%
       let standalJson: any = {};
       try {
         const run_results = pollingResult?.run_results;
@@ -1147,7 +1149,7 @@ export function ConnectFlow() {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 600_000); // 10分钟超时
 
-        setProgress(95); // standal_sql 调用中，进度到 95%
+        setProgress(90); // standal_sql 调用中，进度到 90%
         const standalRes = await fetch(
           // "http://192.168.30.159:8900/api/v1/standal_sql",
           "https://business-insight.datail.ai/api/v1/standal_sql",
@@ -1243,13 +1245,30 @@ export function ConnectFlow() {
         error instanceof Error ? error.message : "Unknown error";
 
       // 根据错误发生的位置直接设置错误类型
-      // 如果是在 run-analysis 接口调用失败，设置连接错误
-      setRunError(errorMessage);
-      setDataValidationError(null); // 清除数据验证错误
+      // 判断错误发生在哪个步骤
+      if (
+        analysisStep === "reading-schema" ||
+        analysisStep === "validating-data"
+      ) {
+        // 数据验证步骤失败
+        setDataValidationError(errorMessage);
+        setRunError(null);
+      } else if (analysisStep === "sampling-data") {
+        // pipeline/run 步骤失败
+        setRunError(errorMessage);
+        setDataValidationError(null);
+      } else if (analysisStep === "evaluating") {
+        // standal_sql 步骤失败
+        setRunError(errorMessage);
+        setDataValidationError(null);
+      } else {
+        // 其他错误
+        setRunError(errorMessage);
+        setDataValidationError(null);
+      }
 
       // 停留在 analyzing step 显示错误状态
       setStep("analyzing");
-      setAnalysisStep("reading-schema");
       setIsAnalyzing(false);
     }
   };
@@ -1318,13 +1337,14 @@ export function ConnectFlow() {
   };
 
   const getStepStatus = (stepName: AnalysisStep) => {
-    // 步骤执行顺序：connecting -> validating-data -> reading-schema -> sampling-data -> evaluating -> complete
+    // 接口执行顺序：connecting -> validating-data (UI第2、3步) -> pipeline/run (UI第4步) -> standal_sql (UI第5步)
+    // UI显示顺序：connecting -> reading-schema (第2步) -> validating-data (第3步) -> sampling-data (第4步) -> evaluating (第5步)
     const steps: AnalysisStep[] = [
       "connecting",
-      "validating-data",
-      "reading-schema",
-      "sampling-data",
-      "evaluating",
+      "reading-schema", // UI显示第2步，执行 validating-data 接口
+      "validating-data", // UI显示第3步，继续执行 validating-data 接口
+      "sampling-data", // UI显示第4步，执行 pipeline/run 和轮询
+      "evaluating", // UI显示第5步，执行 standal_sql
       "complete",
     ];
     const currentIndex = steps.indexOf(analysisStep);
@@ -1365,13 +1385,25 @@ export function ConnectFlow() {
       }
     }
 
+    // 如果有 runError（reading-schema 失败），后续步骤应该显示等待状态
+    if (runError) {
+      if (stepName === "reading-schema") {
+        return "error";
+      }
+      // reading-schema 失败后，validating-data 及后续步骤都应该是等待状态
+      const readingSchemaIndex = steps.indexOf("reading-schema");
+      if (stepIndex > readingSchemaIndex) {
+        return "waiting";
+      }
+    }
+
     // 如果有数据验证错误，且当前步骤是 validating-data
     if (dataValidationError && stepName === "validating-data") {
       return "error";
     }
 
-    // 特殊处理：当 analysisStep 是 "connecting" 时，validating-data 应该显示等待状态
-    // 因为 validating-data 是在 connecting 过程中完成的，只有当 connecting 完成后才标记为 completed
+    // 特殊处理：当 analysisStep 是 "connecting" 时，reading-schema 和 validating-data 应该显示等待状态
+    // 因为接口调用顺序是：validating-data -> reading-schema，但UI显示顺序是：reading-schema -> validating-data
     // if (analysisStep === "connecting") {
     //   if (stepName === "validating-data") {
     //     // 如果连接正在进行中，数据验证可能正在进行或已完成
@@ -1387,6 +1419,32 @@ export function ConnectFlow() {
     // }
 
     // 正常流程：根据当前步骤位置判断
+    // 接口执行顺序：validating-data (UI第2、3步) -> pipeline/run (UI第4步) -> standal_sql (UI第5步)
+    // UI显示顺序：reading-schema (第2步) -> validating-data (第3步) -> sampling-data (第4步) -> evaluating (第5步)
+
+    // 如果当前步骤是 reading-schema，说明正在执行 validating-data 接口（UI第2步）
+    // 此时 reading-schema（UI第2步）应该显示进行中，validating-data（UI第3步）应该显示等待
+    if (analysisStep === "reading-schema") {
+      if (stepName === "reading-schema") {
+        return "in-progress"; // UI第2步，正在执行 validating-data 接口
+      }
+      if (stepName === "validating-data") {
+        return "waiting"; // UI第3步，等待 validating-data 接口完成
+      }
+    }
+
+    // 如果当前步骤是 validating-data，说明正在执行 validating-data 接口（UI第3步）
+    // 此时 reading-schema（UI第2步）应该显示已完成，validating-data（UI第3步）应该显示进行中
+    if (analysisStep === "validating-data") {
+      if (stepName === "reading-schema") {
+        return "completed"; // UI第2步已完成
+      }
+      if (stepName === "validating-data") {
+        return "in-progress"; // UI第3步，正在执行 validating-data 接口
+      }
+    }
+
+    // 其他情况按正常流程判断
     if (stepIndex < currentIndex) return "completed";
     if (stepIndex === currentIndex) return "in-progress";
     return "waiting";
@@ -1629,9 +1687,9 @@ export function ConnectFlow() {
               Analyzing Your Database
             </h1>
             <Card className="max-w-2xl mx-auto w-full">
-              <CardHeader>
+              {/* <CardHeader>
                 <CardTitle>Analyzing Your Database</CardTitle>
-              </CardHeader>
+              </CardHeader> */}
               <CardContent className="space-y-6 py-8">
                 {/* Database Connection */}
                 <div className="flex items-start gap-4">
@@ -1757,74 +1815,51 @@ export function ConnectFlow() {
                     </div>
                   </div>
                 )}
-                {/* Data Availability Validation */}
-                <div className="flex items-start gap-4">
-                  <div className="mt-1">
-                    {dataValidationError ? (
-                      <XCircle className="size-6 text-red-600" />
-                    ) : connectionError ? (
-                      // 如果连接失败，第二步应该显示等待状态（灰色时钟），而不是已完成
-                      <Clock className="size-6 text-muted-foreground" />
-                    ) : getStepStatus("validating-data") === "completed" ? (
-                      <CheckCircle2 className="size-6 text-green-600" />
-                    ) : getStepStatus("validating-data") === "in-progress" ? (
-                      <Loader2 className="size-6 text-primary animate-spin" />
-                    ) : (
-                      <Clock className="size-6 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium">
-                        Data Availability Validation
-                      </span>
+                {/* Read Data Table Structure (metadata) - Step 2 (UI显示顺序) */}
+                {/* 如果第一步失败，不显示第二步 */}
+                {!connectionError && (
+                  <div className="flex items-start gap-4">
+                    <div className="mt-1">
+                      {runError ? (
+                        <XCircle className="size-6 text-red-600" />
+                      ) : getStepStatus("reading-schema") === "completed" ? (
+                        <CheckCircle2 className="size-6 text-green-600" />
+                      ) : getStepStatus("reading-schema") === "in-progress" ? (
+                        <Loader2 className="size-6 text-primary animate-spin" />
+                      ) : (
+                        <Clock className="size-6 text-muted-foreground" />
+                      )}
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {dataValidationError
-                        ? "Data validation failed, please check data availability"
-                        : connectionError
-                        ? "Waiting for database connection..."
-                        : "Check data integrity and accessibility"}
-                    </p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium">
+                          Read Data Table Structure
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {runError
+                          ? "Failed to read database schema"
+                          : "Analyze table structure, field types and relationships"}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* 如果数据真实性验证失败，显示错误信息和建议 */}
-                {dataValidationError && (
+                {/* 如果第三步失败，显示错误信息 */}
+                {runError && (
                   <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
                     <div className="flex items-start gap-3">
                       <XCircle className="size-6 text-red-600 mt-0.5 shrink-0" />
                       <div className="space-y-3">
-                        {/* <h4 className="font-bold text-red-900 text-lg">
-                          🚨 Data Authenticity Validation Failed
-                        </h4>
-                        <p className="text-red-800 font-medium">
-                          {dataValidationError}
-                        </p>
-                        <div className="bg-red-100 border border-red-200 rounded-lg p-4">
-                          <p className="font-semibold text-red-900 mb-2">
-                            🔍 Data Problem Diagnosis:
-                          </p>
-                        </div>
-                        <div className="bg-red-200 border border-red-300 rounded-lg p-4">
-                          <p className="font-semibold text-red-900 mb-2">
-                            💡 Suggested Solutions:
-                          </p>
-                        </div> */}
                         <h4 className="font-bold text-red-900 text-lg">
-                          {dataValidationError}
+                          {runError}
                         </h4>
                         <div className="flex gap-3">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              // setConnectionUrl("");
-                              // setAccessToken("");
-                              // setConnectionError(null);
-                              // setDataValidationError(null);
-                              // setHasValidated(false); // Reset validation status
-                              setIsAnalyzing(false);
+                              setRunError(null);
                               setStep("connect");
                               setConnectionError(null);
                               setDataValidationError(null);
@@ -1841,52 +1876,59 @@ export function ConnectFlow() {
                   </div>
                 )}
 
+                {/* Data Availability Validation - Step 3 (UI显示顺序) */}
+                {/* 如果第一步失败，不显示第三步 */}
+                {!connectionError && (
+                  <div className="flex items-start gap-4">
+                    <div className="mt-1">
+                      {dataValidationError ? (
+                        <XCircle className="size-6 text-red-600" />
+                      ) : runError ? (
+                        // 如果 reading-schema 失败，validating-data 应该显示等待状态
+                        <Clock className="size-6 text-muted-foreground" />
+                      ) : getStepStatus("validating-data") === "completed" ? (
+                        <CheckCircle2 className="size-6 text-green-600" />
+                      ) : getStepStatus("validating-data") === "in-progress" ? (
+                        <Loader2 className="size-6 text-primary animate-spin" />
+                      ) : (
+                        <Clock className="size-6 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium">
+                          Data Availability Validation
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {dataValidationError
+                          ? "Data validation failed, please check data availability"
+                          : runError
+                          ? "Waiting for schema reading..."
+                          : "Check data integrity and accessibility"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Only show subsequent steps if both connection and data validation are successful */}
                 {!connectionError && !dataValidationError && (
                   <>
-                    {/* Read Data Table Structure (metadata) - Step 3 */}
-                    <div className="flex items-start gap-4">
-                      <div className="mt-1">
-                        {runError ? (
-                          <XCircle className="size-6 text-red-600" />
-                        ) : getStepStatus("reading-schema") === "completed" ? (
-                          <CheckCircle2 className="size-6 text-green-600" />
-                        ) : getStepStatus("reading-schema") ===
-                          "in-progress" ? (
-                          <Loader2 className="size-6 text-primary animate-spin" />
-                        ) : (
-                          <Clock className="size-6 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium">
-                            Read Data Table Structure (metadata)
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {runError
-                            ? "Failed to read database schema"
-                            : "Analyze table structure, field types and relationships"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* 如果第三步失败，显示错误信息 */}
-                    {runError && (
+                    {/* 如果数据真实性验证失败，显示错误信息和建议 */}
+                    {dataValidationError && (
                       <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
                         <div className="flex items-start gap-3">
                           <XCircle className="size-6 text-red-600 mt-0.5 shrink-0" />
                           <div className="space-y-3">
                             <h4 className="font-bold text-red-900 text-lg">
-                              {runError}
+                              {dataValidationError}
                             </h4>
                             <div className="flex gap-3">
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
-                                  setRunError(null);
+                                  setIsAnalyzing(false);
                                   setStep("connect");
                                   setConnectionError(null);
                                   setDataValidationError(null);
@@ -1952,7 +1994,7 @@ export function ConnectFlow() {
                                 Evaluate Business Value and Generate
                                 Recommendations
                               </span>
-                              {getStepStatus("evaluating") === "completed" && (
+                              {/* {getStepStatus("evaluating") === "completed" && (
                                 <span className="text-xs text-green-600 font-medium">
                                   [✓]
                                 </span>
@@ -1967,7 +2009,7 @@ export function ConnectFlow() {
                                 <span className="text-xs text-muted-foreground font-medium">
                                   [Waiting...]
                                 </span>
-                              )}
+                              )} */}
                             </div>
                             <p className="text-sm text-muted-foreground">
                               AI analyzes data value and recommends best
