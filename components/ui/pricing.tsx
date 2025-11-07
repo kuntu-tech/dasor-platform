@@ -36,6 +36,7 @@ export interface Plan {
     variant?: React.ComponentProps<typeof Button>["variant"]
     disabled?: boolean
     loadingText?: string
+    className?: string
   }
 }
 
@@ -209,7 +210,7 @@ export function PricingCard({
       <div className="w-full border-t border-white/5 p-4">
         {useLink ? (
           <Button
-            className="w-full"
+            className={cn("w-full", plan.btn.className)}
             variant={plan.btn.variant ?? "outline"}
             asChild
             disabled={plan.btn.disabled}
@@ -220,7 +221,7 @@ export function PricingCard({
           </Button>
         ) : (
           <Button
-            className="w-full"
+            className={cn("w-full", plan.btn.className)}
             variant={plan.btn.variant ?? "outline"}
             disabled={plan.btn.disabled}
             onClick={plan.btn.onClick}
