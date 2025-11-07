@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,26 +20,16 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/AuthProvider";
 export function PublishFlow() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const appId = searchParams.get("id");
   const { session } = useAuth();
-  const [appName, setAppName] = useState("");
+  const [appName, setAppName] = useState("UrbanStay Insights");
   const [description, setDescription] = useState(
-    ""
+    "UrbanStay Insights provides data-driven analysis for optimizing short-term rental performance in urban markets. It empowers property managers and hospitality marketers with actionable insights to enhance occupancy and revenue."
   );
   const [monetization, setMonetization] = useState("free");
   const [paymentPrice, setPaymentPrice] = useState(0);
   const [isPublished, setIsPublished] = useState(false);
   const [featureCount, setFeatureCount] = useState(0);
-  const [metadataFromService, setMetadataFromService] = useState<any | null>(null);
-  const [currentAppUrl, setCurrentAppUrl] = useState("");
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      setCurrentAppUrl(localStorage.getItem("currentAppUrl") || "");
-    } catch {}
-  }, []);
+  const currentAppUrl = localStorage.getItem("currentAppUrl") || "";
 
   useEffect(() => {
     // setIsPublished(true);
@@ -53,224 +43,6 @@ export function PublishFlow() {
       }
     }
   }, []);
-
-  useEffect(() => {
-    if (!appId) return;
-    const controller = new AbortController();
-
-    const fetchAppDetail = async () => {
-      try {
-        const response = await fetch(`/api/apps/${appId}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload?.error || `HTTP ${response.status}`);
-        }
-        const app = payload?.data;
-        if (typeof app?.feature_count === "number") {
-          setFeatureCount(app.feature_count);
-        } else if (Array.isArray(app?.features)) {
-          setFeatureCount(app.features.length);
-        }
-      } catch (error) {
-        if ((error as Error).name === "AbortError") return;
-        console.warn("Failed to load app detail", error);
-      }
-    };
-
-    fetchAppDetail();
-
-    return () => controller.abort();
-  }, [appId]);
-
-  const buildMetadataRequestBody = useCallback(() => {
-    const taskId =
-      (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
-    let segmentsPayload: any[] = [];
-    try {
-      const marketsRaw = localStorage.getItem("marketsData");
-      if (marketsRaw) {
-        const markets = JSON.parse(marketsRaw);
-        if (Array.isArray(markets)) {
-          segmentsPayload = markets.map((seg: any) => ({
-            name: seg.name || seg.title,
-            analysis: seg.analysis || undefined,
-            valueQuestions: seg.valueQuestions || undefined,
-          }));
-        }
-      }
-    } catch {}
-
-    let runResult: any = {};
-    try {
-      runResult = JSON.parse(localStorage.getItem("run_result") || "{}");
-    } catch {}
-
-    return {
-      run_result: runResult,
-      domain: { primaryDomain: "Hospitality Management" },
-      ingest: { schemaHash: "sha256-3c7459f15975eae5" },
-      run_id: "r_1",
-      status: "complete",
-      task_id: taskId,
-      segments: segmentsPayload,
-    };
-  }, []);
-
-  const fetchMetadataFromService = useCallback(
-    async (signal?: AbortSignal) => {
-      const metadataPayload = buildMetadataRequestBody();
-      const metaRes = await fetch(
-        "https://business-insight.datail.ai/api/v1/apps/metadata",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(metadataPayload),
-          cache: "no-store",
-          signal,
-        }
-      );
-      const metaText = await metaRes.text();
-      let parsed: any = { raw: metaText };
-      try {
-        parsed = JSON.parse(metaText);
-      } catch {}
-      if (!metaRes.ok) {
-        const err = new Error(
-          typeof parsed === "string"
-            ? parsed
-            : parsed?.error || `apps/metadata HTTP ${metaRes.status}`
-        );
-        (err as any).meta = parsed;
-        throw err;
-      }
-      return parsed;
-    },
-    [buildMetadataRequestBody]
-  );
-
-  const applyMetadataDefaults = useCallback((meta: any) => {
-    if (!meta) return;
-    const sources: any[] = [];
-    const collect = (target: any) => {
-      if (target && typeof target === "object") {
-        sources.push(target);
-      }
-    };
-    collect(meta);
-    collect(meta?.chatAppMeta);
-    collect(meta?.chatappmeta);
-    collect(meta?.chat_app_meta);
-    collect(meta?.chatAppMeta?.basic_info);
-    collect(meta?.chatAppMeta?.info);
-    collect(meta?.app_meta_info);
-    collect(meta?.app_meta);
-    collect(meta?.metadata);
-    collect(meta?.appInfo);
-    collect(meta?.app);
-    collect(meta?.info);
-    collect(meta?.data);
-    collect(meta?.app_meta_info?.basic_info);
-
-    const chatAppMeta =
-      meta?.chatAppMeta || meta?.chatappmeta || meta?.chat_app_meta || null;
-
-    if (chatAppMeta) {
-      if (typeof chatAppMeta.name === "string" && chatAppMeta.name.trim()) {
-        setAppName(chatAppMeta.name.trim());
-      }
-      if (
-        typeof chatAppMeta.description === "string" &&
-        chatAppMeta.description.trim()
-      ) {
-        setDescription(chatAppMeta.description.trim());
-      }
-      if (chatAppMeta.name || chatAppMeta.description) {
-        setHasMetadataDefaults(true);
-      }
-    }
-
-    const pickString = (keys: string[]) => {
-      for (const src of sources) {
-        if (!src || typeof src !== "object") continue;
-        for (const key of keys) {
-          const value = src?.[key];
-          if (typeof value === "string" && value.trim()) {
-            return value.trim();
-          }
-        }
-      }
-      return null;
-    };
-
-    const derivedName = pickString([
-      "appName",
-      "app_name",
-      "name",
-      "title",
-      "appTitle",
-      "app_title",
-    ]);
-    const derivedDescription = pickString([
-      "appDescription",
-      "app_description",
-      "description",
-      "desc",
-      "summary",
-      "appSummary",
-    ]);
-    const derivedDomain = pickString([
-      "domain",
-      "appUrl",
-      "url",
-      "app_url",
-      "mcp",
-      "mcp_url",
-      "preview_url",
-    ]);
-
-    let applied = false;
-    if (derivedName) {
-      setAppName(derivedName);
-      applied = true;
-    }
-    if (derivedDescription) {
-      setDescription(derivedDescription);
-      applied = true;
-    }
-    if (derivedDomain) {
-      setCurrentAppUrl(derivedDomain);
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.setItem("currentAppUrl", derivedDomain);
-        } catch {}
-      }
-    }
-    if (applied || derivedDomain) {
-      setHasMetadataDefaults(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const loadMetadataDefaults = async () => {
-      try {
-        const meta = await fetchMetadataFromService(controller.signal);
-        setMetadataFromService(meta);
-        applyMetadataDefaults(meta);
-      } catch (error) {
-        if ((error as Error).name === "AbortError") return;
-        console.warn("加载 apps/metadata 失败", error);
-      }
-    };
-
-    loadMetadataDefaults();
-
-    return () => controller.abort();
-  }, [applyMetadataDefaults, fetchMetadataFromService]);
 
   const handlePublish = async () => {
     // const stored = localStorage.getItem("currentApp");
@@ -294,37 +66,69 @@ export function PublishFlow() {
       // 先调用业务元数据接口，获取 app_meta_info
       let appMetaFromService: any | null = null;
       try {
-        if (metadataFromService) {
-          appMetaFromService = metadataFromService;
+        const taskId =
+          (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
+        let segmentsPayload: any[] = [];
+        try {
+          const marketsRaw = localStorage.getItem("marketsData");
+          if (marketsRaw) {
+            const markets = JSON.parse(marketsRaw);
+            if (Array.isArray(markets)) {
+              segmentsPayload = markets.map((seg: any) => ({
+                name: seg.name || seg.title,
+                analysis: seg.analysis || undefined,
+                valueQuestions: seg.valueQuestions || undefined,
+              }));
+            }
+          }
+        } catch {}
+
+        const metadataPayload = {
+          run_result: JSON.parse(localStorage.getItem("run_result") || "{}"),
+          domain: { primaryDomain: "Hospitality Management" },
+          ingest: { schemaHash: "sha256-3c7459f15975eae5" },
+          run_id: "r_1",
+          status: "complete",
+          task_id: taskId,
+          segments: segmentsPayload,
+        };
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20000);
+        const metaRes = await fetch(
+          "https://business-insight.datail.ai/api/v1/apps/metadata",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              JSON.parse(localStorage.getItem("run_result") || "{}")
+            ),
+            cache: "no-store",
+            signal: controller.signal,
+          }
+        );
+        clearTimeout(timeout);
+        const metaText = await metaRes.text();
+        try {
+          appMetaFromService = JSON.parse(metaText);
+        } catch {
+          appMetaFromService = { raw: metaText };
+        }
+        if (!metaRes.ok) {
+          console.warn(
+            "apps/metadata 调用失败",
+            metaRes.status,
+            appMetaFromService
+          );
         } else {
-          appMetaFromService = await fetchMetadataFromService();
-          setMetadataFromService(appMetaFromService);
+          console.log("apps/metadata 调用成功", appMetaFromService);
         }
       } catch (err) {
         console.warn("上报应用元数据异常", err);
       }
 
-      // 确保 app_meta_info 内的 chatAppMeta 与表单一致
-      let normalizedAppMeta: any = {};
-      try {
-        normalizedAppMeta = appMetaFromService
-          ? JSON.parse(JSON.stringify(appMetaFromService))
-          : {};
-      } catch {
-        normalizedAppMeta = appMetaFromService || {};
-      }
-
-      if (!normalizedAppMeta.chatAppMeta || typeof normalizedAppMeta.chatAppMeta !== "object") {
-        normalizedAppMeta.chatAppMeta = {};
-      }
-      normalizedAppMeta.chatAppMeta.name = appName.trim();
-      normalizedAppMeta.chatAppMeta.description = description.trim();
-
-      const endpoint = appId ? `/api/apps/${appId}` : "/api/apps";
-      const method = appId ? "PATCH" : "POST";
-
-      const response = await fetch(endpoint, {
-        method,
+      const response = await fetch("/api/apps", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.access_token}`,
@@ -342,7 +146,8 @@ export function PublishFlow() {
           deployment_status: "success",
           published_at: new Date().toISOString(),
           // 不显式传 connection_id，后端将为当前用户选择最近的激活连接
-          app_meta_info: normalizedAppMeta,
+          // 传对象，后端会标准化写入 { app_meta_info: <object> }
+          apps_meta_info: appMetaFromService,
         }),
       });
 
@@ -351,7 +156,9 @@ export function PublishFlow() {
       if (!response.ok) {
         if (response.status === 409) {
           // 重名错误，显示特定提示
-          alert(data.error || "App name already exists. Please use a different name");
+          alert(
+            data.error || "App name already exists. Please use a different name"
+          );
           return;
         }
         throw new Error(data.error || "Save failed");
