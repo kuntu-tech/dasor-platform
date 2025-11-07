@@ -46,6 +46,7 @@ export function CreateAppButton({
       const status = await fetchSubscriptionStatus(user.id);
 
       if (status?.hasActiveSubscription) {
+        router.push(successHref);
         return;
       }
 
