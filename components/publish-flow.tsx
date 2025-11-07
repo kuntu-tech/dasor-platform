@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,14 +15,117 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Sparkles, CheckCircle2, Copy } from "lucide-react";
+import { CheckCircle2, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/AuthProvider";
+import {
+  getVendorStatus,
+  type VendorStatusResponse,
+} from "@/portable-pages/lib/connectApi";
+
+interface MonetizationEligibility {
+  canUseFree: boolean;
+  freeReason: string | null;
+  canUseSubscription: boolean;
+  subscriptionReason: string | null;
+}
+
+const STRIPE_ONBOARDING_PATH = "/settings?payoutTab=payout";
+
+function parseSubscriptionPeriodEnd(raw?: string | null): Date | null {
+  if (!raw) return null;
+  try {
+    const normalized = raw.trim().replace(" ", "T");
+    const parsed = new Date(normalized);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+    const fallback = new Date(`${normalized}Z`);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
+  } catch (error) {
+    console.log("Failed to parse subscription_period_end", raw, error);
+    return null;
+  }
+}
+
+function deriveMonetizationEligibility(
+  vendor: VendorStatusResponse["data"] | null,
+  vendorStatusError: string | null
+): MonetizationEligibility {
+  const now = Date.now();
+  let freeReason: string | null = null;
+
+  const subscriptionPeriodEnd = parseSubscriptionPeriodEnd(
+    vendor?.subscription_period_end ?? null
+  );
+
+  const hasSubscriptionRecord = Boolean(vendor?.subscription_id);
+  const subscriptionStatus = vendor?.subscription_status ?? null;
+  const subscriptionValid =
+    hasSubscriptionRecord &&
+    subscriptionStatus === "active" &&
+    subscriptionPeriodEnd !== null &&
+    subscriptionPeriodEnd.getTime() > now;
+
+  if (!subscriptionValid) {
+    if (!hasSubscriptionRecord) {
+      freeReason =
+        "You need an active Dasor subscription before publishing. Please subscribe and try again.";
+    } else if (subscriptionStatus !== "active") {
+      freeReason =
+        "Your Dasor subscription is not active. Please renew it before publishing.";
+    } else if (!subscriptionPeriodEnd) {
+      freeReason =
+        "We couldn't verify your subscription renewal date. Please contact support.";
+    } else if (subscriptionPeriodEnd.getTime() <= now) {
+      freeReason =
+        "Your Dasor subscription has expired. Please renew it before publishing.";
+    }
+  }
+
+  if (!freeReason && vendorStatusError) {
+    freeReason =
+      vendorStatusError === "No vendor found for this user"
+        ? "You need an active Dasor subscription before publishing. Please subscribe and try again."
+        : "We couldn't verify your vendor status. Please refresh or contact support.";
+  }
+
+  const canUseFree = subscriptionValid;
+
+  let subscriptionReason: string | null = freeReason;
+  let canUseSubscription = canUseFree;
+
+  if (canUseSubscription) {
+    if (vendor?.stripe_account_status !== "active") {
+      subscriptionReason =
+        "Complete your Stripe payout account to enable subscription pricing.";
+      canUseSubscription = false;
+    } else if (vendor?.is_active !== true) {
+      subscriptionReason =
+        "Your Stripe payout account is not ready to receive payments. Please finish onboarding.";
+      canUseSubscription = false;
+    } else if (vendor?.charges_enabled === false) {
+      subscriptionReason =
+        "Stripe has not enabled charges for your payout account. Please review your Stripe dashboard.";
+      canUseSubscription = false;
+    } else if (vendor?.payouts_enabled === false) {
+      subscriptionReason =
+        "Stripe payouts are not enabled for your account. Please review your Stripe dashboard.";
+      canUseSubscription = false;
+    }
+  }
+
+  return {
+    canUseFree,
+    freeReason,
+    canUseSubscription,
+    subscriptionReason,
+  };
+}
 export function PublishFlow() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const appId = searchParams.get("id");
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const [appName, setAppName] = useState("");
   const [description, setDescription] = useState("");
   const [monetization, setMonetization] = useState("free");
@@ -35,6 +138,9 @@ export function PublishFlow() {
     null
   );
   const [metadataApplied, setMetadataApplied] = useState(false);
+  const [vendorStatus, setVendorStatus] = useState<VendorStatusResponse["data"] | null>(null);
+  const [vendorStatusError, setVendorStatusError] = useState<string | null>(null);
+  const [vendorStatusLoading, setVendorStatusLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -135,7 +241,67 @@ export function PublishFlow() {
     return () => controller.abort();
   }, [appId, fetchAppFromDatabase, applyMetadataDefaults]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let cancelled = false;
+    const loadVendorStatus = async () => {
+      setVendorStatusLoading(true);
+      try {
+        const response = await getVendorStatus(user.id);
+        if (cancelled) return;
+        if (response.success && response.data) {
+          setVendorStatus(response.data);
+          setVendorStatusError(null);
+        } else {
+          setVendorStatus(null);
+          setVendorStatusError(response.error ?? null);
+        }
+      } catch (error) {
+        console.log("Failed to fetch vendor status:", error);
+        if (!cancelled) {
+          setVendorStatus(null);
+          setVendorStatusError("Failed to load vendor status");
+        }
+      } finally {
+        if (!cancelled) {
+          setVendorStatusLoading(false);
+        }
+      }
+    };
+
+    loadVendorStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const monetizationEligibility = useMemo(
+    () => deriveMonetizationEligibility(vendorStatus, vendorStatusError),
+    [vendorStatus, vendorStatusError]
+  );
+
+  useEffect(() => {
+    if (
+      monetization === "subscription" &&
+      !monetizationEligibility.canUseSubscription
+    ) {
+      setMonetization("free");
+    }
+  }, [monetization, monetizationEligibility.canUseSubscription]);
+
+  const canPublish = useMemo(() => {
+    if (monetization === "subscription") {
+      return monetizationEligibility.canUseSubscription;
+    }
+    return monetizationEligibility.canUseFree;
+  }, [monetization, monetizationEligibility]);
+
   const handlePublish = async () => {
+    if (!canPublish || vendorStatusLoading) {
+      return;
+    }
     try {
       // 从数据库读取的 app_meta_info，如果没有则使用空对象
       let appMetaInfo: any = {};
@@ -349,39 +515,72 @@ export function PublishFlow() {
             <div className="space-y-3">
               <Label>Monetization Model</Label>
               <RadioGroup value={monetization} onValueChange={setMonetization}>
-                <div className="flex items-start space-x-3 border border-border rounded-lg p-4">
-                  <RadioGroupItem value="free" id="free" className="mt-1" />
-                  <div className="flex-1">
-                    <Label
-                      htmlFor="free"
-                      className="font-medium cursor-pointer"
-                    >
-                      Free
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      All users can use your ChatApp for free
-                    </p>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-start space-x-3 border border-border rounded-lg p-4">
+                    <RadioGroupItem value="free" id="free" className="mt-1" />
+                    <div className="flex-1">
+                      <Label
+                        htmlFor="free"
+                        className="font-medium cursor-pointer"
+                      >
+                        Free
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        All users can use your ChatApp for free
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start space-x-3 border border-border rounded-lg p-4">
-                  <RadioGroupItem
-                    value="subscription"
-                    id="subscription"
-                    className="mt-1"
-                  />
-                  <div className="flex-1">
-                    <Label
-                      htmlFor="subscription"
-                      className="font-medium cursor-pointer"
-                    >
-                      Subscription
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Users need to pay for a subscription to use your ChatApp
-                    </p>
+                  {!vendorStatusLoading &&
+                    !monetizationEligibility.canUseFree &&
+                    monetizationEligibility.freeReason && (
+                      <p className="text-sm text-destructive">
+                        {monetizationEligibility.freeReason}
+                      </p>
+                    )}
+                  <div className="flex items-start space-x-3 border border-border rounded-lg p-4">
+                    <RadioGroupItem
+                      value="subscription"
+                      id="subscription"
+                      className="mt-1"
+                      disabled={!monetizationEligibility.canUseSubscription}
+                    />
+                    <div className="flex-1">
+                      <Label
+                        htmlFor="subscription"
+                        className="font-medium cursor-pointer"
+                      >
+                        Subscription
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Users need to pay for a subscription to use your ChatApp
+                      </p>
+                    </div>
                   </div>
+                  {!vendorStatusLoading &&
+                    monetizationEligibility.subscriptionReason && (
+                      <p className="text-sm text-destructive">
+                        {monetizationEligibility.subscriptionReason}
+                        {monetizationEligibility.canUseFree &&
+                          !monetizationEligibility.canUseSubscription && (
+                            <>
+                              {" "}
+                              <Link
+                                href={STRIPE_ONBOARDING_PATH}
+                                className="underline"
+                              >
+                                Open payout settings
+                              </Link>
+                            </>
+                          )}
+                      </p>
+                    )}
                 </div>
               </RadioGroup>
+              {vendorStatusLoading && (
+                <p className="text-sm text-muted-foreground">
+                  Checking Stripe eligibility…
+                </p>
+              )}
             </div>
 
             {monetization === "subscription" && (
@@ -426,10 +625,17 @@ export function PublishFlow() {
               className="w-full"
               size="lg"
               onClick={handlePublish}
-              disabled={!appName || !description}
+              disabled={!appName || !description || !canPublish || vendorStatusLoading}
             >
               Generate URL
             </Button>
+            {!vendorStatusLoading && !canPublish && (
+              <p className="text-sm text-destructive">
+                {monetization === "subscription"
+                  ? monetizationEligibility.subscriptionReason
+                  : monetizationEligibility.freeReason}
+              </p>
+            )}
           </CardContent>
         </Card>
       </main>

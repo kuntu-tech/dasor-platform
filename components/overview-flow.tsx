@@ -9,6 +9,7 @@ import { Sparkles, Eye, Settings, Rocket, Trash2, Clock, Filter } from "lucide-r
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CreateAppButton } from "@/components/create-app-button"
 
 type GeneratedApp = {
   id: string
@@ -127,11 +128,10 @@ export function OverviewFlow() {
             </div>
             <span className="text-xl font-semibold"> Datail</span>
           </Link>
-          <Button onClick={() => router.push("/connect")}>
+          <CreateAppButton>
             <Sparkles className="mr-2 size-4" />
             Create New Applicationpp
-
-          </Button>
+          </CreateAppButton>
         </div>
       </header>
 
@@ -205,10 +205,10 @@ s Yet</CardTitle>
                 Connect your database and let AI help you generate your first Applicationpp
 
               </CardDescription>
-              <Button onClick={() => router.push("/connect")}>
+              <CreateAppButton>
                 <Sparkles className="mr-2 size-4" />
                 Start Creating
-              </Button>
+              </CreateAppButton>
             </CardContent>
           </Card>
         ) : (
