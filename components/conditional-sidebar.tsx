@@ -262,15 +262,17 @@ export function ConditionalSidebar({
                 size="sm"
                 className="w-full justify-start gap-2"
                 onClick={async () => {
+                  const redirectToLogin = () => {
+                    router.push("/auth/login");
+                    router.refresh();
+                  };
                   try {
                     await signOut();
-                    // 等待状态更新后再跳转，确保状态同步
-                    setTimeout(() => {
-                      router.push("/auth/login");
-                      router.refresh();
-                    }, 50);
                   } catch (error) {
                     console.log("登出失败:", error);
+                  } finally {
+                    // 等待状态更新后再跳转，确保状态同步
+                    setTimeout(redirectToLogin, 50);
                   }
                 }}
               >
