@@ -57,7 +57,13 @@ type AppItem = {
       api_key?: string;
     } | null;
   } | null;
-
+  generator_meta?: {
+    queries?: Array<{
+      index: number;
+      query: string;
+    }>;
+    [key: string]: any;
+  } | null;
   features: number;
   createdAt: string;
   updated_at: string;
@@ -75,6 +81,31 @@ export default function DashboardPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const { user, session } = useAuth();
+
+  // 提取 generator_meta 中的 queries 并保存到 localStorage
+  const extractAndSaveQueries = (app: AppItem) => {
+    try {
+      if (
+        app.generator_meta?.queries &&
+        Array.isArray(app.generator_meta.queries)
+      ) {
+        // 提取 queries 数组中的 query 字段
+        const selectedProblems = app.generator_meta.queries
+          .map((q) => q.query)
+          .filter((query) => query && query.trim().length > 0);
+
+        if (selectedProblems.length > 0) {
+          localStorage.setItem(
+            "selectedProblems",
+            JSON.stringify(selectedProblems)
+          );
+          console.log("Saved queries to selectedProblems:", selectedProblems);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to extract and save queries:", error);
+    }
+  };
 
   const getApps = async () => {
     const queryParams = new URLSearchParams();
@@ -327,6 +358,8 @@ export default function DashboardPage() {
                     if (app.status === "generating") {
                       router.push(`/generate?appId=${app.id}`);
                     } else {
+                      // 提取并保存 queries 到 localStorage
+                      extractAndSaveQueries(app);
                       router.push(`/preview?id=${app.id}`);
                     }
                   }}
@@ -388,6 +421,7 @@ export default function DashboardPage() {
                           disabled={deletingId === app.id}
                           onClick={(e) => {
                             e.stopPropagation();
+                            extractAndSaveQueries(app);
                             router.push(`/preview?id=${app.id}`);
                           }}
                         >
@@ -490,6 +524,7 @@ export default function DashboardPage() {
                         if (app.status === "generating") {
                           router.push(`/generate?appId=${app.id}`);
                         } else {
+                          extractAndSaveQueries(app);
                           router.push(`/preview?id=${app.id}`);
                         }
                       }}
@@ -527,9 +562,9 @@ export default function DashboardPage() {
                       <TableCell className="truncate text-xs text-muted-foreground font-mono max-w-[260px]">
                         {app.data_connections?.connection_info?.api_key || "-"}
                       </TableCell>
-                      <TableCell className="text-center tabular-nums">
+                      {/* <TableCell className="text-center tabular-nums">
                         {app.features}
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell className="tabular-nums">
                         {app.updated_at
                           ? new Date(app.updated_at).toLocaleDateString("en-CA")
@@ -577,6 +612,7 @@ export default function DashboardPage() {
                               disabled={deletingId === app.id}
                               onClick={(e) => {
                                 e.stopPropagation();
+                                extractAndSaveQueries(app);
                                 router.push(`/preview?id=${app.id}`);
                               }}
                             >

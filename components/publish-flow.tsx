@@ -138,22 +138,23 @@ export function PublishFlow() {
     null
   );
   const [metadataApplied, setMetadataApplied] = useState(false);
-  const [vendorStatus, setVendorStatus] = useState<VendorStatusResponse["data"] | null>(null);
-  const [vendorStatusError, setVendorStatusError] = useState<string | null>(null);
+  const [vendorStatus, setVendorStatus] = useState<
+    VendorStatusResponse["data"] | null
+  >(null);
+  const [vendorStatusError, setVendorStatusError] = useState<string | null>(
+    null
+  );
   const [vendorStatusLoading, setVendorStatusLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try {
-      setCurrentAppUrl(localStorage.getItem("currentAppUrl") || "");
-    } catch {}
-    const stored = localStorage.getItem("currentApp");
-    if (stored) {
+    const storedProblems = localStorage.getItem("selectedProblems");
+    if (storedProblems) {
       try {
-        const app = JSON.parse(stored);
-        setFeatureCount(app.features?.length || 0);
+        const problems = JSON.parse(storedProblems);
+        setFeatureCount(problems.length || 0);
       } catch (e) {
-        console.log("Failed to parse current app", e);
+        console.log("Failed to parse selectedProblems", e);
       }
     }
   }, []);
@@ -212,7 +213,10 @@ export function PublishFlow() {
       });
       setDescription((prev) => {
         if (prev) return prev;
-        if (typeof appData?.description === "string" && appData.description.trim()) {
+        if (
+          typeof appData?.description === "string" &&
+          appData.description.trim()
+        ) {
           return appData.description.trim();
         }
         return prev;
@@ -305,7 +309,10 @@ export function PublishFlow() {
     try {
       // 从数据库读取的 app_meta_info，如果没有则使用空对象
       let appMetaInfo: any = {};
-      if (appDataFromDb?.app_meta_info && typeof appDataFromDb.app_meta_info === "object") {
+      if (
+        appDataFromDb?.app_meta_info &&
+        typeof appDataFromDb.app_meta_info === "object"
+      ) {
         appMetaInfo = { ...appDataFromDb.app_meta_info };
       }
 
@@ -625,7 +632,9 @@ export function PublishFlow() {
               className="w-full"
               size="lg"
               onClick={handlePublish}
-              disabled={!appName || !description || !canPublish || vendorStatusLoading}
+              disabled={
+                !appName || !description || !canPublish || vendorStatusLoading
+              }
             >
               Generate URL
             </Button>
