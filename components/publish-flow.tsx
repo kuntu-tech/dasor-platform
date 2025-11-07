@@ -156,7 +156,9 @@ export function PublishFlow() {
       if (!response.ok) {
         if (response.status === 409) {
           // 重名错误，显示特定提示
-          alert(data.error || "App name already exists. Please use a different name");
+          alert(
+            data.error || "App name already exists. Please use a different name"
+          );
           return;
         }
         throw new Error(data.error || "Save failed");

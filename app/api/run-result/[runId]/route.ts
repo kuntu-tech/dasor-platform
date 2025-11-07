@@ -6,10 +6,10 @@ export const dynamic = "force-dynamic";
 // GET /api/run-result/[runId] - 根据 user_id、task_id 和 run_id 获取完整的数据
 export async function GET(
   request: NextRequest,
-  { params }: { params: { runId: string } }
+  { params }: { params: Promise<{ runId: string }> }
 ) {
   try {
-    const { runId } = params;
+    const { runId } = await params;
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("user_id");
     const taskId = searchParams.get("task_id");
