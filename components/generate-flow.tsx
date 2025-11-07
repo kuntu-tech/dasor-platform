@@ -130,6 +130,72 @@ export function GenerateFlow() {
     }
   }, []);
 
+  const buildMetadataPayload = useCallback(() => {
+    const taskId =
+      (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
+    let segmentsPayload: any[] = [];
+    try {
+      const marketsRaw = localStorage.getItem("marketsData");
+      if (marketsRaw) {
+        const markets = JSON.parse(marketsRaw);
+        if (Array.isArray(markets)) {
+          segmentsPayload = markets.map((seg: any) => ({
+            name: seg.name || seg.title,
+            analysis: seg.analysis || undefined,
+            valueQuestions: seg.valueQuestions || undefined,
+          }));
+        }
+      }
+    } catch {}
+
+    let runResult: any = {};
+    try {
+      runResult = JSON.parse(localStorage.getItem("run_result") || "{}");
+    } catch {}
+
+    return {
+      run_result: runResult,
+      domain: { primaryDomain: "Hospitality Management" },
+      ingest: { schemaHash: "sha256-3c7459f15975eae5" },
+      run_id: "r_1",
+      status: "complete",
+      task_id: taskId,
+      segments: segmentsPayload,
+    };
+  }, []);
+
+  const fetchMetadataFromService = useCallback(
+    async (signal?: AbortSignal) => {
+      const metadataPayload = buildMetadataPayload();
+      const response = await fetch(
+        "https://business-insight.datail.ai/api/v1/apps/metadata",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.parse(localStorage.getItem("run_result_publish") || "{}"),
+          cache: "no-store",
+          signal,
+        }
+      );
+      const text = await response.text();
+      let parsed: any = text;
+      try {
+        parsed = JSON.parse(text);
+      } catch {}
+      if (!response.ok) {
+        const err = new Error(
+          typeof parsed === "string"
+            ? parsed
+            : parsed?.error || `apps/metadata HTTP ${response.status}`
+        );
+        (err as any).meta = parsed;
+        throw err;
+      }
+      return parsed;
+    },
+    [buildMetadataPayload]
+  );
+
   const updateQuestionStatuses = useCallback((statusPayload: BatchJobStatus | null) => {
     setAllQuestions((prev) => {
       if (!prev.length) {
@@ -351,13 +417,52 @@ export function GenerateFlow() {
       "selectedQuestionsWithSql"
     );
     if (selectedQuestionsWithSql) {
-      const { anchIndex, questionsWithSql } = JSON.parse(
-        selectedQuestionsWithSql
-      );
-      extractedQueries = questionsWithSql;
-      anchIndexNum = anchIndex;
+      const parsed = JSON.parse(selectedQuestionsWithSql);
+      extractedQueries = parsed?.questionsWithSql || extractedQueries;
+      anchIndexNum =
+        parsed?.anchIndex ??
+        parsed?.anchorIndex ??
+        parsed?.anchor_index ??
+        null;
     }
     try {
+      // 先调用业务元数据接口，获取 app_meta_info
+      let appMetaFromService: any | null = null;
+      try {
+        appMetaFromService = await fetchMetadataFromService();
+      } catch (err) {
+        console.warn("获取应用元数据异常", err);
+      }
+
+      if (!appMetaFromService || typeof appMetaFromService !== "object") {
+        appMetaFromService = {};
+      }
+
+      // 从 metadata 中提取 name 和 description
+      const chatMeta =
+        appMetaFromService.chatAppMeta ||
+        appMetaFromService.chatappmeta ||
+        appMetaFromService.chat_app_meta ||
+        {};
+
+      const appName =
+        (typeof chatMeta.name === "string" && chatMeta.name.trim()
+          ? chatMeta.name.trim()
+          : null) ||
+        currentProblems[0]?.problem ||
+        "Generated App";
+
+      const appDescription =
+        (typeof chatMeta.description === "string" && chatMeta.description.trim()
+          ? chatMeta.description.trim()
+          : null) ||
+        "Batch generated app";
+
+      // 更新 chatMeta 以确保包含最新的 name 和 description
+      chatMeta.name = appName;
+      chatMeta.description = appDescription;
+      appMetaFromService.chatAppMeta = chatMeta;
+
       const batchData = {
         queries: extractedQueries,
         anchorIndex: anchIndexNum,
@@ -368,15 +473,13 @@ export function GenerateFlow() {
           access_token: dbConnectionDataObj.accessToken,
         },
         app: {
-          name:
-            currentProblems[0]?.problem ||
-            "Generated App",
-          description:
-            "Batch generated app",
+          name: appName,
+          description: appDescription,
           connection_id:
             dbConnectionDataObj.connectionId ||
             dbConnectionDataObj.connection_id ||
             undefined,
+          app_meta_info: appMetaFromService,
         },
       };
 

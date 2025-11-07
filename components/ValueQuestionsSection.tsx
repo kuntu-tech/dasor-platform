@@ -832,10 +832,18 @@ export function ValueQuestionsSection({
       // 存储到 localStorage
       if (typeof window !== "undefined") {
         try {
+          const resolvedAnchorIndex =
+            standalJson?.anchIndex ??
+            standalJson?.anchorIndex ??
+            standalJson?.run_results?.run_result?.anchIndex ??
+            standalJson?.run_results?.run_result?.anchorIndex ??
+            null;
+
           localStorage.setItem(
             "selectedQuestionsWithSql",
             JSON.stringify({
-              anchIndex: standalJson?.anchIndex,
+              anchIndex: resolvedAnchorIndex,
+              anchorIndex: resolvedAnchorIndex,
               questionsWithSql,
             })
           );

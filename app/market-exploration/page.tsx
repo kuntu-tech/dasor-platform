@@ -414,6 +414,7 @@ export default function MarketExplorationPage({
         user_id: user?.id || "4748756a-5682-4807-8ced-dd4c3aea5a08",
         task_id: taskId,
         connection_id: connectionId || "c433813a-da09-436f-81f0-d383261f5890",
+        current_data: segmentsData,
       };
 
       console.log("Calling feedback-mrf/process with:", requestBody);
