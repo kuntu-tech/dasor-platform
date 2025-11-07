@@ -112,7 +112,7 @@ export default function SettingsPage() {
                     }
                   })
                   .catch((error) => {
-                    console.log("加载 Customer Portal 失败:", error)
+                    console.log("Failed to load Customer Portal:", error)
                     setBillingPortalError("Network error. Please try again later.")
                   })
                   .finally(() => {
@@ -556,7 +556,7 @@ export default function SettingsPage() {
     }
 
     // 如果有 URL，显示提示信息和新窗口打开按钮
-    // 注意：Stripe Customer Portal 不支持在 iframe 中嵌入（CSP 限制）
+    // Note: Stripe Customer Portal does not support embedding inside an iframe (CSP limitation)
     if (billingPortalUrl) {
       return (
         <div className="h-full w-full flex flex-col items-center justify-center p-8 space-y-6" style={{ minHeight: '600px' }}>
@@ -568,7 +568,7 @@ export default function SettingsPage() {
             </div>
             <h2 className="text-2xl font-semibold mb-2">Billing Portal</h2>
             <p className="text-muted-foreground mb-6">
-              Stripe Customer Portal 需要在新的窗口中打开以查看和管理您的订阅信息。
+              The Stripe Customer Portal must open in a new window so you can view and manage your subscription information.
             </p>
             <Button
               onClick={() => {
@@ -583,7 +583,7 @@ export default function SettingsPage() {
               Open Billing Portal
             </Button>
             <p className="text-xs text-muted-foreground mt-4">
-              点击按钮将在新标签页中打开 Stripe Customer Portal
+              Click the button to open the Stripe Customer Portal in a new tab.
             </p>
           </div>
         </div>
