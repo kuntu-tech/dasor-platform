@@ -61,18 +61,18 @@ export default function ConnectPage() {
     };
   }, [user, loading, router]);
 
-  if (checking) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <Loader2 className="size-5 animate-spin" />
-          <span>Verifying subscription...</span>
-        </div>
-      </div>
-    );
-  }
-
   if (!allowed) {
+    if (checking) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <Loader2 className="size-5 animate-spin" />
+            <span>Verifying subscription...</span>
+          </div>
+        </div>
+      );
+    }
+
     return null;
   }
 

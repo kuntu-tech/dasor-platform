@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const BATCH_SERVICE_BASE_URL =
-  process.env.BATCH_SERVICE_BASE_URL || "http://localhost:3001";
+  process.env.BATCH_SERVICE_BASE_URL || "https://business-insight.datail.ai";
 const BATCH_SERVICE_TOKEN =
   process.env.BATCH_SERVICE_TOKEN ||
   "gpustack_e118b9d6237a51e7_2997f1849c2cd471bdd8351152a1e84c";

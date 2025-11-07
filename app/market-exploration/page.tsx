@@ -411,10 +411,10 @@ export default function MarketExplorationPage({
         feedback_text: inputValue.trim(),
         base_run_id: baseRunId,
         policy: "standard",
-        user_id: user?.id || "4748756a-5682-4807-8ced-dd4c3aea5a08",
+        user_id: user?.id,
         task_id: taskId,
-        connection_id: connectionId || "c433813a-da09-436f-81f0-d383261f5890",
-        current_data: segmentsData,
+        connection_id: connectionId,
+        current_data: runResult,
       };
 
       console.log("Calling feedback-mrf/process with:", requestBody);
@@ -427,7 +427,7 @@ export default function MarketExplorationPage({
       // 第一步：调用 feedback-mrf/process 接口 (0% -> 30%)
       setGenerationProgress(10);
       const response = await fetch(
-        // "http://192.168.30.159:8900/api/v1/feedback-mrf/process",
+        // "http://localhost:8000/api/v1/feedback-mrf/process",
         "https://business-insight.datail.ai/api/v1/feedback-mrf/process",
         {
           method: "POST",

@@ -19,7 +19,7 @@ export const supabase = (() => {
   return supabaseInstance;
 })();
 
-export const supabaseAdmin = (() => {
+const createSupabaseAdminClient = () => {
   if (!supabaseAdminInstance) {
     supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -29,4 +29,9 @@ export const supabaseAdmin = (() => {
     });
   }
   return supabaseAdminInstance;
-})();
+};
+
+export const supabaseAdmin =
+  typeof window === "undefined"
+    ? createSupabaseAdminClient()
+    : (undefined as unknown as SupabaseClient);

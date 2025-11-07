@@ -135,7 +135,7 @@ export default function LoginPage() {
               {/* Log In Button */}
               <Button
                 onClick={handleEmailLogin}
-                className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-medium text-base"
+                className="w-full h-12 bg-black hover:bg-gray-900 text-white font-medium text-base"
                 disabled={loading}
               >
                 Log In
