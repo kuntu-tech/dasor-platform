@@ -28,6 +28,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
   // OAuth 授权流程
   const handleOAuthConnect = async () => {
     if (!loginEmail) {
+      console.log(user,'user')
       alert("Login required: missing email");
       return;
     }
@@ -50,7 +51,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
       window.location.href = resp.data!.authUrl;
     } catch (err) {
       console.log("OAuth start error:", err);
-      alert("启动 OAuth 失败，请重试");
+      alert("Failed to start OAuth. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -101,7 +102,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
       onConnect(resp.data!.stripeAccountId);
     } catch (err) {
       console.log("Link account error:", err);
-      alert("关联账户失败，请重试");
+      alert("Failed to link account. Please try again.");
     } finally {
       setLoading(false);
     }

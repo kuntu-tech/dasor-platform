@@ -16,7 +16,7 @@ const subscriptionMock = {
 const billingInfoMock = {
   name: "mql",
   email: "gomberglambino@gmail.com",
-  addressLines: ["065201", "北京市11", "11", "qq", "CN"],
+  addressLines: ["065201", "Beijing City", "District 11", "Suite QQ", "China"],
 };
 
 const recordsMock = [

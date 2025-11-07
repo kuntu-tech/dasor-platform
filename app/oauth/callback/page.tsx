@@ -31,6 +31,8 @@ export default function OAuthCallbackPage() {
         const vendorId = searchParams.get("vendorId");
         const accountId = searchParams.get("accountId");
 
+        let hasPaymentHistory = true;
+
         // 如果有 error，说明 Stripe 授权被拒绝
         if (error) {
           setStatus("error");
@@ -79,7 +81,7 @@ export default function OAuthCallbackPage() {
               {
                 method: "GET",
                 headers: {
-                  "Accept": "application/json",
+                  Accept: "application/json",
                 },
               }
             );
@@ -92,8 +94,8 @@ export default function OAuthCallbackPage() {
               
               // 如果没有支付记录，显示静态页面
               if (checkData.success && !checkData.hasPaymentHistory) {
-                setStatus("no-payment");
-                return;
+                hasPaymentHistory = false;
+                setMessage("No payment history yet. Completing authorization...");
               }
             }
 
@@ -131,7 +133,11 @@ export default function OAuthCallbackPage() {
 
             if (data.success) {
               setStatus("success");
-              setMessage("Account linked successfully!");
+              setMessage(
+                hasPaymentHistory
+                  ? "Account linked successfully!"
+                  : "Account linked successfully! Your payouts will appear here after you receive payments."
+              );
               setTimeout(() => {
                 // 获取保存的来源页面，如果没有则使用首页
                 const returnPath = typeof window !== "undefined" 
