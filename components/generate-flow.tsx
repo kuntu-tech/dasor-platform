@@ -364,6 +364,7 @@ export function GenerateFlow() {
         supabase_config: {
           supabase_url: dbConnectionDataObj.connectionUrl,
           supabase_key: dbConnectionDataObj.apiKey,
+          access_token: dbConnectionDataObj.accessToken,
         },
         app: {
           name:

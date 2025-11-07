@@ -231,11 +231,14 @@ export function PublishFlow() {
       "preview_url",
     ]);
 
+    let applied = false;
     if (derivedName) {
       setAppName(derivedName);
+      applied = true;
     }
     if (derivedDescription) {
       setDescription(derivedDescription);
+      applied = true;
     }
     if (derivedDomain) {
       setCurrentAppUrl(derivedDomain);
@@ -244,6 +247,9 @@ export function PublishFlow() {
           localStorage.setItem("currentAppUrl", derivedDomain);
         } catch {}
       }
+    }
+    if (applied || derivedDomain) {
+      setHasMetadataDefaults(true);
     }
   }, []);
 
@@ -298,6 +304,22 @@ export function PublishFlow() {
         console.warn("上报应用元数据异常", err);
       }
 
+      // 确保 app_meta_info 内的 chatAppMeta 与表单一致
+      let normalizedAppMeta: any = {};
+      try {
+        normalizedAppMeta = appMetaFromService
+          ? JSON.parse(JSON.stringify(appMetaFromService))
+          : {};
+      } catch {
+        normalizedAppMeta = appMetaFromService || {};
+      }
+
+      if (!normalizedAppMeta.chatAppMeta || typeof normalizedAppMeta.chatAppMeta !== "object") {
+        normalizedAppMeta.chatAppMeta = {};
+      }
+      normalizedAppMeta.chatAppMeta.name = appName.trim();
+      normalizedAppMeta.chatAppMeta.description = description.trim();
+
       const endpoint = appId ? `/api/apps/${appId}` : "/api/apps";
       const method = appId ? "PATCH" : "POST";
 
@@ -320,8 +342,7 @@ export function PublishFlow() {
           deployment_status: "success",
           published_at: new Date().toISOString(),
           // 不显式传 connection_id，后端将为当前用户选择最近的激活连接
-          // 传对象，后端会标准化写入 { app_meta_info: <object> }
-          app_meta_info: appMetaFromService,
+          app_meta_info: normalizedAppMeta,
         }),
       });
 
