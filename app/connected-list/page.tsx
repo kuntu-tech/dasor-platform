@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Target
 } from "lucide-react"
+import { CreateAppButton } from "@/components/create-app-button"
 
 type ConnectedDataSource = {
   id: string
@@ -149,10 +150,10 @@ export default function ConnectedListPage() {
               <Plus className="mr-2 size-4" />
               Add Data Source
             </Button>
-            <Button size="sm" onClick={() => router.push("/connect")}>
+            <CreateAppButton size="sm">
               <Database className="mr-2 size-4" />
               Connect New
-            </Button>
+            </CreateAppButton>
           </div>
         </div>
       </header>
@@ -324,10 +325,10 @@ s from existing data sources
                 Connect your first database to start generating Applicationpp
 s with AI
               </CardDescription>
-              <Button onClick={() => router.push("/connect")}>
+              <CreateAppButton>
                 <Database className="mr-2 size-4" />
                 Connect Your First Database
-              </Button>
+              </CreateAppButton>
             </CardContent>
           </Card>
         )}
