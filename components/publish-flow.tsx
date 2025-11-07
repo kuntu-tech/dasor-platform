@@ -326,7 +326,7 @@ export function PublishFlow() {
       chatMeta.description = description.trim();
       appMetaInfo.chatAppMeta = chatMeta;
 
-      const response = await fetch("/api/apps", {
+      const response = await fetch(`/api/apps/${appId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
