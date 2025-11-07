@@ -18,6 +18,23 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
 
+  const stringifyDetail = (detail: unknown): string | undefined => {
+    if (!detail) return undefined
+    if (typeof detail === "string") return detail
+    if (detail instanceof Error) return detail.message
+    try {
+      const serialized = JSON.stringify(detail)
+      return serialized.length > 160 ? `${serialized.slice(0, 157)}...` : serialized
+    } catch {
+      return undefined
+    }
+  }
+
+  const formatErrorMessage = (message: string, detail?: unknown) => {
+    const detailText = stringifyDetail(detail)
+    return detailText ? `${message} (${detailText})` : message
+  }
+
   // Handle ESC key closure and reset error state when opening
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -67,7 +84,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
       if (!vendorId) {
         const email = user.email
         if (!email) {
-          setError("Unable to retrieve your login email. Please sign out and sign in again.")
+          setError("We couldn't read your account email. Please sign out and sign back in before subscribing.")
           setIsLoading(false)
           return
         }
@@ -79,7 +96,12 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
         })
 
         if (!ensureResponse.success || !ensureResponse.data?.vendorId) {
-          setError(ensureResponse.error || "We could not prepare your vendor account. Please try again later or contact support.")
+          setError(
+            formatErrorMessage(
+              "We couldn't create or locate your vendor profile. Please try again or contact support.",
+              ensureResponse.error ?? ensureResponse.details
+            )
+          )
           setIsLoading(false)
           return
         }
@@ -88,7 +110,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
       }
 
       if (!vendorId) {
-        setError("Vendor account could not be determined. Please retry later.")
+        setError("We couldn't determine your vendor profile after onboarding. Please refresh the page and try again.")
         setIsLoading(false)
         return
       }
@@ -105,14 +127,24 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
           subscriptionResponse.message?.toLowerCase().includes("already has an active subscription")
 
         if (alreadyActive) {
-          setError("You already have an active subscription")
+          setError("You already have an active subscription. If this is unexpected, please contact support.")
           setIsLoading(false)
           return
         }
       }
 
       if (!subscriptionResponse.success || !subscriptionResponse.data?.checkoutUrl) {
-        setError(subscriptionResponse.error || "Failed to create subscription")
+        const subscriptionDetail =
+          subscriptionResponse.error ||
+          subscriptionResponse.message ||
+          subscriptionResponse.data?.message
+
+        setError(
+          formatErrorMessage(
+            "Stripe did not return a checkout link. Please try again in a few minutes or contact support.",
+            subscriptionDetail
+          )
+        )
         setIsLoading(false)
         return
       }
@@ -120,7 +152,12 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
       window.location.href = subscriptionResponse.data.checkoutUrl
     } catch (err) {
       console.log("Subscription processing error:", err)
-      setError(err instanceof Error ? err.message : "Subscription processing failed. Please try again later")
+      setError(
+        formatErrorMessage(
+          "We couldn't start your subscription. Please refresh the page and try again.",
+          err
+        )
+      )
       setIsLoading(false)
     }
   }

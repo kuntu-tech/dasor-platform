@@ -19,12 +19,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Settings, Crown, LogOut } from "lucide-react";
+import { Settings, Crown, LogOut, Wallet } from "lucide-react";
 import { SettingsModal } from "@/components/settings-modal";
 import { PricingModal } from "@/components/pricing-modal";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { getVendorStatus } from "@/portable-pages/lib/connectApi";
 export function ConditionalSidebar({
   children,
 }: {
@@ -39,6 +40,27 @@ export function ConditionalSidebar({
   const { signOut, user } = useAuth();
   const router = useRouter();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [hasConnectedStripeAccount, setHasConnectedStripeAccount] = useState<boolean | null>(null);
+  const fetchStripeStatus = useCallback(async () => {
+    if (!user?.id) {
+      setHasConnectedStripeAccount(null);
+      return;
+    }
+
+    try {
+      const status = await getVendorStatus(user.id);
+      if (status.success && status.data) {
+        setHasConnectedStripeAccount(Boolean(status.data.stripe_account_id));
+      } else if (status.success === false) {
+        setHasConnectedStripeAccount(false);
+      } else {
+        setHasConnectedStripeAccount(null);
+      }
+    } catch (error) {
+      setHasConnectedStripeAccount(null);
+      console.log("获取Stripe连接状态失败:", error);
+    }
+  }, [user?.id]);
 
   // 获取用户头像
   const fetchUserAvatar = useCallback(async () => {
@@ -69,6 +91,22 @@ export function ConditionalSidebar({
   useEffect(() => {
     fetchUserAvatar();
   }, [fetchUserAvatar]);
+
+  useEffect(() => {
+    fetchStripeStatus();
+  }, [fetchStripeStatus]);
+
+  useEffect(() => {
+    const handleStripeStatusUpdated = () => {
+      fetchStripeStatus();
+    };
+
+    window.addEventListener("stripe-connection-updated", handleStripeStatusUpdated);
+
+    return () => {
+      window.removeEventListener("stripe-connection-updated", handleStripeStatusUpdated);
+    };
+  }, [fetchStripeStatus]);
 
   // 监听头像更新事件
   useEffect(() => {
@@ -130,7 +168,13 @@ export function ConditionalSidebar({
         {/* 用户头像 - 右上角 */}
         <Popover>
           <PopoverTrigger asChild>
-            <div className="cursor-pointer hover:ring-2 hover:ring-gray-300 hover:ring-offset-2 rounded-full transition-all duration-200">
+            <div className="relative cursor-pointer hover:ring-2 hover:ring-gray-300 hover:ring-offset-2 rounded-full transition-all duration-200">
+              {hasConnectedStripeAccount === false && (
+                <span
+                  className="absolute -right-0.5 -top-0.5 z-10 inline-flex size-3 items-center justify-center rounded-full bg-red-500"
+                  aria-hidden="true"
+                />
+              )}
               <Avatar className="size-10">
                 <AvatarImage
                   src={
@@ -161,6 +205,21 @@ export function ConditionalSidebar({
               >
                 <Settings className="size-4" />
                 Account
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  setSettingsDefaultTab("payout");
+                  setIsSettingsOpen(true);
+                }}
+              >
+                <Wallet className="size-4" />
+                <span className="flex-1 text-left">Payout Account</span>
+                {hasConnectedStripeAccount === false && (
+                  <span className="text-base leading-none text-red-500" aria-hidden="true">❗️</span>
+                )}
               </Button>
               <Button
                 variant="ghost"
