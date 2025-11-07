@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState, useRef, useLayoutEffect } from "react";
 interface AnalysisCardProps {
   analysis: {
     id: string;
@@ -12,6 +12,9 @@ interface AnalysisCardProps {
 }
 export function AnalysisCard({ analysis, onClick }: AnalysisCardProps) {
   const { dimensionName, score, summary, tags, id } = analysis;
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showExpandButton, setShowExpandButton] = useState(false);
+  const summaryRef = useRef<HTMLParagraphElement>(null);
   // Calculate circle progress
   const circumference = 2 * Math.PI * 45;
   const strokeDashoffset = circumference - (score / 10) * circumference;
@@ -55,6 +58,36 @@ export function AnalysisCard({ analysis, onClick }: AnalysisCardProps) {
       .replace(/23%/g, '<span class="text-3xl font-bold">23%</span>')
       .replace(/5\.2x/g, '<span class="text-5xl font-bold">5.2x</span>');
   };
+
+  // Check if content is truncated
+  useLayoutEffect(() => {
+    if (summaryRef.current) {
+      const element = summaryRef.current;
+      if (!isExpanded) {
+        // Create a temporary element to measure full height
+        const tempElement = document.createElement("p");
+        tempElement.className = "text-gray-600 leading-relaxed";
+        tempElement.innerHTML = formatSummary(summary);
+        tempElement.style.position = "absolute";
+        tempElement.style.visibility = "hidden";
+        tempElement.style.width = element.offsetWidth + "px";
+        tempElement.style.padding = "0";
+        tempElement.style.margin = "0";
+        tempElement.style.top = "-9999px";
+        document.body.appendChild(tempElement);
+        const fullHeight = tempElement.scrollHeight;
+        document.body.removeChild(tempElement);
+
+        const clampedHeight = element.clientHeight;
+        // Check if content is actually truncated (with buffer for rounding errors)
+        const isTruncated = fullHeight > clampedHeight + 5;
+        setShowExpandButton(isTruncated);
+      } else {
+        // When expanded, always show collapse button if content exists
+        setShowExpandButton(summary.trim().length > 0);
+      }
+    }
+  }, [summary, isExpanded]);
   return (
     <article className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
       {/* Dimension Name - Moved to top */}
@@ -125,12 +158,39 @@ export function AnalysisCard({ analysis, onClick }: AnalysisCardProps) {
         ))}
       </div>
       {/* Summary */}
-      <p
-        className="text-gray-600 leading-relaxed line-clamp-3"
-        dangerouslySetInnerHTML={{
-          __html: formatSummary(summary),
-        }}
-      />
+      <div className="relative">
+        <p
+          ref={summaryRef}
+          className={`text-gray-600 leading-relaxed ${
+            isExpanded ? "" : "line-clamp-3"
+          }`}
+          dangerouslySetInnerHTML={{
+            __html: formatSummary(summary),
+          }}
+        />
+        {showExpandButton && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(!isExpanded);
+            }}
+            className="mt-2 text-sm text-gray-500 hover:text-gray-700 font-medium inline-flex items-center gap-1 transition-colors"
+            type="button"
+          >
+            {isExpanded ? (
+              <>
+                <span>collapse</span>
+                <span className="text-xs">▲</span>
+              </>
+            ) : (
+              <>
+                <span>expand</span>
+                <span className="text-xs">▼</span>
+              </>
+            )}
+          </button>
+        )}
+      </div>
     </article>
   );
 }
