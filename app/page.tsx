@@ -359,7 +359,7 @@ export default function DashboardPage() {
                   className="hover:shadow-sm transition-shadow cursor-pointer"
                   onClick={() => {
                     if (app.status === "generating") {
-                      router.push("/generate");
+                      router.push(`/generate?appId=${app.id}`);
                     } else {
                       router.push(`/preview?id=${app.id}`);
                     }
@@ -525,7 +525,7 @@ export default function DashboardPage() {
                       key={app.id}
                       onClick={() => {
                         if (app.status === "generating") {
-                          router.push("/generate");
+                          router.push(`/generate?appId=${app.id}`);
                         } else {
                           router.push(`/preview?id=${app.id}`);
                         }

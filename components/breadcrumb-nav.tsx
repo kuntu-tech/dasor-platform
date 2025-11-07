@@ -103,6 +103,14 @@ export function BreadcrumbNav() {
   const isPreviewPage = pathname.startsWith("/preview");
   const appId = searchParams.get("id");
 
+  const navigateToPublish = () => {
+    if (appId) {
+      router.push(`/publish?id=${appId}`);
+    } else {
+      router.push("/publish");
+    }
+  };
+
   // 获取应用状态
   useEffect(() => {
     if (isPreviewPage && appId && session) {
@@ -176,7 +184,7 @@ export function BreadcrumbNav() {
       setAppDescription("");
 
       // 跳转到保存成功页面
-      router.push("/save-success");
+      navigateToPublish();
     } catch (error) {
       console.log("保存应用失败:", error);
       alert(`保存失败: ${error instanceof Error ? error.message : "未知错误"}`);
@@ -247,7 +255,7 @@ export function BreadcrumbNav() {
             size="sm"
             variant="default"
             className="h-8 px-3"
-            onClick={() => router.push("/publish")}
+            onClick={navigateToPublish}
           >
             Publish
           </Button>
