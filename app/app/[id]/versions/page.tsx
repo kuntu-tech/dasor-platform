@@ -35,6 +35,8 @@ type AppData = {
   created_at: string;
   updated_at: string;
   payment_model?: string | null;
+  mcp_server_ids?: string | string[] | null;
+  url?: string | null;
   app_meta_info?: {
     chatAppMeta?: {
       name?: string;
@@ -67,11 +69,11 @@ export default function AppVersionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 获取 app 数据
+  // Fetch app data
   useEffect(() => {
     const fetchAppData = async () => {
       if (!appId) {
-        setError("缺少 app ID");
+        setError("Missing app ID");
         setLoading(false);
         return;
       }
@@ -82,17 +84,19 @@ export default function AppVersionsPage() {
         const result = await response.json();
 
         if (!response.ok) {
-          throw new Error(result.error || "获取应用数据失败");
+          throw new Error(result.error || "Failed to fetch app data");
         }
 
         if (result.success && result.data) {
           setAppData(result.data);
         } else {
-          throw new Error("未找到应用数据");
+          throw new Error("App data not found");
         }
       } catch (err) {
-        console.error("获取应用数据失败:", err);
-        setError(err instanceof Error ? err.message : "获取应用数据失败");
+        console.error("Failed to fetch app data:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch app data"
+        );
       } finally {
         setLoading(false);
       }
@@ -111,12 +115,12 @@ export default function AppVersionsPage() {
     }
   };
 
-  // 格式化日期
+  // Format date
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "N/A";
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString("zh-CN", {
+      return date.toLocaleDateString("en-US", {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -126,7 +130,7 @@ export default function AppVersionsPage() {
     }
   };
 
-  // 解析 payment_model
+  // Parse payment_model
   const parsePaymentModel = (paymentModel: string | null | undefined) => {
     if (!paymentModel) return { model: "free", price: 0 };
     try {
@@ -139,7 +143,7 @@ export default function AppVersionsPage() {
     }
   };
 
-  // 获取 features（从 app_meta_info 或 generator_meta）
+  // Get features (from app_meta_info or generator_meta)
   const getFeatures = () => {
     if (appData?.app_meta_info?.chatAppMeta?.coreFeatures) {
       return appData.app_meta_info.chatAppMeta.coreFeatures.map(
@@ -159,7 +163,7 @@ export default function AppVersionsPage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="size-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">加载中...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -169,9 +173,11 @@ export default function AppVersionsPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-destructive mb-4">{error || "未找到应用数据"}</p>
+          <p className="text-destructive mb-4">
+            {error || "App data not found"}
+          </p>
           <Button asChild variant="outline">
-            <Link href="/">返回首页</Link>
+            <Link href="/">Back to Home</Link>
           </Button>
         </div>
       </div>
@@ -191,7 +197,7 @@ export default function AppVersionsPage() {
           <Button variant="ghost" asChild className="mb-4">
             <Link href="/" className="flex items-center gap-2">
               <ArrowLeft className="size-4" />
-              返回首页
+              Back to Home
             </Link>
           </Button>
           <h1 className="text-2xl font-bold">{appName}</h1>
@@ -205,7 +211,9 @@ export default function AppVersionsPage() {
                 <div className="flex items-center gap-3">
                   <Badge variant="outline" className="flex items-center gap-1">
                     <Tag className="size-3" />
-                    {appData.status === "published" ? "已发布" : appData.status}
+                    {appData.status === "published"
+                      ? "Published"
+                      : appData.status}
                   </Badge>
                   {appData.status === "published" && (
                     <Badge variant="default">Published</Badge>
@@ -219,7 +227,7 @@ export default function AppVersionsPage() {
             </CardHeader>
 
             <CardContent className="space-y-4">
-              {/* Revenue Statistics - 如果有支付信息 */}
+              {/* Revenue Statistics - If payment info exists */}
               {paymentModel.model !== "free" && paymentModel.price > 0 && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
@@ -227,7 +235,7 @@ export default function AppVersionsPage() {
                       <div className="flex items-center gap-2 mb-2">
                         <Users className="size-4 text-muted-foreground" />
                         <label className="text-sm font-medium text-muted-foreground">
-                          付费人数
+                          Paid Users
                         </label>
                       </div>
                       <div className="text-2xl font-bold text-foreground">
@@ -242,7 +250,7 @@ export default function AppVersionsPage() {
                       <div className="flex items-center gap-2 mb-2">
                         <DollarSign className="size-4 text-muted-foreground" />
                         <label className="text-sm font-medium text-muted-foreground">
-                          总收入额
+                          Total Revenue
                         </label>
                       </div>
                       <div className="text-2xl font-bold text-foreground">
@@ -296,33 +304,38 @@ export default function AppVersionsPage() {
                 </div>
               </div>
 
-              {/* URL - 如果有的话 */}
-              {appData.app_meta_info?.chatAppMeta && (
-                <>
-                  <Separator />
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      <Globe className="size-4" />
-                      URL
-                    </label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <code className="text-sm bg-muted px-2 py-1 rounded flex-1 font-mono">
-                        {appData.url}
-                      </code>
-                      {appData.url && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleCopy(appData.url, "url")}
-                        >
-                          <Copy className="size-3" />
-                          {copiedItem === "url" ? "Copied!" : "Copy"}
-                        </Button>
-                      )}
-                    </div>
+              {/* MCP Server IDs - If available */}
+              {/* {appData.mcp_server_ids && ( */}
+              <>
+                <Separator />
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Globe className="size-4" />
+                    URL
+                  </label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <code className="text-sm bg-muted px-2 py-1 rounded flex-1 font-mono">
+                      {appData.mcp_server_ids}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        handleCopy(
+                          Array.isArray(appData.mcp_server_ids)
+                            ? appData.mcp_server_ids.join(", ")
+                            : appData.mcp_server_ids || "",
+                          "url"
+                        )
+                      }
+                    >
+                      <Copy className="size-3" />
+                      {copiedItem === "url" ? "Copied!" : "Copy"}
+                    </Button>
                   </div>
-                </>
-              )}
+                </div>
+              </>
+              {/* )} */}
 
               {/* Features */}
               {features.length > 0 && (
