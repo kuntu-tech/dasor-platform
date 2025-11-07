@@ -411,9 +411,9 @@ export default function MarketExplorationPage({
         feedback_text: inputValue.trim(),
         base_run_id: baseRunId,
         policy: "standard",
-        user_id: user?.id || "4748756a-5682-4807-8ced-dd4c3aea5a08",
+        user_id: user?.id,
         task_id: taskId,
-        connection_id: connectionId || "c433813a-da09-436f-81f0-d383261f5890",
+        connection_id: connectionId,
         current_data: runResult,
       };
 
