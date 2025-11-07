@@ -17,113 +17,113 @@ interface Segment {
   subtitle: string;
   questions: Question[];
 }
-const segments: Segment[] = [
-  {
-    id: "luxury-fashion",
-    name: "Luxury Fashion Sellers EU",
-    subtitle: "B2C Online Retailers",
-    questions: [
-      {
-        id: "q1",
-        text: "What is the average customer lifetime value by acquisition channel?",
-        tags: ["Optimize marketing spend", "Metric by dimension"],
-        status: "success",
-      },
-      {
-        id: "q2",
-        text: "Which product categories have the highest return rates and why?",
-        tags: ["Reduce operational costs", "Ranked list with reasons"],
-        status: "warning",
-      },
-      {
-        id: "q3",
-        text: "How does weather patterns correlate with luxury fashion purchases?",
-        tags: ["Improve demand forecasting", "Correlation analysis"],
-        status: "error",
-      },
-      {
-        id: "q4",
-        text: "What percentage of VIP customers engage with personalized recommendations?",
-        tags: ["Enhance personalization", "Percentage with trend"],
-        status: "success",
-      },
-      {
-        id: "q5",
-        text: "How do customer preferences vary across EU regions?",
-        tags: ["Regional customization", "Comparative analysis"],
-        status: "info",
-      },
-      {
-        id: "q6",
-        text: "What is the optimal inventory level for seasonal collections?",
-        tags: ["Inventory optimization", "Predictive analysis"],
-        status: "success",
-      },
-      {
-        id: "q7",
-        text: "Which customer segments show the highest conversion rates for new arrivals?",
-        tags: ["Segment analysis", "Conversion optimization"],
-        status: "info",
-      },
-      {
-        id: "q8",
-        text: "How do shipping costs impact purchase decisions across different price points?",
-        tags: ["Pricing strategy", "Cost analysis"],
-        status: "warning",
-      },
-      {
-        id: "q9",
-        text: "What is the relationship between social media engagement and sales?",
-        tags: ["Marketing effectiveness", "Social commerce"],
-        status: "success",
-      },
-      {
-        id: "q10",
-        text: "Which loyalty program features drive the most repeat purchases?",
-        tags: ["Customer retention", "Program optimization"],
-        status: "info",
-      },
-    ],
-  },
-  {
-    id: "saas-startups",
-    name: "SaaS Startups North America",
-    subtitle: "B2B Software Companies",
-    questions: [
-      {
-        id: "q11",
-        text: "What is the average time to first value for new customers?",
-        tags: ["Improve onboarding", "Time metric"],
-        status: "success",
-      },
-      {
-        id: "q12",
-        text: "Which features correlate most strongly with customer retention?",
-        tags: ["Product development", "Feature analysis"],
-        status: "warning",
-      },
-    ],
-  },
-  {
-    id: "healthcare-providers",
-    name: "Healthcare Providers APAC",
-    subtitle: "Medical Services",
-    questions: [
-      {
-        id: "q13",
-        text: "What is the patient satisfaction score by service type?",
-        tags: ["Quality improvement", "Satisfaction metrics"],
-        status: "success",
-      },
-      {
-        id: "q14",
-        text: "How do appointment no-show rates vary by demographics?",
-        tags: ["Operational efficiency", "Demographic analysis"],
-        status: "info",
-      },
-    ],
-  },
-];
+// const segments: Segment[] = [
+//   {
+//     id: "luxury-fashion",
+//     name: "Luxury Fashion Sellers EU",
+//     subtitle: "B2C Online Retailers",
+//     questions: [
+//       {
+//         id: "q1",
+//         text: "What is the average customer lifetime value by acquisition channel?",
+//         tags: ["Optimize marketing spend", "Metric by dimension"],
+//         status: "success",
+//       },
+//       {
+//         id: "q2",
+//         text: "Which product categories have the highest return rates and why?",
+//         tags: ["Reduce operational costs", "Ranked list with reasons"],
+//         status: "warning",
+//       },
+//       {
+//         id: "q3",
+//         text: "How does weather patterns correlate with luxury fashion purchases?",
+//         tags: ["Improve demand forecasting", "Correlation analysis"],
+//         status: "error",
+//       },
+//       {
+//         id: "q4",
+//         text: "What percentage of VIP customers engage with personalized recommendations?",
+//         tags: ["Enhance personalization", "Percentage with trend"],
+//         status: "success",
+//       },
+//       {
+//         id: "q5",
+//         text: "How do customer preferences vary across EU regions?",
+//         tags: ["Regional customization", "Comparative analysis"],
+//         status: "info",
+//       },
+//       {
+//         id: "q6",
+//         text: "What is the optimal inventory level for seasonal collections?",
+//         tags: ["Inventory optimization", "Predictive analysis"],
+//         status: "success",
+//       },
+//       {
+//         id: "q7",
+//         text: "Which customer segments show the highest conversion rates for new arrivals?",
+//         tags: ["Segment analysis", "Conversion optimization"],
+//         status: "info",
+//       },
+//       {
+//         id: "q8",
+//         text: "How do shipping costs impact purchase decisions across different price points?",
+//         tags: ["Pricing strategy", "Cost analysis"],
+//         status: "warning",
+//       },
+//       {
+//         id: "q9",
+//         text: "What is the relationship between social media engagement and sales?",
+//         tags: ["Marketing effectiveness", "Social commerce"],
+//         status: "success",
+//       },
+//       {
+//         id: "q10",
+//         text: "Which loyalty program features drive the most repeat purchases?",
+//         tags: ["Customer retention", "Program optimization"],
+//         status: "info",
+//       },
+//     ],
+//   },
+//   {
+//     id: "saas-startups",
+//     name: "SaaS Startups North America",
+//     subtitle: "B2B Software Companies",
+//     questions: [
+//       {
+//         id: "q11",
+//         text: "What is the average time to first value for new customers?",
+//         tags: ["Improve onboarding", "Time metric"],
+//         status: "success",
+//       },
+//       {
+//         id: "q12",
+//         text: "Which features correlate most strongly with customer retention?",
+//         tags: ["Product development", "Feature analysis"],
+//         status: "warning",
+//       },
+//     ],
+//   },
+//   {
+//     id: "healthcare-providers",
+//     name: "Healthcare Providers APAC",
+//     subtitle: "Medical Services",
+//     questions: [
+//       {
+//         id: "q13",
+//         text: "What is the patient satisfaction score by service type?",
+//         tags: ["Quality improvement", "Satisfaction metrics"],
+//         status: "success",
+//       },
+//       {
+//         id: "q14",
+//         text: "How do appointment no-show rates vary by demographics?",
+//         tags: ["Operational efficiency", "Demographic analysis"],
+//         status: "info",
+//       },
+//     ],
+//   },
+// ];
 interface AnalysisData {
   id: string;
   dimensionName: string;
@@ -384,9 +384,11 @@ export function ValueQuestionsSection({
   refreshKey,
   segmentsData,
 }: ValueQuestionsSectionProps) {
-  const [activeTab, setActiveTab] = useState(segments[0].id);
+  const [activeTab, setActiveTab] = useState(segmentsData?.[0]?.id || "");
   const [isCompact, setIsCompact] = useState(false);
-  const [currentSegments, setCurrentSegments] = useState(segments);
+  const [currentSegments, setCurrentSegments] = useState(
+    segmentsData?.[0]?.valueQuestions || ([] as any)
+  );
   const [currentAnalysisData, setCurrentAnalysisData] = useState(analysisData);
 
   // 将外部 segmentsData 转换为内部所需结构
@@ -461,15 +463,19 @@ export function ValueQuestionsSection({
       },
     ];
 
-    setCurrentSegments(mappedSegments.length ? mappedSegments : segments);
+    setCurrentSegments(
+      mappedSegments.length
+        ? mappedSegments
+        : segmentsData?.[0]?.valueQuestions || ([] as any)
+    );
     setCurrentAnalysisData(mappedAnalysis);
-    setActiveTab(mappedSegments[0]?.id || segments[0].id);
+    setActiveTab(mappedSegments[0]?.id || segmentsData?.[0]?.id || "");
   }, [segmentsData]);
 
   // 当切换 Tab 时，若外部数据提供了每个 segment 的 analysis，则同步更新下方分析面板
   useEffect(() => {
     if (!segmentsData || segmentsData.length === 0) return;
-    const active = currentSegments.find((s) => s.id === activeTab);
+    const active = currentSegments.find((s: Segment) => s.id === activeTab);
     if (!active) return;
 
     // 在原始 segmentsData 中定位对应段（兼容 id/name/title/segmentId）
@@ -528,7 +534,7 @@ export function ValueQuestionsSection({
   // Handle segment refresh - switch to second tab
   useEffect(() => {
     if (refreshType === "segment" && !isGenerating) {
-      setActiveTab(segments[1].id);
+      setActiveTab(segmentsData?.[1]?.id || "");
     }
   }, [refreshType, isGenerating]);
   // Handle content refresh based on refresh type
@@ -538,12 +544,12 @@ export function ValueQuestionsSection({
       // Add segment - insert new segment at the beginning
       if (refreshType === "add-segment") {
         const newSegment = generateNewSegment();
-        setCurrentSegments((prev) => [newSegment, ...prev]);
+        setCurrentSegments((prev: any) => [newSegment, ...prev]);
         setActiveTab(newSegment.id);
       }
       // Merge segments - remove the last segment
       else if (refreshType === "merge-segments") {
-        setCurrentSegments((prev) => {
+        setCurrentSegments((prev: any) => {
           if (prev.length > 1) {
             const updated = prev.slice(0, -1);
             setActiveTab(updated[0].id);
@@ -555,7 +561,7 @@ export function ValueQuestionsSection({
       // Edit D1 - add new segment at beginning (same as add-segment)
       else if (refreshType === "edit-d1") {
         const newSegment = generateNewSegment();
-        setCurrentSegments((prev) => [newSegment, ...prev]);
+        setCurrentSegments((prev: any) => [newSegment, ...prev]);
         setActiveTab(newSegment.id);
       }
       // Edit D2, D3, D4 - update analysis data
@@ -587,8 +593,8 @@ export function ValueQuestionsSection({
       }
       // Add question - add a new question to the active segment
       else if (refreshType === "add-question") {
-        setCurrentSegments((prev) =>
-          prev.map((segment) => {
+        setCurrentSegments((prev: Segment[]) =>
+          prev.map((segment: Segment) => {
             if (segment.id === currentActive) {
               return {
                 ...segment,
@@ -609,12 +615,12 @@ export function ValueQuestionsSection({
       }
       // Edit question - update first question in active segment
       else if (refreshType === "edit-question") {
-        setCurrentSegments((prev) =>
-          prev.map((segment) => {
+        setCurrentSegments((prev: Segment[]) =>
+          prev.map((segment: Segment) => {
             if (segment.id === currentActive) {
               return {
                 ...segment,
-                questions: segment.questions.map((q, index) =>
+                questions: segment.questions.map((q: Question, index: number) =>
                   index === 0
                     ? {
                         ...q,
@@ -630,8 +636,8 @@ export function ValueQuestionsSection({
       }
       // Delete question - remove last question from active segment
       else if (refreshType === "delete-question") {
-        setCurrentSegments((prev) =>
-          prev.map((segment) => {
+        setCurrentSegments((prev: Segment[]) =>
+          prev.map((segment: Segment) => {
             if (segment.id === currentActive && segment.questions.length > 1) {
               return {
                 ...segment,
@@ -644,13 +650,13 @@ export function ValueQuestionsSection({
       }
       // Existing refresh types
       else {
-        setCurrentSegments((prev) =>
-          prev.map((segment, segmentIndex) => {
+        setCurrentSegments((prev: Segment[]) =>
+          prev.map((segment: Segment, segmentIndex: number) => {
             // For domain refresh, update all segments
             if (refreshType === "domain") {
               return {
                 ...segment,
-                questions: segment.questions.map((q) => ({
+                questions: segment.questions.map((q: Question) => ({
                   ...q,
                   text: generateRandomQuestion(),
                 })),
@@ -660,7 +666,7 @@ export function ValueQuestionsSection({
             if (refreshType === "segment" && segmentIndex === 1) {
               return {
                 ...segment,
-                questions: segment.questions.map((q) => ({
+                questions: segment.questions.map((q: Question) => ({
                   ...q,
                   text: generateRandomQuestion(),
                 })),
@@ -670,7 +676,7 @@ export function ValueQuestionsSection({
             if (refreshType === "question-list" && segmentIndex === 0) {
               return {
                 ...segment,
-                questions: segment.questions.map((q) => ({
+                questions: segment.questions.map((q: Question) => ({
                   ...q,
                   text: generateRandomQuestion(),
                 })),
@@ -680,13 +686,14 @@ export function ValueQuestionsSection({
             if (refreshType === "question" && segmentIndex === 0) {
               return {
                 ...segment,
-                questions: segment.questions.map((q, qIndex) =>
-                  qIndex === 0
-                    ? {
-                        ...q,
-                        text: generateRandomQuestion(),
-                      }
-                    : q
+                questions: (segment as any).questions.map(
+                  (q: any, qIndex: number) =>
+                    qIndex === 0
+                      ? {
+                          ...q,
+                          text: generateRandomQuestion(),
+                        }
+                      : q
                 ),
               };
             }
@@ -697,7 +704,8 @@ export function ValueQuestionsSection({
     }
   }, [refreshKey, refreshType, isGenerating]);
   const activeSegment =
-    currentSegments.find((s) => s.id === activeTab) || currentSegments[0];
+    currentSegments.find((s: Segment) => s.id === activeTab) ||
+    currentSegments[0];
 
   // 持久化：仅存当前选中 Tab 的 valueQuestions
   useEffect(() => {
@@ -725,7 +733,9 @@ export function ValueQuestionsSection({
                 segName === activeTab ||
                 (activeSegment &&
                   (segId === activeSegment.id ||
-                    segName === activeSegment.name))
+                    segName === activeSegment.name ||
+                    seg.segmentId === activeSegment.id ||
+                    seg.name === activeSegment.name))
               );
             });
 
@@ -763,7 +773,7 @@ export function ValueQuestionsSection({
     try {
       localStorage.setItem(
         "selectedProblems",
-        JSON.stringify(activeSegment?.questions.map((q) => q.text))
+        JSON.stringify(activeSegment?.questions.map((q: Question) => q.text))
       );
     } catch {}
   }, [activeTab, activeSegment, currentSegments]);
@@ -978,7 +988,7 @@ export function ValueQuestionsSection({
       {/* Tabs */}
       <div className="border-b border-gray-200">
         <div className="flex">
-          {currentSegments.map((segment) => (
+          {currentSegments.map((segment: Segment) => (
             <button
               key={segment.id}
               onClick={() => setActiveTab(segment.id)}
@@ -996,7 +1006,7 @@ export function ValueQuestionsSection({
                   : "bg-white text-gray-600 hover:text-gray-900 text-sm hover:bg-gray-100"
               } ${isGenerating ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              {segment.name}
+              {(segment as any).name}
             </button>
           ))}
         </div>
@@ -1317,62 +1327,74 @@ export function ValueQuestionsSection({
                 Value Questions
               </h2>
               <div className="space-y-1.5">
-                {activeSegment.questions.map((question, index) => (
-                  <motion.div
-                    key={`${question.id}-${refreshKey}`}
-                    initial={{
-                      opacity: 0,
-                      x: -20,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      x: 0,
-                    }}
-                    transition={{
-                      duration: 0.3,
-                      delay: index * 0.05,
-                    }}
-                    className="relative"
-                  >
-                    {/* Single question overlay - only on first question */}
-                    {index === 0 && showSingleQuestionOverlay && (
+                {activeSegment?.questions &&
+                activeSegment.questions.length > 0 ? (
+                  activeSegment.questions.map(
+                    (question: Question, index: number) => (
                       <motion.div
+                        key={`${question.id}-${refreshKey}`}
                         initial={{
                           opacity: 0,
+                          x: -20,
                         }}
                         animate={{
                           opacity: 1,
-                        }}
-                        exit={{
-                          opacity: 0,
+                          x: 0,
                         }}
                         transition={{
                           duration: 0.3,
+                          delay: index * 0.05,
                         }}
-                        className="absolute inset-0 z-20 flex items-center justify-center bg-white/95 backdrop-blur-sm rounded-xl"
+                        className="relative"
                       >
-                        <motion.div
-                          animate={{
-                            rotate: 360,
-                          }}
-                          transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            ease: "linear",
-                          }}
-                        >
-                          <Sparkles
-                            className="w-8 h-8"
-                            style={{
-                              color: "#8F56BE",
+                        {/* Single question overlay - only on first question */}
+                        {index === 0 && showSingleQuestionOverlay && (
+                          <motion.div
+                            initial={{
+                              opacity: 0,
                             }}
-                          />
-                        </motion.div>
+                            animate={{
+                              opacity: 1,
+                            }}
+                            exit={{
+                              opacity: 0,
+                            }}
+                            transition={{
+                              duration: 0.3,
+                            }}
+                            className="absolute inset-0 z-20 flex items-center justify-center bg-white/95 backdrop-blur-sm rounded-xl"
+                          >
+                            <motion.div
+                              animate={{
+                                rotate: 360,
+                              }}
+                              transition={{
+                                duration: 2,
+                                repeat: Infinity,
+                                ease: "linear",
+                              }}
+                            >
+                              <Sparkles
+                                className="w-8 h-8"
+                                style={{
+                                  color: "#8F56BE",
+                                }}
+                              />
+                            </motion.div>
+                          </motion.div>
+                        )}
+                        <QuestionAccordion
+                          question={question}
+                          index={index + 1}
+                        />
                       </motion.div>
-                    )}
-                    <QuestionAccordion question={question} index={index + 1} />
-                  </motion.div>
-                ))}
+                    )
+                  )
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>暂无问题数据</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

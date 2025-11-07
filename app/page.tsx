@@ -308,7 +308,7 @@ export default function DashboardPage() {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search App"
+                placeholder="Search by Name"
                 className="pl-9 w-72"
               />
             </div>
@@ -462,12 +462,12 @@ export default function DashboardPage() {
                             ?.access_token || "-"}
                         </span>
                       </div>
-                      <div className="truncate text-right md:text-left">
+                      {/* <div className="truncate text-right md:text-left">
                         <span className="text-foreground/80">
                           Valued Questions:{" "}
                         </span>
                         <span className="tabular-nums">{app.features}</span>
-                      </div>
+                      </div> */}
 
                       <div className="truncate">
                         <span className="text-foreground/80">
@@ -511,9 +511,6 @@ export default function DashboardPage() {
                     <TableHead className="w-[15%]">Project ID</TableHead>
                     <TableHead className="w-[15%]">Access Token</TableHead>
                     <TableHead className="w-[15%]">API Key</TableHead>
-                    <TableHead className="w-[10%] text-center">
-                      Valued Questions
-                    </TableHead>
                     <TableHead className="w-[10%]">Last Edit Date</TableHead>
                     <TableHead className="w-[10%]">Published Date</TableHead>
                     <TableHead className="w-[8%]"></TableHead>
