@@ -1237,6 +1237,8 @@ export function ConnectFlow() {
           connectionUrl: connectionUrl,
           apiKey: apiKey,
           accessToken: accessToken,
+          id: connectionId,
+          connectionId: connectionId,
         })
       );
     } catch (error) {
