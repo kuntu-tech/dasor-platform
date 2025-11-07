@@ -199,6 +199,8 @@ export function PublishFlow() {
           }
           if (typeof chatMeta.domain === "string" && chatMeta.domain.trim()) {
             setCurrentAppUrl(chatMeta.domain.trim());
+          } else {
+            setCurrentAppUrl(appData?.mcp_server_ids || "");
           }
         }
       }
