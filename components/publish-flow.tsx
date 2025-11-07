@@ -26,7 +26,7 @@ export function PublishFlow() {
     "UrbanStay Insights provides data-driven analysis for optimizing short-term rental performance in urban markets. It empowers property managers and hospitality marketers with actionable insights to enhance occupancy and revenue."
   );
   const [monetization, setMonetization] = useState("free");
-  const [paymentPrice, setPaymentPrice] = useState(0);
+  const [paymentPrice, setPaymentPrice] = useState<string>("0");
   const [isPublished, setIsPublished] = useState(false);
   const [featureCount, setFeatureCount] = useState(0);
   const currentAppUrl = localStorage.getItem("currentAppUrl") || "";
@@ -83,16 +83,6 @@ export function PublishFlow() {
           }
         } catch {}
 
-        const metadataPayload = {
-          run_result: JSON.parse(localStorage.getItem("run_result") || "{}"),
-          domain: { primaryDomain: "Hospitality Management" },
-          ingest: { schemaHash: "sha256-3c7459f15975eae5" },
-          run_id: "r_1",
-          status: "complete",
-          task_id: taskId,
-          segments: segmentsPayload,
-        };
-
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 20000);
         const metaRes = await fetch(
@@ -101,7 +91,7 @@ export function PublishFlow() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(
-              JSON.parse(localStorage.getItem("run_result") || "{}")
+              JSON.parse(localStorage.getItem("run_result_publish") || "{}")
             ),
             cache: "no-store",
             signal: controller.signal,
@@ -138,7 +128,7 @@ export function PublishFlow() {
           description: description.trim(),
           payment_model: JSON.stringify({
             model: monetization,
-            price: Number(paymentPrice),
+            price: Number(paymentPrice) || 0,
           }),
           status: "published",
           app_version: "1.0.0",
@@ -363,14 +353,35 @@ export function PublishFlow() {
               <div className="space-y-2">
                 <Label htmlFor="price">Subscription Price (Monthly)</Label>
                 <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">¥</span>
+                  <span className="text-muted-foreground">$</span>
                   <Input
                     id="price"
                     type="number"
                     placeholder="9.9"
                     className="flex-1"
                     value={paymentPrice}
-                    onChange={(e) => setPaymentPrice(Number(e.target.value))}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // 允许空字符串，这样用户可以删除所有内容
+                      if (value === "") {
+                        setPaymentPrice("");
+                      } else {
+                        // 只允许数字和小数点
+                        const numValue = value.replace(/[^0-9.]/g, "");
+                        setPaymentPrice(numValue);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // 失去焦点时，如果为空或无效，设置为 "0"
+                      const value = e.target.value;
+                      if (
+                        value === "" ||
+                        isNaN(Number(value)) ||
+                        Number(value) < 0
+                      ) {
+                        setPaymentPrice("0");
+                      }
+                    }}
                   />
                 </div>
               </div>
