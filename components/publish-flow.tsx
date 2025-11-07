@@ -368,6 +368,11 @@ export function PublishFlow() {
       setIsPublished(true);
     } catch (error) {
       console.log("应用保存失败:", error);
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to publish the app. Please try again.";
+      alert(message);
     }
   };
 
