@@ -637,13 +637,20 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
       
       {/* 窗口 */}
       <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-6xl h-[80vh] mx-4 flex overflow-hidden">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-full"
+        >
+          <X className="size-4" />
+          <span className="sr-only">Close settings</span>
+        </Button>
+
         {/* 左侧导航栏 */}
         <div className="w-64 bg-gray-50 border-r border-gray-200 p-6 flex flex-col">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-lg font-semibold">Settings</h2>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="size-4" />
-            </Button>
           </div>
           
           <nav className="space-y-1 flex-1">
