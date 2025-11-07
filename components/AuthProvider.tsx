@@ -170,10 +170,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timeoutId);
     });
 
-    return () => {
-      clearTimeout(timeoutId);
-    };
-
     // 监听认证状态变化
     const {
       data: { subscription },
@@ -200,7 +196,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signInWithGoogle = async () => {

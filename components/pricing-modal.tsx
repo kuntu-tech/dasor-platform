@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Check, X } from "lucide-react"
+import { X } from "lucide-react"
+
 import { useAuth } from "@/components/AuthProvider"
 import { getVendorStatus, createSubscription } from "@/portable-pages/lib/connectApi"
+import { ensureVendor } from "@/portable-pages/lib/vendorEnsure"
+import { PricingCard, type Plan } from "@/components/ui/pricing"
 
 interface PricingModalProps {
   isOpen: boolean
@@ -13,12 +14,28 @@ interface PricingModalProps {
 }
 
 export function PricingModal({ isOpen, onClose }: PricingModalProps) {
-  const [selectedPlan, setSelectedPlan] = useState<string>("pro")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
 
-  // 处理ESC键关闭和错误状态
+  const stringifyDetail = (detail: unknown): string | undefined => {
+    if (!detail) return undefined
+    if (typeof detail === "string") return detail
+    if (detail instanceof Error) return detail.message
+    try {
+      const serialized = JSON.stringify(detail)
+      return serialized.length > 160 ? `${serialized.slice(0, 157)}...` : serialized
+    } catch {
+      return undefined
+    }
+  }
+
+  const formatErrorMessage = (message: string, detail?: unknown) => {
+    const detailText = stringifyDetail(detail)
+    return detailText ? `${message} (${detailText})` : message
+  }
+
+  // Handle ESC key closure and reset error state when opening
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -28,9 +45,9 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
 
     if (isOpen) {
       document.addEventListener("keydown", handleEscape)
-      // 防止背景滚动
+      // Prevent background scrolling
       document.body.style.overflow = "hidden"
-      // 清除错误状态
+      // Reset any previous error when the modal opens
       setError(null)
     }
 
@@ -40,7 +57,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
     }
   }, [isOpen, onClose])
 
-  // 处理订阅
+  // Handle subscription flow
   const handleSubscribe = async () => {
     if (!user?.id) {
       setError("Please log in first")
@@ -50,155 +67,162 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
     setIsLoading(true)
     setError(null)
 
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
+
     try {
-      // 1. 获取 vendorId
-      const vendorStatus = await getVendorStatus(user.id)
-      
-      if (!vendorStatus.success || !vendorStatus.data?.id) {
-        setError("Vendor information not found. Please connect your Stripe account first")
+      let vendorId: number | undefined
+
+      try {
+        const vendorStatus = await getVendorStatus(user.id)
+        if (vendorStatus.success && vendorStatus.data?.id) {
+          vendorId = vendorStatus.data.id
+        }
+      } catch (statusError) {
+        console.log("Failed to fetch vendor status, will attempt auto provisioning:", statusError)
+      }
+
+      if (!vendorId) {
+        const email = user.email
+        if (!email) {
+          setError("We couldn't read your account email. Please sign out and sign back in before subscribing.")
+          setIsLoading(false)
+          return
+        }
+
+        const ensureResponse = await ensureVendor({
+          email,
+          userId: user.id,
+          redirectUri: baseUrl ? `${baseUrl}/oauth/callback` : undefined,
+        })
+
+        if (!ensureResponse.success || !ensureResponse.data?.vendorId) {
+          setError(
+            formatErrorMessage(
+              "We couldn't create or locate your vendor profile. Please try again or contact support.",
+              ensureResponse.error ?? ensureResponse.details
+            )
+          )
+          setIsLoading(false)
+          return
+        }
+
+        vendorId = ensureResponse.data.vendorId
+      }
+
+      if (!vendorId) {
+        setError("We couldn't determine your vendor profile after onboarding. Please refresh the page and try again.")
         setIsLoading(false)
         return
       }
 
-      const vendorId = vendorStatus.data.id
-
-      // 2. 构建回调 URL
-      const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
-      const successUrl = `${baseUrl}/subscription/success`
-      const cancelUrl = `${baseUrl}/subscription/cancel`
-
-      // 3. 调用订阅接口（固定为月付）
       const subscriptionResponse = await createSubscription(vendorId, {
         interval: "month",
-        successUrl,
-        cancelUrl,
+        successUrl: `${baseUrl}/subscription/success`,
+        cancelUrl: `${baseUrl}/subscription/cancel`,
       })
 
-      // 检查是否已经有活跃订阅
       if (subscriptionResponse.success && subscriptionResponse.data) {
-        if (subscriptionResponse.data.alreadySubscribed === true || 
-            subscriptionResponse.message?.toLowerCase().includes("already has an active subscription")) {
-          setError("You already have an active subscription")
+        const alreadyActive =
+          subscriptionResponse.data.alreadySubscribed === true ||
+          subscriptionResponse.message?.toLowerCase().includes("already has an active subscription")
+
+        if (alreadyActive) {
+          setError("You already have an active subscription. If this is unexpected, please contact support.")
           setIsLoading(false)
           return
         }
       }
 
       if (!subscriptionResponse.success || !subscriptionResponse.data?.checkoutUrl) {
-        setError(subscriptionResponse.error || "Failed to create subscription")
+        const subscriptionDetail =
+          subscriptionResponse.error ||
+          subscriptionResponse.message ||
+          subscriptionResponse.data?.message
+
+        setError(
+          formatErrorMessage(
+            "Stripe did not return a checkout link. Please try again in a few minutes or contact support.",
+            subscriptionDetail
+          )
+        )
         setIsLoading(false)
         return
       }
 
-      // 3. 跳转到支付页面
       window.location.href = subscriptionResponse.data.checkoutUrl
     } catch (err) {
-      console.log("订阅处理错误:", err)
-      setError(err instanceof Error ? err.message : "Subscription processing failed. Please try again later")
+      console.log("Subscription processing error:", err)
+      setError(
+        formatErrorMessage(
+          "We couldn't start your subscription. Please refresh the page and try again.",
+          err
+        )
+      )
       setIsLoading(false)
     }
   }
 
   const plans = [
     {
-      id: "pro",
       name: "Pro",
-      description: "For more projects and usage",
-      price: "$35",
-      period: "per month",
-      buttonText: "Subscribe",
-      buttonVariant: "default" as const,
+      info: "For more projects and usage",
+      price: {
+        monthly: 35,
+        yearly: 35 * 12,
+      },
       features: [
-        "Unlimited generating ChatAPP",
-        "Unlimited import dasebase",
-        "Unlimited times business analyst",
-        "Unlock McKinsey-level AI analytics"
+        { text: "Unlimited generating ChatAPP" },
+        { text: "Unlimited import dasebase" },
+        { text: "Unlimited times business analyst" },
+        { text: "Unlock McKinsey-level AI analytics" },
       ],
-      isPopular: false
-    }
+      btn: {
+        text: "Subscribe",
+        loadingText: "Processing...",
+        disabled: isLoading,
+        onClick: () => {
+          handleSubscribe()
+        },
+        variant: "default",
+      },
+    } satisfies Plan,
   ]
 
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* 蒙版 */}
-      <div 
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
+      {/* Overlay */}
+      <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      
-      {/* 窗口 */}
-      <div className="relative w-full max-w-md mx-4 p-4">
-        {/* 价格计划卡片 */}
-        <div className="flex justify-center">
-          {plans.map((plan) => (
-            <Card 
-              key={plan.id} 
-              className={`relative w-full max-w-md transition-all duration-200 bg-white rounded-lg shadow-2xl ${
-                selectedPlan === plan.id 
-                  ? 'ring-2 ring-blue-500 bg-blue-50' 
-                  : 'hover:ring-2 hover:ring-gray-300'
-              }`}
-              onClick={() => setSelectedPlan(plan.id)}
-            >
-              {/* 关闭按钮 */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onClose()
-                }}
-                className="absolute top-3 right-3 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </button>
 
-              <CardHeader className="text-center pb-2 pt-6">
-                <CardTitle className="text-xl">{plan.name}</CardTitle>
-                <CardDescription className="text-sm">{plan.description}</CardDescription>
-                
-                <div className="mt-2">
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-3xl font-bold">{plan.price}</span>
-                    <span className="text-sm text-muted-foreground font-normal">/mo</span>
-                  </div>
-                </div>
-              </CardHeader>
+      {/* Dialog */}
+      <div className="relative mx-auto flex w-full max-w-lg flex-col items-center">
+        <div className="relative w-full max-w-[19rem]">
+          <PricingCard
+            plan={plans[0]}
+            frequency="monthly"
+            className="rounded-[28px] border border-white/10 bg-[#0D0F16] shadow-[0_25px_80px_rgba(0,0,0,0.65)]"
+          />
 
-              <CardContent className="pt-0">
-                {error && (
-                  <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-sm text-red-600">{error}</p>
-                  </div>
-                )}
-                
-                <div className="space-y-2 mb-4">
-                  {plan.features.map((feature, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Check className="size-4 text-green-600 flex-shrink-0" />
-                      <span className="text-sm">{feature}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <Button 
-                  className="w-full" 
-                  variant={plan.buttonVariant}
-                  disabled={isLoading}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleSubscribe()
-                  }}
-                >
-                  {isLoading ? "Processing..." : plan.buttonText}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+          <button
+            onClick={onClose}
+            className="absolute right-3 top-3 rounded-full bg-black/50 p-2 text-zinc-200 shadow-[0_8px_16px_rgba(0,0,0,0.3)] transition hover:bg-black/70 focus:outline-none focus:ring-2 focus:ring-white/60 focus:ring-offset-2 focus:ring-offset-black/20"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
+
+        {error && (
+          <div className="mt-4 w-full max-w-sm rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   )
 }
+

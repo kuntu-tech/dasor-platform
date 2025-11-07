@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,19 +20,26 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/AuthProvider";
 export function PublishFlow() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const appId = searchParams.get("id");
   const { session } = useAuth();
-  const [appName, setAppName] = useState("UrbanStay Insights");
-  const [description, setDescription] = useState(
-    "UrbanStay Insights provides data-driven analysis for optimizing short-term rental performance in urban markets. It empowers property managers and hospitality marketers with actionable insights to enhance occupancy and revenue."
-  );
+  const [appName, setAppName] = useState("");
+  const [description, setDescription] = useState("");
   const [monetization, setMonetization] = useState("free");
   const [paymentPrice, setPaymentPrice] = useState<string>("0");
   const [isPublished, setIsPublished] = useState(false);
   const [featureCount, setFeatureCount] = useState(0);
-  const currentAppUrl = localStorage.getItem("currentAppUrl") || "";
+  const [currentAppUrl, setCurrentAppUrl] = useState("");
+  const [metadataFromService, setMetadataFromService] = useState<any | null>(
+    null
+  );
+  const [metadataApplied, setMetadataApplied] = useState(false);
 
   useEffect(() => {
-    // setIsPublished(true);
+    if (typeof window === "undefined") return;
+    try {
+      setCurrentAppUrl(localStorage.getItem("currentAppUrl") || "");
+    } catch {}
     const stored = localStorage.getItem("currentApp");
     if (stored) {
       try {
@@ -43,6 +50,127 @@ export function PublishFlow() {
       }
     }
   }, []);
+
+  const buildMetadataPayload = useCallback(() => {
+    const taskId =
+      (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
+    let segmentsPayload: any[] = [];
+    try {
+      const marketsRaw = localStorage.getItem("marketsData");
+      if (marketsRaw) {
+        const markets = JSON.parse(marketsRaw);
+        if (Array.isArray(markets)) {
+          segmentsPayload = markets.map((seg: any) => ({
+            name: seg.name || seg.title,
+            analysis: seg.analysis || undefined,
+            valueQuestions: seg.valueQuestions || undefined,
+          }));
+        }
+      }
+    } catch {}
+
+    let runResult: any = {};
+    try {
+      runResult = JSON.parse(localStorage.getItem("run_result") || "{}");
+    } catch {}
+
+    return {
+      run_result: runResult,
+      domain: { primaryDomain: "Hospitality Management" },
+      ingest: { schemaHash: "sha256-3c7459f15975eae5" },
+      run_id: "r_1",
+      status: "complete",
+      task_id: taskId,
+      segments: segmentsPayload,
+    };
+  }, []);
+
+  const fetchMetadataFromService = useCallback(
+    async (signal?: AbortSignal) => {
+      const metadataPayload = buildMetadataPayload();
+      const response = await fetch(
+        "https://business-insight.datail.ai/api/v1/apps/metadata",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(metadataPayload),
+          cache: "no-store",
+          signal,
+        }
+      );
+      const text = await response.text();
+      let parsed: any = text;
+      try {
+        parsed = JSON.parse(text);
+      } catch {}
+      if (!response.ok) {
+        const err = new Error(
+          typeof parsed === "string"
+            ? parsed
+            : parsed?.error || `apps/metadata HTTP ${response.status}`
+        );
+        (err as any).meta = parsed;
+        throw err;
+      }
+      return parsed;
+    },
+    [buildMetadataPayload]
+  );
+
+  const applyMetadataDefaults = useCallback(
+    (metadata: any) => {
+      if (!metadata || metadataApplied) return;
+
+      const chatMeta =
+        metadata?.chatAppMeta ||
+        metadata?.chatappmeta ||
+        metadata?.chat_app_meta ||
+        null;
+
+      if (chatMeta) {
+        if (typeof chatMeta.name === "string" && chatMeta.name.trim()) {
+          setAppName(chatMeta.name.trim());
+        }
+        if (
+          typeof chatMeta.description === "string" &&
+          chatMeta.description.trim()
+        ) {
+          setDescription(chatMeta.description.trim());
+        }
+        if (typeof chatMeta.domain === "string" && chatMeta.domain.trim()) {
+          setCurrentAppUrl(chatMeta.domain.trim());
+        }
+      } else {
+        if (typeof metadata?.appName === "string" && metadata.appName.trim()) {
+          setAppName(metadata.appName.trim());
+        }
+        if (
+          typeof metadata?.description === "string" &&
+          metadata.description.trim()
+        ) {
+          setDescription(metadata.description.trim());
+        }
+      }
+
+      setMetadataApplied(true);
+    },
+    [metadataApplied]
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchMetadataFromService(controller.signal)
+      .then((meta) => {
+        setMetadataFromService(meta);
+        applyMetadataDefaults(meta);
+      })
+      .catch((err) => {
+        if ((err as Error).name === "AbortError") return;
+        console.warn("加载 apps/metadata 失败:", err);
+      });
+
+    return () => controller.abort();
+  }, [applyMetadataDefaults, fetchMetadataFromService]);
 
   const handlePublish = async () => {
     // const stored = localStorage.getItem("currentApp");
@@ -64,17 +192,14 @@ export function PublishFlow() {
     // }, 1000);
     try {
       // 先调用业务元数据接口，获取 app_meta_info
-      let appMetaFromService: any | null = null;
-      try {
-        const taskId =
-          (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
-        let segmentsPayload: any[] = [];
+      let appMetaFromService: any | null = metadataFromService;
+      if (!appMetaFromService) {
         try {
           const marketsRaw = localStorage.getItem("marketsData");
           if (marketsRaw) {
             const markets = JSON.parse(marketsRaw);
             if (Array.isArray(markets)) {
-              segmentsPayload = markets.map((seg: any) => ({
+              appMetaFromService = markets.map((seg: any) => ({
                 name: seg.name || seg.title,
                 analysis: seg.analysis || undefined,
                 valueQuestions: seg.valueQuestions || undefined,
@@ -104,18 +229,19 @@ export function PublishFlow() {
         } catch {
           appMetaFromService = { raw: metaText };
         }
-        if (!metaRes.ok) {
-          console.warn(
-            "apps/metadata 调用失败",
-            metaRes.status,
-            appMetaFromService
-          );
-        } else {
-          console.log("apps/metadata 调用成功", appMetaFromService);
-        }
-      } catch (err) {
-        console.warn("上报应用元数据异常", err);
       }
+
+      if (!appMetaFromService || typeof appMetaFromService !== "object") {
+        appMetaFromService = {};
+      }
+      const chatMeta =
+        appMetaFromService.chatAppMeta ||
+        appMetaFromService.chatappmeta ||
+        appMetaFromService.chat_app_meta ||
+        {};
+      chatMeta.name = appName.trim();
+      chatMeta.description = description.trim();
+      appMetaFromService.chatAppMeta = chatMeta;
 
       const response = await fetch("/api/apps", {
         method: "POST",
@@ -136,8 +262,7 @@ export function PublishFlow() {
           deployment_status: "success",
           published_at: new Date().toISOString(),
           // 不显式传 connection_id，后端将为当前用户选择最近的激活连接
-          // 传对象，后端会标准化写入 { app_meta_info: <object> }
-          apps_meta_info: appMetaFromService,
+          app_meta_info: appMetaFromService,
         }),
       });
 
