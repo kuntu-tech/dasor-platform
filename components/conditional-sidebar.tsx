@@ -81,9 +81,7 @@ export function ConditionalSidebar({
           .single();
         
         if (!error && data?.avatar_url) {
-          // 添加缓存破坏参数，确保获取最新头像
-          const avatarUrlWithCache = `${data.avatar_url}?t=${Date.now()}`;
-          setAvatarUrl(avatarUrlWithCache);
+          setAvatarUrl(data.avatar_url);
         } else {
           const metadataAvatar =
             user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
@@ -120,15 +118,19 @@ export function ConditionalSidebar({
 
   // 监听头像更新事件
   useEffect(() => {
-    const handleAvatarUpdated = () => {
-      // 当头像更新时，重新获取头像
-      fetchUserAvatar();
+    const handleAvatarUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ avatarUrl?: string }>).detail;
+      if (detail?.avatarUrl) {
+        setAvatarUrl(detail.avatarUrl);
+      } else {
+        fetchUserAvatar();
+      }
     };
 
-    window.addEventListener('avatar-updated', handleAvatarUpdated);
+    window.addEventListener("avatar-updated", handleAvatarUpdated);
 
     return () => {
-      window.removeEventListener('avatar-updated', handleAvatarUpdated);
+      window.removeEventListener("avatar-updated", handleAvatarUpdated);
     };
   }, [fetchUserAvatar]);
 
@@ -163,6 +165,12 @@ export function ConditionalSidebar({
   if (isPublicPage) {
     return <>{children}</>;
   }
+  const displayAvatarUrl =
+    avatarUrl ||
+    user?.user_metadata?.avatar_url ||
+    user?.user_metadata?.picture ||
+    "/placeholder-user.jpg";
+
   // 顶部导航栏组件
   const TopNavBar = () => (
     <div className="fixed top-0 left-0 right-0 z-50 bg-white px-4 py-3">
@@ -187,12 +195,8 @@ export function ConditionalSidebar({
               )}
               <Avatar className="size-10">
                 <AvatarImage
-                  src={
-                    avatarUrl ||
-                    user?.user_metadata?.avatar_url ||
-                    user?.user_metadata?.picture ||
-                    "/placeholder-user.jpg"
-                  }
+                  key={displayAvatarUrl}
+                  src={displayAvatarUrl}
                   alt={user?.user_metadata?.full_name || "Account"}
                 />
                 <AvatarFallback>
