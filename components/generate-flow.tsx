@@ -491,6 +491,21 @@ export function GenerateFlow() {
       chatMeta.description = appDescription;
       appMetaFromService.chatAppMeta = chatMeta;
 
+      try {
+        const storedPublish = localStorage.getItem("run_result_publish");
+        if (storedPublish) {
+          const parsedPublish = JSON.parse(storedPublish);
+          if (parsedPublish && typeof parsedPublish === "object") {
+            anchIndexNum =
+              parsedPublish?.anchIndex ??
+              parsedPublish?.anchorIndex ??
+              parsedPublish?.anchor_index ??
+              null;
+          }
+        }
+      } catch (err) {
+        console.warn("解析 run_result_publish 失败", err);
+      }
       const batchData = {
         queries: extractedQueries,
         anchorIndex: anchIndexNum,

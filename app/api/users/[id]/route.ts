@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// GET /api/users/[id] - 获取单个用户
+// GET /api/users/[id] - Get single user
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
-      return NextResponse.json({ error: "用户ID不能为空" }, { status: 400 });
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
     const { data: user, error } = await supabaseAdmin
@@ -21,11 +21,11 @@ export async function GET(
 
     if (error) {
       if (error.code === "PGRST116") {
-        return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
-      console.log("获取用户错误:", error);
+      console.log("Failed to fetch user:", error);
       return NextResponse.json(
-        { error: "获取用户失败", details: error.message },
+        { error: "Failed to fetch user", details: error.message },
         { status: 500 }
       );
     }
@@ -35,26 +35,26 @@ export async function GET(
       data: user,
     });
   } catch (error) {
-    console.log("API错误:", error);
-    return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
+    console.log("API error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// PUT /api/users/[id] - 更新用户信息
+// PUT /api/users/[id] - Update user information
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { email, full_name, avatar_url, role, is_active } = body;
 
     if (!id) {
-      return NextResponse.json({ error: "用户ID不能为空" }, { status: 400 });
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
-    // 检查用户是否存在
+    // Check if user exists
     const { data: existingUser } = await supabaseAdmin
       .from("users")
       .select("id")
@@ -62,10 +62,10 @@ export async function PUT(
       .single();
 
     if (!existingUser) {
-      return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // 如果更新邮箱，检查是否已被其他用户使用
+    // If updating email, ensure it is not used by other users
     if (email) {
       const { data: emailExists } = await supabaseAdmin
         .from("users")
@@ -76,13 +76,13 @@ export async function PUT(
 
       if (emailExists) {
         return NextResponse.json(
-          { error: "该邮箱已被其他用户使用" },
+          { error: "Email is already in use by another user" },
           { status: 409 }
         );
       }
     }
 
-    // 构建更新数据
+    // Build update payload
     const updateData: any = {};
     if (email !== undefined) updateData.email = email;
     if (full_name !== undefined) updateData.full_name = full_name;
@@ -99,9 +99,9 @@ export async function PUT(
       .single();
 
     if (error) {
-      console.log("更新用户错误:", error);
+      console.log("Failed to update user:", error);
       return NextResponse.json(
-        { error: "更新用户失败", details: error.message },
+        { error: "Failed to update user", details: error.message },
         { status: 500 }
       );
     }
@@ -109,27 +109,27 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       data: user,
-      message: "用户信息更新成功",
+      message: "User information updated successfully",
     });
   } catch (error) {
-    console.log("API错误:", error);
-    return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
+    console.log("API error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// DELETE /api/users/[id] - 删除用户
+// DELETE /api/users/[id] - Delete user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
-      return NextResponse.json({ error: "用户ID不能为空" }, { status: 400 });
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
-    // 检查用户是否存在
+    // Check if user exists
     const { data: existingUser } = await supabaseAdmin
       .from("users")
       .select("id")
@@ -137,25 +137,25 @@ export async function DELETE(
       .single();
 
     if (!existingUser) {
-      return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const { error } = await supabaseAdmin.from("users").delete().eq("id", id);
 
     if (error) {
-      console.log("删除用户错误:", error);
+      console.log("Failed to delete user:", error);
       return NextResponse.json(
-        { error: "删除用户失败", details: error.message },
+        { error: "Failed to delete user", details: error.message },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: "用户删除成功",
+      message: "User deleted successfully",
     });
   } catch (error) {
-    console.log("API错误:", error);
-    return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
+    console.log("API error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
