@@ -26,6 +26,7 @@ import PaymentAccount from "@/portable-pages/components/settings/PaymentAccount"
 import { useAuth } from "@/components/AuthProvider"
 import { getBillingPortalUrl } from "@/lib/billingPortal"
 import { supabase } from "@/lib/supabase"
+import { useSearchParams } from "next/navigation"
 
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
@@ -36,6 +37,7 @@ const settingsMenu = [
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("account")
   const { user } = useAuth()
+  const searchParams = useSearchParams()
   const [billingPortalUrl, setBillingPortalUrl] = useState<string | null>(null)
   const [billingPortalLoading, setBillingPortalLoading] = useState(false)
   const [billingPortalError, setBillingPortalError] = useState<string | null>(null)
@@ -74,6 +76,13 @@ export default function SettingsPage() {
     
     fetchUserAvatar()
   }, [user?.id])
+
+  useEffect(() => {
+    const payoutTab = searchParams?.get("payoutTab")?.toLowerCase()
+    if (payoutTab === "payout") {
+      setActiveTab("payout")
+    }
+  }, [searchParams])
 
   // 当切换到 billing 标签时，先检查支付记录，再决定是否加载 Customer Portal
   useEffect(() => {

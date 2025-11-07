@@ -44,6 +44,7 @@ import {
 import { Trash2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { PricingModal } from "@/components/pricing-modal";
+import { CreateAppButton } from "@/components/create-app-button";
 type AppItem = {
   id: string;
   name: string;
@@ -56,7 +57,13 @@ type AppItem = {
       api_key?: string;
     } | null;
   } | null;
-
+  generator_meta?: {
+    queries?: Array<{
+      index: number;
+      query: string;
+    }>;
+    [key: string]: any;
+  } | null;
   features: number;
   createdAt: string;
   updated_at: string;
@@ -74,6 +81,31 @@ export default function DashboardPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const { user, session } = useAuth();
+
+  // 提取 generator_meta 中的 queries 并保存到 localStorage
+  const extractAndSaveQueries = (app: AppItem) => {
+    try {
+      if (
+        app.generator_meta?.queries &&
+        Array.isArray(app.generator_meta.queries)
+      ) {
+        // 提取 queries 数组中的 query 字段
+        const selectedProblems = app.generator_meta.queries
+          .map((q) => q.query)
+          .filter((query) => query && query.trim().length > 0);
+
+        if (selectedProblems.length > 0) {
+          localStorage.setItem(
+            "selectedProblems",
+            JSON.stringify(selectedProblems)
+          );
+          console.log("Saved queries to selectedProblems:", selectedProblems);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to extract and save queries:", error);
+    }
+  };
 
   const getApps = async () => {
     const queryParams = new URLSearchParams();
@@ -241,54 +273,19 @@ export default function DashboardPage() {
     return filtered;
   }, [appItems, query, statusFilter]);
 
-  // 处理创建应用的按钮点击
-  const handleCreateApp = async (e: React.MouseEvent) => {
-    e.preventDefault();
-
-    if (!user?.id) {
-      alert("请先登录");
-      return;
-    }
-
-    try {
-      // 检查订阅状态
-      const response = await fetch("/api/check-subscription", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId: user.id }),
-      });
-
-      const data = await response.json();
-
-      if (data.hasActiveSubscription) {
-        // 订阅有效，进入连接页面
-        router.push("/connect");
-      } else {
-        // 订阅无效，打开支付弹窗
-        setIsPricingOpen(true);
-      }
-    } catch (error) {
-      console.log("检查订阅状态失败:", error);
-      // 出错时也打开支付弹窗，确保用户可以支付
-      setIsPricingOpen(true);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <main className="px-6 py-8">
         {/* Hero Section */}
         <section className="py-16 md:py-24 mb-12 flex items-center justify-center bg-black">
           <div className="flex flex-col items-center justify-center space-y-4">
-            <Button
+            <CreateAppButton
               size="lg"
-              onClick={handleCreateApp}
+              onRequireSubscription={() => setIsPricingOpen(true)}
               className="h-12 px-6 text-base rounded-lg bg-transparent text-white hover:bg-white hover:text-black hover:backdrop-blur-sm hover:border-transparent border border-transparent transition-all duration-300"
             >
               <Plus className="size-5 mr-2" /> Create Your App
-            </Button>
+            </CreateAppButton>
           </div>
         </section>
 
@@ -361,6 +358,8 @@ export default function DashboardPage() {
                     if (app.status === "generating") {
                       router.push(`/generate?appId=${app.id}`);
                     } else {
+                      // 提取并保存 queries 到 localStorage
+                      extractAndSaveQueries(app);
                       router.push(`/preview?id=${app.id}`);
                     }
                   }}
@@ -422,6 +421,7 @@ export default function DashboardPage() {
                           disabled={deletingId === app.id}
                           onClick={(e) => {
                             e.stopPropagation();
+                            extractAndSaveQueries(app);
                             router.push(`/preview?id=${app.id}`);
                           }}
                         >
@@ -524,6 +524,7 @@ export default function DashboardPage() {
                         if (app.status === "generating") {
                           router.push(`/generate?appId=${app.id}`);
                         } else {
+                          extractAndSaveQueries(app);
                           router.push(`/preview?id=${app.id}`);
                         }
                       }}
@@ -561,9 +562,9 @@ export default function DashboardPage() {
                       <TableCell className="truncate text-xs text-muted-foreground font-mono max-w-[260px]">
                         {app.data_connections?.connection_info?.api_key || "-"}
                       </TableCell>
-                      <TableCell className="text-center tabular-nums">
+                      {/* <TableCell className="text-center tabular-nums">
                         {app.features}
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell className="tabular-nums">
                         {app.updated_at
                           ? new Date(app.updated_at).toLocaleDateString("en-CA")
@@ -611,6 +612,7 @@ export default function DashboardPage() {
                               disabled={deletingId === app.id}
                               onClick={(e) => {
                                 e.stopPropagation();
+                                extractAndSaveQueries(app);
                                 router.push(`/preview?id=${app.id}`);
                               }}
                             >

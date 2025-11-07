@@ -50,7 +50,15 @@ export function ConditionalSidebar({
     try {
       const status = await getVendorStatus(user.id);
       if (status.success && status.data) {
-        setHasConnectedStripeAccount(Boolean(status.data.stripe_account_id));
+        const stripeStatus = status.data.stripe_account_status;
+        const chargesEnabled = status.data.charges_enabled;
+        const payoutsEnabled = status.data.payouts_enabled;
+
+        const isStripeReady =
+          stripeStatus === "active" ||
+          (chargesEnabled === true && payoutsEnabled === true);
+
+        setHasConnectedStripeAccount(isStripeReady);
       } else if (status.success === false) {
         setHasConnectedStripeAccount(false);
       } else {
@@ -77,7 +85,9 @@ export function ConditionalSidebar({
           const avatarUrlWithCache = `${data.avatar_url}?t=${Date.now()}`;
           setAvatarUrl(avatarUrlWithCache);
         } else {
-          setAvatarUrl(null);
+          const metadataAvatar =
+            user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+          setAvatarUrl(metadataAvatar);
         }
       } catch (error) {
         console.log("获取用户头像失败:", error);
@@ -178,8 +188,9 @@ export function ConditionalSidebar({
               <Avatar className="size-10">
                 <AvatarImage
                   src={
-                    avatarUrl || 
-                    user?.user_metadata?.avatar_url || 
+                    avatarUrl ||
+                    user?.user_metadata?.avatar_url ||
+                    user?.user_metadata?.picture ||
                     "/placeholder-user.jpg"
                   }
                   alt={user?.user_metadata?.full_name || "Account"}

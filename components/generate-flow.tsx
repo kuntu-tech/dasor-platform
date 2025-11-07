@@ -167,12 +167,25 @@ export function GenerateFlow() {
   const fetchMetadataFromService = useCallback(
     async (signal?: AbortSignal) => {
       const metadataPayload = buildMetadataPayload();
+      let payloadToSend: any = metadataPayload;
+      try {
+        const storedPublish = localStorage.getItem("run_result_publish");
+        if (storedPublish) {
+          const parsedPublish = JSON.parse(storedPublish);
+          if (parsedPublish && typeof parsedPublish === "object") {
+            payloadToSend = parsedPublish;
+          }
+        }
+      } catch (err) {
+        console.warn("解析 run_result_publish 失败，使用默认 payload", err);
+      }
+
       const response = await fetch(
         "https://business-insight.datail.ai/api/v1/apps/metadata",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.parse(localStorage.getItem("run_result_publish") || "{}"),
+          body: JSON.stringify(payloadToSend),
           cache: "no-store",
           signal,
         }
@@ -640,6 +653,14 @@ export function GenerateFlow() {
               <Loader2 className="size-12 text-blue-600 animate-spin mb-6" />
             )}
 
+            <CardDescription className="text-center max-w-md mb-8">
+              {isFailed
+                ? "Batch generation failed, please try again."
+                : isSucceeded
+                ? "Batch generation completed, you can jump to the preview to view the application details."
+                : "Batch generation process may take several minutes, we will continue to synchronize the progress."}
+            </CardDescription>
+
             {/* <CardTitle className="mb-4 text-xl">
               {isFailed
                 ? "Generation Failed"
@@ -755,12 +776,6 @@ export function GenerateFlow() {
                 </div>
               </div>
             </div>
-
-            <CardDescription className="text-center max-w-md mt-6">
-              {isSucceeded
-                ? "Batch generation completed, you can jump to the preview to view the application details."
-                : "Batch generation process may take several minutes, we will continue to synchronize the progress."}
-            </CardDescription>
             <Button
               className="mt-4"
               variant="outline"

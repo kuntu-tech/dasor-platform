@@ -46,6 +46,11 @@ export interface VendorStatusResponse {
     created_at: string;
     updated_at: string;
     user_id: string;
+    subscription_id?: string | null;
+    subscription_status?: string | null;
+    subscription_period_end?: string | null;
+    charges_enabled?: boolean | null;
+    payouts_enabled?: boolean | null;
   };
   error?: string;
 }

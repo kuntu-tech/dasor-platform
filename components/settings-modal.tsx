@@ -91,6 +91,10 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
           
           if (!error && data?.avatar_url) {
             setAvatarUrl(data.avatar_url)
+          } else {
+            setAvatarUrl(
+              user.user_metadata?.avatar_url || user.user_metadata?.picture || null
+            )
           }
         } catch (error) {
           console.log("获取用户头像失败:", error)
@@ -322,7 +326,12 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
 
   // 获取头像显示URL（优先使用预览，然后是已保存的头像）
   // avatarUrl 已经包含了缓存破坏参数，直接使用即可
-  const displayAvatarUrl = previewUrl || avatarUrl
+  const displayAvatarUrl =
+    previewUrl ||
+    avatarUrl ||
+    user?.user_metadata?.avatar_url ||
+    user?.user_metadata?.picture ||
+    null
 
   // 获取用户首字母
   const getInitials = () => {
