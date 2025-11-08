@@ -1,6 +1,6 @@
 export const CONNECT_API_BASE =
   process.env.NEXT_PUBLIC_CONNECT_API_BASE?.replace(/\/$/, "") ||
-  "https://unfrequentable-sceptical-vince.ngrok-free.dev";
+  "https://test-payment-1j3d.onrender.com";
 
 export const SERVICE_API_TOKEN = process.env.NEXT_PUBLIC_SERVICE_API_TOKEN || "";
 
