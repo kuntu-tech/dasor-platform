@@ -95,7 +95,6 @@ export function ConditionalSidebar({
       setAvatarUrl(null);
     }
   }, [user?.id]);
-
   useEffect(() => {
     fetchUserAvatar();
   }, [fetchUserAvatar]);
@@ -161,10 +160,6 @@ export function ConditionalSidebar({
   ];
   const isPublicPage = publicPaths.includes(pathname);
 
-  // 如果是公开页面，直接显示内容，不显示侧边栏
-  if (isPublicPage) {
-    return <>{children}</>;
-  }
   const displayAvatarUrl =
     avatarUrl ||
     user?.user_metadata?.avatar_url ||
@@ -286,38 +281,33 @@ export function ConditionalSidebar({
     </div>
   );
 
-  if (isHomePage) {
-    // 首页显示顶部导航栏
-    return (
-      <div className="min-h-svh">
-        <TopNavBar />
-        <div className="pt-16">{children}</div>
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          defaultTab={settingsDefaultTab}
-        />
-        <PricingModal
-          isOpen={isPricingOpen}
-          onClose={() => setIsPricingOpen(false)}
-        />
-      </div>
-    );
-  }
+  const content = isPublicPage ? (
+    <>{children}</>
+  ) : isHomePage ? (
+    <>
+      <TopNavBar />
+      <div className="pt-16">{children}</div>
+    </>
+  ) : (
+    <>{children}</>
+  );
 
-  // 其他页面不显示顶部导航栏
   return (
     <div className="min-h-svh">
-      {children}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        defaultTab={settingsDefaultTab}
-      />
-      <PricingModal
-        isOpen={isPricingOpen}
-        onClose={() => setIsPricingOpen(false)}
-      />
+      {content}
+      {!isPublicPage && (
+        <>
+          <SettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            defaultTab={settingsDefaultTab}
+          />
+          <PricingModal
+            isOpen={isPricingOpen}
+            onClose={() => setIsPricingOpen(false)}
+          />
+        </>
+      )}
     </div>
   );
 }
