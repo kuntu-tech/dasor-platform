@@ -136,7 +136,7 @@ export default function SubscriptionSuccessPage() {
                 className="w-full"
                 size="lg"
               >
-                开始创建应用
+                Go to Connect
                 <ArrowRight className="ml-2 size-4" />
               </Button>
             )}
