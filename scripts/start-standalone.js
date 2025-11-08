@@ -9,7 +9,7 @@ const nextRoot = path.join(projectRoot, ".next");
 const standaloneDir = path.join(nextRoot, "standalone");
 
 if (!fs.existsSync(standaloneDir)) {
-  console.error(
+  console.log(
     "Cannot find .next/standalone output. Run `npm run build` before `npm start`."
   );
   process.exit(1);
@@ -49,6 +49,6 @@ child.on("close", (code) => {
 });
 
 child.on("error", (error) => {
-  console.error("Failed to start standalone server:", error);
+  console.log("Failed to start standalone server:", error);
   process.exit(1);
 });

@@ -107,7 +107,7 @@ export function GenerateFlow() {
           setDbConnectionDataObj(parsed);
           console.log(parsed, "dbConnectionDataObj");
         } catch (e) {
-          console.error("Failed to parse dbConnectionData:", e);
+          console.log("Failed to parse dbConnectionData:", e);
         }
       }
       setDbConnectionReady(true);

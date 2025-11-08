@@ -53,8 +53,8 @@ export async function GET(
       .eq("task_id", taskId);
 
     if (error) {
-      console.error("查询 run_results 错误:", error);
-      console.error("Error details:", JSON.stringify(error, null, 2));
+      console.log("查询 run_results 错误:", error);
+      console.log("Error details:", JSON.stringify(error, null, 2));
       return NextResponse.json(
         { error: "Failed to fetch run result", details: error.message },
         { status: 500 }
@@ -100,7 +100,7 @@ export async function GET(
       data: result.run_result || null,
     });
   } catch (error) {
-    console.error("获取 run_result 异常:", error);
+    console.log("获取 run_result 异常:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
