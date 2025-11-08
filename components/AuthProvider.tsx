@@ -31,12 +31,12 @@ function printUserInfo(user: User, context: string) {
   console.log(`📱 手机号: ${user.phone || "未设置"}`);
   console.log(`✅ 邮箱确认: ${user.email_confirmed_at ? "已确认" : "未确认"}`);
   console.log(
-    `📅 创建时间: ${new Date(user.created_at).toLocaleString("zh-CN")}`
+    `📅 创建时间: ${new Date(user.created_at).toLocaleString("en-US")}`
   );
   console.log(
     `🕐 最后登录: ${
       user.last_sign_in_at
-        ? new Date(user.last_sign_in_at).toLocaleString("zh-CN")
+        ? new Date(user.last_sign_in_at).toLocaleString("en-US")
         : "未记录"
     }`
   );

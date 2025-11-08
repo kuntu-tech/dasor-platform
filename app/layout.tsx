@@ -64,8 +64,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
-      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en-US" suppressHydrationWarning>
+      <body
+        suppressHydrationWarning
+        className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}
+      >
         <AuthProvider>
           <AuthGuard>
             <Suspense fallback={null}>
