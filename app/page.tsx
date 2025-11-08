@@ -356,12 +356,7 @@ export default function DashboardPage() {
                   onClick={() => {
                     if (app.status === "generating") {
                       router.push(`/generate?appId=${app.id}`);
-                    } else if (app.status === "published") {
-                      // 提取并保存 queries 到 localStorage
-                      extractAndSaveQueries(app);
-                      router.push(`/app/${app.id}/versions`);
                     } else {
-                      // 提取并保存 queries 到 localStorage
                       extractAndSaveQueries(app);
                       router.push(`/preview?id=${app.id}`);
                     }
@@ -390,34 +385,7 @@ export default function DashboardPage() {
                           {app.description}
                         </p>
                       </div>
-                      {app.status === "generating" ? null : app.status ===
-                        "published" ? (
-                        // <DropdownMenu>
-                        //   <DropdownMenuTrigger asChild>
-                        //     <Button
-                        //       variant="ghost"
-                        //       size="icon"
-                        //       onClick={(e) => {
-                        //         e.stopPropagation();
-                        //       }}
-                        //     >
-                        //       <MoreHorizontal className="size-4" />
-                        //     </Button>
-                        //   </DropdownMenuTrigger>
-                        //   <DropdownMenuContent align="end">
-                        //     <DropdownMenuItem
-                        //       asChild
-                        //       onClick={(e) => {
-                        //         e.stopPropagation();
-                        //       }}
-                        //     >
-                        //       <Link href={`/app/${app.id}/versions`}>
-                        //         Versions
-                        //       </Link>
-                        //     </DropdownMenuItem>
-                        //   </DropdownMenuContent>
-                        // </DropdownMenu>
-
+                      {app.status === "generating" ? null : (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -425,30 +393,10 @@ export default function DashboardPage() {
                           onClick={(e) => {
                             e.stopPropagation();
                             extractAndSaveQueries(app);
-                            if (app.status === "published") {
-                              router.push(`/app/${app.id}/versions`);
-                            } else {
-                              router.push(`/preview?id=${app.id}`);
-                            }
+                            router.push(`/app/${app.id}/versions`);
                           }}
                         >
                           <Info className="size-4 text-blue-600" />
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          disabled={deletingId === app.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(app.id);
-                          }}
-                        >
-                          {deletingId === app.id ? (
-                            <div className="size-4 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
-                          ) : (
-                            <Trash2 className="size-4 text-destructive" />
-                          )}
                         </Button>
                       )}
                     </div>
@@ -530,9 +478,6 @@ export default function DashboardPage() {
                       onClick={() => {
                         if (app.status === "generating") {
                           router.push(`/generate?appId=${app.id}`);
-                        } else if (app.status === "published") {
-                          extractAndSaveQueries(app);
-                          router.push(`/app/${app.id}/versions`);
                         } else {
                           extractAndSaveQueries(app);
                           router.push(`/preview?id=${app.id}`);
@@ -591,31 +536,6 @@ export default function DashboardPage() {
                         <div className="flex items-center justify-end gap-1">
                           {app.status === "generating" ? null : app.status ===
                             "published" ? (
-                            // <DropdownMenu>
-                            //   <DropdownMenuTrigger asChild>
-                            //     <Button
-                            //       variant="ghost"
-                            //       size="icon"
-                            //       onClick={(e) => {
-                            //         e.stopPropagation();
-                            //       }}
-                            //     >
-                            //       <MoreHorizontal className="size-4" />
-                            //     </Button>
-                            //   </DropdownMenuTrigger>
-                            //   <DropdownMenuContent align="end">
-                            //     <DropdownMenuItem
-                            //       asChild
-                            //       onClick={(e) => {
-                            //         e.stopPropagation();
-                            //       }}
-                            //     >
-                            //       <Link href={`/app/${app.id}/versions`}>
-                            //         Versions
-                            //       </Link>
-                            //     </DropdownMenuItem>
-                            //   </DropdownMenuContent>
-                            // </DropdownMenu>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -623,16 +543,14 @@ export default function DashboardPage() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 extractAndSaveQueries(app);
-                                if (app.status === "published") {
-                                  router.push(`/app/${app.id}/versions`);
-                                } else {
-                                  router.push(`/preview?id=${app.id}`);
-                                }
+                                router.push(`/app/${app.id}/versions`);
                               }}
                             >
                               <Info className="size-4 text-blue-600" />
                             </Button>
-                          ) : (
+                          ) : null}
+                          {app.status === "generating" ? null : app.status ===
+                            "draft" ? (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -648,7 +566,7 @@ export default function DashboardPage() {
                                 <Trash2 className="size-4 text-destructive" />
                               )}
                             </Button>
-                          )}
+                          ) : null}
                         </div>
                       </TableCell>
                     </TableRow>

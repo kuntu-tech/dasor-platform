@@ -215,9 +215,6 @@ export default function AppVersionsPage() {
                       ? "Published"
                       : appData.status}
                   </Badge>
-                  {appData.status === "published" && (
-                    <Badge variant="default">Published</Badge>
-                  )}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="size-4" />
@@ -279,7 +276,7 @@ export default function AppVersionsPage() {
                     onClick={() => handleCopy(appName, "name")}
                   >
                     <Copy className="size-3" />
-                    {copiedItem === "name" ? "Copied!" : "Copy"}
+                    <span className="sr-only">Copy app name</span>
                   </Button>
                 </div>
               </div>
@@ -299,7 +296,7 @@ export default function AppVersionsPage() {
                     onClick={() => handleCopy(appDescription, "description")}
                   >
                     <Copy className="size-3" />
-                    {copiedItem === "description" ? "Copied!" : "Copy"}
+                    <span className="sr-only">Copy description</span>
                   </Button>
                 </div>
               </div>
@@ -330,7 +327,7 @@ export default function AppVersionsPage() {
                       }
                     >
                       <Copy className="size-3" />
-                      {copiedItem === "url" ? "Copied!" : "Copy"}
+                      <span className="sr-only">Copy URL</span>
                     </Button>
                   </div>
                 </div>

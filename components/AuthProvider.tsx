@@ -135,11 +135,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: { session },
           error,
         } = await supabase.auth.getSession();
-        
+
         if (error) {
           console.log("获取会话错误:", error);
         }
-        
+
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -244,7 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log("✅ 邮箱登录成功:", data);
-      
+
       // 登录成功后立即更新状态，确保状态同步
       // onAuthStateChange 会稍后触发，但为了确保及时响应，我们立即更新状态
       // 业务逻辑（如 checkAndSaveNewUser）由 onAuthStateChange 统一处理
@@ -307,6 +307,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 立即更新本地状态，避免界面长时间停留在受保护页面
     setSession(null);
     setUser(null);
+
+    if (typeof window !== "undefined") {
+      try {
+        const keysToRemove = [
+          "run_result",
+          "run_result_publish",
+          "marketsData",
+          "standalJson",
+          "selectedProblems",
+          "selectedQuestionsWithSql",
+          "dbConnectionData",
+          "originalTaskId",
+        ];
+        keysToRemove.forEach((key) => localStorage.removeItem(key));
+      } catch (error) {
+        console.warn("清理本地缓存失败", error);
+      }
+    }
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 

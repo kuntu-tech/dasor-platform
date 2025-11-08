@@ -36,17 +36,22 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }, [pathname]);
 
   useEffect(() => {
-    if (isPublicPath) {
-      return;
-    }
-
-    if (loading) {
+    if (isPublicPath || loading) {
       return;
     }
 
     if (!user) {
+      const fallbackTimer = setTimeout(() => {
+        if (typeof window !== "undefined") {
+          window.location.href = "/auth/login";
+        }
+      }, 1500);
+
       router.replace("/auth/login");
-      return;
+
+      return () => {
+        clearTimeout(fallbackTimer);
+      };
     }
   }, [user, loading, router, isPublicPath]);
 
