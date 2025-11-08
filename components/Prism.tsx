@@ -1,3 +1,4 @@
+"use client";
 import { useEffect, useRef } from "react";
 
 // 由于依赖安装问题，我们暂时创建一个简化版本的Prism组件
