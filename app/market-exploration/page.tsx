@@ -685,6 +685,14 @@ export default function MarketExplorationPage({
       const result = await response.json();
       console.log("Feedback API response:", result);
 
+      if (result.status === "ignored") {
+        console.warn("Feedback ignored:", result?.message);
+        alert("Clarify your prompt so the system can continue");
+        setIsGenerating(false);
+        setGenerationProgress(0);
+        return;
+      }
+
       let runResultsPayload = result.run_results;
 
       if (result.status === "requires_full_regeneration") {
@@ -700,7 +708,14 @@ export default function MarketExplorationPage({
 
       // 检查返回结果中是否有 run_results
       if (!runResultsPayload) {
-        throw new Error("No run_results available for standal_sql request");
+        console.warn(
+          "No run_results available for standal_sql request",
+          result
+        );
+        alert("Clarify your prompt so the system can continue");
+        setIsGenerating(false);
+        setGenerationProgress(0);
+        return;
       }
 
       // 第二步：调用 standal_sql 接口 (30% -> 70%)
