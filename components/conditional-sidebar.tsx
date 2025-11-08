@@ -33,7 +33,13 @@ export function ConditionalSidebar({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [hasMounted, setHasMounted] = useState(false);
   const isHomePage = pathname === "/";
+  const shouldRenderHomeLayout = hasMounted && isHomePage;
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsDefaultTab, setSettingsDefaultTab] = useState("account");
   const [isPricingOpen, setIsPricingOpen] = useState(false);
@@ -283,7 +289,7 @@ export function ConditionalSidebar({
 
   const content = isPublicPage ? (
     <>{children}</>
-  ) : isHomePage ? (
+  ) : shouldRenderHomeLayout ? (
     <>
       <TopNavBar />
       <div className="pt-16">{children}</div>
