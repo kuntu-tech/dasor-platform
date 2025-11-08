@@ -103,7 +103,7 @@ export default function DashboardPage() {
         }
       }
     } catch (error) {
-      console.error("Failed to extract and save queries:", error);
+      console.log("Failed to extract and save queries:", error);
     }
   };
 
@@ -232,7 +232,7 @@ export default function DashboardPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to delete app");
+        //throw new Error(errorData.error || "Failed to delete app");
       }
 
       // 删除成功后重新获取数据，确保数据同步

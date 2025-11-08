@@ -766,7 +766,7 @@ export function ValueQuestionsSection({
           }
         }
       } catch (e) {
-        console.error("过滤 run_result 时出错:", e);
+        console.log("过滤 run_result 时出错:", e);
       }
     }
 
@@ -800,7 +800,7 @@ export function ValueQuestionsSection({
               segments = standalJson.run_results.run_result.segments;
             }
           } catch (e) {
-            console.error("Failed to parse standalJson:", e);
+            console.log("Failed to parse standalJson:", e);
           }
         }
       }
@@ -858,11 +858,11 @@ export function ValueQuestionsSection({
             })
           );
         } catch (e) {
-          console.error("Failed to save questions with SQL:", e);
+          console.log("Failed to save questions with SQL:", e);
         }
       }
     } catch (error) {
-      console.error("Error extracting questions and SQL:", error);
+      console.log("Error extracting questions and SQL:", error);
     }
   }, [activeTab, activeSegment]);
   const handleGenerateApp = () => {

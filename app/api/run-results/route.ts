@@ -38,9 +38,9 @@ export async function GET(request: NextRequest) {
     console.log("Query result data:", data);
 
     if (error) {
-      console.error("查询 run_results 错误:", error);
-      console.error("Error code:", error.code);
-      console.error("Error details:", JSON.stringify(error, null, 2));
+      console.log("查询 run_results 错误:", error);
+      console.log("Error code:", error.code);
+      console.log("Error details:", JSON.stringify(error, null, 2));
       return NextResponse.json(
         {
           error: "Failed to fetch run results",
@@ -56,11 +56,11 @@ export async function GET(request: NextRequest) {
       data: data || [],
     });
   } catch (error) {
-    console.error("获取 run_results 异常:", error);
+    console.log("获取 run_results 异常:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error("Error details:", errorDetails);
+    console.log("Error details:", errorDetails);
     return NextResponse.json(
       {
         error: "Failed to fetch run results",

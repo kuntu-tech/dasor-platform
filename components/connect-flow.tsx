@@ -1188,7 +1188,7 @@ export function ConnectFlow() {
         setProgress(100); // standal_sql 完成，进度到 100%
         // standal_sql 调用成功，继续后续步骤
       } catch (e) {
-        console.error("standal_sql 调用失败", e);
+        console.log("standal_sql 调用失败", e);
         const errorMsg =
           e instanceof Error ? e.message : "standal_sql 调用失败";
         setRunError(errorMsg);

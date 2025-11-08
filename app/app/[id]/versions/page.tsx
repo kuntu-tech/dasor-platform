@@ -93,7 +93,7 @@ export default function AppVersionsPage() {
           throw new Error("App data not found");
         }
       } catch (err) {
-        console.error("Failed to fetch app data:", err);
+        console.log("Failed to fetch app data:", err);
         setError(
           err instanceof Error ? err.message : "Failed to fetch app data"
         );

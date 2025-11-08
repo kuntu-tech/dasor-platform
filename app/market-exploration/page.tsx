@@ -93,12 +93,12 @@ export default function MarketExplorationPage({
           const runResult = JSON.parse(runResultStr);
           taskId = runResult.task_id || "";
         } catch (e) {
-          console.error("Failed to parse run_result:", e);
+          console.log("Failed to parse run_result:", e);
         }
       }
 
       if (!userId || !taskId) {
-        console.error("Missing user_id or task_id, cannot load version data");
+        console.log("Missing user_id or task_id, cannot load version data");
         setIsGenerating(false);
         setGenerationProgress(0);
         return;
@@ -166,14 +166,9 @@ export default function MarketExplorationPage({
         setRefreshType("none");
       }, 300);
     } catch (error) {
-      console.error("Error loading version data:", error);
+      console.log("Error loading version data:", error);
       setIsGenerating(false);
       setGenerationProgress(0);
-      alert(
-        `加载版本数据失败: ${
-          error instanceof Error ? error.message : "未知错误"
-        }`
-      );
     }
   };
 
@@ -194,7 +189,7 @@ export default function MarketExplorationPage({
           const runResult = JSON.parse(runResultStr);
           taskId = runResult.task_id || "";
         } catch (e) {
-          console.error("Failed to parse run_result:", e);
+          console.log("Failed to parse run_result:", e);
         }
       }
 
@@ -298,10 +293,10 @@ export default function MarketExplorationPage({
           console.warn("No versions found in the list");
         }
       } catch (error) {
-        console.error("Error fetching versions:", error);
+        console.log("Error fetching versions:", error);
       }
     } catch (error) {
-      console.error("Error in fetchVersions:", error);
+      console.log("Error in fetchVersions:", error);
     }
   };
 
@@ -336,7 +331,7 @@ export default function MarketExplorationPage({
           // 不需要保存到 localStorage 或更新状态
         }
       } catch (e) {
-        console.error("Failed to parse run_result:", e);
+        console.log("Failed to parse run_result:", e);
       }
 
       return; // 首次生成进入，不调用接口
@@ -441,7 +436,7 @@ export default function MarketExplorationPage({
         dbConnectionData.id ||
         "";
     } catch (error) {
-      console.error("Failed to parse dbConnectionData for regeneration", error);
+      console.log("Failed to parse dbConnectionData for regeneration", error);
       throw new Error("Invalid connection data for full regeneration");
     }
 
@@ -616,7 +611,7 @@ export default function MarketExplorationPage({
         try {
           runResult = JSON.parse(runResultStr);
         } catch (e) {
-          console.error("Failed to parse run_result:", e);
+          console.log("Failed to parse run_result:", e);
         }
       }
 
@@ -626,7 +621,7 @@ export default function MarketExplorationPage({
           connectionId =
             dbConnectionData.connection_id || dbConnectionData.id || "";
         } catch (e) {
-          console.error("Failed to parse dbConnectionData:", e);
+          console.log("Failed to parse dbConnectionData:", e);
         }
       }
 
@@ -638,7 +633,7 @@ export default function MarketExplorationPage({
       const taskId = runResult?.task_id || "";
 
       if (!taskId) {
-        alert("无法获取 task_id，请重新连接数据库");
+        // alert("无法获取 task_id，请重新连接数据库");
         return;
       }
 
@@ -678,7 +673,9 @@ export default function MarketExplorationPage({
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`API call failed: ${response.status} - ${errorText}`);
+        // throw new Error(`API call failed: ${response.status} - ${errorText}`);
+        console.log("Clarify your prompt so the system can continue");
+        alert("Clarify your prompt so the system can continue");
       }
 
       setGenerationProgress(30); // feedback-mrf/process 完成，进度 30%
@@ -744,7 +741,7 @@ export default function MarketExplorationPage({
       try {
         standalJson = JSON.parse(standalText);
       } catch (e) {
-        console.error("Failed to parse standal_sql response:", e);
+        console.log("Failed to parse standal_sql response:", e);
         throw new Error("Invalid JSON response from standal_sql");
       }
 
@@ -869,7 +866,7 @@ export default function MarketExplorationPage({
                 setGenerationProgress(100);
               }
             } catch (error) {
-              console.error(
+              console.log(
                 `Error refreshing versions (attempt ${i + 1}):`,
                 error
               );
@@ -878,7 +875,7 @@ export default function MarketExplorationPage({
                 await new Promise((resolve) => setTimeout(resolve, delay));
               } else {
                 // 最后一次重试失败，仍然完成进度
-                console.error("Failed to refresh versions after all retries");
+                console.log("Failed to refresh versions after all retries");
                 setGenerationProgress(100);
               }
             }
@@ -956,8 +953,6 @@ export default function MarketExplorationPage({
         }
       }, 500);
     } catch (error) {
-      console.error("Error calling feedback API:", error);
-      alert(`发送失败: ${error instanceof Error ? error.message : "未知错误"}`);
       setIsGenerating(false);
       setGenerationProgress(0);
     }
@@ -1046,10 +1041,7 @@ export default function MarketExplorationPage({
                             // 只有在成功加载后才更新选中版本
                             setSelectedVersion(version.display);
                           } catch (error) {
-                            console.error(
-                              "Failed to load version data:",
-                              error
-                            );
+                            console.log("Failed to load version data:", error);
                             // 如果加载失败，恢复原来的选中版本
                           }
                         }}
