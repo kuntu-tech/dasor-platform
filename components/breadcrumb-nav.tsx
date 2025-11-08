@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import {
   Zap,
@@ -40,9 +40,56 @@ export function BreadcrumbNav() {
   const [appDescription, setAppDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [appStatus, setAppStatus] = useState<string | null>(null);
+  const [breadcrumbAppId, setBreadcrumbAppId] = useState<string | null>(null);
+  const [breadcrumbAppName, setBreadcrumbAppName] = useState<string | null>(
+    null
+  );
 
   // 解析路径
-  const pathSegments = pathname.split("/").filter(Boolean);
+  const pathSegments = useMemo(
+    () => pathname.split("/").filter(Boolean),
+    [pathname]
+  );
+
+  useEffect(() => {
+    const appIndex = pathSegments.findIndex((segment) => segment === "app");
+    if (appIndex !== -1 && appIndex + 1 < pathSegments.length) {
+      const nextId = pathSegments[appIndex + 1];
+      setBreadcrumbAppId(nextId);
+    } else {
+      setBreadcrumbAppId(null);
+      setBreadcrumbAppName(null);
+    }
+  }, [pathSegments]);
+
+  useEffect(() => {
+    if (!breadcrumbAppId) return;
+    let isCancelled = false;
+
+    const fetchAppName = async () => {
+      try {
+        const response = await fetch(`/api/apps/${breadcrumbAppId}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch app info: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!isCancelled) {
+          setBreadcrumbAppName(data?.data?.name || null);
+        }
+      } catch (error) {
+        console.warn("Failed to load breadcrumb app name", error);
+        if (!isCancelled) {
+          setBreadcrumbAppName(null);
+        }
+      }
+    };
+
+    fetchAppName();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [breadcrumbAppId]);
 
   // 路径映射
   const pathMap: Record<string, { label: string; icon: any; href?: string }> = {
@@ -78,23 +125,31 @@ export function BreadcrumbNav() {
     currentPath += `/${segment}`;
 
     const pathInfo = pathMap[segment];
+    const isAppRoute = segment === "app" || segment === breadcrumbAppId;
+
     if (pathInfo) {
       breadcrumbs.push({
         label: pathInfo.label,
         icon: pathInfo.icon,
         href:
-          i === pathSegments.length - 1
+          i === pathSegments.length - 1 || isAppRoute
             ? undefined
             : pathInfo.href || currentPath,
         isLast: i === pathSegments.length - 1,
+        isDisabled: isAppRoute,
       });
     } else {
-      // 对于动态路由参数，显示原始值
+      const formattedLabel =
+        breadcrumbAppId && segment === breadcrumbAppId
+          ? breadcrumbAppName || appName || segment
+          : segment;
       breadcrumbs.push({
-        label: segment,
+        label: formattedLabel,
         icon: FileText,
-        href: i === pathSegments.length - 1 ? undefined : currentPath,
+        href:
+          i === pathSegments.length - 1 || isAppRoute ? undefined : currentPath,
         isLast: i === pathSegments.length - 1,
+        isDisabled: segment === breadcrumbAppId,
       });
     }
   }
@@ -215,18 +270,10 @@ export function BreadcrumbNav() {
         {breadcrumbs.map((item, index) => (
           <div key={index} className="flex items-center gap-1">
             <span className="text-gray-400">/</span>
-            {item.isLast ? (
+            {item.isLast || item.isDisabled || !item.href ? (
               <div className="flex items-center gap-2">
                 <item.icon className="size-4" />
                 <span className="font-medium text-gray-900">{item.label}</span>
-                {item.label === "Versions" && (
-                  <Badge
-                    variant="outline"
-                    className="text-xs bg-orange-100 text-orange-800 border-orange-200"
-                  >
-                    Production
-                  </Badge>
-                )}
               </div>
             ) : (
               <Link
@@ -264,7 +311,7 @@ export function BreadcrumbNav() {
       )}
 
       {/* 已发布状态显示 */}
-      {isPreviewPage && appStatus === "published" && (
+      {/* {isPreviewPage && appStatus === "published" && (
         <div className="flex items-center gap-2">
           <Badge
             variant="outline"
@@ -273,7 +320,7 @@ export function BreadcrumbNav() {
             published
           </Badge>
         </div>
-      )}
+      )} */}
 
       {/* Save Dialog */}
       <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
