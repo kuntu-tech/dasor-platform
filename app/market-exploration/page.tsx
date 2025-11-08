@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, RotateCcw, ChevronDown, ArrowRight } from "lucide-react";
 import { DetailModal } from "@/components/DetailModal";
@@ -362,6 +362,244 @@ export default function MarketExplorationPage({
   const [versionMap, setVersionMap] = useState<Map<string, string>>(new Map()); // display -> runId 映射
   // task_id 只从 run_result 中读取，不保存状态，不更新
 
+  const pollJobProgress = useCallback(
+    async (
+      jobId: string,
+      onProgress?: (
+        progress: number | null,
+        status: string | null,
+        data: any
+      ) => void,
+      interval = 10000,
+      maxMinutes = 6
+    ) => {
+      const maxTime = maxMinutes * 60 * 1000;
+      const start = Date.now();
+      let last: any = null;
+
+      while (Date.now() - start < maxTime) {
+        const res = await fetch(
+          `https://business-insight.datail.ai/api/v1/runs/job/${jobId}`
+        );
+        const data = await res.json();
+
+        if (typeof onProgress === "function") {
+          onProgress(
+            typeof data.progress === "number" ? data.progress : null,
+            data.status || null,
+            data
+          );
+        }
+
+        if (
+          data.status === "completed" ||
+          data.status === "failed" ||
+          data.status === "error"
+        ) {
+          return data;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, interval));
+        last = data;
+      }
+
+      return { ...last, status: "timeout", error: "Polling timed out" };
+    },
+    []
+  );
+
+  const runFullRegeneration = useCallback(async () => {
+    if (typeof window === "undefined") {
+      throw new Error(
+        "Full regeneration is only available in the browser context"
+      );
+    }
+
+    const dbConnectionDataStr = localStorage.getItem("dbConnectionData");
+    if (!dbConnectionDataStr) {
+      throw new Error("Missing connection data for full regeneration");
+    }
+
+    let projectId = "";
+    let accessToken = "";
+    let connectionId = "";
+    try {
+      const dbConnectionData = JSON.parse(dbConnectionDataStr);
+      projectId =
+        dbConnectionData.connectionUrl ||
+        dbConnectionData.projectId ||
+        dbConnectionData.project_id ||
+        "";
+      accessToken =
+        dbConnectionData.accessToken ||
+        dbConnectionData.apiKey ||
+        dbConnectionData.access_token ||
+        "";
+      connectionId =
+        dbConnectionData.connectionId ||
+        dbConnectionData.connection_id ||
+        dbConnectionData.id ||
+        "";
+    } catch (error) {
+      console.error("Failed to parse dbConnectionData for regeneration", error);
+      throw new Error("Invalid connection data for full regeneration");
+    }
+
+    if (!projectId || !accessToken) {
+      throw new Error("Incomplete connection data for full regeneration");
+    }
+
+    setGenerationProgress((prev) => Math.max(prev, 35));
+
+    const validateRes = await fetch("/api/validate-connection", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        projectId,
+        accessToken,
+      }),
+    });
+
+    const validateText = await validateRes.text();
+    let validateData: any = null;
+    try {
+      validateData = validateText ? JSON.parse(validateText) : {};
+    } catch (error) {
+      throw new Error(
+        `Failed to validate connection: ${validateText.slice(0, 200)}`
+      );
+    }
+
+    if (!validateRes.ok) {
+      throw new Error(
+        validateData?.error ||
+          validateData?.message ||
+          `Connection validation failed: ${validateRes.status}`
+      );
+    }
+
+    const validationRequestBody = {
+      user_id: user?.id || validateData?.user_id || "",
+      connection_id: connectionId || validateData?.connection_id || "",
+      project_id: projectId,
+      access_token: accessToken,
+    };
+
+    if (!validationRequestBody.connection_id) {
+      throw new Error("Missing connection_id for full regeneration");
+    }
+
+    const dataValidationRes = await fetch(
+      "https://data-validation.datail.ai/api/v1/validate",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(validationRequestBody),
+      }
+    );
+
+    const dataValidationText = await dataValidationRes.text();
+    let dataValidation: any = null;
+    try {
+      dataValidation = dataValidationText ? JSON.parse(dataValidationText) : {};
+    } catch (error) {
+      throw new Error(
+        `Failed to parse validation response: ${dataValidationText.slice(
+          0,
+          200
+        )}`
+      );
+    }
+
+    if (!dataValidationRes.ok) {
+      throw new Error(
+        dataValidation?.error ||
+          dataValidation?.message ||
+          `Data validation failed: ${dataValidationRes.status}`
+      );
+    }
+
+    if (dataValidation?.validation_report?.summary?.status === "unusable") {
+      throw new Error(
+        dataValidation?.validation_report?.summary?.note ||
+          "Data validation reported unusable data"
+      );
+    }
+
+    const runPayload = {
+      user_id: validationRequestBody.user_id,
+      trace_id: dataValidation?.trace_id,
+      connection_id: validationRequestBody.connection_id,
+      data_structure: dataValidation?.data_structure,
+    };
+
+    if (!runPayload.trace_id || !runPayload.data_structure) {
+      throw new Error("Incomplete pipeline payload after validation");
+    }
+
+    setGenerationProgress((prev) => Math.max(prev, 45));
+
+    const pipelineRes = await fetch(
+      "https://business-insight.datail.ai/api/v1/pipeline/run",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(runPayload),
+      }
+    );
+
+    const pipelineText = await pipelineRes.text();
+    let pipelineData: any = null;
+    try {
+      pipelineData = pipelineText ? JSON.parse(pipelineText) : {};
+    } catch (error) {
+      throw new Error(
+        `Failed to parse pipeline response: ${pipelineText.slice(0, 200)}`
+      );
+    }
+
+    if (!pipelineRes.ok) {
+      throw new Error(
+        pipelineData?.error ||
+          pipelineData?.message ||
+          `Pipeline run failed: ${pipelineRes.status}`
+      );
+    }
+
+    if (!pipelineData?.job_id) {
+      throw new Error("Pipeline run did not return a job_id");
+    }
+
+    const pollingResult = await pollJobProgress(
+      pipelineData.job_id,
+      (progress) => {
+        if (typeof progress === "number") {
+          const mapped = 45 + Math.floor((progress / 100) * 25); // 45% -> 70%
+          setGenerationProgress((prev) => Math.max(prev, mapped));
+        }
+      },
+      10000,
+      6
+    );
+
+    if (pollingResult.status !== "completed") {
+      throw new Error(
+        pollingResult.error ||
+          `Pipeline job ended with status: ${pollingResult.status}`
+      );
+    }
+
+    setGenerationProgress((prev) => Math.max(prev, 70));
+
+    return pollingResult;
+  }, [pollJobProgress, user?.id]);
+
   const handleSend = async () => {
     if (!inputValue.trim()) return;
 
@@ -447,14 +685,27 @@ export default function MarketExplorationPage({
       const result = await response.json();
       console.log("Feedback API response:", result);
 
+      let runResultsPayload = result.run_results;
+
+      if (result.status === "requires_full_regeneration") {
+        console.log("Feedback indicates full regeneration is required");
+        const regenerationResult = await runFullRegeneration();
+        runResultsPayload = regenerationResult?.run_results;
+        if (!runResultsPayload) {
+          throw new Error(
+            "Full regeneration completed without returning run_results"
+          );
+        }
+      }
+
       // 检查返回结果中是否有 run_results
-      if (!result.run_results) {
-        throw new Error("No run_results in feedback API response");
+      if (!runResultsPayload) {
+        throw new Error("No run_results available for standal_sql request");
       }
 
       // 第二步：调用 standal_sql 接口 (30% -> 70%)
       console.log("Calling standal_sql with run_results...");
-      setGenerationProgress(40); // 开始调用 standal_sql，进度 40%
+      setGenerationProgress((prev) => Math.max(prev, 40)); // 开始调用 standal_sql，进度 40%
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 600_000); // 10分钟超时
 
@@ -464,7 +715,7 @@ export default function MarketExplorationPage({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ run_results: result.run_results }),
+          body: JSON.stringify({ run_results: runResultsPayload }),
           signal: controller.signal,
         }
       );

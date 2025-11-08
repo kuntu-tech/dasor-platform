@@ -1997,20 +1997,20 @@ export function ConnectFlow() {
                                 Recommendations
                               </span>
                               {/* {getStepStatus("evaluating") === "completed" && (
-                                <span className="text-xs text-green-600 font-medium">
-                                  [✓]
-                                </span>
-                              )}
+                            <span className="text-xs text-green-600 font-medium">
+                              [✓]
+                            </span>
+                          )}
                               {getStepStatus("evaluating") ===
                                 "in-progress" && (
-                                <span className="text-xs text-primary font-medium">
-                                  [In Progress...]
-                                </span>
-                              )}
-                              {getStepStatus("evaluating") === "waiting" && (
-                                <span className="text-xs text-muted-foreground font-medium">
-                                  [Waiting...]
-                                </span>
+                            <span className="text-xs text-primary font-medium">
+                              [In Progress...]
+                            </span>
+                          )}
+                          {getStepStatus("evaluating") === "waiting" && (
+                            <span className="text-xs text-muted-foreground font-medium">
+                              [Waiting...]
+                            </span>
                               )} */}
                             </div>
                             <p className="text-sm text-muted-foreground">
