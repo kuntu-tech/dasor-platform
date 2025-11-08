@@ -328,9 +328,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
+    const clearLocalSession = async () => {
+      try {
+        const { error: localError } = await supabase.auth.signOut({
+          scope: "local",
+        });
+        if (localError) {
+          console.warn("⚠️ 清理本地 Supabase 会话失败:", localError);
+        } else {
+          console.log("🧹 本地 Supabase 会话已清理");
+        }
+      } catch (localError) {
+        console.warn("⚠️ 清理本地 Supabase 会话异常:", localError);
+      }
+    };
+
     try {
       const result = await Promise.race([
-        supabase.auth.signOut(),
+        supabase.auth.signOut({ scope: "global" }),
         new Promise<"timeout">((resolve) => {
           timeoutId = setTimeout(() => {
             console.warn("⚠️ Supabase signOut 超时，继续本地登出流程");
@@ -358,6 +373,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
+      await clearLocalSession();
       setLoading(false);
     }
   };
