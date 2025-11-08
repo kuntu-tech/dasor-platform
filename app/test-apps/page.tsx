@@ -386,8 +386,8 @@ export default function TestAppsPage() {
                       <span>❤️ {app.like_count}</span>
                     </div>
                     <p className="text-xs text-gray-400">
-                      创建于:{" "}
-                      {new Date(app.created_at).toLocaleDateString("zh-CN")}
+                      Created:{" "}
+                      {new Date(app.created_at).toLocaleDateString("en-US")}
                     </p>
                   </div>
                 </CardContent>

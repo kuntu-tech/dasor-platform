@@ -1252,7 +1252,7 @@ export function ConnectFlow() {
         const sorted = initialResults.sort((a, b) => {
           // First, group by user profile
           if (a.userProfile !== b.userProfile) {
-            return a.userProfile.localeCompare(b.userProfile, "zh-CN");
+            return a.userProfile.localeCompare(b.userProfile, "en-US");
           }
 
           // Within same profile, sort by market value (high->low)
