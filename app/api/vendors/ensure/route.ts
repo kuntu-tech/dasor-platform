@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const CONNECT_API_BASE =
   process.env.NEXT_PUBLIC_CONNECT_API_BASE?.replace(/\/$/, "") ||
-  "https://unfrequentable-sceptical-vince.ngrok-free.dev";
+  "https://test-payment-1j3d.onrender.com";
 const SERVICE_API_TOKEN = process.env.NEXT_PUBLIC_SERVICE_API_TOKEN || "";
 const DEFAULT_APP_URL =
   process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
