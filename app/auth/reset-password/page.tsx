@@ -236,7 +236,7 @@ export default function ResetPasswordPage() {
               {/* Reset Password Button */}
               <Button
                 onClick={handleResetPassword}
-                className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-medium text-base"
+                className="w-full h-12 bg-black hover:bg-gray-900 text-white font-medium text-base"
                 disabled={loading}
               >
                 {loading ? "重置中..." : "Reset Password"}
