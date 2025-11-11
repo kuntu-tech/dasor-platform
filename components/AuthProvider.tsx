@@ -3,11 +3,13 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { useAuthDebugOverlay } from "@/hooks/useAuthDebugOverlay";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isVerifyingSignOut: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (
@@ -180,8 +182,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isVerifyingSignOut, setIsVerifyingSignOut] = useState(false);
 
   const latestUserIdRef = useRef<string | undefined>(undefined);
+  const syncGuardRef = useRef<"idle" | "syncing" | "signing-out">("idle");
+  const signOutVerifyTimerRef = useRef<number | null>(null);
+  useAuthDebugOverlay({
+    enabled:
+      process.env.NEXT_PUBLIC_ENABLE_AUTH_DEBUG === "true" ||
+      (typeof window !== "undefined" &&
+        window.localStorage.getItem("__auth_debug_overlay__") === "true"),
+    loading,
+    session,
+    user,
+    isVerifyingSignOut,
+    syncGuardRef,
+  });
 
   useEffect(() => {
     latestUserIdRef.current = user?.id ?? undefined;
@@ -201,6 +217,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log("获取会话错误:", error);
         }
 
+        if (!session) {
+          console.log(
+            "⚠️ 首次 getSession 返回为空，等待 Supabase 从 IndexedDB 恢复..."
+          );
+          await new Promise((resolve) =>
+            setTimeout(resolve, 500 + Math.random() * 500)
+          );
+
+          const {
+            data: { session: retrySession },
+            error: retryError,
+          } = await supabase.auth.getSession();
+
+          if (retryError) {
+            console.log("二次获取会话错误:", retryError);
+          }
+
+          if (retrySession?.user) {
+            console.log("✅ 二次尝试成功恢复会话");
+            setSession(retrySession);
+            setUser(retrySession.user);
+            setLoading(false);
+            printUserInfo(retrySession.user, "延迟恢复");
+            await checkAndSaveNewUser(retrySession.user, "延迟恢复");
+            return;
+          }
+
+          console.log("❌ 二次尝试仍为空，继续进入正常逻辑");
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -215,6 +261,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 即使出错也要设置 loading 为 false，避免页面一直加载
         setLoading(false);
       }
+    };
+
+    const performLocalSignOut = () => {
+      processedUsers.clear();
+      clearLocalAuthArtifacts(latestUserIdRef.current);
+      setSession(null);
+      setUser(null);
+      setLoading(false);
     };
 
     // 添加超时保护，避免无限等待
@@ -234,39 +288,162 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 监听认证状态变化
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      async (event: string, session: Session | null) => {
-        console.log("认证状态变化:", event, session);
-        setSession(session);
-        setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
+      console.log("认证状态变化:", event, nextSession);
+
+      if (event === "SIGNED_IN" && nextSession?.user) {
+        if (signOutVerifyTimerRef.current) {
+          clearTimeout(signOutVerifyTimerRef.current);
+          signOutVerifyTimerRef.current = null;
+        }
+
+        setSession(nextSession);
+        setUser(nextSession.user);
         setLoading(false);
 
-        // 登录成功后打印用户信息并检查是否为新用户
-        if (event === "SIGNED_IN" && session?.user) {
-          printUserInfo(session.user, "登录成功");
-          // 检查并保存新用户信息
-          await checkAndSaveNewUser(session.user, "登录成功");
+        printUserInfo(nextSession.user, "登录成功");
+        await checkAndSaveNewUser(nextSession.user, "登录成功");
+        processedUsers.add(nextSession.user.id);
+        return;
+      }
+
+      if (event === "TOKEN_REFRESHED" && nextSession?.user) {
+        setSession(nextSession);
+        setUser(nextSession.user);
+        setLoading(false);
+        processedUsers.add(nextSession.user.id);
+        return;
+      }
+
+      if (event === "SIGNED_OUT") {
+        if (signOutVerifyTimerRef.current) {
+          clearTimeout(signOutVerifyTimerRef.current);
+          signOutVerifyTimerRef.current = null;
         }
 
-        // 登出时打印信息并清理处理状态
-        if (event === "SIGNED_OUT") {
-          console.log("用户已登出");
-          processedUsers.clear();
-          clearLocalAuthArtifacts(latestUserIdRef.current);
-          setSession(null);
-          setUser(null);
+        const verifySignOut = async (attempt = 0) => {
+          if (syncGuardRef.current === "signing-out") {
+            console.log("检测到显式登出流程进行中，跳过延迟校验清理");
+            setIsVerifyingSignOut(false);
+            return;
+          }
+
+          const {
+            data: { session: latestSession },
+          } = await supabase.auth.getSession();
+
+          if (latestSession?.user) {
+            console.log("✅ 检测到会话仍然有效，恢复用户状态");
+            setSession(latestSession);
+            setUser(latestSession.user);
+            processedUsers.add(latestSession.user.id);
+            setLoading(false);
+            syncGuardRef.current = "idle";
+            signOutVerifyTimerRef.current = null;
+            setIsVerifyingSignOut(false);
+            return;
+          }
+
+          if (attempt < 3) {
+            console.log(`第 ${attempt + 1} 次延迟校验无效，重试中...`);
+            signOutVerifyTimerRef.current = window.setTimeout(
+              () => verifySignOut(attempt + 1),
+              700
+            );
+            return;
+          }
+
+          console.log("🧹 三次校验后仍无会话，执行本地清理");
+          performLocalSignOut();
+          syncGuardRef.current = "idle";
+          signOutVerifyTimerRef.current = null;
+          setIsVerifyingSignOut(false);
+        };
+
+        syncGuardRef.current = "syncing";
+        setIsVerifyingSignOut(true);
+        verifySignOut();
+
+        return;
+      }
+
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+      setLoading(false);
+      if (nextSession?.user) {
+        processedUsers.add(nextSession.user.id);
+      }
+    });
+
+    const syncSessionFromStorage = async () => {
+      if (syncGuardRef.current !== "idle") {
+        console.log(
+          `跨标签同步：当前状态为 ${syncGuardRef.current}，暂不执行同步`
+        );
+        return;
+      }
+
+      syncGuardRef.current = "syncing";
+      try {
+        const {
+          data: { session: latestSession },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error) {
+          console.warn("跨标签同步 Supabase 会话失败:", error);
+          return;
+        }
+
+        if (latestSession?.user) {
+          setSession(latestSession);
+          setUser(latestSession.user);
+          setLoading(false);
+          processedUsers.add(latestSession.user.id);
+        } else {
+          console.log("跨标签同步：检测到会话已清除，执行本地登出逻辑");
+          performLocalSignOut();
+        }
+      } catch (error) {
+        console.warn("跨标签同步 Supabase 会话异常:", error);
+      } finally {
+        if (syncGuardRef.current === "syncing") {
+          syncGuardRef.current = "idle";
         }
       }
-    );
+    };
 
     const handleStorage = (event: StorageEvent) => {
       if (!event.key) return;
       const authStorageKey = resolveAuthStorageKey();
-      if (event.key === authStorageKey && !event.newValue) {
-        console.log("检测到 Supabase token 被移除，执行本地登出同步");
-        clearLocalAuthArtifacts(latestUserIdRef.current);
-        setSession(null);
-        setUser(null);
+      if (event.key === authStorageKey) {
+        console.log("检测到 Supabase 认证存储变化，尝试解析存储值");
+        if (event.newValue) {
+          try {
+            const parsed = JSON.parse(event.newValue);
+            const latestSession = parsed?.currentSession ?? null;
+
+            if (latestSession?.user) {
+              setSession(latestSession);
+              setUser(latestSession.user);
+              setLoading(false);
+              processedUsers.add(latestSession.user.id);
+              return;
+            }
+            console.log(
+              "存储同步：currentSession 为空，触发 getSession 兜底检查"
+            );
+          } catch (error) {
+            console.warn("解析 Supabase 认证存储失败，回退到 getSession", error);
+          }
+          void syncSessionFromStorage();
+        } else {
+          console.log(
+            "存储同步：检测到认证信息被移除，触发 getSession 验证会话状态"
+          );
+          void syncSessionFromStorage();
+        }
+        return;
       }
       if (
         CLEAR_CACHE_KEYS_BASE.includes(event.key) ||
@@ -283,6 +460,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timeoutId);
       subscription.unsubscribe();
       window.removeEventListener("storage", handleStorage);
+      if (signOutVerifyTimerRef.current) {
+        clearTimeout(signOutVerifyTimerRef.current);
+        signOutVerifyTimerRef.current = null;
+      }
+      setIsVerifyingSignOut(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      console.log("🚫 页面卸载中，暂停跨标签同步清理逻辑");
+      syncGuardRef.current = "signing-out";
+      setTimeout(() => {
+        if (syncGuardRef.current === "signing-out") {
+          syncGuardRef.current = "idle";
+        }
+      }, 3000);
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
 
@@ -389,6 +588,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
 
     const currentUserId = user?.id;
+    syncGuardRef.current = "signing-out";
+    setIsVerifyingSignOut(false);
 
     // 立即更新本地状态，避免界面长时间停留在受保护页面
     setSession(null);
@@ -474,6 +675,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         window.location.replace("/auth/login");
       }
       setLoading(false);
+      syncGuardRef.current = "idle";
+      setIsVerifyingSignOut(false);
     }
   };
 
@@ -481,6 +684,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     session,
     loading,
+    isVerifyingSignOut,
     signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,
