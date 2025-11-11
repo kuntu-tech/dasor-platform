@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
@@ -48,6 +48,61 @@ function printUserInfo(user: User, context: string) {
 
 // 用户处理状态跟踪，避免重复处理
 const processedUsers = new Set<string>();
+
+// 本地缓存清理工具
+const CLEAR_CACHE_KEYS_BASE = [
+  "run_result",
+  "run_result_publish",
+  "marketsData",
+  "standalJson",
+  "selectedProblems",
+  "selectedQuestionsWithSql",
+  "dbConnectionData",
+  "originalTaskId",
+];
+
+function resolveAuthStorageKey() {
+  // @ts-expect-error storageKey is not in types but exists in runtime
+  const runtimeKey = supabase.auth?.storageKey;
+  if (runtimeKey) return runtimeKey as string;
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) {
+    return "sb-auth-token";
+  }
+  try {
+    const projectRef = new URL(url).host.split(".")[0];
+    return `sb-${projectRef}-auth-token`;
+  } catch {
+    return "sb-auth-token";
+  }
+}
+
+const SIGN_OUT_REQUEST_TIMEOUT = 4000;
+const SIGN_OUT_LOADING_FALLBACK = 3000;
+
+function clearLocalAuthArtifacts(userId?: string) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const keysToRemove = [...CLEAR_CACHE_KEYS_BASE];
+    if (userId) {
+      keysToRemove.push(`cached_avatar_${userId}`);
+    }
+    keysToRemove.forEach((key) => {
+      localStorage.removeItem(key);
+    });
+  } catch (error) {
+    console.warn("清理本地缓存失败", error);
+  }
+
+  try {
+    const authStorageKey = resolveAuthStorageKey();
+    localStorage.removeItem(authStorageKey);
+  } catch (error) {
+    console.warn("清理 Supabase 会话缓存失败", error);
+  }
+}
 
 // 检查并保存新用户信息到users表
 async function checkAndSaveNewUser(user: User, context: string = "unknown") {
@@ -126,6 +181,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const latestUserIdRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    latestUserIdRef.current = user?.id ?? undefined;
+  }, [user?.id]);
+
   useEffect(() => {
     console.log("AuthProvider useEffect");
     // 获取初始会话
@@ -190,15 +251,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 登出时打印信息并清理处理状态
         if (event === "SIGNED_OUT") {
           console.log("用户已登出");
-          // 清理处理状态，允许下次登录时重新处理
           processedUsers.clear();
+          clearLocalAuthArtifacts(latestUserIdRef.current);
+          setSession(null);
+          setUser(null);
         }
       }
     );
 
+    const handleStorage = (event: StorageEvent) => {
+      if (!event.key) return;
+      const authStorageKey = resolveAuthStorageKey();
+      if (event.key === authStorageKey && !event.newValue) {
+        console.log("检测到 Supabase token 被移除，执行本地登出同步");
+        clearLocalAuthArtifacts(latestUserIdRef.current);
+        setSession(null);
+        setUser(null);
+      }
+      if (
+        CLEAR_CACHE_KEYS_BASE.includes(event.key) ||
+        (latestUserIdRef.current &&
+          event.key === `cached_avatar_${latestUserIdRef.current}`)
+      ) {
+        console.log("检测到缓存键被移除，执行同步更新", event.key);
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+
     return () => {
       clearTimeout(timeoutId);
       subscription.unsubscribe();
+      window.removeEventListener("storage", handleStorage);
     };
   }, []);
 
@@ -309,27 +393,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 立即更新本地状态，避免界面长时间停留在受保护页面
     setSession(null);
     setUser(null);
+    clearLocalAuthArtifacts(currentUserId);
 
-    if (typeof window !== "undefined") {
-      try {
-        const keysToRemove = [
-          "run_result",
-          "run_result_publish",
-          "marketsData",
-          "standalJson",
-          "selectedProblems",
-          "selectedQuestionsWithSql",
-          "dbConnectionData",
-          "originalTaskId",
-        ];
-        if (currentUserId) {
-          keysToRemove.push(`cached_avatar_${currentUserId}`);
-        }
-        keysToRemove.forEach((key) => localStorage.removeItem(key));
-      } catch (error) {
-        console.warn("清理本地缓存失败", error);
-      }
-    }
+    const loadingFallbackTimer = setTimeout(() => {
+      console.info(
+        "[AuthProvider] Sign out is taking longer than expected. Local session has already been cleared."
+      );
+      setLoading(false);
+    }, SIGN_OUT_LOADING_FALLBACK);
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
@@ -349,6 +420,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     let signOutError: unknown = null;
+    let didTimeout = false;
 
     try {
       const result = await Promise.race([
@@ -357,7 +429,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           timeoutId = setTimeout(() => {
             console.warn("⚠️ Supabase signOut 超时，继续本地登出流程");
             resolve("timeout");
-          }, 10000);
+          }, SIGN_OUT_REQUEST_TIMEOUT);
         }),
       ]);
 
@@ -372,42 +444,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         console.log("✅ 登出成功");
+      } else {
+        didTimeout = true;
+        console.info(
+          "[AuthProvider] Supabase signOut timed out; local session cleared and redirecting."
+        );
       }
     } catch (error) {
       console.log("❌ 登出失败:", error);
       signOutError = error;
     } finally {
+      clearTimeout(loadingFallbackTimer);
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
       await clearLocalSession();
-      if (typeof window !== "undefined") {
-        try {
-          const authStorageKey =
-            // @ts-expect-error storageKey is not in types but exists in runtime
-            supabase.auth?.storageKey ??
-            (() => {
-              const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-              if (!url) {
-                return "sb-auth-token";
-              }
-              try {
-                const projectRef = new URL(url).host.split(".")[0];
-                return `sb-${projectRef}-auth-token`;
-              } catch {
-                return "sb-auth-token";
-              }
-            })();
-          localStorage.removeItem(authStorageKey);
-        } catch (error) {
-          console.warn("清理 Supabase 会话缓存失败", error);
-        }
-      }
       if (signOutError) {
         console.warn(
           "登出过程中出现异常，已完成本地清理，可忽略：",
           signOutError
         );
+      }
+      if (didTimeout) {
+        supabase.auth
+          .signOut({ scope: "global" })
+          .catch((err) => console.warn("超时后再次尝试全局登出失败", err));
+      }
+      if ((didTimeout || signOutError) && typeof window !== "undefined") {
+        window.location.replace("/auth/login");
       }
       setLoading(false);
     }
