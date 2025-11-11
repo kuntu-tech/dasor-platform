@@ -176,7 +176,7 @@ export function GenerateFlow() {
           }
         }
       } catch (err) {
-        console.warn("解析 run_result_publish 失败，使用默认 payload", err);
+        console.warn("Failed to parse run_result_publish, using default payload", err);
       }
 
       const response = await fetch(
@@ -325,7 +325,7 @@ export function GenerateFlow() {
         localStorage.setItem("currentAppId", appId);
       }
     } catch (error) {
-      console.warn("加载应用详情失败", error);
+      console.warn("Failed to load app details", error);
     }
   }, []);
 
@@ -354,10 +354,10 @@ export function GenerateFlow() {
         }
 
         if (payload?.status === "failed") {
-          setJobState("failed");
-          setErrorMessage(
-            payload?.error || payload?.message || "生成失败，请重试"
-          );
+        setJobState("failed");
+        setErrorMessage(
+          payload?.error || payload?.message || "Generation failed, please try again"
+        );
           return;
         }
 
@@ -365,7 +365,7 @@ export function GenerateFlow() {
           requestStatus(appId);
         }, POLL_INTERVAL_MS);
       } catch (error) {
-        console.log("查询任务状态失败", error);
+        console.log("Failed to query job status", error);
         if (
           jobStateRef.current !== "failed" &&
           jobStateRef.current !== "succeeded"
@@ -460,7 +460,7 @@ export function GenerateFlow() {
       try {
         appMetaFromService = await fetchMetadataFromService();
       } catch (err) {
-        console.warn("获取应用元数据异常", err);
+        console.warn("Failed to fetch app metadata", err);
       }
 
       if (!appMetaFromService || typeof appMetaFromService !== "object") {
@@ -504,7 +504,7 @@ export function GenerateFlow() {
           }
         }
       } catch (err) {
-        console.warn("解析 run_result_publish 失败", err);
+        console.warn("Failed to parse run_result_publish", err);
       }
       const batchData = {
         queries: extractedQueries,

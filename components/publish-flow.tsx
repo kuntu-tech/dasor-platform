@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CheckCircle2, Copy } from "lucide-react";
+import { CheckCircle2, Copy, Check, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/AuthProvider";
 import {
@@ -29,8 +29,6 @@ interface MonetizationEligibility {
   canUseSubscription: boolean;
   subscriptionReason: string | null;
 }
-
-const STRIPE_ONBOARDING_PATH = "/settings?payoutTab=payout";
 
 function parseSubscriptionPeriodEnd(raw?: string | null): Date | null {
   if (!raw) return null;
@@ -146,6 +144,11 @@ export function PublishFlow() {
     null
   );
   const [vendorStatusLoading, setVendorStatusLoading] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState<{
+    item: string;
+    status: "success" | "error";
+  } | null>(null);
+  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -284,6 +287,14 @@ export function PublishFlow() {
     };
   }, [user?.id]);
 
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const monetizationEligibility = useMemo(
     () => deriveMonetizationEligibility(vendorStatus, vendorStatusError),
     [vendorStatus, vendorStatusError]
@@ -304,6 +315,76 @@ export function PublishFlow() {
     }
     return monetizationEligibility.canUseFree;
   }, [monetization, monetizationEligibility]);
+
+  const showCopyFeedback = useCallback(
+    (itemType: string, status: "success" | "error") => {
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+      setCopyFeedback({ item: itemType, status });
+      feedbackTimeoutRef.current = setTimeout(() => {
+        setCopyFeedback(null);
+        feedbackTimeoutRef.current = null;
+      }, 2000);
+    },
+    []
+  );
+
+  const fallbackCopyText = (text: string) => {
+    if (typeof document === "undefined") {
+      throw new Error("Document not available for fallback copy");
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "absolute";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const succeeded = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    if (!succeeded) {
+      throw new Error("Fallback copy command failed");
+    }
+  };
+
+  const handleCopy = useCallback(
+    async (text: string, itemType: string) => {
+      const safeText = text ?? "";
+      const attemptClipboardCopy = async () => {
+        if (navigator?.clipboard?.writeText) {
+          await navigator.clipboard.writeText(safeText);
+          return true;
+        }
+        return false;
+      };
+
+      try {
+        const clipboardWorked = await attemptClipboardCopy();
+        if (!clipboardWorked) {
+          fallbackCopyText(safeText);
+        }
+        showCopyFeedback(itemType, "success");
+      } catch (err) {
+        console.log("Failed to copy text:", err);
+        try {
+          fallbackCopyText(safeText);
+          showCopyFeedback(itemType, "success");
+        } catch (fallbackErr) {
+          console.log("Fallback copy failed:", fallbackErr);
+          showCopyFeedback(itemType, "error");
+        }
+      }
+    },
+    [showCopyFeedback]
+  );
+
+  const openPayoutSettingsModal = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("openSettings", "payout");
+    const queryString = params.toString();
+    router.push(`?${queryString}`, { scroll: false });
+  }, [router, searchParams]);
 
   const handlePublish = async () => {
     if (!canPublish || vendorStatusLoading) {
@@ -586,21 +667,47 @@ export function PublishFlow() {
                   <Label className="text-sm font-medium text-gray-700">
                     URL
                   </Label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-start gap-2">
                     <Input
                       value={currentAppUrl}
                       readOnly
                       className="flex-1 bg-gray-50"
                     />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        navigator.clipboard.writeText(currentAppUrl)
-                      }
-                    >
-                      <Copy className="size-4" />
-                    </Button>
+                    <div className="flex flex-col items-center gap-1 min-w-[44px]">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopy(currentAppUrl ?? "", "url")}
+                        className="flex items-center gap-1"
+                      >
+                        {copyFeedback?.item === "url" ? (
+                          copyFeedback.status === "success" ? (
+                            <Check className="size-4 text-emerald-600" />
+                          ) : (
+                            <AlertCircle className="size-4 text-destructive" />
+                          )
+                        ) : (
+                          <Copy className="size-4" />
+                        )}
+                        <span className="sr-only">Copy URL</span>
+                      </Button>
+                      <span
+                        aria-live="polite"
+                        className={`text-xs font-medium transition-opacity duration-150 h-4 flex items-center ${
+                          copyFeedback?.item === "url"
+                            ? copyFeedback.status === "success"
+                              ? "text-emerald-600 opacity-100"
+                              : "text-destructive opacity-100"
+                            : "opacity-0 text-transparent"
+                        }`}
+                      >
+                        {copyFeedback?.item === "url"
+                          ? copyFeedback.status === "success"
+                            ? "Copied!"
+                            : "Copy failed"
+                          : "\u00A0"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -609,19 +716,47 @@ export function PublishFlow() {
                   <Label className="text-sm font-medium text-gray-700">
                     Name
                   </Label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-start gap-2">
                     <Input
                       value={appName}
                       readOnly
                       className="flex-1 bg-gray-50"
                     />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigator.clipboard.writeText(appName)}
-                    >
-                      <Copy className="size-4" />
-                    </Button>
+                    <div className="flex flex-col items-center gap-1 min-w-[44px]">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopy(appName ?? "", "name")}
+                        className="flex items-center gap-1"
+                      >
+                        {copyFeedback?.item === "name" ? (
+                          copyFeedback.status === "success" ? (
+                            <Check className="size-4 text-emerald-600" />
+                          ) : (
+                            <AlertCircle className="size-4 text-destructive" />
+                          )
+                        ) : (
+                          <Copy className="size-4" />
+                        )}
+                        <span className="sr-only">Copy app name</span>
+                      </Button>
+                      <span
+                        aria-live="polite"
+                        className={`text-xs font-medium transition-opacity duration-150 h-4 flex items-center ${
+                          copyFeedback?.item === "name"
+                            ? copyFeedback.status === "success"
+                              ? "text-emerald-600 opacity-100"
+                              : "text-destructive opacity-100"
+                            : "opacity-0 text-transparent"
+                        }`}
+                      >
+                        {copyFeedback?.item === "name"
+                          ? copyFeedback.status === "success"
+                            ? "Copied!"
+                            : "Copy failed"
+                          : "\u00A0"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -636,13 +771,43 @@ export function PublishFlow() {
                       readOnly
                       className="flex-1 bg-gray-50 min-h-[60px]"
                     />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigator.clipboard.writeText(description)}
-                    >
-                      <Copy className="size-4" />
-                    </Button>
+                    <div className="flex flex-col items-center gap-1 min-w-[44px]">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          handleCopy(description ?? "", "description")
+                        }
+                        className="flex items-center gap-1"
+                      >
+                        {copyFeedback?.item === "description" ? (
+                          copyFeedback.status === "success" ? (
+                            <Check className="size-4 text-emerald-600" />
+                          ) : (
+                            <AlertCircle className="size-4 text-destructive" />
+                          )
+                        ) : (
+                          <Copy className="size-4" />
+                        )}
+                        <span className="sr-only">Copy description</span>
+                      </Button>
+                      <span
+                        aria-live="polite"
+                        className={`text-xs font-medium transition-opacity duration-150 h-4 flex items-center text-center ${
+                          copyFeedback?.item === "description"
+                            ? copyFeedback.status === "success"
+                              ? "text-emerald-600 opacity-100"
+                              : "text-destructive opacity-100"
+                            : "opacity-0 text-transparent"
+                        }`}
+                      >
+                        {copyFeedback?.item === "description"
+                          ? copyFeedback.status === "success"
+                            ? "Copied!"
+                            : "Copy failed"
+                          : "\u00A0"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -731,7 +896,9 @@ export function PublishFlow() {
                   </div>
                   {!vendorStatusLoading &&
                     !monetizationEligibility.canUseFree &&
-                    monetizationEligibility.freeReason && (
+                    monetizationEligibility.freeReason &&
+                    monetizationEligibility.freeReason !==
+                      monetizationEligibility.subscriptionReason && (
                       <p className="text-sm text-destructive">
                         {monetizationEligibility.freeReason}
                       </p>
@@ -756,19 +923,22 @@ export function PublishFlow() {
                     </div>
                   </div>
                   {!vendorStatusLoading &&
-                    monetizationEligibility.subscriptionReason && (
+                    monetizationEligibility.subscriptionReason &&
+                    monetizationEligibility.freeReason !==
+                      monetizationEligibility.subscriptionReason && (
                       <p className="text-sm text-destructive">
                         {monetizationEligibility.subscriptionReason}
                         {monetizationEligibility.canUseFree &&
                           !monetizationEligibility.canUseSubscription && (
                             <>
                               {" "}
-                              <Link
-                                href={STRIPE_ONBOARDING_PATH}
-                                className="underline"
+                              <button
+                                type="button"
+                                onClick={openPayoutSettingsModal}
+                                className="underline text-left text-sm font-medium text-destructive"
                               >
                                 Open payout settings
-                              </Link>
+                              </button>
                             </>
                           )}
                       </p>

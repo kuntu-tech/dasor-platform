@@ -89,11 +89,11 @@ export function ConnectFlow() {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || `连接失败: ${response.status}`);
+      throw new Error(errorData.error || `Connection failed: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("数据库连接验证成功:", data);
+    console.log("Database connection validation succeeded:", data);
   };
 
   // 获取分析结果的真实API调用
@@ -113,7 +113,7 @@ export function ConnectFlow() {
       });
 
       if (!response.ok) {
-        throw new Error(`分析失败: ${response.status}`);
+        throw new Error(`Analysis failed: ${response.status}`);
       }
 
       const data = await response.json();
@@ -138,9 +138,11 @@ export function ConnectFlow() {
       setAnalysisResults(data.results || []);
       setStep("results");
     } catch (error) {
-      console.log("分析失败:", error);
+      console.log("Analysis failed:", error);
       setConnectionError(
-        `分析失败: ${error instanceof Error ? error.message : "未知错误"}`
+        `Analysis failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
       setStep("connect");
     }
@@ -177,7 +179,7 @@ export function ConnectFlow() {
 
     // 校验 connectionUrl 格式
     if (!connectionUrl || connectionUrl.trim() === "") {
-      setConnectionError("连接URL不能为空");
+      setConnectionError("Connection URL cannot be empty");
       return;
     }
 
@@ -185,19 +187,19 @@ export function ConnectFlow() {
     try {
       new URL(connectionUrl);
     } catch (error) {
-      setConnectionError("连接URL格式不正确，请输入有效的URL");
+      setConnectionError("Invalid connection URL format, please enter a valid URL");
       return;
     }
 
     // 校验 apiKey 格式
     if (!apiKey || apiKey.trim() === "") {
-      setConnectionError("API密钥不能为空");
+      setConnectionError("API key cannot be empty");
       return;
     }
 
     // 校验 API Key 长度（通常至少8位）
     if (apiKey.length < 8) {
-      setConnectionError("API密钥长度至少需要8位字符");
+      setConnectionError("API key must be at least 8 characters long");
       return;
     }
 
@@ -218,7 +220,7 @@ export function ConnectFlow() {
       });
 
       const data = await response.json();
-      console.log("API响应:", data);
+      console.log("API response:", data);
 
       if (!response.ok) {
         throw new Error(data.error || `HTTP ${response.status}`);
@@ -229,7 +231,9 @@ export function ConnectFlow() {
     } catch (error) {
       console.log("Error connecting to API:", error);
       setConnectionError(
-        `连接失败: ${error instanceof Error ? error.message : "未知错误"}`
+        `Connection failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
       // 连接失败时重置步骤
       setStep("connect");
@@ -253,7 +257,7 @@ export function ConnectFlow() {
     } catch (error) {
       console.log("Database validation failed:", error);
       setConnectionError(
-        error instanceof Error ? error.message : "数据库连接失败"
+        error instanceof Error ? error.message : "Database connection failed"
       );
       setStep("connect");
       setAnalysisStep("connecting");
@@ -279,7 +283,7 @@ export function ConnectFlow() {
       });
 
       if (!response.ok) {
-        throw new Error(`数据验证失败: ${response.status}`);
+        throw new Error(`Data validation failed: ${response.status}`);
       }
 
       const data = await response.json();
@@ -288,12 +292,12 @@ export function ConnectFlow() {
         setDataValidationError(null);
         setAnalysisStep("reading-schema");
       } else {
-        throw new Error(data.error || "数据真实性验证失败");
+        throw new Error(data.error || "Data authenticity validation failed");
       }
     } catch (error) {
       console.log("Data validation failed:", error);
       setDataValidationError(
-        error instanceof Error ? error.message : "数据验证失败"
+        error instanceof Error ? error.message : "Data validation failed"
       );
       setStep("connect");
     }
@@ -329,12 +333,12 @@ export function ConnectFlow() {
 
   const getStepText = (stepName: AnalysisStep) => {
     const stepTexts = {
-      connecting: "连接数据库",
-      "validating-data": "验证数据真实性",
-      "reading-schema": "读取数据架构",
-      "sampling-data": "采样数据",
-      evaluating: "分析商业机会",
-      complete: "完成分析",
+      connecting: "Connecting to database",
+      "validating-data": "Validating data authenticity",
+      "reading-schema": "Reading data schema",
+      "sampling-data": "Sampling data",
+      evaluating: "Evaluating business opportunities",
+      complete: "Analysis complete",
     };
     return stepTexts[stepName];
   };
@@ -382,11 +386,11 @@ export function ConnectFlow() {
       });
 
       if (!response.ok) {
-        throw new Error(`聊天失败: ${response.status}`);
+        throw new Error(`Chat request failed: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log("聊天响应:", data);
+      console.log("Chat response:", data);
     } catch (error) {
       console.log("Chat failed:", error);
     }

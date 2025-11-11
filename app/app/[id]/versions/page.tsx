@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,8 @@ import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
   Copy,
-  ExternalLink,
+  Check,
+  AlertCircle,
   Calendar,
   Tag,
   Globe,
@@ -64,10 +65,14 @@ type AppData = {
 export default function AppVersionsPage() {
   const params = useParams();
   const appId = params?.id as string;
-  const [copiedItem, setCopiedItem] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<{
+    item: string;
+    status: "success" | "error";
+  } | null>(null);
   const [appData, setAppData] = useState<AppData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch app data
   useEffect(() => {
@@ -105,13 +110,67 @@ export default function AppVersionsPage() {
     fetchAppData();
   }, [appId]);
 
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const showCopyFeedback = (itemType: string, status: "success" | "error") => {
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current);
+    }
+    setCopyFeedback({ item: itemType, status });
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setCopyFeedback(null);
+      feedbackTimeoutRef.current = null;
+    }, 2000);
+  };
+
+  const fallbackCopyText = (text: string) => {
+    if (typeof document === "undefined") {
+      throw new Error("Document not available for fallback copy");
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "absolute";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const succeeded = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    if (!succeeded) {
+      throw new Error("Fallback copy command failed");
+    }
+  };
+
   const handleCopy = async (text: string, itemType: string) => {
+    const attemptClipboardCopy = async () => {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+      return false;
+    };
+
     try {
-      await navigator.clipboard.writeText(text);
-      setCopiedItem(itemType);
-      setTimeout(() => setCopiedItem(null), 2000);
+      const clipboardWorked = await attemptClipboardCopy();
+      if (!clipboardWorked) {
+        fallbackCopyText(text);
+      }
+      showCopyFeedback(itemType, "success");
     } catch (err) {
-      console.log("Failed to copy text: ", err);
+      console.log("Failed to copy text:", err);
+      try {
+        fallbackCopyText(text);
+        showCopyFeedback(itemType, "success");
+      } catch (fallbackErr) {
+        console.log("Fallback copy failed:", fallbackErr);
+        showCopyFeedback(itemType, "error");
+      }
     }
   };
 
@@ -270,14 +329,38 @@ export default function AppVersionsPage() {
                 </label>
                 <div className="flex items-center gap-2 mt-1">
                   <p className="text-sm font-medium">{appName}</p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleCopy(appName, "name")}
-                  >
-                    <Copy className="size-3" />
-                    <span className="sr-only">Copy app name</span>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleCopy(appName, "name")}
+                      className="flex items-center gap-1"
+                    >
+                      {copyFeedback?.item === "name" ? (
+                        copyFeedback.status === "success" ? (
+                          <Check className="size-3 text-emerald-600" />
+                        ) : (
+                          <AlertCircle className="size-3 text-destructive" />
+                        )
+                      ) : (
+                        <Copy className="size-3" />
+                      )}
+                      <span className="sr-only">Copy app name</span>
+                    </Button>
+                    {copyFeedback?.item === "name" && (
+                      <span
+                        className={`text-xs font-medium transition-opacity duration-150 ${
+                          copyFeedback.status === "success"
+                            ? "text-emerald-600"
+                            : "text-destructive"
+                        }`}
+                      >
+                        {copyFeedback.status === "success"
+                          ? "Copied!"
+                          : "Copy failed"}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -290,14 +373,38 @@ export default function AppVersionsPage() {
                   <p className="text-sm text-muted-foreground flex-1">
                     {appDescription}
                   </p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleCopy(appDescription, "description")}
-                  >
-                    <Copy className="size-3" />
-                    <span className="sr-only">Copy description</span>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleCopy(appDescription, "description")}
+                      className="flex items-center gap-1"
+                    >
+                      {copyFeedback?.item === "description" ? (
+                        copyFeedback.status === "success" ? (
+                          <Check className="size-3 text-emerald-600" />
+                        ) : (
+                          <AlertCircle className="size-3 text-destructive" />
+                        )
+                      ) : (
+                        <Copy className="size-3" />
+                      )}
+                      <span className="sr-only">Copy description</span>
+                    </Button>
+                    {copyFeedback?.item === "description" && (
+                      <span
+                        className={`text-xs font-medium transition-opacity duration-150 ${
+                          copyFeedback.status === "success"
+                            ? "text-emerald-600"
+                            : "text-destructive"
+                        }`}
+                      >
+                        {copyFeedback.status === "success"
+                          ? "Copied!"
+                          : "Copy failed"}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -314,21 +421,45 @@ export default function AppVersionsPage() {
                     <code className="text-sm bg-muted px-2 py-1 rounded flex-1 font-mono">
                       {appData.mcp_server_ids}
                     </code>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        handleCopy(
-                          Array.isArray(appData.mcp_server_ids)
-                            ? appData.mcp_server_ids.join(", ")
-                            : appData.mcp_server_ids || "",
-                          "url"
-                        )
-                      }
-                    >
-                      <Copy className="size-3" />
-                      <span className="sr-only">Copy URL</span>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          handleCopy(
+                            Array.isArray(appData.mcp_server_ids)
+                              ? appData.mcp_server_ids.join(", ")
+                              : appData.mcp_server_ids || "",
+                            "url"
+                          )
+                        }
+                        className="flex items-center gap-1"
+                      >
+                        {copyFeedback?.item === "url" ? (
+                          copyFeedback.status === "success" ? (
+                            <Check className="size-3 text-emerald-600" />
+                          ) : (
+                            <AlertCircle className="size-3 text-destructive" />
+                          )
+                        ) : (
+                          <Copy className="size-3" />
+                        )}
+                        <span className="sr-only">Copy URL</span>
+                      </Button>
+                      {copyFeedback?.item === "url" && (
+                        <span
+                          className={`text-xs font-medium transition-opacity duration-150 ${
+                            copyFeedback.status === "success"
+                              ? "text-emerald-600"
+                              : "text-destructive"
+                          }`}
+                        >
+                          {copyFeedback.status === "success"
+                            ? "Copied!"
+                            : "Copy failed"}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </>
