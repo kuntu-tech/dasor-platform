@@ -20,12 +20,12 @@ export default function RegisterPage() {
 
   const handleEmailRegister = async () => {
     if (!email || !password || !fullName) {
-      setError("请填写所有必填字段");
+      setError("Please fill in all required fields");
       return;
     }
 
     if (password.length < 6) {
-      setError("密码至少需要6位字符");
+      setError("Password must be at least 6 characters");
       return;
     }
 
@@ -33,10 +33,12 @@ export default function RegisterPage() {
       setError("");
       setSuccess("");
       await signUpWithEmail(email, password, fullName);
-      setSuccess("注册成功！请检查邮箱验证链接。");
+      setSuccess(
+        "Registration successful! Please check your email for the verification link."
+      );
     } catch (error: any) {
-      console.log("注册失败:", error);
-      setError(error.message || "注册失败，请稍后重试");
+      console.log("Registration failed:", error);
+      setError(error.message || "Registration failed, please try again later");
     }
   };
 
@@ -194,7 +196,7 @@ export default function RegisterPage() {
                 className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-medium text-base"
                 disabled={loading}
               >
-                {loading ? "注册中..." : "Create Account"}
+                {loading ? "Creating..." : "Create Account"}
               </Button>
 
               {/* Terms and Privacy */}
