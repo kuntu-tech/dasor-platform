@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -458,6 +458,186 @@ export function PublishFlow() {
     }
   };
 
+  const handleContinueToGenerate = async () => {
+    if (!appId || !user?.id) {
+      console.error("Missing appId or user id");
+      return;
+    }
+
+    try {
+      // 获取 app 数据
+      const response = await fetch(`/api/apps/${appId}`, { cache: "no-store" });
+      const payload = await response.json();
+
+      if (!response.ok || !payload.data) {
+        throw new Error(payload?.error || "Failed to fetch app data");
+      }
+
+      const app = payload.data;
+      const connectionId = app.connection_id;
+
+      // if (!connectionId) {
+      //   console.error("App does not have connection_id");
+      //   alert(
+      //     "App does not have a connection. Please connect a database first."
+      //   );
+      //   return;
+      // }
+
+      // 从 app 的 generator_meta 或 app_meta_info 中获取 task_id
+      let taskId = "";
+
+      // 尝试从 app_meta_info 中获取
+      if (app.app_meta_info && typeof app.app_meta_info === "object") {
+        taskId = app.app_meta_info.task_id;
+        // if (runResult && runResult.task_id) {
+        //   taskId = runResult.task_id;
+        // }
+      }
+
+      // 如果 app 中没有 task_id，尝试从 localStorage 读取
+      // if (!taskId) {
+      //   const runResultStr = localStorage.getItem("run_result");
+      //   if (runResultStr) {
+      //     try {
+      //       const runResult = JSON.parse(runResultStr);
+      //       taskId = runResult.task_id || "";
+      //     } catch (e) {
+      //       console.log("Failed to parse run_result from localStorage:", e);
+      //     }
+      //   }
+      // }
+
+      if (!taskId) {
+        alert(
+          "Cannot find task_id. Please ensure the app has been generated from a valid connection."
+        );
+        return;
+      }
+
+      // 通过 task_id、run_id=r_1、user_id 获取 run_result 数据
+      let runId = "r_1";
+      let runResult = null;
+
+      // 首先尝试获取 run_id=r_1 的数据
+      console.log(
+        `Attempting to fetch run_result for run_id=${runId}, task_id=${taskId}, user_id=${user.id}`
+      );
+      let runResultResponse = await fetch(
+        `/api/run-result/${runId}?user_id=${user.id}&task_id=${taskId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+        }
+      );
+
+      if (runResultResponse.ok) {
+        const runResultData = await runResultResponse.json();
+        console.log("API response for r_1:", runResultData);
+
+        // API 返回的数据结构是 { success: true, data: run_result }
+        if (runResultData.data && runResultData.data !== null) {
+          runResult = runResultData.data;
+        }
+      }
+
+      // 如果 r_1 不存在，尝试获取最新的 run_id
+      if (!runResult) {
+        console.log(
+          `run_id=r_1 not found, attempting to fetch latest run_result for task_id=${taskId}`
+        );
+        const runResultsResponse = await fetch(
+          `/api/run-results?user_id=${user.id}&task_id=${taskId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${session?.access_token}`,
+            },
+          }
+        );
+
+        if (runResultsResponse.ok) {
+          const runResultsData = await runResultsResponse.json();
+          console.log("Available run_ids:", runResultsData);
+
+          if (runResultsData.data && runResultsData.data.length > 0) {
+            // 获取最新的 run_id（按创建时间排序，第一个是最新的）
+            const latestRunId = runResultsData.data[0].run_id;
+            console.log(`Using latest run_id: ${latestRunId} instead of r_1`);
+
+            // 使用最新的 run_id 获取数据
+            runResultResponse = await fetch(
+              `/api/run-result/${latestRunId}?user_id=${user.id}&task_id=${taskId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${session?.access_token}`,
+                },
+              }
+            );
+
+            if (runResultResponse.ok) {
+              const runResultData = await runResultResponse.json();
+              if (runResultData.data && runResultData.data !== null) {
+                runResult = runResultData.data;
+              }
+            }
+          }
+        }
+      }
+
+      // 如果仍然没有数据，抛出错误
+      // if (!runResult) {
+      //   console.error(
+      //     `No run_result found for task_id=${taskId}, user_id=${user.id}`
+      //   );
+      //   throw new Error(
+      //     `No run_result data found for this app. Please ensure the app was generated from a valid connection and has analysis results.`
+      //   );
+      // }
+
+      // 保存到 localStorage
+      localStorage.setItem("run_result", JSON.stringify(runResult));
+
+      // 提取 segments 数据
+      if (runResult.segments) {
+        localStorage.setItem("marketsData", JSON.stringify(runResult.segments));
+      }
+
+      // 如果有 standalJson，也保存（standalJson 通常不在 run_result 中，需要从其他地方获取）
+      // 尝试从 localStorage 读取已有的 standalJson
+      const existingStandalJson = localStorage.getItem("standalJson");
+      if (!existingStandalJson && runResult.standalJson) {
+        localStorage.setItem(
+          "standalJson",
+          JSON.stringify(runResult.standalJson)
+        );
+      }
+
+      // 保存 connection 数据（如果需要）
+      const dbConnectionDataStr = localStorage.getItem("dbConnectionData");
+      if (!dbConnectionDataStr) {
+        // 如果没有 connection 数据，尝试从 app 的 connection_id 获取
+        // 这里可以保存 connectionId 以便后续使用
+        const dbConnectionData = {
+          connectionId: connectionId,
+        };
+        localStorage.setItem(
+          "dbConnectionData",
+          JSON.stringify(dbConnectionData)
+        );
+      }
+
+      // 设置标志，告诉 ConnectFlow 直接跳转到 results 步骤
+      localStorage.setItem("skipToBusinessInsight", "true");
+
+      // 跳转到 connect 页面
+      router.push("/connect");
+    } catch (error) {
+      console.error("Failed to continue to generate:", error);
+      alert("Failed to load data. Please try again.");
+    }
+  };
+
   if (isPublished) {
     return (
       <div className="min-h-screen bg-background">
@@ -633,10 +813,14 @@ export function PublishFlow() {
               </div>
 
               <div className="flex gap-3">
-                <Button variant="outline" asChild>
-                  <Link href="/">Return to home</Link>
+                <Button variant="outline" onClick={handleContinueToGenerate}>
+                  Continue To Generate
                 </Button>
-                <Button>Go to ChatGPT</Button>
+                <Button>
+                  <Link href="https://chatgpt.com/#settings/Connectors">
+                    Go to ChatGPT
+                  </Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -712,7 +896,9 @@ export function PublishFlow() {
                   </div>
                   {!vendorStatusLoading &&
                     !monetizationEligibility.canUseFree &&
-                    monetizationEligibility.freeReason && (
+                    monetizationEligibility.freeReason &&
+                    monetizationEligibility.freeReason !==
+                      monetizationEligibility.subscriptionReason && (
                       <p className="text-sm text-destructive">
                         {monetizationEligibility.freeReason}
                       </p>
@@ -737,7 +923,9 @@ export function PublishFlow() {
                     </div>
                   </div>
                   {!vendorStatusLoading &&
-                    monetizationEligibility.subscriptionReason && (
+                    monetizationEligibility.subscriptionReason &&
+                    monetizationEligibility.freeReason !==
+                      monetizationEligibility.subscriptionReason && (
                       <p className="text-sm text-destructive">
                         {monetizationEligibility.subscriptionReason}
                         {monetizationEligibility.canUseFree &&

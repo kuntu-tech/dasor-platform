@@ -12,10 +12,12 @@ import {
 } from "@/components/ui/card";
 import { CheckCircle2, ArrowRight, Home, Loader2 } from "lucide-react";
 import { syncSubscriptionStatus } from "@/portable-pages/lib/connectApi";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function SubscriptionSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, refreshSubscriptionStatus } = useAuth();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [vendorId, setVendorId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -41,6 +43,15 @@ export default function SubscriptionSuccessPage() {
       if (data.success) {
         setSyncSuccess(true);
         console.log("订阅状态同步成功:", data);
+        // 刷新订阅状态缓存
+        if (user?.id) {
+          try {
+            await refreshSubscriptionStatus();
+            console.log("订阅状态缓存已刷新");
+          } catch (error) {
+            console.warn("刷新订阅状态缓存失败:", error);
+          }
+        }
         // 同步成功后，延迟 2 秒自动跳转到 connect 页面
         setTimeout(() => {
           router.push("/connect");

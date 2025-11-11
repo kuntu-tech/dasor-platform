@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,53 +107,123 @@ export default function DashboardPage() {
     }
   };
 
-  const getApps = async () => {
+  // 缓存过期时间（1天）
+  const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 1天
+
+  // 获取缓存键
+  const getCacheKey = useCallback(() => {
+    return `apps_cache_${user?.id || "anonymous"}`;
+  }, [user?.id]);
+
+  // 从缓存获取数据
+  const getCachedApps = useCallback((): AppItem[] | null => {
+    if (typeof window === "undefined") return null;
+
+    try {
+      const cacheKey = getCacheKey();
+      const cached = localStorage.getItem(cacheKey);
+      if (!cached) return null;
+
+      const { data, timestamp } = JSON.parse(cached);
+      const now = Date.now();
+
+      // 检查是否过期
+      if (now - timestamp > CACHE_EXPIRY) {
+        localStorage.removeItem(cacheKey);
+        return null;
+      }
+
+      return Array.isArray(data) ? data : null;
+    } catch (e) {
+      console.log("Failed to parse cached apps:", e);
+      return null;
+    }
+  }, [getCacheKey]);
+
+  // 保存数据到缓存
+  const setCachedApps = useCallback(
+    (data: AppItem[]) => {
+      if (typeof window === "undefined") return;
+
+      try {
+        const cacheKey = getCacheKey();
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            data,
+            timestamp: Date.now(),
+          })
+        );
+      } catch (e) {
+        console.log("Failed to cache apps:", e);
+      }
+    },
+    [getCacheKey]
+  );
+
+  // 清除缓存
+  const clearAppsCache = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const cacheKey = getCacheKey();
+    localStorage.removeItem(cacheKey);
+  }, [getCacheKey]);
+
+  // 内部函数用于实际获取数据
+  const fetchAppsFromAPI = useCallback(async () => {
     const queryParams = new URLSearchParams();
 
     if (user?.id) {
-      console.log(user);
       queryParams.append("user_id", user.id);
     }
 
-    // 添加时间戳防止缓存
     queryParams.append("_t", Date.now().toString());
 
     const response = await fetch(`/api/apps?${queryParams.toString()}`);
     const data = await response.json();
-    console.log(data);
-    setAppItems(Array.isArray(data.data) ? data.data : []);
+
+    if (data.data && Array.isArray(data.data)) {
+      setAppItems(data.data);
+      // 保存到缓存
+      setCachedApps(data.data);
+    }
+
     return data;
-  };
+  }, [user?.id, setCachedApps]);
+
+  const getApps = useCallback(
+    async (useCache: boolean = true) => {
+      // 如果使用缓存，先检查缓存
+      if (useCache) {
+        const cachedData = getCachedApps();
+        if (cachedData) {
+          // 先显示缓存数据
+          setAppItems(cachedData);
+          // 然后在后台刷新（不使用缓存）
+          fetchAppsFromAPI().catch(console.error);
+          return { data: cachedData };
+        }
+      }
+
+      // 没有缓存或强制刷新，直接获取数据
+      try {
+        return await fetchAppsFromAPI();
+      } catch (error) {
+        console.error("Failed to fetch apps:", error);
+        // 如果请求失败，尝试使用缓存
+        const cachedData = getCachedApps();
+        if (cachedData) {
+          setAppItems(cachedData);
+        }
+        throw error;
+      }
+    },
+    [getCachedApps, fetchAppsFromAPI]
+  );
   useEffect(() => {
     if (user) {
       getApps();
-
-      // 添加fake data用于展示Generating状态
-      const fakeGeneratingApp: AppItem = {
-        id: "fake-generating-app",
-        name: "E-commerce Analytics Dashboard",
-        description:
-          "Real-time analytics dashboard for e-commerce operations with user behavior tracking",
-        status: "generating",
-        features: 8,
-        createdAt: new Date().toISOString().split("T")[0],
-        updated_at: new Date().toISOString().split("T")[0],
-        published_at: "",
-        visits: 0,
-      };
-
-      // 延迟添加fake data，确保在真实数据加载后
-      // setTimeout(() => {
-      //   setAppItems(prev => {
-      //     // 检查是否已存在fake app，避免重复添加
-      //     if (!prev.find(app => app.id === "fake-generating-app")) {
-      //       return [...prev, fakeGeneratingApp];
-      //     }
-      //     return prev;
-      //   });
-      // }, 500);
     }
-  }, [user]);
+  }, [user, getApps]);
 
   // const initialApps: AppItem[] = [
   //   {
@@ -235,8 +305,9 @@ export default function DashboardPage() {
         //throw new Error(errorData.error || "Failed to delete app");
       }
 
-      // 删除成功后重新获取数据，确保数据同步
-      await getApps();
+      // 清除缓存并重新获取数据，确保数据同步
+      clearAppsCache();
+      await getApps(false); // 强制刷新，不使用缓存
 
       console.log("应用删除成功");
     } catch (error) {

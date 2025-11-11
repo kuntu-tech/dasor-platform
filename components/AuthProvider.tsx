@@ -1,14 +1,28 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useAuthDebugOverlay } from "@/hooks/useAuthDebugOverlay";
+import {
+  fetchSubscriptionStatus,
+  type SubscriptionCheckResponse,
+} from "@/lib/subscription/client";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  subscriptionStatus: SubscriptionCheckResponse | null;
+  subscriptionLoading: boolean;
+  refreshSubscriptionStatus: () => Promise<void>;
   isVerifyingSignOut: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -22,36 +36,40 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 打印用户信息的辅助函数
+// Helper function to print user information
 function printUserInfo(user: User, context: string) {
-  console.log(`\n🎉 ${context} - 用户信息:`);
+  console.log(`\n🎉 ${context} - User Information:`);
   console.log("=====================================");
-  console.log(`📧 邮箱: ${user.email}`);
-  console.log(`🆔 用户ID: ${user.id}`);
-  console.log(`👤 显示名称: ${user.user_metadata?.full_name || "未设置"}`);
-  console.log(`🖼️ 头像URL: ${user.user_metadata?.avatar_url || "未设置"}`);
-  console.log(`📱 手机号: ${user.phone || "未设置"}`);
-  console.log(`✅ 邮箱确认: ${user.email_confirmed_at ? "已确认" : "未确认"}`);
+  console.log(`📧 Email: ${user.email}`);
+  console.log(`🆔 User ID: ${user.id}`);
+  console.log(`👤 Display Name: ${user.user_metadata?.full_name || "Not set"}`);
+  console.log(`🖼️ Avatar URL: ${user.user_metadata?.avatar_url || "Not set"}`);
+  console.log(`📱 Phone: ${user.phone || "Not set"}`);
   console.log(
-    `📅 创建时间: ${new Date(user.created_at).toLocaleString("en-US")}`
-  );
-  console.log(
-    `🕐 最后登录: ${
-      user.last_sign_in_at
-        ? new Date(user.last_sign_in_at).toLocaleString("en-US")
-        : "未记录"
+    `✅ Email Confirmed: ${
+      user.email_confirmed_at ? "Confirmed" : "Not confirmed"
     }`
   );
-  console.log(`🔐 认证方式: ${user.app_metadata?.provider || "未知"}`);
-  console.log(`🌐 用户元数据:`, user.user_metadata);
-  console.log(`⚙️ 应用元数据:`, user.app_metadata);
+  console.log(
+    `📅 Created At: ${new Date(user.created_at).toLocaleString("en-US")}`
+  );
+  console.log(
+    `🕐 Last Sign In: ${
+      user.last_sign_in_at
+        ? new Date(user.last_sign_in_at).toLocaleString("en-US")
+        : "Not recorded"
+    }`
+  );
+  console.log(`🔐 Auth Provider: ${user.app_metadata?.provider || "Unknown"}`);
+  console.log(`🌐 User Metadata:`, user.user_metadata);
+  console.log(`⚙️ App Metadata:`, user.app_metadata);
   console.log("=====================================\n");
 }
 
-// 用户处理状态跟踪，避免重复处理
+// Track processed users to avoid duplicate processing
 const processedUsers = new Set<string>();
 
-// 本地缓存清理工具
+// Local cache cleanup utility
 const CLEAR_CACHE_KEYS_BASE = [
   "run_result",
   "run_result_publish",
@@ -95,29 +113,29 @@ function clearLocalAuthArtifacts(userId?: string) {
       localStorage.removeItem(key);
     });
   } catch (error) {
-    console.warn("清理本地缓存失败", error);
+    console.warn("Failed to clear local cache", error);
   }
 
   try {
     const authStorageKey = resolveAuthStorageKey();
     localStorage.removeItem(authStorageKey);
   } catch (error) {
-    console.warn("清理 Supabase 会话缓存失败", error);
+    console.warn("Failed to clear Supabase session cache", error);
   }
 }
 
-// 检查并保存新用户信息到users表
+// Check and save new user information to users table
 async function checkAndSaveNewUser(user: User, context: string = "unknown") {
   try {
-    // 避免重复处理同一个用户
+    // Avoid processing the same user multiple times
     if (processedUsers.has(user.id)) {
-      console.log(`⏭️ 用户 ${user.id} 已处理过，跳过 ${context}`);
+      console.log(`⏭️ User ${user.id} already processed, skipping ${context}`);
       return;
     }
 
-    console.log(`🔍 检查用户是否为新用户 (${context})...`);
+    console.log(`🔍 Checking if user is new (${context})...`);
 
-    // 检查用户是否已存在于users表中
+    // Check if user already exists in users table
     const { data: existingUser, error: checkError } = await supabase
       .from("users")
       .select("id")
@@ -125,13 +143,13 @@ async function checkAndSaveNewUser(user: User, context: string = "unknown") {
       .single();
 
     if (checkError && checkError.code !== "PGRST116") {
-      console.log("❌ 检查用户存在性时出错:", checkError);
+      console.log("❌ Error checking user existence:", checkError);
       return;
     }
 
-    // 如果用户已存在，只更新最后登录时间
+    // If user exists, only update last login time
     if (existingUser) {
-      console.log("👤 用户已存在，更新最后登录时间");
+      console.log("👤 User exists, updating last login time");
       const { error: updateError } = await supabase
         .from("users")
         .update({
@@ -140,13 +158,13 @@ async function checkAndSaveNewUser(user: User, context: string = "unknown") {
         .eq("id", user.id);
 
       if (updateError) {
-        console.log("❌ 更新用户登录时间失败:", updateError);
+        console.log("❌ Failed to update user login time:", updateError);
       } else {
-        console.log("✅ 用户登录时间更新成功");
+        console.log("✅ User login time updated successfully");
       }
     } else {
-      // 如果是新用户，创建用户记录
-      console.log("🆕 检测到新用户，开始创建用户记录...");
+      // If new user, create user record
+      console.log("🆕 New user detected, creating user record...");
 
       const userData = {
         id: user.id,
@@ -158,23 +176,23 @@ async function checkAndSaveNewUser(user: User, context: string = "unknown") {
         last_login_at: new Date().toISOString(),
       };
 
-      console.log("📝 新用户数据:", userData);
+      console.log("📝 New user data:", userData);
 
       const { error: insertError } = await supabase
         .from("users")
         .insert([userData]);
 
       if (insertError) {
-        console.log("❌ 创建新用户失败:", insertError);
+        console.log("❌ Failed to create new user:", insertError);
       } else {
-        console.log("✅ 新用户创建成功！");
+        console.log("✅ New user created successfully!");
       }
     }
 
-    // 标记用户已处理
+    // Mark user as processed
     processedUsers.add(user.id);
   } catch (error) {
-    console.log("❌ 检查并保存用户信息时发生错误:", error);
+    console.log("❌ Error checking and saving user information:", error);
   }
 }
 
@@ -182,6 +200,112 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [subscriptionStatus, setSubscriptionStatus] =
+    useState<SubscriptionCheckResponse | null>(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+
+  // Subscription status cache key and expiry time (5 minutes)
+  const SUBSCRIPTION_CACHE_KEY = (userId: string) =>
+    `subscription_status_${userId}`;
+  const SUBSCRIPTION_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+
+  // Get subscription status from cache
+  const getCachedSubscriptionStatus = useCallback(
+    (userId: string): SubscriptionCheckResponse | null => {
+      if (typeof window === "undefined") return null;
+
+      try {
+        const cacheKey = SUBSCRIPTION_CACHE_KEY(userId);
+        const cached = localStorage.getItem(cacheKey);
+        if (!cached) return null;
+
+        const { data, timestamp } = JSON.parse(cached);
+        const now = Date.now();
+
+        // Check if expired
+        if (now - timestamp > SUBSCRIPTION_CACHE_EXPIRY) {
+          localStorage.removeItem(cacheKey);
+          return null;
+        }
+
+        return data;
+      } catch (e) {
+        console.log("Failed to parse cached subscription status:", e);
+        return null;
+      }
+    },
+    []
+  );
+
+  // Save subscription status to cache
+  const setCachedSubscriptionStatus = useCallback(
+    (userId: string, data: SubscriptionCheckResponse) => {
+      if (typeof window === "undefined") return;
+
+      try {
+        const cacheKey = SUBSCRIPTION_CACHE_KEY(userId);
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            data,
+            timestamp: Date.now(),
+          })
+        );
+      } catch (e) {
+        console.log("Failed to cache subscription status:", e);
+      }
+    },
+    []
+  );
+
+  // Clear subscription status cache
+  const clearSubscriptionCache = useCallback((userId: string) => {
+    if (typeof window === "undefined") return;
+    const cacheKey = SUBSCRIPTION_CACHE_KEY(userId);
+    localStorage.removeItem(cacheKey);
+  }, []);
+
+  // Check subscription status (with cache)
+  const checkSubscriptionStatus = useCallback(
+    async (userId: string, useCache: boolean = true) => {
+      // If using cache, check cache first
+      if (useCache) {
+        const cachedStatus = getCachedSubscriptionStatus(userId);
+        if (cachedStatus) {
+          setSubscriptionStatus(cachedStatus);
+          // Refresh in background (without cache)
+          checkSubscriptionStatus(userId, false).catch(console.error);
+          return cachedStatus;
+        }
+      }
+
+      // No cache or force refresh, fetch from API
+      try {
+        setSubscriptionLoading(true);
+        const status = await fetchSubscriptionStatus(userId);
+        setSubscriptionStatus(status);
+        setCachedSubscriptionStatus(userId, status);
+        return status;
+      } catch (error) {
+        console.error("Failed to fetch subscription status:", error);
+        // If request fails, try using cache
+        const cachedStatus = getCachedSubscriptionStatus(userId);
+        if (cachedStatus) {
+          setSubscriptionStatus(cachedStatus);
+        }
+        throw error;
+      } finally {
+        setSubscriptionLoading(false);
+      }
+    },
+    [getCachedSubscriptionStatus, setCachedSubscriptionStatus]
+  );
+
+  // Refresh subscription status (force fetch from API)
+  const refreshSubscriptionStatus = useCallback(async () => {
+    if (!user?.id) return;
+    await checkSubscriptionStatus(user.id, false);
+  }, [user?.id, checkSubscriptionStatus]);
   const [isVerifyingSignOut, setIsVerifyingSignOut] = useState(false);
 
   const latestUserIdRef = useRef<string | undefined>(undefined);
@@ -205,7 +329,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     console.log("AuthProvider useEffect");
-    // 获取初始会话
+    // Get initial session
     const getInitialSession = async () => {
       try {
         const {
@@ -214,12 +338,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } = await supabase.auth.getSession();
 
         if (error) {
-          console.log("获取会话错误:", error);
+          console.log("Error getting session:", error);
         }
 
         if (!session) {
           console.log(
-            "⚠️ 首次 getSession 返回为空，等待 Supabase 从 IndexedDB 恢复..."
+            "⚠️ First getSession returned empty, waiting for Supabase to recover from IndexedDB..."
           );
           await new Promise((resolve) =>
             setTimeout(resolve, 500 + Math.random() * 500)
@@ -231,34 +355,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } = await supabase.auth.getSession();
 
           if (retryError) {
-            console.log("二次获取会话错误:", retryError);
+            console.log("Error getting session on retry:", retryError);
           }
 
           if (retrySession?.user) {
-            console.log("✅ 二次尝试成功恢复会话");
+            console.log("✅ Successfully recovered session on retry");
             setSession(retrySession);
             setUser(retrySession.user);
             setLoading(false);
-            printUserInfo(retrySession.user, "延迟恢复");
-            await checkAndSaveNewUser(retrySession.user, "延迟恢复");
+            printUserInfo(retrySession.user, "Delayed Recovery");
+            await checkAndSaveNewUser(retrySession.user, "Delayed Recovery");
             return;
           }
 
-          console.log("❌ 二次尝试仍为空，继续进入正常逻辑");
+          console.log(
+            "❌ Retry still returned empty, continuing with normal logic"
+          );
         }
 
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // 如果已有会话，打印用户信息并检查是否为新用户
+        // If session exists, print user info and check if new user
         if (session?.user) {
-          printUserInfo(session.user, "初始会话");
-          await checkAndSaveNewUser(session.user, "初始会话");
+          printUserInfo(session.user, "Initial Session");
+          await checkAndSaveNewUser(session.user, "Initial Session");
+          // Automatically check subscription status
+          checkSubscriptionStatus(session.user.id).catch(console.error);
         }
       } catch (error) {
-        console.log("获取初始会话异常:", error);
-        // 即使出错也要设置 loading 为 false，避免页面一直加载
+        console.log("Exception getting initial session:", error);
+        // Even if error occurs, set loading to false to avoid infinite loading
         setLoading(false);
       }
     };
@@ -271,25 +399,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     };
 
-    // 添加超时保护，避免无限等待
+    // Add timeout protection to avoid infinite waiting
     let loadingFinished = false;
     const timeoutId = setTimeout(() => {
       if (!loadingFinished) {
-        console.warn("获取会话超时，强制设置 loading 为 false");
+        console.warn("Session fetch timeout, forcing loading to false");
         setLoading(false);
       }
-    }, 10000); // 10秒超时
+    }, 10000); // 10 second timeout
 
     getInitialSession().then(() => {
       loadingFinished = true;
       clearTimeout(timeoutId);
     });
 
-    // 监听认证状态变化
+    // Listen to auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
-      console.log("认证状态变化:", event, nextSession);
+      console.log("Auth state changed:", event, nextSession);
 
       if (event === "SIGNED_IN" && nextSession?.user) {
         if (signOutVerifyTimerRef.current) {
@@ -301,9 +429,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(nextSession.user);
         setLoading(false);
 
+        // 登录成功后打印用户信息并检查是否为新用户
         printUserInfo(nextSession.user, "登录成功");
         await checkAndSaveNewUser(nextSession.user, "登录成功");
         processedUsers.add(nextSession.user.id);
+        // 自动检查订阅状态
+        checkSubscriptionStatus(nextSession.user.id).catch(console.error);
         return;
       }
 
@@ -319,6 +450,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (signOutVerifyTimerRef.current) {
           clearTimeout(signOutVerifyTimerRef.current);
           signOutVerifyTimerRef.current = null;
+        }
+
+        // 清理处理状态，允许下次登录时重新处理
+        processedUsers.clear();
+        // 清除订阅状态
+        setSubscriptionStatus(null);
+        const currentUserId = latestUserIdRef.current;
+        if (currentUserId) {
+          clearSubscriptionCache(currentUserId);
         }
 
         const verifySignOut = async (attempt = 0) => {
@@ -341,6 +481,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             syncGuardRef.current = "idle";
             signOutVerifyTimerRef.current = null;
             setIsVerifyingSignOut(false);
+            // 恢复订阅状态检查
+            checkSubscriptionStatus(latestSession.user.id).catch(console.error);
             return;
           }
 
@@ -434,7 +576,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               "存储同步：currentSession 为空，触发 getSession 兜底检查"
             );
           } catch (error) {
-            console.warn("解析 Supabase 认证存储失败，回退到 getSession", error);
+            console.warn(
+              "解析 Supabase 认证存储失败，回退到 getSession",
+              error
+            );
           }
           void syncSessionFromStorage();
         } else {
@@ -484,6 +629,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
+
+  // 当用户变化时，检查订阅状态
+  useEffect(() => {
+    if (user?.id && !subscriptionStatus) {
+      // 如果用户存在但没有订阅状态，检查订阅状态
+      checkSubscriptionStatus(user.id).catch(console.error);
+    } else if (!user) {
+      // 如果用户不存在，清除订阅状态
+      setSubscriptionStatus(null);
+    }
+  }, [user?.id, subscriptionStatus, checkSubscriptionStatus]);
 
   const signInWithGoogle = async () => {
     setLoading(true);
@@ -596,6 +752,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     clearLocalAuthArtifacts(currentUserId);
 
+    // 清除订阅状态缓存
+    if (currentUserId) {
+      clearSubscriptionCache(currentUserId);
+    }
+    // 清除订阅状态
+    setSubscriptionStatus(null);
+
     const loadingFallbackTimer = setTimeout(() => {
       console.info(
         "[AuthProvider] Sign out is taking longer than expected. Local session has already been cleared."
@@ -684,6 +847,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     session,
     loading,
+    subscriptionStatus,
+    subscriptionLoading,
+    refreshSubscriptionStatus,
     isVerifyingSignOut,
     signInWithGoogle,
     signInWithEmail,
