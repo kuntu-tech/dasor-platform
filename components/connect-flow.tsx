@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import MarketExplorationPage from "@/app/market-exploration/page";
@@ -437,6 +437,87 @@ export function ConnectFlow() {
       "Invalid Supabase URL format. Try: https://test.supabase.co"
     );
   };
+
+  // 检查是否从 publish 页面跳转过来，如果是则设置 markets 的默认值
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const skipToBusinessInsight = localStorage.getItem("skipToBusinessInsight");
+    if (skipToBusinessInsight === "true") {
+      // 清除标志
+      localStorage.removeItem("skipToBusinessInsight");
+
+      // 从 localStorage 读取 marketsData 并设置为 markets 的默认值
+      const marketsDataStr = localStorage.getItem("marketsData");
+      if (marketsDataStr) {
+        try {
+          const marketsData = JSON.parse(marketsDataStr);
+          if (Array.isArray(marketsData) && marketsData.length > 0) {
+            // 设置 markets 的默认值，确保每个字段都有默认值
+            const mappedMarkets = marketsData.map(
+              (seg: any, index: number) => ({
+                id: seg.id || seg.segmentId || seg.name || `segment-${index}`,
+                title: seg.title || seg.name || "Untitled Segment",
+                analysis: seg.analysis || {},
+                valueQuestions: seg.valueQuestions || [],
+              })
+            );
+            setMarkets(mappedMarkets);
+          }
+        } catch (e) {
+          console.log("Failed to parse marketsData from localStorage:", e);
+        }
+      }
+
+      // 检查是否有 run_result 数据，如果有则直接跳转到 results 步骤
+      const runResultStr = localStorage.getItem("run_result");
+      if (runResultStr) {
+        // 直接跳转到 results 步骤（business insight）
+        setStep("results");
+        setAnalysisStep("complete");
+        setProgress(100);
+        setHasValidated(true);
+
+        // 设置一个默认的 analysisResults 以确保页面能正常显示
+        // 因为 results 步骤的渲染条件需要 analysisResults 或 marketsDataWithDefaults
+        setAnalysisResults((prev) => {
+          if (prev.length === 0) {
+            return testAnalysisData;
+          }
+          return prev;
+        });
+      }
+    }
+  }, []);
+
+  // 计算 marketsData 的默认值（如果从 publish 页面跳转过来）
+  const marketsDataWithDefaults = useMemo(() => {
+    if (markets.length > 0) {
+      return markets;
+    }
+
+    // 如果 markets 为空，尝试从 localStorage 读取默认值
+    if (typeof window !== "undefined") {
+      try {
+        const marketsDataStr = localStorage.getItem("marketsData");
+        if (marketsDataStr) {
+          const marketsData = JSON.parse(marketsDataStr);
+          if (Array.isArray(marketsData) && marketsData.length > 0) {
+            return marketsData.map((seg: any, index: number) => ({
+              id: seg.id || seg.segmentId || seg.name || `segment-${index}`,
+              title: seg.title || seg.name || "Untitled Segment",
+              analysis: seg.analysis || {},
+              valueQuestions: seg.valueQuestions || [],
+            }));
+          }
+        }
+      } catch (e) {
+        console.log("Failed to parse marketsData from localStorage:", e);
+      }
+    }
+
+    return [];
+  }, [markets]);
 
   // useEffect(() => {
   //   // If URL param results=1, jump directly to results screen with existing/default suggestions
@@ -2014,8 +2095,8 @@ export function ConnectFlow() {
                               )} */}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              AI analyzes data value and recommends best
-                              ChatApp templates
+                              AI analyzes data value and recommends best ChatApp
+                              templates
                             </p>
                           </div>
                         </div>
@@ -2044,14 +2125,18 @@ export function ConnectFlow() {
           </div>
         )}
 
-        {step === "results" && analysisResults.length > 0 && (
-          <div className="space-y-6">
-            <Card className="leading-3 border-muted border-none -mt-12">
-              <CardHeader></CardHeader>
-              <CardContent className="space-y-6">
-                <MarketExplorationPage marketsData={markets} />
-                {/* Debug info */}
-                {/* {process.env.NODE_ENV === "development" && (
+        {step === "results" &&
+          (analysisResults.length > 0 ||
+            marketsDataWithDefaults.length > 0) && (
+            <div className="space-y-6">
+              <Card className="leading-3 border-muted border-none -mt-12">
+                <CardHeader></CardHeader>
+                <CardContent className="space-y-6">
+                  <MarketExplorationPage
+                    marketsData={marketsDataWithDefaults}
+                  />
+                  {/* Debug info */}
+                  {/* {process.env.NODE_ENV === "development" && (
                   <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
                     <p>Markets data passed: {markets.length} items</p>
                     {markets.length > 0 && (
@@ -2061,10 +2146,10 @@ export function ConnectFlow() {
                     )}
                   </div>
                 )} */}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
       </main>
     </div>
   );

@@ -1,13 +1,26 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import {
+  fetchSubscriptionStatus,
+  type SubscriptionCheckResponse,
+} from "@/lib/subscription/client";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  subscriptionStatus: SubscriptionCheckResponse | null;
+  subscriptionLoading: boolean;
+  refreshSubscriptionStatus: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (
@@ -125,6 +138,112 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [subscriptionStatus, setSubscriptionStatus] =
+    useState<SubscriptionCheckResponse | null>(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+
+  // 订阅状态缓存键和过期时间（5分钟）
+  const SUBSCRIPTION_CACHE_KEY = (userId: string) =>
+    `subscription_status_${userId}`;
+  const SUBSCRIPTION_CACHE_EXPIRY = 5 * 60 * 1000; // 5分钟
+
+  // 从缓存获取订阅状态
+  const getCachedSubscriptionStatus = useCallback(
+    (userId: string): SubscriptionCheckResponse | null => {
+      if (typeof window === "undefined") return null;
+
+      try {
+        const cacheKey = SUBSCRIPTION_CACHE_KEY(userId);
+        const cached = localStorage.getItem(cacheKey);
+        if (!cached) return null;
+
+        const { data, timestamp } = JSON.parse(cached);
+        const now = Date.now();
+
+        // 检查是否过期
+        if (now - timestamp > SUBSCRIPTION_CACHE_EXPIRY) {
+          localStorage.removeItem(cacheKey);
+          return null;
+        }
+
+        return data;
+      } catch (e) {
+        console.log("Failed to parse cached subscription status:", e);
+        return null;
+      }
+    },
+    []
+  );
+
+  // 保存订阅状态到缓存
+  const setCachedSubscriptionStatus = useCallback(
+    (userId: string, data: SubscriptionCheckResponse) => {
+      if (typeof window === "undefined") return;
+
+      try {
+        const cacheKey = SUBSCRIPTION_CACHE_KEY(userId);
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            data,
+            timestamp: Date.now(),
+          })
+        );
+      } catch (e) {
+        console.log("Failed to cache subscription status:", e);
+      }
+    },
+    []
+  );
+
+  // 清除订阅状态缓存
+  const clearSubscriptionCache = useCallback((userId: string) => {
+    if (typeof window === "undefined") return;
+    const cacheKey = SUBSCRIPTION_CACHE_KEY(userId);
+    localStorage.removeItem(cacheKey);
+  }, []);
+
+  // 检查订阅状态（带缓存）
+  const checkSubscriptionStatus = useCallback(
+    async (userId: string, useCache: boolean = true) => {
+      // 如果使用缓存，先检查缓存
+      if (useCache) {
+        const cachedStatus = getCachedSubscriptionStatus(userId);
+        if (cachedStatus) {
+          setSubscriptionStatus(cachedStatus);
+          // 在后台刷新（不使用缓存）
+          checkSubscriptionStatus(userId, false).catch(console.error);
+          return cachedStatus;
+        }
+      }
+
+      // 没有缓存或强制刷新，从API获取
+      try {
+        setSubscriptionLoading(true);
+        const status = await fetchSubscriptionStatus(userId);
+        setSubscriptionStatus(status);
+        setCachedSubscriptionStatus(userId, status);
+        return status;
+      } catch (error) {
+        console.error("Failed to fetch subscription status:", error);
+        // 如果请求失败，尝试使用缓存
+        const cachedStatus = getCachedSubscriptionStatus(userId);
+        if (cachedStatus) {
+          setSubscriptionStatus(cachedStatus);
+        }
+        throw error;
+      } finally {
+        setSubscriptionLoading(false);
+      }
+    },
+    [getCachedSubscriptionStatus, setCachedSubscriptionStatus]
+  );
+
+  // 刷新订阅状态（强制从API获取）
+  const refreshSubscriptionStatus = useCallback(async () => {
+    if (!user?.id) return;
+    await checkSubscriptionStatus(user.id, false);
+  }, [user?.id, checkSubscriptionStatus]);
 
   useEffect(() => {
     console.log("AuthProvider useEffect");
@@ -148,6 +267,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           printUserInfo(session.user, "初始会话");
           await checkAndSaveNewUser(session.user, "初始会话");
+          // 自动检查订阅状态
+          checkSubscriptionStatus(session.user.id).catch(console.error);
         }
       } catch (error) {
         console.log("获取初始会话异常:", error);
@@ -185,6 +306,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           printUserInfo(session.user, "登录成功");
           // 检查并保存新用户信息
           await checkAndSaveNewUser(session.user, "登录成功");
+          // 自动检查订阅状态
+          checkSubscriptionStatus(session.user.id).catch(console.error);
         }
 
         // 登出时打印信息并清理处理状态
@@ -192,6 +315,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log("用户已登出");
           // 清理处理状态，允许下次登录时重新处理
           processedUsers.clear();
+          // 清除订阅状态
+          setSubscriptionStatus(null);
+          if (user?.id) {
+            clearSubscriptionCache(user.id);
+          }
         }
       }
     );
@@ -200,7 +328,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [checkSubscriptionStatus, clearSubscriptionCache]);
+
+  // 当用户变化时，检查订阅状态
+  useEffect(() => {
+    if (user?.id && !subscriptionStatus) {
+      // 如果用户存在但没有订阅状态，检查订阅状态
+      checkSubscriptionStatus(user.id).catch(console.error);
+    } else if (!user) {
+      // 如果用户不存在，清除订阅状态
+      setSubscriptionStatus(null);
+    }
+  }, [user?.id, subscriptionStatus, checkSubscriptionStatus]);
 
   const signInWithGoogle = async () => {
     setLoading(true);
@@ -324,8 +463,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ];
         if (currentUserId) {
           keysToRemove.push(`cached_avatar_${currentUserId}`);
+          // 清除订阅状态缓存
+          clearSubscriptionCache(currentUserId);
         }
         keysToRemove.forEach((key) => localStorage.removeItem(key));
+        // 清除订阅状态
+        setSubscriptionStatus(null);
       } catch (error) {
         console.warn("清理本地缓存失败", error);
       }
@@ -417,6 +560,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     session,
     loading,
+    subscriptionStatus,
+    subscriptionLoading,
+    refreshSubscriptionStatus,
     signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,
