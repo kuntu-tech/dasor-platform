@@ -20,7 +20,7 @@ export default function RegisterPage() {
 
   const handleEmailRegister = async () => {
     if (!email || !password || !fullName) {
-      setError("Please fill in all required fields");
+      setError("Please fill out all required fields");
       return;
     }
 
@@ -193,10 +193,10 @@ export default function RegisterPage() {
               {/* Create Account Button */}
               <Button
                 onClick={handleEmailRegister}
-                className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-medium text-base"
+                className="w-full h-12 bg-black hover:bg-gray-900 text-white font-medium text-base"
                 disabled={loading}
               >
-                {loading ? "Creating..." : "Create Account"}
+                {loading ? "Registering..." : "Create Account"}
               </Button>
 
               {/* Terms and Privacy */}

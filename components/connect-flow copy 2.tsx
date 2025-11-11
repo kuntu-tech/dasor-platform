@@ -2183,7 +2183,7 @@ Access Tokens"</span>
                         </div>
                         <p className="text-sm text-muted-foreground">
                           AI analyzes data value and recommends best
-                          Applicationpp templates
+                          ChatApp templates
                         </p>
                       </div>
                     </div>

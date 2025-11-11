@@ -110,7 +110,7 @@ export default function ForgotPasswordPage() {
               {/* Reset Password Button */}
               <Button
                 onClick={handleResetPassword}
-                className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-medium text-base"
+                className="w-full h-12 bg-black hover:bg-gray-900 text-white font-medium text-base"
                 disabled={loading}
               >
                 {loading ? "发送中..." : "Send Reset Link"}

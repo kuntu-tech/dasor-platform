@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -36,7 +36,7 @@ const settingsMenu = [
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("account")
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const searchParams = useSearchParams()
   const [billingPortalUrl, setBillingPortalUrl] = useState<string | null>(null)
   const [billingPortalLoading, setBillingPortalLoading] = useState(false)
@@ -52,30 +52,169 @@ export default function SettingsPage() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState("")
+  const [username, setUsername] = useState("")
+  const [bio, setBio] = useState("")
+  const [useCustomUsername, setUseCustomUsername] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(false)
+
+  const getLatestAccessToken = useCallback(async (): Promise<string | null> => {
+    let accessToken = session?.access_token ?? null
+    try {
+      const { data, error } = await supabase.auth.getSession()
+      if (error) {
+        console.warn("刷新 Supabase 会话失败:", error)
+      }
+      if (data?.session?.access_token) {
+        accessToken = data.session.access_token
+      }
+    } catch (error) {
+      console.warn("获取 Supabase 会话异常:", error)
+    }
+    return accessToken
+  }, [session?.access_token])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 获取用户头像
+  const avatarCacheKey = useMemo(() => {
+    if (typeof window === "undefined") return null
+    return user?.id ? `cached_avatar_${user.id}` : null
+  }, [user?.id])
+
+  const updateAvatar = useCallback(
+    (url: string | null) => {
+      setAvatarUrl(url)
+      if (typeof window === "undefined" || !avatarCacheKey) return
+      if (url) {
+        localStorage.setItem(avatarCacheKey, url)
+      } else {
+        localStorage.removeItem(avatarCacheKey)
+      }
+    },
+    [avatarCacheKey]
+  )
+
+  const deriveDefaultUsername = () => {
+    if (user?.email) {
+      return user.email
+    }
+    return ""
+  }
+
+  type UserProfileRow = {
+    name?: string | null
+    full_name?: string | null
+    username?: string | null
+    bio?: string | null
+    avatar_url?: string | null
+  }
+
+  // 获取用户资料
   useEffect(() => {
-    const fetchUserAvatar = async () => {
-      if (user?.id) {
-        try {
-          const { data, error } = await supabase
-            .from("users")
-            .select("avatar_url")
-            .eq("id", user.id)
-            .single()
-          
-          if (!error && data?.avatar_url) {
-            setAvatarUrl(data.avatar_url)
-          }
-        } catch (error) {
-          console.log("获取用户头像失败:", error)
+    const fetchUserProfile = async () => {
+      if (!user?.id) {
+        setDisplayName("")
+        setUsername("")
+        setBio("")
+        updateAvatar(null)
+        setUseCustomUsername(false)
+        return
+      }
+
+      const metadataDisplayName =
+        (user.user_metadata?.full_name as string | undefined) ??
+        (user.user_metadata?.name as string | undefined) ??
+        user.email ??
+        ""
+      setDisplayName(metadataDisplayName)
+
+      const metadataUsername =
+        (user.user_metadata?.username as string | undefined) ??
+        deriveDefaultUsername()
+      setUsername(metadataUsername ?? "")
+      setUseCustomUsername(Boolean(user.user_metadata?.username))
+
+      const metadataBio =
+        (user.user_metadata?.bio as string | undefined) ?? ""
+      setBio(metadataBio)
+
+      const metadataAvatar =
+        (user.user_metadata?.avatar_url as string | undefined) ??
+        (user.user_metadata?.picture as string | undefined) ??
+        null
+      updateAvatar(metadataAvatar ?? null)
+
+      const accessToken = await getLatestAccessToken()
+
+      if (!accessToken) {
+        return
+      }
+
+      setProfileLoading(true)
+
+      try {
+        const response = await fetch("/api/users/self", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId: user.id }),
+          cache: "no-store",
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch profile: ${response.status}`)
         }
+
+        const payload = (await response.json()) as {
+          data?: UserProfileRow | null
+        }
+
+        const profileData = payload?.data ?? null
+
+        const fallbackDisplayName =
+          profileData?.name ??
+          profileData?.full_name ??
+          (user.user_metadata?.full_name as string | undefined) ??
+          (user.user_metadata?.name as string | undefined) ??
+          user.email ??
+          ""
+
+        setDisplayName(fallbackDisplayName)
+
+        const fetchedUsername =
+          profileData?.username ??
+          (user.user_metadata?.username as string | undefined) ??
+          deriveDefaultUsername()
+        setUsername(fetchedUsername ?? "")
+        setUseCustomUsername(Boolean(profileData?.username || user.user_metadata?.username))
+
+        const fetchedBio =
+          profileData?.bio ?? (user.user_metadata?.bio as string | undefined) ?? ""
+        setBio(fetchedBio)
+
+        const fetchedAvatar =
+          profileData?.avatar_url ??
+          (user.user_metadata?.avatar_url as string | undefined) ??
+          (user.user_metadata?.picture as string | undefined) ??
+          null
+        updateAvatar(fetchedAvatar ?? null)
+      } catch (error) {
+        console.log("获取用户资料异常:", error)
+      } finally {
+        setProfileLoading(false)
       }
     }
-    
-    fetchUserAvatar()
-  }, [user?.id])
+
+    if (typeof window !== "undefined" && avatarCacheKey) {
+      const cachedUrl = localStorage.getItem(avatarCacheKey)
+      if (cachedUrl) {
+        setAvatarUrl(cachedUrl)
+      }
+    }
+
+    fetchUserProfile()
+  }, [user?.id, avatarCacheKey, updateAvatar, getLatestAccessToken])
 
   useEffect(() => {
     const payoutTab = searchParams?.get("payoutTab")?.toLowerCase()
@@ -83,6 +222,20 @@ export default function SettingsPage() {
       setActiveTab("payout")
     }
   }, [searchParams])
+
+  useEffect(() => {
+    const handleAvatarUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ avatarUrl?: string | null }>).detail
+      if (detail && "avatarUrl" in detail) {
+        updateAvatar(detail.avatarUrl ?? null)
+      }
+    }
+
+    window.addEventListener("avatar-updated", handleAvatarUpdated)
+    return () => {
+      window.removeEventListener("avatar-updated", handleAvatarUpdated)
+    }
+  }, [updateAvatar])
 
   // 当切换到 billing 标签时，先检查支付记录，再决定是否加载 Customer Portal
   useEffect(() => {
@@ -215,7 +368,7 @@ export default function SettingsPage() {
         if (!imageLoaded) {
           imageLoaded = true
           // 图片加载成功后，更新状态并清除预览
-          setAvatarUrl(avatarUrlWithCache)
+          updateAvatar(avatarUrlWithCache)
           setPreviewUrl(null)
           // 清理预览URL
           if (preview) {
@@ -229,7 +382,7 @@ export default function SettingsPage() {
           imageLoaded = true
           // 即使加载失败，也更新URL（可能是网络问题，但URL是正确的）
           // 保持预览URL一段时间，避免显示fallback
-          setAvatarUrl(avatarUrlWithCache)
+          updateAvatar(avatarUrlWithCache)
           // 延迟清除预览，给用户更多时间看到预览图
           setTimeout(() => {
             setPreviewUrl(null)
@@ -249,7 +402,7 @@ export default function SettingsPage() {
         // 图片已在缓存中且有效，立即触发切换
         if (!imageLoaded) {
           imageLoaded = true
-          setAvatarUrl(avatarUrlWithCache)
+          updateAvatar(avatarUrlWithCache)
           setPreviewUrl(null)
           if (preview) {
             URL.revokeObjectURL(preview)
@@ -297,12 +450,12 @@ export default function SettingsPage() {
 
   // 获取头像显示URL（优先使用预览，然后是已保存的头像）
   // avatarUrl 已经包含了缓存破坏参数，直接使用即可
-  const displayAvatarUrl = previewUrl || avatarUrl
+  const displayAvatarUrl = previewUrl || avatarUrl || "/placeholder-user.jpg"
 
   // 获取用户首字母（用于头像占位符）
   const getInitials = () => {
-    if (user?.user_metadata?.full_name) {
-      return user.user_metadata.full_name.charAt(0).toUpperCase()
+    if (displayName) {
+      return displayName.charAt(0).toUpperCase()
     }
     if (user?.email) {
       return user.email.charAt(0).toUpperCase()
@@ -385,28 +538,35 @@ export default function SettingsPage() {
             <label className="text-sm font-medium">Display Name</label>
             <input 
               type="text" 
-              defaultValue="Gomberg Lambino"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter your display name"
+              disabled={profileLoading}
             />
           </div>
 
-          {/* Username */}
+          {/* Email */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Username</label>
+            <label className="text-sm font-medium">Email</label>
             <input 
               type="text" 
-              defaultValue="gomberglambino"
+              value={useCustomUsername ? username : deriveDefaultUsername()}
+              onChange={(event) => setUsername(event.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter your email"
+              disabled={!useCustomUsername || profileLoading}
             />
             <div className="flex items-center gap-2">
               <input 
                 type="checkbox" 
                 id="custom-username" 
-                defaultChecked
+                checked={useCustomUsername}
+                onChange={(event) => setUseCustomUsername(event.target.checked)}
                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
               />
               <label htmlFor="custom-username" className="text-sm text-gray-700">
-                Use custom username
+                Use custom email
               </label>
             </div>
           </div>
@@ -417,6 +577,9 @@ export default function SettingsPage() {
             <textarea 
               placeholder="Tell us about yourself"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
+              value={bio}
+              onChange={(event) => setBio(event.target.value)}
+              disabled={profileLoading}
             />
             <p className="text-sm text-muted-foreground">180 characters remaining</p>
           </div>

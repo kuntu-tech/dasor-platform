@@ -163,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn("获取会话超时，强制设置 loading 为 false");
         setLoading(false);
       }
-    }, 5000); // 5秒超时
+    }, 10000); // 10秒超时
 
     getInitialSession().then(() => {
       loadingFinished = true;
@@ -304,6 +304,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log("🚪 开始登出流程...");
     setLoading(true);
 
+    const currentUserId = user?.id;
+
     // 立即更新本地状态，避免界面长时间停留在受保护页面
     setSession(null);
     setUser(null);
@@ -320,6 +322,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           "dbConnectionData",
           "originalTaskId",
         ];
+        if (currentUserId) {
+          keysToRemove.push(`cached_avatar_${currentUserId}`);
+        }
         keysToRemove.forEach((key) => localStorage.removeItem(key));
       } catch (error) {
         console.warn("清理本地缓存失败", error);
@@ -343,6 +348,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    let signOutError: unknown = null;
+
     try {
       const result = await Promise.race([
         supabase.auth.signOut({ scope: "global" }),
@@ -350,7 +357,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           timeoutId = setTimeout(() => {
             console.warn("⚠️ Supabase signOut 超时，继续本地登出流程");
             resolve("timeout");
-          }, 5000);
+          }, 10000);
         }),
       ]);
 
@@ -361,19 +368,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result !== "timeout") {
         if (result.error) {
           console.log("❌ 登出错误:", result.error);
-          throw result.error;
+          signOutError = result.error;
         }
 
         console.log("✅ 登出成功");
       }
     } catch (error) {
       console.log("❌ 登出失败:", error);
-      throw error;
+      signOutError = error;
     } finally {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
       await clearLocalSession();
+      if (typeof window !== "undefined") {
+        try {
+          const authStorageKey =
+            // @ts-expect-error storageKey is not in types but exists in runtime
+            supabase.auth?.storageKey ??
+            (() => {
+              const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+              if (!url) {
+                return "sb-auth-token";
+              }
+              try {
+                const projectRef = new URL(url).host.split(".")[0];
+                return `sb-${projectRef}-auth-token`;
+              } catch {
+                return "sb-auth-token";
+              }
+            })();
+          localStorage.removeItem(authStorageKey);
+        } catch (error) {
+          console.warn("清理 Supabase 会话缓存失败", error);
+        }
+      }
+      if (signOutError) {
+        console.warn(
+          "登出过程中出现异常，已完成本地清理，可忽略：",
+          signOutError
+        );
+      }
       setLoading(false);
     }
   };
