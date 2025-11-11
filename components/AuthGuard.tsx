@@ -3,23 +3,17 @@
 import { useEffect, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { supabase } from "@/lib/supabase";
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
-/**
- * ✅ 改进版 AuthGuard
- * - 延迟跳转以等待 Supabase 恢复会话
- * - 二次 getSession 验证，避免假登出
- * - 使用 isVerifyingSignOut 状态，防止误跳
- */
 export function AuthGuard({ children }: AuthGuardProps) {
   const { user, loading, isVerifyingSignOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
-  // ✅ 定义公开页面（不需要登录的路径）
   const isPublicPath = useMemo(() => {
     if (!pathname) return false;
 
@@ -31,56 +25,87 @@ export function AuthGuard({ children }: AuthGuardProps) {
       "/auth/reset-password",
       "/purchase/success",
       "/purchase/cancel",
+      "/oauth/callback",
     ]);
 
     if (publicExact.has(pathname)) return true;
 
-    const publicPrefixes = ["/auth/"];
+    const publicPrefixes = ["/auth/", "/oauth/"];
     return publicPrefixes.some((prefix) => pathname.startsWith(prefix));
   }, [pathname]);
 
-  /**
-   * 🚦 守卫逻辑：
-   * - loading 或正在验证登出时不跳转
-   * - 如果暂时无用户信息，延迟 1 秒再确认
-   */
+  // 🚦 主守卫逻辑
   useEffect(() => {
     if (isPublicPath || loading || isVerifyingSignOut) return;
 
-    let verifyTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+    let verifyTimer: NodeJS.Timeout | null = null;
+    let hardRedirectTimer: NodeJS.Timeout | null = null;
 
     if (!user) {
-      verifyTimer = setTimeout(async () => {
-        // ⏳ 延迟后二次确认会话
-        const { data } = await import("@/lib/supabase").then((m) =>
-          m.supabase.auth.getSession()
-        );
+      const verifyAndRedirect = async () => {
+        try {
+          const { data, error } = await supabase.auth.getSession();
 
-        if (!data.session) {
-          console.log("🚪 二次确认无会话，执行跳转 /auth/login");
-          router.replace("/auth/login");
-        } else {
-          console.log("✅ 二次确认发现有效会话，取消跳转");
+          if (cancelled) return;
+
+          if (error) console.warn("AuthGuard session verification error:", error);
+
+          if (!data.session) {
+            console.log("🚪 Session missing after verification, redirecting.");
+            router.replace("/auth/login");
+          } else {
+            console.log("✅ Session recovered during verification, stay on page.");
+            clearTimeout(hardRedirectTimer!);
+          }
+        } catch (err) {
+          if (!cancelled) {
+            console.warn("AuthGuard session verification threw:", err);
+            router.replace("/auth/login");
+          }
         }
-      }, 1000); // 延迟 1 秒让 Supabase SDK 恢复 session
+      };
+
+      // ✅ 第一次延迟验证
+      verifyTimer = setTimeout(verifyAndRedirect, 800);
+
+      // ✅ 硬超时兜底：防止永远卡住
+      hardRedirectTimer = setTimeout(() => {
+        if (!cancelled) {
+          console.warn(
+            "AuthGuard hard fallback triggered, forcing redirect to /auth/login."
+          );
+          router.replace("/auth/login");
+        }
+      }, 5000);
     }
 
     return () => {
+      cancelled = true;
       if (verifyTimer) clearTimeout(verifyTimer);
+      if (hardRedirectTimer) clearTimeout(hardRedirectTimer);
     };
   }, [user, loading, isVerifyingSignOut, isPublicPath, router]);
 
-  // ✅ 如果用户已登录但在登录页，则重定向到首页
+  // ✅ 二次检测逻辑：如果用户恢复但之前 UI 卡死，自动刷新
+  useEffect(() => {
+    if (!loading && user) {
+      console.log("✅ AuthGuard detected session recovery, refreshing page");
+      router.refresh(); // 重新渲染受保护内容
+    }
+  }, [user, loading, router]);
+
+  // ✅ 登录后留在 login 页，自动跳首页
   useEffect(() => {
     if (!loading && user && pathname === "/auth/login") {
       router.replace("/");
     }
   }, [loading, user, pathname, router]);
 
-  // ✅ 公共路径：直接渲染
+  // ✅ 公共路径直接渲染
   if (isPublicPath) return <>{children}</>;
 
-  // ✅ 加载中或验证中：显示等待动画
+  // ✅ Loading 或验证中状态
   if (loading || isVerifyingSignOut) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -92,7 +117,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // ✅ 未检测到用户：可能正在恢复会话
+  // ✅ 无用户时显示等待（仍可能恢复中）
   if (!user) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -104,6 +129,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // ✅ 一切正常，渲染受保护页面
+  // ✅ 一切正常
   return <>{children}</>;
 }
