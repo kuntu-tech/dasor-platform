@@ -142,7 +142,7 @@ export default function TestAppsPage() {
               });
               setShowForm(true);
             }}
-            className="bg-orange-500 hover:bg-orange-600"
+            className="bg-black hover:bg-gray-900"
           >
             <Plus className="w-4 h-4 mr-2" />
             创建应用

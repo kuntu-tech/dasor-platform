@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -24,8 +24,8 @@ import { SettingsModal } from "@/components/settings-modal";
 import { PricingModal } from "@/components/pricing-modal";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { getVendorStatus } from "@/portable-pages/lib/connectApi";
+import { supabase } from "@/lib/supabase";
 export function ConditionalSidebar({
   children,
 }: {
@@ -43,7 +43,7 @@ export function ConditionalSidebar({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsDefaultTab, setSettingsDefaultTab] = useState("account");
   const [isPricingOpen, setIsPricingOpen] = useState(false);
-  const { signOut, user } = useAuth();
+  const { signOut, user, session } = useAuth();
   const router = useRouter();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasConnectedStripeAccount, setHasConnectedStripeAccount] = useState<boolean | null>(null);
@@ -77,33 +77,148 @@ export function ConditionalSidebar({
   }, [user?.id]);
 
   // 获取用户头像
-  const fetchUserAvatar = useCallback(async () => {
-    if (user?.id) {
-      try {
-        const { data, error } = await supabase
-          .from("users")
-          .select("avatar_url")
-          .eq("id", user.id)
-          .single();
-        
-        if (!error && data?.avatar_url) {
-          setAvatarUrl(data.avatar_url);
+  const avatarCacheKey = useMemo(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    return user?.id ? `cached_avatar_${user.id}` : null;
+  }, [user?.id]);
+
+  const updateAvatar = useCallback(
+    (url: string | null) => {
+      setAvatarUrl(url);
+      if (typeof window === "undefined") {
+        return;
+      }
+      if (!avatarCacheKey) {
+        return;
+      }
+
+      if (url) {
+        localStorage.setItem(avatarCacheKey, url);
+      } else {
+        localStorage.removeItem(avatarCacheKey);
+      }
+    },
+    [avatarCacheKey]
+  );
+
+  const getLatestAccessToken = useCallback(async (): Promise<string | null> => {
+    let accessToken = session?.access_token ?? null;
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.warn("刷新 Supabase 会话失败:", error);
+      }
+      if (data?.session?.access_token) {
+        accessToken = data.session.access_token;
+      }
+    } catch (error) {
+      console.warn("获取 Supabase 会话异常:", error);
+    }
+    return accessToken;
+  }, [session?.access_token]);
+
+  const fetchUserAvatar = useCallback(async (): Promise<boolean> => {
+    if (!user?.id) {
+      updateAvatar(null);
+      return false;
+    }
+
+    const accessToken = await getLatestAccessToken();
+
+    if (!accessToken) {
+      const metadataAvatar =
+        (user.user_metadata?.avatar_url as string | undefined) ??
+        (user.user_metadata?.picture as string | undefined) ??
+        null;
+      updateAvatar(metadataAvatar ?? null);
+      return false;
+    }
+
+    try {
+      const response = await fetch("/api/users/self", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: user.id }),
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch profile: ${response.status}`);
+      }
+
+      const json = await response.json();
+      const avatarUrl =
+        (json?.data?.avatar_url as string | undefined) ?? null;
+
+      if (avatarUrl) {
+        updateAvatar(avatarUrl);
+        return true;
+      }
+
+      const metadataAvatar =
+        (user.user_metadata?.avatar_url as string | undefined) ??
+        (user.user_metadata?.picture as string | undefined) ??
+        null;
+      updateAvatar(metadataAvatar ?? null);
+    } catch (error) {
+      console.log("获取用户头像失败:", error);
+      const metadataAvatar =
+        (user?.user_metadata?.avatar_url as string | undefined) ??
+        (user?.user_metadata?.picture as string | undefined) ??
+        null;
+      updateAvatar(metadataAvatar ?? null);
+    }
+
+    return false;
+  }, [
+    getLatestAccessToken,
+    updateAvatar,
+    user?.id,
+    user?.user_metadata,
+  ]);
+  useEffect(() => {
+    if (!user?.id) {
+      updateAvatar(null);
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      if (avatarCacheKey) {
+        const cachedUrl = localStorage.getItem(avatarCacheKey);
+        if (cachedUrl) {
+          setAvatarUrl(cachedUrl);
         } else {
           const metadataAvatar =
-            user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
-          setAvatarUrl(metadataAvatar);
+            (user.user_metadata?.avatar_url as string | undefined) ??
+            (user.user_metadata?.picture as string | undefined) ??
+            null;
+          setAvatarUrl(metadataAvatar ?? null);
         }
-      } catch (error) {
-        console.log("获取用户头像失败:", error);
-        setAvatarUrl(null);
       }
-    } else {
-      setAvatarUrl(null);
     }
-  }, [user?.id]);
-  useEffect(() => {
-    fetchUserAvatar();
-  }, [fetchUserAvatar]);
+
+    const fetchWithRetry = async (attempt = 0) => {
+      const hasDbAvatar = await fetchUserAvatar();
+
+      if (!hasDbAvatar && attempt < 2) {
+        setTimeout(() => fetchWithRetry(attempt + 1), 500 * (attempt + 1));
+      }
+    };
+
+    fetchWithRetry();
+  }, [
+    avatarCacheKey,
+    fetchUserAvatar,
+    updateAvatar,
+    user?.id,
+    user?.user_metadata?.avatar_url,
+    user?.user_metadata?.picture,
+  ]);
 
   useEffect(() => {
     fetchStripeStatus();
@@ -126,7 +241,7 @@ export function ConditionalSidebar({
     const handleAvatarUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ avatarUrl?: string }>).detail;
       if (detail?.avatarUrl) {
-        setAvatarUrl(detail.avatarUrl);
+        updateAvatar(detail.avatarUrl ?? null);
       } else {
         fetchUserAvatar();
       }
@@ -167,9 +282,9 @@ export function ConditionalSidebar({
   const isPublicPage = publicPaths.includes(pathname);
 
   const displayAvatarUrl =
-    avatarUrl ||
-    user?.user_metadata?.avatar_url ||
-    user?.user_metadata?.picture ||
+    avatarUrl ??
+    (user?.user_metadata?.avatar_url as string | undefined) ??
+    (user?.user_metadata?.picture as string | undefined) ??
     "/placeholder-user.jpg";
 
   // 顶部导航栏组件
