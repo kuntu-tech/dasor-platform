@@ -71,15 +71,48 @@ export async function bindVendor(body: BindRequestBody): Promise<BindResponse> {
 }
 
 export async function getVendorStatus(userId: string): Promise<VendorStatusResponse> {
-  const res = await fetch(`/api/connect/status?userId=${userId}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+  try {
+    const res = await fetch(`/api/connect/status?userId=${userId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
-  const json = (await res.json()) as VendorStatusResponse;
-  return json;
+    const rawText = await res.text();
+    let json: VendorStatusResponse | undefined;
+
+    if (rawText) {
+      try {
+        json = JSON.parse(rawText) as VendorStatusResponse;
+      } catch (parseError) {
+        console.warn("Failed to parse vendor status response:", parseError);
+      }
+    }
+
+    if (!res.ok) {
+      const notFoundMessage = res.status === 404 ? "Vendor status not found" : `Request failed: ${res.status}`;
+      return {
+        success: false,
+        error: json?.error || notFoundMessage,
+      };
+    }
+
+    if (!json) {
+      return {
+        success: false,
+        error: "Invalid vendor status response",
+      };
+    }
+
+    return json;
+  } catch (error) {
+    console.warn("getVendorStatus request error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
 }
 
 // OAuth 相关接口

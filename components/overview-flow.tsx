@@ -130,7 +130,7 @@ export function OverviewFlow() {
           </Link>
           <CreateAppButton>
             <Sparkles className="mr-2 size-4" />
-            Create New Applicationpp
+            Create New ChatApp
           </CreateAppButton>
         </div>
       </header>
@@ -138,9 +138,9 @@ export function OverviewFlow() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-12 max-w-7xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">My Applicationpp
+          <h1 className="text-3xl font-bold mb-2">My ChatApp
 s</h1>
-          <p className="text-muted-foreground">Manage and publish all your generated Applicationpp
+          <p className="text-muted-foreground">Manage and publish all your generated ChatApp
 s</p>
         </div>
 
@@ -199,10 +199,10 @@ s</p>
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16">
               <Sparkles className="size-12 text-muted-foreground mb-4" />
-              <CardTitle className="mb-2">No Generated Applicationpp
+              <CardTitle className="mb-2">No Generated ChatApp
 s Yet</CardTitle>
               <CardDescription className="text-center max-w-md mb-6">
-                Connect your database and let AI help you generate your first Applicationpp
+                Connect your database and let AI help you generate your first ChatApp
 
               </CardDescription>
               <CreateAppButton>
