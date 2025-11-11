@@ -10,6 +10,7 @@ export default function OAuthCallbackPage() {
   const [status, setStatus] = useState<"loading" | "success" | "error" | "no-payment">("loading");
   const [message, setMessage] = useState("");
   const hasProcessed = useRef(false);
+  const abortControllers = useRef<{ payment?: AbortController; callback?: AbortController }>({});
 
   useEffect(() => {
     // 防止重复执行
@@ -76,15 +77,29 @@ export default function OAuthCallbackPage() {
             }
 
             // 检查用户是否有支付记录
-            const checkResponse = await fetch(
-              `/api/check-payment-history?userId=${session.user.id}`,
-              {
-                method: "GET",
-                headers: {
-                  Accept: "application/json",
-                },
-              }
-            );
+            const paymentController = new AbortController();
+            abortControllers.current.payment = paymentController;
+            const paymentTimeout = window.setTimeout(() => {
+              paymentController.abort();
+            }, 8000);
+
+            let checkResponse: Response | null = null;
+
+            try {
+              checkResponse = await fetch(
+                `/api/check-payment-history?userId=${session.user.id}`,
+                {
+                  method: "GET",
+                  headers: {
+                    Accept: "application/json",
+                  },
+                  signal: paymentController.signal,
+                }
+              );
+            } finally {
+              window.clearTimeout(paymentTimeout);
+              abortControllers.current.payment = undefined;
+            }
 
             if (!checkResponse.ok) {
               console.log("Error checking payment history");
@@ -104,12 +119,25 @@ export default function OAuthCallbackPage() {
             const callbackUrl = `/api/proxy-oauth-callback?code=${code}&state=${state}`;
             console.log("Calling OAuth callback:", callbackUrl);
             
-            const response = await fetch(callbackUrl, {
-              method: "GET",
-              headers: {
-                "Accept": "application/json",
-              },
-            });
+            const callbackController = new AbortController();
+            abortControllers.current.callback = callbackController;
+            const callbackTimeout = window.setTimeout(() => {
+              callbackController.abort();
+            }, 12000);
+
+            let response: Response;
+            try {
+              response = await fetch(callbackUrl, {
+                method: "GET",
+                headers: {
+                  "Accept": "application/json",
+                },
+                signal: callbackController.signal,
+              });
+            } finally {
+              window.clearTimeout(callbackTimeout);
+              abortControllers.current.callback = undefined;
+            }
 
             console.log("Response status:", response.status);
             console.log("Response headers:", response.headers.get("content-type"));
@@ -156,7 +184,11 @@ export default function OAuthCallbackPage() {
           } catch (err) {
             console.log("OAuth callback processing error:", err);
             setStatus("error");
-            setMessage("Network error, please try again");
+            if (err instanceof DOMException && err.name === "AbortError") {
+              setMessage("Authorization timed out, please try again.");
+            } else {
+              setMessage("Network error, please try again.");
+            }
           }
           return;
         }
@@ -172,7 +204,28 @@ export default function OAuthCallbackPage() {
     };
 
     handleCallback();
+    return () => {
+      abortControllers.current.payment?.abort();
+      abortControllers.current.callback?.abort();
+      abortControllers.current = {};
+    };
   }, [searchParams, router]);
+
+  useEffect(() => {
+    if (status !== "loading") return;
+
+    const timeoutId = window.setTimeout(() => {
+      abortControllers.current.payment?.abort();
+      abortControllers.current.callback?.abort();
+      abortControllers.current = {};
+      setStatus("error");
+      setMessage("Authorization timed out, please try again.");
+    }, 15000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [status]);
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center">

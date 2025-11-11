@@ -69,13 +69,13 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     try {
       const { data, error } = await supabase.auth.getSession()
       if (error) {
-        console.warn("刷新 Supabase 会话失败:", error)
+        console.warn("Failed to refresh Supabase session:", error)
       }
       if (data?.session?.access_token) {
         accessToken = data.session.access_token
       }
     } catch (error) {
-      console.warn("获取 Supabase 会话异常:", error)
+      console.warn("Unexpected error while fetching Supabase session:", error)
     }
     return accessToken
   }, [session?.access_token])
@@ -226,7 +226,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
           null
         updateAvatar(fetchedAvatar ?? null)
       } catch (error) {
-        console.log("获取用户资料异常:", error)
+        console.log("Failed to load user profile:", error)
       } finally {
         setProfileLoading(false)
       }
@@ -306,7 +306,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
             }
           })
           .catch((error) => {
-            console.log("检查支付记录失败:", error)
+            console.log("Failed to check payment history:", error)
             setHasPaymentHistory(false)
             setPaymentStatus("no_payment_history")
           })
@@ -327,7 +327,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
             }
           })
           .catch((error) => {
-            console.log("加载 Customer Portal 失败:", error)
+            console.log("Failed to load Customer Portal:", error)
             setBillingPortalError("Network error. Please try again later.")
           })
           .finally(() => {
@@ -450,7 +450,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
         setUploadSuccess(null)
       }, 3000)
     } catch (error) {
-      console.log("上传头像失败:", error)
+      console.log("Failed to upload avatar:", error)
       setUploadError(error instanceof Error ? error.message : "Upload failed")
       setPreviewUrl(null)
       if (preview) {
@@ -730,7 +730,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
                     }
                   })
                   .catch((error) => {
-                    console.log("加载 Customer Portal 失败:", error)
+                    console.log("Failed to load Customer Portal:", error)
                     setBillingPortalError("Network error. Please try again later.")
                   })
                   .finally(() => {

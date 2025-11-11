@@ -490,7 +490,7 @@ export function ConnectFlow() {
 
     // 校验 connectionUrl 格式
     if (!connectionUrl || connectionUrl.trim() === "") {
-      setConnectionError("连接URL不能为空");
+      setConnectionError("Connection URL cannot be empty");
       return;
     }
 
@@ -498,19 +498,19 @@ export function ConnectFlow() {
     try {
       new URL(connectionUrl);
     } catch (error) {
-      setConnectionError("连接URL格式不正确，请输入有效的URL");
+      setConnectionError("Invalid connection URL format, please enter a valid URL");
       return;
     }
 
     // 校验 apiKey 格式
     if (!apiKey || apiKey.trim() === "") {
-      setConnectionError("API密钥不能为空");
+      setConnectionError("API key cannot be empty");
       return;
     }
 
     // 校验 API Key 长度（通常至少8位）
     if (apiKey.length < 8) {
-      setConnectionError("API密钥长度至少需要8位字符");
+      setConnectionError("API key must be at least 8 characters long");
       return;
     }
 

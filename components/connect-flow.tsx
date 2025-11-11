@@ -816,7 +816,11 @@ export function ConnectFlow() {
       await new Promise((r) => setTimeout(r, interval));
       last = data;
     }
-    return { ...last, status: "timeout", error: "超过最大轮询等待时间" };
+    return {
+      ...last,
+      status: "timeout",
+      error: "Exceeded maximum polling wait time",
+    };
   };
   const handleConnectAPI = async () => {
     console.log("handleConnectAPI");

@@ -14,7 +14,15 @@ let supabaseAdminInstance: SupabaseClient | null = null;
 
 export const supabase = (() => {
   if (!supabaseInstance) {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        // @ts-expect-error broadcastChannel is supported at runtime but not typed yet
+        broadcastChannel: "supabase-auth",
+      },
+    });
   }
   return supabaseInstance;
 })();

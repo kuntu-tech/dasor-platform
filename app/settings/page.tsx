@@ -60,6 +60,10 @@ export default function SettingsPage() {
 
   const getLatestAccessToken = useCallback(async (): Promise<string | null> => {
     let accessToken = session?.access_token ?? null
+    console.log("[SettingsPage] getLatestAccessToken - initial", {
+      userId: user?.id,
+      sessionAccessToken: session?.access_token,
+    })
     try {
       const { data, error } = await supabase.auth.getSession()
       if (error) {
@@ -68,11 +72,15 @@ export default function SettingsPage() {
       if (data?.session?.access_token) {
         accessToken = data.session.access_token
       }
+      console.log("[SettingsPage] getLatestAccessToken - after supabase.auth.getSession", {
+        supabaseAccessToken: data?.session?.access_token,
+        resolvedAccessToken: accessToken,
+      })
     } catch (error) {
       console.warn("获取 Supabase 会话异常:", error)
     }
     return accessToken
-  }, [session?.access_token])
+  }, [session?.access_token, user?.id])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const avatarCacheKey = useMemo(() => {
@@ -111,12 +119,17 @@ export default function SettingsPage() {
   // 获取用户资料
   useEffect(() => {
     const fetchUserProfile = async () => {
+      console.log("[SettingsPage] fetchUserProfile - start", {
+        userId: user?.id,
+        sessionAccessToken: session?.access_token,
+      })
       if (!user?.id) {
         setDisplayName("")
         setUsername("")
         setBio("")
         updateAvatar(null)
         setUseCustomUsername(false)
+        console.log("[SettingsPage] fetchUserProfile - no user, reset state")
         return
       }
 
@@ -144,8 +157,12 @@ export default function SettingsPage() {
       updateAvatar(metadataAvatar ?? null)
 
       const accessToken = await getLatestAccessToken()
+      console.log("[SettingsPage] fetchUserProfile - resolved access token", {
+        accessTokenPresent: Boolean(accessToken),
+      })
 
       if (!accessToken) {
+        console.log("[SettingsPage] fetchUserProfile - no access token, skip API fetch")
         return
       }
 
@@ -163,12 +180,17 @@ export default function SettingsPage() {
         })
 
         if (!response.ok) {
+          console.warn("[SettingsPage] fetchUserProfile - /api/users/self failed", {
+            status: response.status,
+            statusText: response.statusText,
+          })
           throw new Error(`Failed to fetch profile: ${response.status}`)
         }
 
         const payload = (await response.json()) as {
           data?: UserProfileRow | null
         }
+        console.log("[SettingsPage] fetchUserProfile - API response", payload)
 
         const profileData = payload?.data ?? null
 

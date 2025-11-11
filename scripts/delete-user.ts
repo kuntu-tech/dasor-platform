@@ -10,7 +10,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-  console.error(
+  console.log(
     "Missing Supabase credentials. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
   );
   process.exit(1);
@@ -54,7 +54,7 @@ const main = async () => {
   const target = parseArgs();
 
   if (!target.userId && !target.email) {
-    console.error("You must provide either --user-id or --email.");
+    console.log("You must provide either --user-id or --email.");
     printUsage();
     process.exit(1);
   }
@@ -99,7 +99,7 @@ const main = async () => {
             });
 
           if (listError) {
-            console.error(
+            console.log(
               "Failed to list auth users while searching by email:",
               listError.message
             );
@@ -125,7 +125,7 @@ const main = async () => {
         if (foundUserId) {
           userId = foundUserId;
         } else {
-          console.error("No user found for the provided email.");
+          console.log("No user found for the provided email.");
           process.exit(1);
         }
       }
@@ -142,7 +142,7 @@ const main = async () => {
     const { error: authDeleteError } =
       await admin.auth.admin.deleteUser(resolvedUserId);
     if (authDeleteError) {
-      console.error("Failed to delete auth user:", authDeleteError.message);
+      console.log("Failed to delete auth user:", authDeleteError.message);
       process.exit(1);
     }
     console.log("Auth user deleted.");
@@ -165,7 +165,7 @@ const main = async () => {
       "Done. Review other tables referencing user_id if cascading cleanup is required."
     );
   } catch (error) {
-    console.error("Unexpected error while deleting user:", error);
+    console.log("Unexpected error while deleting user:", error);
     process.exit(1);
   }
 };
