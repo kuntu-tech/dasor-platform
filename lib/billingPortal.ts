@@ -39,14 +39,14 @@ export async function getBillingPortalUrl(
     const result = await response.json();
 
     if (result.success && result.data?.url) {
-      console.log("获取 Customer Portal URL 成功:", result.data.url);
+      console.log("Customer Portal URL retrieved successfully:", result.data.url);
       return result.data.url;
     } else {
-      console.log("获取 Customer Portal URL 失败:", result);
+      console.log("Failed to retrieve Customer Portal URL:", result);
       return null;
     }
   } catch (error) {
-    console.log("请求失败:", error);
+    console.log("Request failed:", error);
     return null;
   }
 }
@@ -66,6 +66,6 @@ export async function openBillingPortal(
   if (url) {
     window.open(url, "_blank");
   } else {
-    alert("获取客户门户失败，请稍后重试");
+    alert("Failed to load customer portal, please try again later");
   }
 }

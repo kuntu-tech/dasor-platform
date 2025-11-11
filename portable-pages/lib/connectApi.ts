@@ -399,7 +399,7 @@ export async function createAppPayment(
       console.log("App Payment API error:", res.status, json);
       return {
         success: false,
-        error: json.error || json.message || "创建支付链接失败",
+        error: json.error || json.message || "Failed to create payment link",
       };
     }
 
@@ -408,7 +408,7 @@ export async function createAppPayment(
     console.log("createAppPayment error:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "网络错误",
+      error: error instanceof Error ? error.message : "Network error",
     };
   }
 }

@@ -1890,7 +1890,7 @@ Access Tokens"</span>
                           <strong>API Key:</strong> test-api-key-123456789
                         </div>
                         <div className="text-red-600 text-xs mt-1">
-                          ⚠️ 连接成功但数据真实性验证失败
+                          ⚠️ Connection succeeded but data authenticity validation failed
                         </div>
                       </div>
                       <div className="font-mono bg-green-100 p-2 rounded">

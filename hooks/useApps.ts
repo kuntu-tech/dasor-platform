@@ -83,14 +83,14 @@ export function useApps() {
       const data: AppsResponse = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "获取应用列表失败");
+        throw new Error(data.error || "Failed to fetch app list");
       }
 
       setApps(data.data);
       return data;
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "获取应用列表失败";
+        err instanceof Error ? err.message : "Failed to fetch app list";
       setError(errorMessage);
       throw err;
     } finally {
@@ -108,12 +108,12 @@ export function useApps() {
       const data: AppResponse = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "获取应用失败");
+        throw new Error(data.error || "Failed to fetch app");
       }
 
       return data.data;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "获取应用失败";
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch app";
       setError(errorMessage);
       throw err;
     } finally {
@@ -149,14 +149,15 @@ export function useApps() {
       const data: AppResponse = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "创建应用失败");
+        throw new Error(data.error || "Failed to create app");
       }
 
       // 更新本地状态
       setApps((prev) => [data.data, ...prev]);
       return data.data;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "创建应用失败";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to create app";
       setError(errorMessage);
       throw err;
     } finally {
@@ -196,14 +197,15 @@ export function useApps() {
       const data: AppResponse = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "更新应用失败");
+        throw new Error(data.error || "Failed to update app");
       }
 
       // 更新本地状态
       setApps((prev) => prev.map((app) => (app.id === id ? data.data : app)));
       return data.data;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "更新应用失败";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update app";
       setError(errorMessage);
       throw err;
     } finally {
@@ -229,13 +231,14 @@ export function useApps() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "删除应用失败");
+        throw new Error(data.error || "Failed to delete app");
       }
 
       // 更新本地状态
       setApps((prev) => prev.filter((app) => app.id !== id));
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "删除应用失败";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to delete app";
       setError(errorMessage);
       throw err;
     } finally {

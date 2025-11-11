@@ -105,6 +105,10 @@ export function ConditionalSidebar({
 
   const getLatestAccessToken = useCallback(async (): Promise<string | null> => {
     let accessToken = session?.access_token ?? null;
+    console.log("[ConditionalSidebar] getLatestAccessToken - initial", {
+      userId: user?.id,
+      sessionAccessToken: session?.access_token,
+    });
     try {
       const { data, error } = await supabase.auth.getSession();
       if (error) {
@@ -113,19 +117,31 @@ export function ConditionalSidebar({
       if (data?.session?.access_token) {
         accessToken = data.session.access_token;
       }
+      console.log("[ConditionalSidebar] getLatestAccessToken - after supabase.auth.getSession", {
+        supabaseAccessToken: data?.session?.access_token,
+        resolvedAccessToken: accessToken,
+      });
     } catch (error) {
       console.warn("获取 Supabase 会话异常:", error);
     }
     return accessToken;
-  }, [session?.access_token]);
+  }, [session?.access_token, user?.id]);
 
   const fetchUserAvatar = useCallback(async (): Promise<boolean> => {
+    console.log("[ConditionalSidebar] fetchUserAvatar - start", {
+      userId: user?.id,
+      sessionAccessToken: session?.access_token,
+    });
     if (!user?.id) {
       updateAvatar(null);
+      console.log("[ConditionalSidebar] fetchUserAvatar - no user, clear avatar");
       return false;
     }
 
     const accessToken = await getLatestAccessToken();
+    console.log("[ConditionalSidebar] fetchUserAvatar - resolved access token", {
+      accessTokenPresent: Boolean(accessToken),
+    });
 
     if (!accessToken) {
       const metadataAvatar =
@@ -133,6 +149,9 @@ export function ConditionalSidebar({
         (user.user_metadata?.picture as string | undefined) ??
         null;
       updateAvatar(metadataAvatar ?? null);
+      console.log("[ConditionalSidebar] fetchUserAvatar - no access token, using metadata avatar", {
+        metadataAvatar,
+      });
       return false;
     }
 
@@ -148,6 +167,10 @@ export function ConditionalSidebar({
       });
 
       if (!response.ok) {
+        console.warn("[ConditionalSidebar] fetchUserAvatar - /api/users/self failed", {
+          status: response.status,
+          statusText: response.statusText,
+        });
         throw new Error(`Failed to fetch profile: ${response.status}`);
       }
 
@@ -157,6 +180,9 @@ export function ConditionalSidebar({
 
       if (avatarUrl) {
         updateAvatar(avatarUrl);
+        console.log("[ConditionalSidebar] fetchUserAvatar - fetched avatar from API", {
+          avatarUrl,
+        });
         return true;
       }
 
@@ -165,6 +191,9 @@ export function ConditionalSidebar({
         (user.user_metadata?.picture as string | undefined) ??
         null;
       updateAvatar(metadataAvatar ?? null);
+      console.log("[ConditionalSidebar] fetchUserAvatar - API returned no avatar, fallback to metadata", {
+        metadataAvatar,
+      });
     } catch (error) {
       console.log("获取用户头像失败:", error);
       const metadataAvatar =
@@ -172,6 +201,9 @@ export function ConditionalSidebar({
         (user?.user_metadata?.picture as string | undefined) ??
         null;
       updateAvatar(metadataAvatar ?? null);
+      console.warn("[ConditionalSidebar] fetchUserAvatar - error fallback metadata", {
+        metadataAvatar,
+      });
     }
 
     return false;
