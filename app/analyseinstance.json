@@ -1,0 +1,605 @@
+{
+    "domain": {
+        "primaryDomain": "Short-term Rental Marketplace"
+    },
+    "ingest": {
+        "schemaHash": "sha256-3c7459f15975eae5"
+    },
+    "run_id": "r_1",
+    "status": "complete",
+    "task_id": "9272eb8c-31d3-4c0f-ac27-dfb077b03447",
+    "segments": [
+        {
+            "name": "Urban Short-term Rental Hosts",
+            "analysis": {
+                "D1": {
+                    "score": 8.2,
+                    "summary": "Large urban rental market → strong growth potential; moderate competition intensity; stable demand from diverse traveler segments",
+                    "supporting_indicators": [
+                        "High listing volume in multiple neighborhoods",
+                        "Consistent booking rates across seasons",
+                        "Diverse room types and price points"
+                    ]
+                },
+                "D2": {
+                    "score": 8.7,
+                    "summary": "Primary users are urban travelers and short-term renters; decision influenced by price, location, and host reputation; preference for flexible stay options",
+                    "user_persona": {
+                        "role": "Leisure and business travelers",
+                        "pain_points": [
+                            "Unclear pricing transparency",
+                            "Limited availability during peak seasons",
+                            "Inconsistent host responsiveness"
+                        ],
+                        "company_type": "Individual travelers and small travel agencies"
+                    }
+                },
+                "D3": {
+                    "score": 7.9,
+                    "summary": "Moderate to high conversion rates due to platform trust; retention supported by repeat bookings and positive reviews; revenue potential driven by premium listings",
+                    "revenue_band": "$50K-$200K annually per host",
+                    "retention_signal": "Medium",
+                    "conversion_rate_est": 0.16
+                },
+                "D4": {
+                    "score": 8.4,
+                    "summary": "Strong data moat from comprehensive listing and booking data; scalable platform architecture; competitive advantage through rich user reviews and host verification",
+                    "moat_score": 8.2,
+                    "scalability_score": 8.6,
+                    "competitive_advantage": [
+                        "Extensive verified host data",
+                        "Robust review ecosystem",
+                        "Dynamic pricing and availability insights"
+                    ]
+                }
+            },
+            "segmentId": "seg_01",
+            "valueQuestions": [
+                {
+                    "id": "q_05",
+                    "intent": "Trend",
+                    "question": "Track the trend of average adjusted prices across different neighborhoods over the past year to identify pricing transparency issues and opportunities for dynamic pricing strategies.",
+                    "answerShape": "time_series",
+                    "feasibility": {
+                        "note": "Adjusted prices are in calendar.adjusted_price; neighborhood info in listings or listingsdetails; requires joining calendar with listings, aggregating average adjusted price by neighborhood over time (past year).",
+                        "status": "NEEDS_TRANSFORM",
+                        "confidence": 0.9,
+                        "requiredTransform": [
+                            "join",
+                            "aggregate",
+                            "time_window"
+                        ]
+                    },
+                    "sql": "SELECT c.date, l.neighbourhood, ROUND(AVG(c.adjusted_price)::numeric, 2) AS avg_adjusted_price FROM calendar c INNER JOIN listings l ON c.listing_id = l.id WHERE c.date >= CURRENT_DATE - INTERVAL '365 days' GROUP BY c.date, l.neighbourhood ORDER BY c.date ASC, l.neighbourhood ASC;"
+                }
+            ]
+        },
+        {
+            "name": "Vacation Property Managers",
+            "analysis": {
+                "D1": {
+                    "score": 8.2,
+                    "summary": "Large urban short-term rental market → strong growth potential; moderate competition intensity; high demand driven by tourism and business travel",
+                    "supporting_indicators": [
+                        "High listing density in key neighborhoods",
+                        "Consistent availability across 365 days",
+                        "Rising number of reviews indicating active user engagement"
+                    ]
+                },
+                "D2": {
+                    "score": 8.7,
+                    "summary": "Primary users are individual travelers and business visitors; decision influenced by price, location, and host reputation; preference for entire homes and private rooms",
+                    "user_persona": {
+                        "role": "Frequent traveler or business visitor",
+                        "pain_points": [
+                            "Difficulty finding reliable and well-reviewed accommodations",
+                            "Balancing cost with quality and location",
+                            "Limited availability during peak seasons"
+                        ],
+                        "company_type": "Small to medium enterprises and individual consumers"
+                    }
+                },
+                "D3": {
+                    "score": 7.9,
+                    "summary": "Moderate to high conversion potential due to strong demand and user trust signals; retention supported by repeat bookings and positive reviews",
+                    "revenue_band": "Mid to high revenue range",
+                    "retention_signal": "Medium",
+                    "conversion_rate_est": 0.14
+                },
+                "D4": {
+                    "score": 8.4,
+                    "summary": "Robust data moat from comprehensive listing details, calendar availability, and rich review data; scalable with continuous data updates; competitive advantage in data granularity and host verification",
+                    "moat_score": 8.2,
+                    "scalability_score": 8.6,
+                    "competitive_advantage": [
+                        "Extensive multi-source data integration",
+                        "High frequency of data refreshes",
+                        "Verified host and listing information enhancing trust"
+                    ]
+                }
+            },
+            "segmentId": "seg_02",
+            "valueQuestions": [
+                {
+                    "id": "q_07",
+                    "intent": "Optimization",
+                    "question": "List the top-performing neighborhoods by average adjusted price and availability throughout the year to optimize listings for frequent business travelers seeking entire homes or private rooms.",
+                    "answerShape": "ranking",
+                    "feasibility": {
+                        "note": "Requires joining listings or listingsdetails with calendar to get adjusted_price and availability, filtering by room_type (entire homes or private rooms), aggregating by neighbourhood, and ranking neighborhoods by average adjusted price and availability.",
+                        "status": "NEEDS_TRANSFORM",
+                        "confidence": 0.85,
+                        "requiredTransform": [
+                            "join",
+                            "aggregate",
+                            "filter"
+                        ]
+                    },
+                    "sql": "SELECT l.neighbourhood, ROUND(AVG(c.adjusted_price)::numeric, 2) AS avg_adjusted_price, ROUND(AVG(c.available::int)::numeric, 2) AS avg_availability\nFROM listings l\nINNER JOIN calendar c ON l.id = c.listing_id\nWHERE l.room_type IN ('Entire home/apt', 'Private room')\nGROUP BY l.neighbourhood\nORDER BY avg_adjusted_price DESC, avg_availability DESC;"
+                },
+                {
+                    "id": "q_08",
+                    "intent": "Comparison",
+                    "question": "Compare the conversion rates and retention signals between listings with verified hosts and those without to understand the impact of host verification on booking trust and repeat visits.",
+                    "answerShape": "comparison",
+                    "feasibility": {
+                        "note": "Host verification info is in listingsdetails.host_identity_verified; conversion rates and retention signals are not explicitly defined but can be approximated by availability and number_of_reviews or repeat reviews, requiring joins and derived metrics.",
+                        "status": "NEEDS_TRANSFORM",
+                        "confidence": 0.8,
+                        "requiredTransform": [
+                            "join",
+                            "aggregate",
+                            "derive"
+                        ]
+                    },
+                    "sql": "SELECT ld.host_identity_verified AS host_verified, ROUND(AVG(ld.availability_365)::numeric, 2) AS avg_availability_365, ROUND(AVG(l.number_of_reviews)::numeric, 2) AS avg_number_of_reviews, ROUND(AVG(l.number_of_reviews_ltm)::numeric, 2) AS avg_number_of_reviews_ltm FROM listingsdetails ld INNER JOIN listings l ON ld.id = l.id GROUP BY ld.host_identity_verified ORDER BY ld.host_identity_verified;"
+                },
+                {
+                    "id": "q_09",
+                    "intent": "Trend",
+                    "question": "Analyze the trend of number of reviews and review scores over the last 12 months to identify which listings maintain high user engagement and satisfaction for business visitors.",
+                    "answerShape": "time_series",
+                    "feasibility": {
+                        "note": "Number of reviews and review scores exist in listingsdetails and reviewsdetails; requires time filtering for last 12 months and aggregation to analyze trends.",
+                        "status": "NEEDS_TRANSFORM",
+                        "confidence": 0.9,
+                        "requiredTransform": [
+                            "aggregate",
+                            "time_window"
+                        ]
+                    },
+                    "sql": "SELECT\n  DATE_TRUNC('month', rd.date) AS month,\n  listingsdetails.id AS listing_id,\n  ROUND(COUNT(rd.id)::numeric, 2) AS number_of_reviews,\n  ROUND(AVG(listingsdetails.review_scores_rating)::numeric, 2) AS avg_review_score\nFROM listingsdetails\nINNER JOIN reviewsdetails rd ON listingsdetails.id = rd.listing_id\nWHERE rd.date >= (CURRENT_DATE - INTERVAL '12 months')\nGROUP BY month, listingsdetails.id\nORDER BY month, listingsdetails.id;"
+                },
+                {
+                    "id": "q_11",
+                    "intent": "Comparison",
+                    "question": "Compare availability patterns during peak seasons across neighborhoods to identify where limited availability impacts booking opportunities for business travelers.",
+                    "answerShape": "comparison",
+                    "feasibility": {
+                        "note": "Availability patterns by neighborhood require joining calendar with listings or listingsdetails, filtering by peak seasons (time window), and aggregating availability by neighborhood.",
+                        "status": "NEEDS_TRANSFORM",
+                        "confidence": 0.85,
+                        "requiredTransform": [
+                            "join",
+                            "aggregate",
+                            "time_window"
+                        ]
+                    },
+                    "sql": "SELECT l.neighbourhood, ROUND(AVG(CASE WHEN c.available = 't' THEN 1 ELSE 0 END)::numeric, 2) AS avg_availability_rate FROM calendar c INNER JOIN listings l ON c.listing_id = l.id WHERE EXTRACT(MONTH FROM c.date) IN (6, 7, 8, 12) GROUP BY l.neighbourhood ORDER BY avg_availability_rate ASC;"
+                }
+            ]
+        },
+        {
+            "name": "Individual Short-term Rental Hosts",
+            "analysis": {
+                "D1": {
+                    "score": 8,
+                    "summary": "Large urban rental market → high demand; steady growth in short-term rentals; moderate competition intensity",
+                    "supporting_indicators": [
+                        "High listing volume in major cities",
+                        "Consistent booking rates",
+                        "Growing traveler preference for short-term rentals"
+                    ]
+                },
+                "D2": {
+                    "score": 8.5,
+                    "summary": "Hosts managing multiple listings; urban property managers; pain from occupancy optimization, pricing strategy, and guest communication",
+                    "user_persona": {
+                        "role": "Property manager/Host",
+                        "pain_points": [
+                            "Maximizing occupancy rates",
+                            "Dynamic pricing challenges",
+                            "Efficient guest management"
+                        ],
+                        "company_type": "Small to medium short-term rental operators"
+                    }
+                },
+                "D3": {
+                    "score": 7.5,
+                    "summary": "Moderate to high conversion potential; repeat bookings from satisfied guests; medium retention signals",
+                    "revenue_band": "$50K-$200K annually per operator",
+                    "retention_signal": "Medium",
+                    "conversion_rate_est": 0.12
+                },
+                "D4": {
+                    "score": 8.2,
+                    "summary": "Rich multi-source data integration; scalable data processing; strong competitive edge via proprietary booking and pricing data",
+                    "moat_score": 8,
+                    "scalability_score": 8.5,
+                    "competitive_advantage": [
+                        "Comprehensive calendar and listing data",
+                        "Host behavior analytics",
+                        "Real-time availability and pricing insights"
+                    ]
+                }
+            },
+            "segmentId": "seg_03",
+            "valueQuestions": [
+                {
+                    "id": "q_13",
+                    "intent": "Optimization",
+                    "question": "List the top-performing neighborhoods in major cities by occupancy rate over the past year to help property managers optimize listing locations.",
+                    "answerShape": "ranking",
+                    "feasibility": {
+                        "note": "Occupancy rate over past year requires joining calendar and listings/listingsdetails, aggregating availability and bookings by neighborhood and time filtering for last year.",
+                        "status": "NEEDS_TRANSFORM",
+                        "confidence": 0.85,
+                        "requiredTransform": [
+                            "join",
+                            "aggregate",
+                            "derive",
+                            "time_window"
+                        ]
+                    },
+                    "sql": "SELECT l.neighbourhood, ROUND((1 - (SUM(CASE WHEN c.available = 't' THEN 1 ELSE 0 END)::numeric / COUNT(c.date)::numeric)) * 100, 2) AS occupancy_rate_percentage FROM listings l INNER JOIN calendar c ON l.id = c.listing_id WHERE c.date >= CURRENT_DATE - INTERVAL '365 days' GROUP BY l.neighbourhood ORDER BY occupancy_rate_percentage DESC LIMIT 10;"
+                }
+            ]
+        },
+        {
+            "name": "Regional Tourism Boards and Analytics Providers",
+            "analysis": {
+                "D1": {
+                    "score": 8.2,
+                    "summary": "Large urban short-term rental market → strong growth potential; moderate competition intensity; increasing traveler demand",
+                    "supporting_indicators": [
+                        "High listing volume in key neighborhoods",
+                        "Rising average occupancy rates",
+                        "Consistent price growth trends"
+                    ]
+                },
+                "D2": {
+                    "score": 8.7,
+                    "summary": "Hosts managing multiple listings in urban areas; focus on maximizing occupancy and revenue; pain from dynamic pricing and guest management",
+                    "user_persona": {
+                        "role": "Property manager / Superhost",
+                        "pain_points": [
+                            "Pricing optimization complexity",
+                            "Guest communication efficiency",
+                            "Regulatory compliance challenges"
+                        ],
+                        "company_type": "Small to medium short-term rental operators"
+                    }
+                },
+                "D3": {
+                    "score": 7.9,
+                    "summary": "Moderate to high conversion potential driven by data-backed pricing and availability insights; retention supported by repeat hosts; mid to high revenue band",
+                    "revenue_band": "$100K-$500K annual revenue",
+                    "retention_signal": "Medium",
+                    "conversion_rate_est": 0.14
+                },
+                "D4": {
+                    "score": 8.4,
+                    "summary": "Strong data moat from comprehensive calendar and listing details; scalable data integration; competitive edge via real-time availability and pricing data",
+                    "moat_score": 8.2,
+                    "scalability_score": 8.6,
+                    "competitive_advantage": [
+                        "Extensive multi-source data aggregation",
+                        "Real-time calendar synchronization",
+                        "Detailed host and listing profiling"
+                    ]
+                }
+            },
+            "segmentId": "seg_04",
+            "valueQuestions": [
+                {
+                    "id": "q_19",
+                    "intent": "Trend",
+                    "question": "List the top-performing neighborhoods in the urban short-term rental market by average occupancy rates over the past year and analyze how occupancy trends vary across these neighborhoods.",
+                    "answerShape": "time_series",
+                    "feasibility": {
+                        "note": "Occupancy rates over the past year can be derived from listingsdetails.estimated_occupancy_l365d (text, likely needs conversion) and calendar data; neighborhood info from listings or listingsdetails. Time series trend requires time-based grouping.",
+                        "status": "NEEDS_TRANSFORM",
+                        "confidence": 0.85,
+                        "requiredTransform": [
+                            "aggregate",
+                            "time_window",
+                            "join"
+                        ]
+                    },
+                    "sql": "SELECT ld.neighbourhood, c.date, ROUND(AVG(ld.estimated_occupancy_l365d::numeric)::numeric, 2) AS avg_occupancy_rate FROM listingsdetails ld INNER JOIN calendar c ON ld.id = c.listing_id WHERE ld.neighbourhood IS NOT NULL AND c.date >= CURRENT_DATE - INTERVAL '365 days' GROUP BY ld.neighbourhood, c.date ORDER BY ld.neighbourhood, c.date;"
+                },
+                {
+                    "id": "q_20",
+                    "intent": "Optimization",
+                    "question": "Compare the pricing strategies of hosts with multiple entire home listings versus those with private rooms in terms of adjusted price and occupancy rates to identify optimization opportunities.",
+                    "answerShape": "comparison",
+                    "feasibility": {
+                        "note": "Host listing types (entire home vs private rooms) can be identified from listingsdetails.calculated_host_listings_count_entire_homes and ..._private_rooms. Adjusted price from calendar.adjusted_price. Occupancy rates need derivation or use estimated_occupancy_l365d. Requires joining listingsdetails with calendar and grouping by host and room type.",
+                        "status": "NEEDS_TRANSFORM",
+                        "confidence": 0.9,
+                        "requiredTransform": [
+                            "join",
+                            "aggregate",
+                            "derive"
+                        ]
+                    },
+                    "sql": "SELECT ld.host_id, ld.host_name, CASE WHEN ld.calculated_host_listings_count_entire_homes > 0 THEN 'Entire Home' ELSE 'Private Room' END AS listing_type, ROUND(AVG(c.adjusted_price)::numeric, 2) AS avg_adjusted_price, ROUND(AVG(ld.estimated_occupancy_l365d)::numeric, 2) AS avg_occupancy_rate FROM listingsdetails ld INNER JOIN calendar c ON ld.id = c.listing_id WHERE (ld.calculated_host_listings_count_entire_homes > 0 OR ld.calculated_host_listings_count_private_rooms > 0) AND c.available = 't' GROUP BY ld.host_id, ld.host_name, listing_type ORDER BY ld.host_id, listing_type;"
+                }
+            ]
+        },
+        {
+            "name": "Short-term Rental Technology Platforms",
+            "analysis": {
+                "D1": {
+                    "score": 7.5,
+                    "summary": "Large urban rental market → steady demand; moderate growth potential; fragmented competition",
+                    "supporting_indicators": [
+                        "High listing volume in multiple neighborhoods",
+                        "Consistent availability across calendar",
+                        "Diverse room types and price points"
+                    ]
+                },
+                "D2": {
+                    "score": 8,
+                    "summary": "Hosts managing multiple listings; urban property managers; pain from occupancy optimization, pricing strategy, guest communication",
+                    "user_persona": {
+                        "role": "Property manager/host",
+                        "pain_points": [
+                            "Maximizing occupancy rates",
+                            "Dynamic pricing challenges",
+                            "Efficient guest interaction management"
+                        ],
+                        "company_type": "Small to mid-sized rental management firms"
+                    }
+                },
+                "D3": {
+                    "score": 7.2,
+                    "summary": "Moderate conversion with repeat hosts; retention driven by platform usability; mid-range revenue per listing",
+                    "revenue_band": "$50K-$200K annual per host",
+                    "retention_signal": "Medium",
+                    "conversion_rate_est": 0.12
+                },
+                "D4": {
+                    "score": 8.7,
+                    "summary": "Rich multi-source data integration; scalable data pipelines; strong competitive edge via data granularity and freshness",
+                    "moat_score": 8.5,
+                    "scalability_score": 8.9,
+                    "competitive_advantage": [
+                        "Comprehensive calendar and pricing data",
+                        "Detailed host and listing profiles",
+                        "High-frequency review and availability updates"
+                    ]
+                }
+            },
+            "segmentId": "seg_05",
+            "valueQuestions": [
+                {
+                    "id": "q_25",
+                    "intent": "Optimization",
+                    "question": "List the top-performing neighborhoods by occupancy rate over the past year to help property managers optimize listing locations in the urban rental market.",
+                    "answerShape": "ranking",
+                    "feasibility": {
+                        "note": "Occupancy rate over past year can be derived from calendar.available and listings/neighbourhoods; requires aggregation by neighbourhood and time filtering for last year.",
+                        "status": "NEEDS_TRANSFORM",
+                        "confidence": 0.85,
+                        "requiredTransform": [
+                            "join",
+                            "aggregate",
+                            "time_window"
+                        ]
+                    },
+                    "sql": "SELECT l.neighbourhood, ROUND((1 - AVG(CASE WHEN c.available = 't' THEN 1 ELSE 0 END)::numeric), 2) AS occupancy_rate FROM calendar c INNER JOIN listings l ON c.listing_id = l.id WHERE c.date >= CURRENT_DATE - INTERVAL '365 days' GROUP BY l.neighbourhood ORDER BY occupancy_rate DESC;"
+                },
+                {
+                    "id": "q_26",
+                    "intent": "Trend",
+                    "question": "Compare the average adjusted price trends over the last 12 months across different room types to assist hosts in dynamic pricing strategies.",
+                    "answerShape": "time_series",
+                    "feasibility": {
+                        "note": "Adjusted price trends over last 12 months by room_type require aggregation and time filtering on calendar.adjusted_price joined with listings.room_type.",
+                        "status": "NEEDS_TRANSFORM",
+                        "confidence": 0.9,
+                        "requiredTransform": [
+                            "aggregate",
+                            "time_window"
+                        ]
+                    },
+                    "sql": "SELECT c.date, l.room_type, ROUND(AVG(c.adjusted_price)::numeric, 2) AS avg_adjusted_price FROM calendar c INNER JOIN listings l ON c.listing_id = l.id WHERE c.date >= CURRENT_DATE - INTERVAL '365 days' GROUP BY c.date, l.room_type ORDER BY c.date, l.room_type;"
+                },
+                {
+                    "id": "q_28",
+                    "intent": "Segmentation",
+                    "question": "List the top-performing hosts by estimated annual revenue and their listing counts to identify successful property managers in the mid-sized rental firms segment.",
+                    "answerShape": "ranking",
+                    "feasibility": {
+                        "note": "Estimated annual revenue and listing counts are available in listingsdetails.estimated_revenue_l365d and listingsdetails.calculated_host_listings_count; requires aggregation and ranking by host.",
+                        "status": "NEEDS_TRANSFORM",
+                        "confidence": 0.9,
+                        "requiredTransform": [
+                            "aggregate"
+                        ]
+                    },
+                    "sql": "SELECT host_id, host_name, ROUND(SUM(estimated_revenue_l365d)::numeric, 2) AS total_estimated_revenue, ROUND(AVG(calculated_host_listings_count)::numeric, 2) AS avg_listing_count FROM listingsdetails GROUP BY host_id, host_name ORDER BY total_estimated_revenue DESC;"
+                },
+                {
+                    "id": "q_30",
+                    "intent": "Optimization",
+                    "question": "Analyze the distribution of review scores for communication and cleanliness to identify areas where hosts can improve guest satisfaction and retention.",
+                    "answerShape": "distribution",
+                    "feasibility": {
+                        "note": "Review scores for communication and cleanliness are in listingsdetails.review_scores_communication and review_scores_cleanliness; distribution analysis requires aggregation.",
+                        "status": "NEEDS_TRANSFORM",
+                        "confidence": 0.95,
+                        "requiredTransform": [
+                            "aggregate"
+                        ]
+                    },
+                    "sql": "SELECT ROUND(\"review_scores_communication\"::numeric, 2) AS communication_score, ROUND(\"review_scores_cleanliness\"::numeric, 2) AS cleanliness_score, COUNT(*) AS count FROM listingsdetails WHERE \"review_scores_communication\" IS NOT NULL AND \"review_scores_cleanliness\" IS NOT NULL GROUP BY communication_score, cleanliness_score ORDER BY communication_score, cleanliness_score;"
+                }
+            ]
+        }
+    ],
+    "anchIndex": [
+        {
+            "index": 0,
+            "table": "calendar",
+            "columns": [
+                "listing_id",
+                "date",
+                "available",
+                "price",
+                "adjusted_price",
+                "minimum_nights",
+                "maximum_nights"
+            ]
+        },
+        {
+            "index": 1,
+            "table": "listings",
+            "columns": [
+                "id",
+                "name",
+                "host_id",
+                "host_name",
+                "neighbourhood_group",
+                "neighbourhood",
+                "latitude",
+                "longitude",
+                "room_type",
+                "price",
+                "minimum_nights",
+                "number_of_reviews",
+                "last_review",
+                "reviews_per_month",
+                "calculated_host_listings_count",
+                "availability_365",
+                "number_of_reviews_ltm",
+                "license"
+            ]
+        },
+        {
+            "index": 2,
+            "table": "listingsdetails",
+            "columns": [
+                "id",
+                "listing_url",
+                "scrape_id",
+                "last_scraped",
+                "source",
+                "name",
+                "description",
+                "neighborhood_overview",
+                "picture_url",
+                "host_id",
+                "host_url",
+                "host_name",
+                "host_since",
+                "host_location",
+                "host_about",
+                "host_response_time",
+                "host_response_rate",
+                "host_acceptance_rate",
+                "host_is_superhost",
+                "host_thumbnail_url",
+                "host_picture_url",
+                "host_neighbourhood",
+                "host_listings_count",
+                "host_total_listings_count",
+                "host_verifications",
+                "host_has_profile_pic",
+                "host_identity_verified",
+                "neighbourhood",
+                "neighbourhood_cleansed",
+                "neighbourhood_group_cleansed",
+                "latitude",
+                "longitude",
+                "property_type",
+                "room_type",
+                "accommodates",
+                "bathrooms",
+                "bathrooms_text",
+                "bedrooms",
+                "beds",
+                "amenities",
+                "price",
+                "minimum_nights",
+                "maximum_nights",
+                "minimum_minimum_nights",
+                "maximum_minimum_nights",
+                "minimum_maximum_nights",
+                "maximum_maximum_nights",
+                "minimum_nights_avg_ntm",
+                "maximum_nights_avg_ntm",
+                "calendar_updated",
+                "has_availability",
+                "availability_30",
+                "availability_60",
+                "availability_90",
+                "availability_365",
+                "calendar_last_scraped",
+                "number_of_reviews",
+                "number_of_reviews_ltm",
+                "number_of_reviews_l30d",
+                "availability_eoy",
+                "number_of_reviews_ly",
+                "estimated_occupancy_l365d",
+                "estimated_revenue_l365d",
+                "first_review",
+                "last_review",
+                "review_scores_rating",
+                "review_scores_accuracy",
+                "review_scores_cleanliness",
+                "review_scores_checkin",
+                "review_scores_communication",
+                "review_scores_location",
+                "review_scores_value",
+                "license",
+                "instant_bookable",
+                "calculated_host_listings_count",
+                "calculated_host_listings_count_entire_homes",
+                "calculated_host_listings_count_private_rooms",
+                "calculated_host_listings_count_shared_rooms",
+                "reviews_per_month"
+            ]
+        },
+        {
+            "index": 3,
+            "table": "neighbourhoods",
+            "columns": [
+                "neighbourhood_group",
+                "neighbourhood"
+            ]
+        },
+        {
+            "index": 4,
+            "table": "reviews",
+            "columns": [
+                "listing_id",
+                "date"
+            ]
+        },
+        {
+            "index": 5,
+            "table": "reviewsdetails",
+            "columns": [
+                "listing_id",
+                "id",
+                "date",
+                "reviewer_id",
+                "reviewer_name",
+                "comments"
+            ]
+        }
+    ],
+    "parent_run_id": null
+}

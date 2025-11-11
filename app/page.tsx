@@ -45,6 +45,7 @@ import { Trash2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { PricingModal } from "@/components/pricing-modal";
 import { CreateAppButton } from "@/components/create-app-button";
+import { Hero7 } from "@/components/ui/modern-hero";
 type AppItem = {
   id: string;
   name: string;
@@ -276,17 +277,18 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       <main className="px-6 py-8">
-        {/* Hero Section */}
-        <section className="py-16 md:py-24 mb-12 flex items-center justify-center bg-black">
-          <div className="flex flex-col items-center justify-center space-y-4">
+        <Hero7
+          heading="Generate ChatApps from Your dataset"
+          description="Connecting and analyzing your Datail Supabase database by AI and instantly build your app."
+          buttonComponent={
             <CreateAppButton
               onRequireSubscription={() => setIsPricingOpen(true)}
-              className="h-12 px-6 text-base rounded-lg bg-transparent text-white hover:bg-white hover:text-black hover:backdrop-blur-sm hover:border-transparent border border-transparent transition-all duration-300"
+              className="mt-10 inline-flex h-12 px-6 text-base rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg"
             >
-              <Plus className="size-5 mr-2" /> Create Your App
+              Connect Database to Start
             </CreateAppButton>
-          </div>
-        </section>
+          }
+        />
 
         {/* Pricing Modal */}
         <PricingModal
