@@ -33,7 +33,9 @@ export default function RegisterPage() {
       setError("");
       setSuccess("");
       await signUpWithEmail(email, password, fullName);
-      setSuccess("Registration successful! Please check your email for the verification link.");
+      setSuccess(
+        "Registration successful! Please check your email for the verification link."
+      );
     } catch (error: any) {
       console.log("Registration failed:", error);
       setError(error.message || "Registration failed, please try again later");
