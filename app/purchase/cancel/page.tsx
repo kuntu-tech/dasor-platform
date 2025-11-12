@@ -12,12 +12,12 @@ export default function PurchaseCancelPage() {
   const [appId, setAppId] = useState<string | null>(null);
 
   useEffect(() => {
-    // 从 URL 参数中获取 app_id
+    // Retrieve app_id from URL parameters
     const appIdParam = searchParams.get("app_id");
 
     setAppId(appIdParam);
 
-    console.log("支付取消回调参数:", {
+    console.log("Purchase cancellation callback parameters:", {
       appId: appIdParam,
     });
   }, [searchParams]);

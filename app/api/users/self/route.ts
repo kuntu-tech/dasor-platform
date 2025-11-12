@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     const targetUserId = bodyUserId ?? user.id;
 
-    // 限制只能访问自己的数据，避免伪造 userId
+    // Restrict access to self to prevent forged userId
     if (targetUserId !== user.id) {
       return jsonResponse(
         { error: "Forbidden: userId mismatch" },

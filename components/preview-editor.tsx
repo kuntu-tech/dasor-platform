@@ -109,11 +109,11 @@ export function PreviewEditor() {
     return questionMap[featureName] || `Please provide information about ${featureName}`;
   };
 
-  // 向iframe发送消息的函数
+  // Helper to post messages to the iframe
   const sendMessageToIframe = (message: string) => {
     if (iframeRef.current?.contentWindow) {
       try {
-        // 使用MCP Chat Embed API发送消息
+        // Send the payload via the MCP Chat Embed API
         iframeRef.current.contentWindow.postMessage(
           {
             type: "mcp-chat:setInput",
@@ -128,14 +128,14 @@ export function PreviewEditor() {
     }
   };
 
-  // 简化：不再需要处理 currentApp.features，只使用 selectedProblems
+  // Simplified: rely solely on selectedProblems instead of currentApp.features
   useEffect(() => {
     const stored = localStorage.getItem("currentApp");
     if (stored) {
       try {
         const app = JSON.parse(stored);
         setCurrentApp(app);
-        // 不再处理 features，因为现在使用 selectedProblems
+        // Skip feature handling since selectedProblems is the source of truth
       } catch (e) {
         console.log("Failed to parse current app", e);
       }
@@ -245,7 +245,7 @@ export function PreviewEditor() {
     };
   }, [appId, resolveMcpParam]);
 
-  // 从 localStorage 读取 selectedProblems
+  // Load selectedProblems from localStorage
   useEffect(() => {
     const stored = localStorage.getItem("selectedProblems");
     console.log("localStorage selectedProblems:", stored);
@@ -345,7 +345,7 @@ export function PreviewEditor() {
       );
     }
 
-    const currentDesign = "product-list"; // 简化设计，因为现在只有问题文本
+    const currentDesign = "product-list"; // Simplified layout since only question text is rendered
 
     if (currentDesign === "product-list") {
       return (
@@ -463,11 +463,11 @@ export function PreviewEditor() {
           </div>
 
           <div className="grid grid-cols-2 gap-8">
-            {/* 饼状图区域 */}
+            {/* Pie chart area */}
             <div className="space-y-6">
               <h3 className="text-lg font-semibold">Data Distribution Analysis</h3>
               <div className="relative w-64 h-64 mx-auto">
-                {/* 模拟饼状图 */}
+                {/* Mock pie chart visualization */}
                 <div className="relative w-full h-full">
                   <div
                     className="absolute inset-0 rounded-full border-8 border-blue-500"
@@ -504,7 +504,7 @@ export function PreviewEditor() {
               </div>
             </div>
 
-            {/* 图例和数据 */}
+            {/* Legend and data */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Detailed Data</h3>
               <div className="space-y-3">
@@ -720,7 +720,7 @@ export function PreviewEditor() {
               </h2>
             </div>
             <div className="flex-1 overflow-y-auto pt-0 px-3 pb-3">
-              {/* 调试信息 */}
+              {/* Debug information */}
               {selectedProblems.length === 0 && (
                 <div className="p-4 text-center text-gray-500">
                   <p>No questions found in localStorage</p>
@@ -735,7 +735,7 @@ export function PreviewEditor() {
                     <button
                       onClick={() => {
                         setSelectedFeatureId(problem);
-                        // 发送问题文本到iframe
+                        // Send the question text to the iframe
                         sendMessageToIframe(problem);
                       }}
                       onContextMenu={(e) => {
@@ -812,7 +812,7 @@ export function PreviewEditor() {
                           size="sm"
                           className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => {
-                            // 从 selectedProblems 中移除这个问题
+                            // Remove the question from selectedProblems
                             const updatedProblems = selectedProblems.filter(
                               (p) => p !== problem
                             );
@@ -823,7 +823,7 @@ export function PreviewEditor() {
                             );
                             setContextMenuFeatureId(null);
 
-                            // 如果删除的是当前选中的问题，选择下一个
+                            // If the removed item was selected, move selection to the next
                             if (problem === selectedFeatureId) {
                               setSelectedFeatureId(updatedProblems[0] || "");
                             }

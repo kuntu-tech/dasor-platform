@@ -36,40 +36,32 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Helper function to print user information
 function printUserInfo(user: User, context: string) {
-  console.log(`\n🎉 ${context} - User Information:`);
+  console.log(`\n🎉 ${context} - User Info:`);
   console.log("=====================================");
   console.log(`📧 Email: ${user.email}`);
-  console.log(`🆔 User ID: ${user.id}`);
-  console.log(`👤 Display Name: ${user.user_metadata?.full_name || "Not set"}`);
-  console.log(`🖼️ Avatar URL: ${user.user_metadata?.avatar_url || "Not set"}`);
-  console.log(`📱 Phone: ${user.phone || "Not set"}`);
+  console.log(`🆔 ID: ${user.id}`);
+  console.log(`👤 Name: ${user.user_metadata?.full_name || "N/A"}`);
+  console.log(`🖼️ Avatar: ${user.user_metadata?.avatar_url || "N/A"}`);
+  console.log(`✅ Email Confirmed: ${user.email_confirmed_at ? "Yes" : "No"}`);
   console.log(
-    `✅ Email Confirmed: ${
-      user.email_confirmed_at ? "Confirmed" : "Not confirmed"
-    }`
+    `📅 Created: ${new Date(user.created_at).toLocaleString("en-US")}`
   );
   console.log(
-    `📅 Created At: ${new Date(user.created_at).toLocaleString("en-US")}`
-  );
-  console.log(
-    `🕐 Last Sign In: ${
+    `🕐 Last Sign-in: ${
       user.last_sign_in_at
         ? new Date(user.last_sign_in_at).toLocaleString("en-US")
-        : "Not recorded"
+        : "N/A"
     }`
   );
-  console.log(`🔐 Auth Provider: ${user.app_metadata?.provider || "Unknown"}`);
+  console.log(`🔐 Provider: ${user.app_metadata?.provider || "unknown"}`);
   console.log(`🌐 User Metadata:`, user.user_metadata);
   console.log(`⚙️ App Metadata:`, user.app_metadata);
   console.log("=====================================\n");
 }
 
-// Track processed users to avoid duplicate processing
 const processedUsers = new Set<string>();
 
-// Local cache cleanup utility
 const CLEAR_CACHE_KEYS_BASE = [
   "run_result",
   "run_result_publish",
@@ -82,14 +74,12 @@ const CLEAR_CACHE_KEYS_BASE = [
 ];
 
 function resolveAuthStorageKey() {
-  // @ts-expect-error storageKey is not in types but exists in runtime
+  // @ts-expect-error exists at runtime
   const runtimeKey = supabase.auth?.storageKey;
   if (runtimeKey) return runtimeKey as string;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) {
-    return "sb-auth-token";
-  }
+  if (!url) return "sb-auth-token";
   try {
     const projectRef = new URL(url).host.split(".")[0];
     return `sb-${projectRef}-auth-token`;
@@ -103,39 +93,29 @@ const SIGN_OUT_LOADING_FALLBACK = 3000;
 
 function clearLocalAuthArtifacts(userId?: string) {
   if (typeof window === "undefined") return;
-
   try {
     const keysToRemove = [...CLEAR_CACHE_KEYS_BASE];
-    if (userId) {
-      keysToRemove.push(`cached_avatar_${userId}`);
-    }
-    keysToRemove.forEach((key) => {
-      localStorage.removeItem(key);
-    });
-  } catch (error) {
-    console.warn("Failed to clear local cache", error);
+    if (userId) keysToRemove.push(`cached_avatar_${userId}`);
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch (e) {
+    console.warn("Failed to clear local cache", e);
   }
 
   try {
-    const authStorageKey = resolveAuthStorageKey();
-    localStorage.removeItem(authStorageKey);
-  } catch (error) {
-    console.warn("Failed to clear Supabase session cache", error);
+    const key = resolveAuthStorageKey();
+    localStorage.removeItem(key);
+  } catch (e) {
+    console.warn("Failed to clear Supabase auth cache", e);
   }
 }
 
-// Check and save new user information to users table
-async function checkAndSaveNewUser(user: User, context: string = "unknown") {
+async function checkAndSaveNewUser(user: User, context = "unknown") {
   try {
-    // Avoid processing the same user multiple times
     if (processedUsers.has(user.id)) {
-      console.log(`⏭️ User ${user.id} already processed, skipping ${context}`);
+      console.log(`⏭️ User ${user.id} already processed (${context})`);
       return;
     }
 
-    console.log(`🔍 Checking if user is new (${context})...`);
-
-    // Check if user already exists in users table
     const { data: existingUser, error: checkError } = await supabase
       .from("users")
       .select("id")
@@ -143,30 +123,18 @@ async function checkAndSaveNewUser(user: User, context: string = "unknown") {
       .single();
 
     if (checkError && checkError.code !== "PGRST116") {
-      console.log("❌ Error checking user existence:", checkError);
+      console.log("Error checking user existence:", checkError);
       return;
     }
 
-    // If user exists, only update last login time
     if (existingUser) {
-      console.log("👤 User exists, updating last login time");
-      const { error: updateError } = await supabase
+      const { error } = await supabase
         .from("users")
-        .update({
-          last_login_at: new Date().toISOString(),
-        })
+        .update({ last_login_at: new Date().toISOString() })
         .eq("id", user.id);
-
-      if (updateError) {
-        console.log("❌ Failed to update user login time:", updateError);
-      } else {
-        console.log("✅ User login time updated successfully");
-      }
+      if (error) console.log("Failed to update login time:", error);
     } else {
-      // If new user, create user record
-      console.log("🆕 New user detected, creating user record...");
-
-      const userData = {
+      const newUser = {
         id: user.id,
         email: user.email,
         name: user.user_metadata?.full_name || user.user_metadata?.name,
@@ -175,24 +143,13 @@ async function checkAndSaveNewUser(user: User, context: string = "unknown") {
         auth_provider: user.app_metadata?.provider || "email",
         last_login_at: new Date().toISOString(),
       };
-
-      console.log("📝 New user data:", userData);
-
-      const { error: insertError } = await supabase
-        .from("users")
-        .insert([userData]);
-
-      if (insertError) {
-        console.log("❌ Failed to create new user:", insertError);
-      } else {
-        console.log("✅ New user created successfully!");
-      }
+      const { error } = await supabase.from("users").insert([newUser]);
+      if (error) console.log("Failed to insert user:", error);
     }
 
-    // Mark user as processed
     processedUsers.add(user.id);
-  } catch (error) {
-    console.log("❌ Error checking and saving user information:", error);
+  } catch (e) {
+    console.log("Error saving user info:", e);
   }
 }
 
@@ -200,117 +157,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isVerifyingSignOut, setIsVerifyingSignOut] = useState(false);
+
+  // --- Subscription state ---
   const [subscriptionStatus, setSubscriptionStatus] =
     useState<SubscriptionCheckResponse | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
-  // Subscription status cache key and expiry time (5 minutes)
-  const SUBSCRIPTION_CACHE_KEY = (userId: string) =>
-    `subscription_status_${userId}`;
-  const SUBSCRIPTION_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+  const SUBSCRIPTION_CACHE_KEY = (id: string) => `subscription_status_${id}`;
+  const SUBSCRIPTION_CACHE_EXPIRY = 5 * 60 * 1000;
 
-  // Get subscription status from cache
-  const getCachedSubscriptionStatus = useCallback(
-    (userId: string): SubscriptionCheckResponse | null => {
-      if (typeof window === "undefined") return null;
-
-      try {
-        const cacheKey = SUBSCRIPTION_CACHE_KEY(userId);
-        const cached = localStorage.getItem(cacheKey);
-        if (!cached) return null;
-
-        const { data, timestamp } = JSON.parse(cached);
-        const now = Date.now();
-
-        // Check if expired
-        if (now - timestamp > SUBSCRIPTION_CACHE_EXPIRY) {
-          localStorage.removeItem(cacheKey);
-          return null;
-        }
-
-        return data;
-      } catch (e) {
-        console.log("Failed to parse cached subscription status:", e);
+  const getCachedSubscription = useCallback((id: string) => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem(SUBSCRIPTION_CACHE_KEY(id));
+      if (!raw) return null;
+      const { data, timestamp } = JSON.parse(raw);
+      if (Date.now() - timestamp > SUBSCRIPTION_CACHE_EXPIRY) {
+        localStorage.removeItem(SUBSCRIPTION_CACHE_KEY(id));
         return null;
       }
-    },
-    []
-  );
-
-  // Save subscription status to cache
-  const setCachedSubscriptionStatus = useCallback(
-    (userId: string, data: SubscriptionCheckResponse) => {
-      if (typeof window === "undefined") return;
-
-      try {
-        const cacheKey = SUBSCRIPTION_CACHE_KEY(userId);
-        localStorage.setItem(
-          cacheKey,
-          JSON.stringify({
-            data,
-            timestamp: Date.now(),
-          })
-        );
-      } catch (e) {
-        console.log("Failed to cache subscription status:", e);
-      }
-    },
-    []
-  );
-
-  // Clear subscription status cache
-  const clearSubscriptionCache = useCallback((userId: string) => {
-    if (typeof window === "undefined") return;
-    const cacheKey = SUBSCRIPTION_CACHE_KEY(userId);
-    localStorage.removeItem(cacheKey);
+      return data;
+    } catch {
+      return null;
+    }
   }, []);
 
-  // Check subscription status (with cache)
+  const setCachedSubscription = useCallback((id: string, data: any) => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(
+      SUBSCRIPTION_CACHE_KEY(id),
+      JSON.stringify({ data, timestamp: Date.now() })
+    );
+  }, []);
+
+  const clearSubscriptionCache = useCallback((id: string) => {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(SUBSCRIPTION_CACHE_KEY(id));
+  }, []);
+
   const checkSubscriptionStatus = useCallback(
-    async (userId: string, useCache: boolean = true) => {
-      // If using cache, check cache first
+    async (id: string, useCache = true) => {
       if (useCache) {
-        const cachedStatus = getCachedSubscriptionStatus(userId);
-        if (cachedStatus) {
-          setSubscriptionStatus(cachedStatus);
-          // Refresh in background (without cache)
-          checkSubscriptionStatus(userId, false).catch(console.error);
-          return cachedStatus;
+        const cached = getCachedSubscription(id);
+        if (cached) {
+          setSubscriptionStatus(cached);
+          void checkSubscriptionStatus(id, false).catch(console.error);
+          return cached;
         }
       }
-
-      // No cache or force refresh, fetch from API
       try {
         setSubscriptionLoading(true);
-        const status = await fetchSubscriptionStatus(userId);
+        const status = await fetchSubscriptionStatus(id);
         setSubscriptionStatus(status);
-        setCachedSubscriptionStatus(userId, status);
+        setCachedSubscription(id, status);
         return status;
-      } catch (error) {
-        console.error("Failed to fetch subscription status:", error);
-        // If request fails, try using cache
-        const cachedStatus = getCachedSubscriptionStatus(userId);
-        if (cachedStatus) {
-          setSubscriptionStatus(cachedStatus);
-        }
-        throw error;
+      } catch (e) {
+        console.error("Failed to fetch subscription:", e);
+        const cached = getCachedSubscription(id);
+        if (cached) setSubscriptionStatus(cached);
+        throw e;
       } finally {
         setSubscriptionLoading(false);
       }
     },
-    [getCachedSubscriptionStatus, setCachedSubscriptionStatus]
+    [getCachedSubscription, setCachedSubscription]
   );
 
-  // Refresh subscription status (force fetch from API)
   const refreshSubscriptionStatus = useCallback(async () => {
     if (!user?.id) return;
     await checkSubscriptionStatus(user.id, false);
   }, [user?.id, checkSubscriptionStatus]);
-  const [isVerifyingSignOut, setIsVerifyingSignOut] = useState(false);
 
+  // --- Auth core logic ---
   const latestUserIdRef = useRef<string | undefined>(undefined);
   const syncGuardRef = useRef<"idle" | "syncing" | "signing-out">("idle");
   const signOutVerifyTimerRef = useRef<number | null>(null);
+
   useAuthDebugOverlay({
     enabled:
       process.env.NEXT_PUBLIC_ENABLE_AUTH_DEBUG === "true" ||
@@ -328,65 +251,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id]);
 
   useEffect(() => {
-    console.log("AuthProvider useEffect");
-    // Get initial session
     const getInitialSession = async () => {
       try {
         const {
           data: { session },
-          error,
         } = await supabase.auth.getSession();
-
-        if (error) {
-          console.log("Error getting session:", error);
-        }
-
         if (!session) {
-          console.log(
-            "⚠️ First getSession returned empty, waiting for Supabase to recover from IndexedDB..."
-          );
-          await new Promise((resolve) =>
-            setTimeout(resolve, 500 + Math.random() * 500)
-          );
-
+          await new Promise((r) => setTimeout(r, 700));
           const {
-            data: { session: retrySession },
-            error: retryError,
+            data: { session: retry },
           } = await supabase.auth.getSession();
-
-          if (retryError) {
-            console.log("Error getting session on retry:", retryError);
-          }
-
-          if (retrySession?.user) {
-            console.log("✅ Successfully recovered session on retry");
-            setSession(retrySession);
-            setUser(retrySession.user);
+          if (retry?.user) {
+            setSession(retry);
+            setUser(retry.user);
             setLoading(false);
-            printUserInfo(retrySession.user, "Delayed Recovery");
-            await checkAndSaveNewUser(retrySession.user, "Delayed Recovery");
+            printUserInfo(retry.user, "Recovered");
+            await checkAndSaveNewUser(retry.user, "Recovered");
+            void checkSubscriptionStatus(retry.user.id);
             return;
           }
-
-          console.log(
-            "❌ Retry still returned empty, continuing with normal logic"
-          );
         }
-
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-
-        // If session exists, print user info and check if new user
         if (session?.user) {
-          printUserInfo(session.user, "Initial Session");
-          await checkAndSaveNewUser(session.user, "Initial Session");
-          // Automatically check subscription status
-          checkSubscriptionStatus(session.user.id).catch(console.error);
+          printUserInfo(session.user, "Initial");
+          await checkAndSaveNewUser(session.user, "Initial");
+          void checkSubscriptionStatus(session.user.id);
         }
-      } catch (error) {
-        console.log("Exception getting initial session:", error);
-        // Even if error occurs, set loading to false to avoid infinite loading
+      } catch (e) {
+        console.log("Error initializing session:", e);
         setLoading(false);
       }
     };
@@ -664,9 +558,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
       });
       if (error) {
         console.log("❌ Google sign in error:", error);
@@ -685,8 +577,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithEmail = async (email: string, password: string) => {
     setLoading(true);
-    console.log("🔐 Starting email sign in flow...");
-
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -731,11 +621,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            full_name: fullName || "",
-          },
-        },
+        options: { data: { full_name: fullName || "" } },
       });
 
       if (error) {
@@ -757,21 +643,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    console.log("🚪 Starting sign out flow...");
     setLoading(true);
-
-    const currentUserId = user?.id;
+    const id = user?.id;
     syncGuardRef.current = "signing-out";
     setIsVerifyingSignOut(false);
 
     // Immediately update local state to avoid staying on protected pages for too long
     setSession(null);
     setUser(null);
-    clearLocalAuthArtifacts(currentUserId);
+    clearLocalAuthArtifacts(id);
 
     // Clear subscription status cache
-    if (currentUserId) {
-      clearSubscriptionCache(currentUserId);
+    if (id) {
+      clearSubscriptionCache(id);
     }
     // Clear subscription status
     setSubscriptionStatus(null);
@@ -889,8 +773,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 }

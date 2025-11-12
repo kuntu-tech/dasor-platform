@@ -21,14 +21,14 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    // 检查URL中的哈希参数（Supabase重置密码链接通常使用哈希）
+    // Check the URL hash parameters (Supabase reset links often use hashes)
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const accessToken =
       hashParams.get("access_token") || searchParams.get("access_token");
     const refreshToken =
       hashParams.get("refresh_token") || searchParams.get("refresh_token");
 
-    console.log("重置密码页面 - 检查令牌:", {
+      console.log("Reset password page - checking tokens:", {
       hasAccessToken: !!accessToken,
       hasRefreshToken: !!refreshToken,
       hash: window.location.hash,
@@ -36,7 +36,7 @@ export default function ResetPasswordPage() {
     });
 
     if (accessToken && refreshToken) {
-      // 设置会话
+      // Establish a session with the provided tokens
       supabase.auth
         .setSession({
           access_token: accessToken,
@@ -44,11 +44,11 @@ export default function ResetPasswordPage() {
         })
         .then(({ data, error }) => {
           if (error) {
-            console.log("设置会话错误:", error);
-            setError("重置密码链接无效或已过期");
+            console.log("Failed to set session:", error);
+            setError("The reset link is invalid or has expired.");
           } else {
-            console.log("会话设置成功:", data);
-            // 清除URL中的敏感参数
+            console.log("Session established successfully:", data);
+            // Remove sensitive parameters from URL
             window.history.replaceState(
               {},
               document.title,
@@ -57,10 +57,10 @@ export default function ResetPasswordPage() {
           }
         });
     } else {
-      // 如果没有令牌，检查是否已有会话
+      // If no token is provided, validate existing session
       supabase.auth.getSession().then(({ data: { session }, error }) => {
         if (error || !session) {
-          setError("请通过邮件中的链接访问此页面");
+          setError("Please open this page via the link in your email.");
         }
       });
     }
@@ -68,17 +68,17 @@ export default function ResetPasswordPage() {
 
   const handleResetPassword = async () => {
     if (!password || !confirmPassword) {
-      setError("请填写所有字段");
+      setError("Please fill out all fields.");
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("两次输入的密码不一致");
+      setError("Passwords do not match.");
       return;
     }
 
     if (password.length < 6) {
-      setError("密码至少需要6位字符");
+      setError("Password must be at least 6 characters.");
       return;
     }
 
@@ -87,36 +87,36 @@ export default function ResetPasswordPage() {
       setError("");
       setSuccess("");
 
-      // 首先检查当前会话状态
+      // First, verify the current session state
       const {
         data: { session },
         error: sessionError,
       } = await supabase.auth.getSession();
 
       if (sessionError || !session) {
-        console.log("会话检查失败:", sessionError);
-        setError("会话无效，请重新申请密码重置");
+        console.log("Session validation failed:", sessionError);
+        setError("Session is invalid. Please request a new password reset email.");
         return;
       }
 
-      console.log("当前会话:", session);
+      console.log("Current session:", session);
 
       const { error } = await supabase.auth.updateUser({
         password: password,
       });
 
       if (error) {
-        console.log("重置密码错误:", error);
-        setError(error.message || "重置密码失败");
+        console.log("Password reset error:", error);
+        setError(error.message || "Password reset failed.");
       } else {
-        setSuccess("密码重置成功！正在跳转到登录页...");
+        setSuccess("Password reset successful! Redirecting to the login page...");
         setTimeout(() => {
           router.push("/auth/login");
         }, 2000);
       }
     } catch (error: any) {
-      console.log("重置密码异常:", error);
-      setError("重置密码失败，请稍后重试");
+      console.log("Unexpected password reset exception:", error);
+      setError("Password reset failed, please try again later.");
     } finally {
       setLoading(false);
     }
@@ -239,7 +239,7 @@ export default function ResetPasswordPage() {
                 className="w-full h-12 bg-black hover:bg-gray-900 text-white font-medium text-base"
                 disabled={loading}
               >
-                {loading ? "重置中..." : "Reset Password"}
+                {loading ? "Resetting..." : "Reset Password"}
               </Button>
             </div>
           </div>

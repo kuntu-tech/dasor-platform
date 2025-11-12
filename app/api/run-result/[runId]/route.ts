@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/run-result/[runId] - 根据 user_id、task_id 和 run_id 获取完整的数据
+// GET /api/run-result/[runId] - Fetch run_result by user_id, task_id, and run_id
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ runId: string }> }
@@ -44,7 +44,7 @@ export async function GET(
       taskId
     );
 
-    // 查询 run_results 表，根据 user_id、task_id 和 run_id 获取 run_result 字段
+    // Query run_results table for matching run_result
     const { data, error } = await supabaseAdmin
       .from("run_results")
       .select("run_result, run_id, task_id, user_id")
@@ -53,7 +53,7 @@ export async function GET(
       .eq("task_id", taskId);
 
     if (error) {
-      console.log("查询 run_results 错误:", error);
+      console.log("Failed to query run_results:", error);
       console.log("Error details:", JSON.stringify(error, null, 2));
       return NextResponse.json(
         { error: "Failed to fetch run result", details: error.message },
@@ -75,7 +75,7 @@ export async function GET(
       );
     }
 
-    // 处理数组结果
+    // Handle array results
     let result;
     if (Array.isArray(data)) {
       if (data.length === 0) {
@@ -100,7 +100,7 @@ export async function GET(
       data: result.run_result || null,
     });
   } catch (error) {
-    console.log("获取 run_result 异常:", error);
+    console.log("Unexpected error while fetching run_result:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

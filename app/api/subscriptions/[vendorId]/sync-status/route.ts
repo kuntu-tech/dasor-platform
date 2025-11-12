@@ -17,7 +17,7 @@ export async function POST(
       );
     }
 
-    // 获取请求体（可能包含 sessionId）
+    // Parse body (sessionId is optional)
     let requestBody: { sessionId?: string } = {};
     try {
       const body = await request.json();
@@ -25,10 +25,10 @@ export async function POST(
         requestBody = { sessionId: body.sessionId };
       }
     } catch {
-      // 如果请求体为空或解析失败，使用空对象（这是正常的，因为 sessionId 是可选的）
+      // Ignore parsing errors; empty body is valid because sessionId is optional
     }
 
-    // 服务端发起请求，绕过浏览器 CORS 限制
+    // Forward request server-side to avoid browser CORS limitations
     const targetUrl = `${CONNECT_API_BASE}/api/subscriptions/${vendorId}/sync-status`;
     console.log("Proxy sync-status request to:", targetUrl);
     console.log("Sync-status request body:", requestBody);

@@ -1,38 +1,38 @@
-# 多阶段构建 - 构建阶段
+# Multi-stage build - build phase
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 复制 package 文件
+# Copy package manifests
 COPY package*.json ./
 
-# 安装所有依赖（包括开发依赖，用于构建）
+# Install all dependencies (including devDeps for build)
 RUN npm ci --no-audit --no-fund || npm install --legacy-peer-deps --no-audit --no-fund
 
-# 复制源代码
+# Copy source code
 COPY . .
 
-# 构建应用（standalone 模式会在 .next/standalone 中生成独立服务器）
+# Build application (standalone mode outputs server in .next/standalone)
 RUN npm run build
 
-# 生产阶段 - 只复制 standalone 输出
+# Production stage - copy standalone output only
 FROM node:20-alpine AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-# 从构建阶段复制 standalone 输出
+# Copy standalone output from builder
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# 暴露端口
+# Expose port
 EXPOSE 4001
 
 ENV PORT=4001
 ENV HOSTNAME="0.0.0.0"
 
-# 启动 standalone 服务器
+# Start standalone server
 CMD ["node", "server.js"]
 

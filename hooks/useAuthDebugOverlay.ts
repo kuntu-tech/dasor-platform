@@ -72,9 +72,9 @@ export function useAuthDebugOverlay({
             : "-"
         }`,
         "",
-        "关闭提示：",
-        "- 设置 localStorage.removeItem('__auth_debug_overlay__')",
-        "- 或 NEXT_PUBLIC_ENABLE_AUTH_DEBUG ≠ 'true'",
+        "Hide overlay:",
+        "- Call localStorage.removeItem('__auth_debug_overlay__')",
+        "- Or set NEXT_PUBLIC_ENABLE_AUTH_DEBUG != 'true'",
       ];
       container.textContent = lines.join("\n");
     };
