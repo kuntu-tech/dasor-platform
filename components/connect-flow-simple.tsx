@@ -74,7 +74,7 @@ export function ConnectFlow() {
   );
   const [hasValidated, setHasValidated] = useState<boolean>(false);
 
-  // 真实的数据库验证函数 - 调用后端API
+  // Real database validation helper calling the backend API
   const performRealDatabaseValidation = async (
     url: string,
     key: string
@@ -96,7 +96,7 @@ export function ConnectFlow() {
     console.log("Database connection validation succeeded:", data);
   };
 
-  // 获取分析结果的真实API调用
+  // Fetch analysis results from the real API
   const fetchAnalysisResults = async () => {
     try {
       setAnalysisStep("connecting");
@@ -118,7 +118,7 @@ export function ConnectFlow() {
 
       const data = await response.json();
 
-      // 模拟分析步骤进度
+      // Simulate progress through each analysis step
       const steps: AnalysisStep[] = [
         "connecting",
         "validating-data",
@@ -130,11 +130,11 @@ export function ConnectFlow() {
 
       for (let i = 0; i < steps.length; i++) {
         setAnalysisStep(steps[i]);
-        // 每个步骤之间稍作延迟，让用户看到进度
+        // Introduce a brief delay so users can observe the progress
         await new Promise((resolve) => setTimeout(resolve, 800));
       }
 
-      // 设置分析结果
+      // Store the analysis results
       setAnalysisResults(data.results || []);
       setStep("results");
     } catch (error) {
@@ -177,13 +177,13 @@ export function ConnectFlow() {
   const handleConnectAPI = async () => {
     console.log("handleConnectAPI");
 
-    // 校验 connectionUrl 格式
+    // Validate connectionUrl format
     if (!connectionUrl || connectionUrl.trim() === "") {
       setConnectionError("Connection URL cannot be empty");
       return;
     }
 
-    // 校验 URL 格式
+    // Validate URL format
     try {
       new URL(connectionUrl);
     } catch (error) {
@@ -191,22 +191,22 @@ export function ConnectFlow() {
       return;
     }
 
-    // 校验 apiKey 格式
+    // Validate apiKey format
     if (!apiKey || apiKey.trim() === "") {
       setConnectionError("API key cannot be empty");
       return;
     }
 
-    // 校验 API Key 长度（通常至少8位）
+    // Enforce API key length (typically at least 8 characters)
     if (apiKey.length < 8) {
       setConnectionError("API key must be at least 8 characters long");
       return;
     }
 
-    // 清除之前的错误信息
+    // Clear previous error state
     setConnectionError("");
 
-    // 开始分析流程
+    // Begin analysis flow
     setStep("analyzing");
     setAnalysisStep("connecting");
 
@@ -226,7 +226,7 @@ export function ConnectFlow() {
         throw new Error(data.error || `HTTP ${response.status}`);
       }
 
-      // API调用成功，继续到下一步
+      // On success, proceed to the next step
       setAnalysisStep("validating-data");
     } catch (error) {
       console.log("Error connecting to API:", error);
@@ -235,7 +235,7 @@ export function ConnectFlow() {
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
-      // 连接失败时重置步骤
+      // Reset the flow when connection fails
       setStep("connect");
       setAnalysisStep("connecting");
     }
@@ -252,7 +252,7 @@ export function ConnectFlow() {
       setHasValidated(true);
       setConnectionError(null);
 
-      // 连接成功后，继续分析流程
+      // Continue the analysis flow after a successful connection
       setAnalysisStep("validating-data");
     } catch (error) {
       console.log("Database validation failed:", error);
@@ -270,7 +270,7 @@ export function ConnectFlow() {
     setAnalysisStep("validating-data");
 
     try {
-      // 调用数据验证API
+      // Invoke the data validation API
       const response = await fetch("/api/validate-data", {
         method: "POST",
         headers: {

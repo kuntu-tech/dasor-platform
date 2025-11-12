@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      console.log("获取vendor错误:", error);
+      console.log("Failed to fetch vendor:", error);
       return NextResponse.json(
         { success: false, error: "Failed to fetch vendor data", details: error.message },
         { status: 500, headers: noStoreHeaders }
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       { headers: noStoreHeaders }
     );
   } catch (error) {
-    console.log("API错误:", error);
+    console.log("API error:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500, headers: noStoreHeaders }

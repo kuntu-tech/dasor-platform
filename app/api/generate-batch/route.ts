@@ -58,7 +58,7 @@ const withAuthHeaders = (): Record<string, string> => {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as BatchPayload;
-    console.log("收到批量生成任务:", body?.user_id);
+    console.log("Received batch generation task:", body?.user_id);
 
     const validationError = requiredFieldError(body);
     if (validationError) {
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!response.ok) {
-      console.log("外部批量任务调用失败:", response.status, parsed);
+      console.log("External batch service call failed:", response.status, parsed);
       return NextResponse.json(
         {
           error: parsed?.error || "Generate batch service call failed",
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       { status: response.status }
     );
   } catch (error) {
-    console.log("批量生成接口错误:", error);
+    console.log("Batch generation API error:", error);
     const msg = error instanceof Error ? error.message : String(error);
     const isAbort =
       msg.toLowerCase().includes("aborted") ||

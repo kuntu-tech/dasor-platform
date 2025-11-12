@@ -82,14 +82,14 @@ export default function DashboardPage() {
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const { user, session } = useAuth();
 
-  // 提取 generator_meta 中的 queries 并保存到 localStorage
+  // Extract queries from generator_meta and store them in localStorage
   const extractAndSaveQueries = (app: AppItem) => {
     try {
       if (
         app.generator_meta?.queries &&
         Array.isArray(app.generator_meta.queries)
       ) {
-        // 提取 queries 数组中的 query 字段
+        // Pick only the query field from each entry
         const selectedProblems = app.generator_meta.queries
           .map((q) => q.query)
           .filter((query) => query && query.trim().length > 0);
@@ -107,15 +107,15 @@ export default function DashboardPage() {
     }
   };
 
-  // 缓存过期时间（1天）
-  const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 1天
+  // Cache expiration (1 day)
+  const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 1 day
 
-  // 获取缓存键
+  // Derive the cache key
   const getCacheKey = useCallback(() => {
     return `apps_cache_${user?.id || "anonymous"}`;
   }, [user?.id]);
 
-  // 从缓存获取数据
+  // Read cached data
   const getCachedApps = useCallback((): AppItem[] | null => {
     if (typeof window === "undefined") return null;
 
@@ -127,7 +127,7 @@ export default function DashboardPage() {
       const { data, timestamp } = JSON.parse(cached);
       const now = Date.now();
 
-      // 检查是否过期
+      // Expiration check
       if (now - timestamp > CACHE_EXPIRY) {
         localStorage.removeItem(cacheKey);
         return null;
@@ -140,7 +140,7 @@ export default function DashboardPage() {
     }
   }, [getCacheKey]);
 
-  // 保存数据到缓存
+  // Write data into the cache
   const setCachedApps = useCallback(
     (data: AppItem[]) => {
       if (typeof window === "undefined") return;
@@ -161,14 +161,14 @@ export default function DashboardPage() {
     [getCacheKey]
   );
 
-  // 清除缓存
+  // Clear cached entries
   const clearAppsCache = useCallback(() => {
     if (typeof window === "undefined") return;
     const cacheKey = getCacheKey();
     localStorage.removeItem(cacheKey);
   }, [getCacheKey]);
 
-  // 内部函数用于实际获取数据
+  // Helper responsible for fetching data from the API
   const fetchAppsFromAPI = useCallback(async () => {
     const queryParams = new URLSearchParams();
 
@@ -183,7 +183,7 @@ export default function DashboardPage() {
 
     if (data.data && Array.isArray(data.data)) {
       setAppItems(data.data);
-      // 保存到缓存
+      // Persist the response in cache
       setCachedApps(data.data);
     }
 
@@ -192,24 +192,24 @@ export default function DashboardPage() {
 
   const getApps = useCallback(
     async (useCache: boolean = true) => {
-      // 如果使用缓存，先检查缓存
+      // Honor cache first when allowed
       if (useCache) {
         const cachedData = getCachedApps();
         if (cachedData) {
-          // 先显示缓存数据
+          // Display cached data immediately
           setAppItems(cachedData);
-          // 然后在后台刷新（不使用缓存）
+          // Refresh in the background without using cache
           fetchAppsFromAPI().catch(console.error);
           return { data: cachedData };
         }
       }
 
-      // 没有缓存或强制刷新，直接获取数据
+      // When no cache is available, fetch directly
       try {
         return await fetchAppsFromAPI();
       } catch (error) {
         console.error("Failed to fetch apps:", error);
-        // 如果请求失败，尝试使用缓存
+        // Fall back to cache if the request fails
         const cachedData = getCachedApps();
         if (cachedData) {
           setAppItems(cachedData);
@@ -277,7 +277,7 @@ export default function DashboardPage() {
   const [appItems, setAppItems] = useState<AppItem[]>([]);
 
   const handleDelete = async (id: string) => {
-    // 确认删除
+    // Confirm deletion
     if (
       !confirm(
         "Are you sure you want to delete this app? This action cannot be undone."
@@ -289,7 +289,7 @@ export default function DashboardPage() {
     setDeletingId(id);
 
     try {
-      // 调用后端API删除应用
+      // Invoke backend API to delete the app
       const response = await fetch(`/api/apps/${id}`, {
         method: "DELETE",
         headers: {
@@ -305,13 +305,13 @@ export default function DashboardPage() {
         //throw new Error(errorData.error || "Failed to delete app");
       }
 
-      // 清除缓存并重新获取数据，确保数据同步
+      // Clear cache and refetch to keep data consistent
       clearAppsCache();
-      await getApps(false); // 强制刷新，不使用缓存
+      await getApps(false); // Force refresh without cache
 
-      console.log("应用删除成功");
+      console.log("App deleted successfully");
     } catch (error) {
-      console.log("删除应用失败:", error);
+      console.log("Failed to delete app:", error);
       alert(
         `Delete failed: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -323,20 +323,20 @@ export default function DashboardPage() {
   };
 
   const filteredApps = useMemo(() => {
-    // 确保 appItems 始终是数组
+    // Ensure appItems is always an array
     const items = Array.isArray(appItems) ? appItems : [];
     let filtered = items;
 
-    // 状态筛选
+    // Status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter((app) => app.status === statusFilter);
     }
 
-    // 搜索筛选 - 只筛选name字段
+    // Search filter - only match the name field
     const q = query.trim().toLowerCase();
     if (q) {
       filtered = filtered.filter((a) => {
-        // 只匹配name字段
+        // Match against the name field
         return a.name?.toLowerCase().includes(q);
       });
     }
@@ -364,7 +364,7 @@ export default function DashboardPage() {
           isOpen={isPricingOpen}
           onClose={() => setIsPricingOpen(false)}
         />
-        {/* 主标题区 */}
+        {/* Main headline section */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold">MyApps</h1>
@@ -416,7 +416,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 主体列表区 */}
+        {/* Main content list */}
         {view === "grid" ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

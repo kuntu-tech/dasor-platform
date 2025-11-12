@@ -13,14 +13,14 @@ export default function PurchaseSuccessPage() {
   const [appId, setAppId] = useState<string | null>(null);
 
   useEffect(() => {
-    // 从 URL 参数中获取 session_id 和 app_id
+    // Retrieve session_id and app_id from URL parameters
     const sessionIdParam = searchParams.get("session_id");
     const appIdParam = searchParams.get("app_id");
 
     setSessionId(sessionIdParam);
     setAppId(appIdParam);
 
-    console.log("支付成功回调参数:", {
+    console.log("Purchase success callback parameters:", {
       sessionId: sessionIdParam,
       appId: appIdParam,
     });

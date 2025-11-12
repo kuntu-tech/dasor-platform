@@ -45,7 +45,7 @@ export function BreadcrumbNav() {
     null
   );
 
-  // 解析路径
+  // Parse the current path
   const pathSegments = useMemo(
     () => pathname.split("/").filter(Boolean),
     [pathname]
@@ -91,7 +91,7 @@ export function BreadcrumbNav() {
     };
   }, [breadcrumbAppId]);
 
-  // 路径映射
+  // Map path segments to breadcrumb metadata
   const pathMap: Record<string, { label: string; icon: any; href?: string }> = {
     dashboard: { label: "Dashboard", icon: BarChart3, href: "/dashboard" },
     connect: { label: "Connect Database", icon: Database, href: "/connect" },
@@ -116,7 +116,7 @@ export function BreadcrumbNav() {
     },
   };
 
-  // 构建面包屑
+  // Build breadcrumb items
   const breadcrumbs = [];
   let currentPath = "";
 
@@ -154,7 +154,7 @@ export function BreadcrumbNav() {
     }
   }
 
-  // 检查是否在 preview 页面
+  // Check whether the current route is the preview page
   const isPreviewPage = pathname.startsWith("/preview");
   const appId = searchParams.get("id");
 
@@ -166,7 +166,7 @@ export function BreadcrumbNav() {
     }
   };
 
-  // 获取应用状态
+  // Fetch application publication status
   useEffect(() => {
     if (isPreviewPage && appId && session) {
       const fetchAppStatus = async () => {
@@ -182,7 +182,7 @@ export function BreadcrumbNav() {
             setAppStatus(data.data?.status || null);
           }
         } catch (error) {
-          console.log("获取应用状态失败:", error);
+          console.log("Failed to get app status:", error);
         }
       };
 
@@ -190,23 +190,23 @@ export function BreadcrumbNav() {
     }
   }, [isPreviewPage, appId, session]);
 
-  // 处理保存应用
+  // Handle application save action
   const handleSaveApp = async () => {
     console.log(user);
 
     if (!appName.trim()) {
-      alert("请输入应用名称");
+      alert("Please enter the application name.");
       return;
     }
 
     if (!user || !session) {
-      alert("请先登录");
+      alert("Please log in first.");
       return;
     }
 
     setIsSaving(true);
 
-    // 预览的保存，现在不用了
+    // Legacy preview save functionality (currently unused)
     try {
       const response = await fetch("/api/apps", {
         method: "POST",
@@ -228,28 +228,30 @@ export function BreadcrumbNav() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "保存失败");
+        throw new Error(data.error || "Failed to save application.");
       }
 
-      // 保存成功
-      console.log("应用保存成功:", data);
+      // Save succeeded
+      console.log("Application saved successfully:", data);
 
-      // 关闭对话框
+      // Close dialog state
       setIsSaveDialogOpen(false);
       setAppName("");
       setAppDescription("");
 
-      // 跳转到保存成功页面
+      // Navigate to publish page after saving
       navigateToPublish();
     } catch (error) {
-      console.log("保存应用失败:", error);
-      alert(`保存失败: ${error instanceof Error ? error.message : "未知错误"}`);
+      console.log("Failed to save application:", error);
+      alert(
+        `Save failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     } finally {
       setIsSaving(false);
     }
   };
 
-  // 处理取消保存
+  // Handle cancel action
   const handleCancelSave = () => {
     setIsSaveDialogOpen(false);
     setAppName("");
@@ -258,7 +260,7 @@ export function BreadcrumbNav() {
 
   return (
     <div className="flex items-center justify-between mb-6">
-      {/* 左侧面包屑导航 */}
+      {/* Left breadcrumb navigation */}
       <div className="flex items-center gap-1 text-sm text-gray-700">
         {/* Home Icon */}
         <Link href="/" className="flex items-center gap-1 hover:text-gray-900">
@@ -288,7 +290,7 @@ export function BreadcrumbNav() {
         ))}
       </div>
 
-      {/* 右侧按钮组 - 只在 preview 页面显示，且应用未发布时显示 */}
+      {/* Right action buttons: only visible on preview pages before publishing */}
       {isPreviewPage && appStatus !== "published" && (
         <div className="flex items-center gap-2">
           {/* <Button
@@ -310,7 +312,7 @@ export function BreadcrumbNav() {
         </div>
       )}
 
-      {/* 已发布状态显示 */}
+      {/* Published state display */}
       {/* {isPreviewPage && appStatus === "published" && (
         <div className="flex items-center gap-2">
           <Badge

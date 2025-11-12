@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, supabase } from "@/lib/supabase";
 
-// GET /api/apps - 获取应用列表
+// GET /api/apps - Fetch app list
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     // const offset = (page - 1) * limit;
 
-    // 构建查询
+    // Build query
     let query = supabaseAdmin
       .from("apps")
       .select(
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false });
     //   .range(offset, offset + limit - 1);
 
-    // 添加过滤条件
+    // Apply filters
     if (search) {
       query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
     }
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     const { data: apps, error, count } = await query;
 
     if (error) {
-      console.log("获取应用列表错误:", error);
+      console.log("Failed to fetch app list:", error);
       return NextResponse.json({ error: "Failed to fetch app list" }, { status: 500 });
     }
 
@@ -69,12 +69,12 @@ export async function GET(request: NextRequest) {
       //   },
     });
   } catch (error) {
-    console.log("获取应用列表异常:", error);
+    console.log("Unexpected error while fetching app list:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// POST /api/apps - 创建新应用
+// POST /api/apps - Create new app
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -91,12 +91,12 @@ export async function POST(request: NextRequest) {
       app_meta_info,
     } = body;
 
-    // 验证必填字段
+    // Validate required fields
     if (!name) {
       return NextResponse.json({ error: "App name cannot be empty" }, { status: 400 });
     }
 
-    // 获取当前用户（从请求头或token中获取）
+    // Retrieve current user (from request header/token)
     const authHeader = request.headers.get("Authorization");
     let userId = null;
 
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Invalid authentication token" }, { status: 401 });
       }
 
-      // 从users表获取用户ID
+      // Fetch user ID from users table
       const { data: userProfile, error: userError } = await supabaseAdmin
         .from("users")
         .select("id")
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing authentication token" }, { status: 401 });
     }
 
-    // 检查应用名称是否已存在（同一用户下）
+    // Verify whether app name already exists for this user
     const { data: existingApp, error: checkError } = await supabaseAdmin
       .from("apps")
       .select("id, name")
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (checkError) {
-      console.log("检查应用名称错误:", checkError);
+      console.log("Failed to check app name:", checkError);
       return NextResponse.json({ error: "Failed to check app name" }, { status: 500 });
     }
 
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 解析 connection_id：优先使用前端传入；否则为当前用户选取最近激活的数据连接
+    // Resolve connection_id: prefer client supplied value, otherwise use latest active connection for user
     let resolvedConnectionId: string | null = bodyConnectionId ?? null;
     if (!resolvedConnectionId) {
       const { data: latestConn, error: latestConnError } = await supabaseAdmin
@@ -165,8 +165,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 创建应用
-    // 规范化 app_meta_info：允许传字符串/对象，直接写入 JSON 字段
+    // Create app
+    // Normalize app_meta_info: accept string/object directly for JSON column
     let normalizedAppMetaInfo: any = null;
     try {
       if (typeof app_meta_info === "string") {
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
         normalizedAppMetaInfo = app_meta_info;
       }
     } catch (e) {
-      console.warn("app_meta_info 解析失败，按空处理", e);
+      console.warn("Failed to parse app_meta_info, defaulting to null", e);
       normalizedAppMetaInfo = null;
     }
 
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
       )
       .single();
 
-    // 如果因为列不存在导致失败，回退去掉 app_meta_info 再试
+    // Fall back: if insert fails due to missing column, retry without app_meta_info
     if (appInsert.error && normalizedAppMetaInfo) {
       const msg = appInsert.error.message || "";
       if (msg.includes("app_meta_info") || msg.includes("column")) {
@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
     const { data: app, error } = appInsert;
 
     if (error) {
-      console.log("创建应用错误:", error);
+      console.log("Failed to create app:", error);
       return NextResponse.json(
         { error: "Failed to create app", details: error.message || String(error) },
         { status: 500 }
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
       data: app,
     });
   } catch (error) {
-    console.log("创建应用异常:", error);
+    console.log("Unexpected error while creating app:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

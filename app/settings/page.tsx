@@ -67,7 +67,7 @@ export default function SettingsPage() {
     try {
       const { data, error } = await supabase.auth.getSession()
       if (error) {
-        console.warn("刷新 Supabase 会话失败:", error)
+        console.warn("Failed to refresh Supabase session:", error)
       }
       if (data?.session?.access_token) {
         accessToken = data.session.access_token
@@ -77,7 +77,7 @@ export default function SettingsPage() {
         resolvedAccessToken: accessToken,
       })
     } catch (error) {
-      console.warn("获取 Supabase 会话异常:", error)
+      console.warn("Unexpected error while fetching Supabase session:", error)
     }
     return accessToken
   }, [session?.access_token, user?.id])
@@ -116,7 +116,7 @@ export default function SettingsPage() {
     avatar_url?: string | null
   }
 
-  // 获取用户资料
+  // Fetch user profile data
   useEffect(() => {
     const fetchUserProfile = async () => {
       console.log("[SettingsPage] fetchUserProfile - start", {
@@ -222,7 +222,7 @@ export default function SettingsPage() {
           null
         updateAvatar(fetchedAvatar ?? null)
       } catch (error) {
-        console.log("获取用户资料异常:", error)
+        console.log("Failed to fetch user profile:", error)
       } finally {
         setProfileLoading(false)
       }
@@ -259,10 +259,10 @@ export default function SettingsPage() {
     }
   }, [updateAvatar])
 
-  // 当切换到 billing 标签时，先检查支付记录，再决定是否加载 Customer Portal
+  // When switching to the billing tab, check payment history before loading the Customer Portal
   useEffect(() => {
     if (activeTab === "billing" && user?.id) {
-      // 如果还没有检查过支付记录，先检查
+      // If payment history has not been checked yet, fetch it first
       if (hasPaymentHistory === null && !checkingPaymentHistory) {
         setCheckingPaymentHistory(true)
         
@@ -273,7 +273,7 @@ export default function SettingsPage() {
               setHasPaymentHistory(data.hasPaymentHistory)
               setPaymentStatus(data.status || null)
               
-              // 如果有支付记录，才加载 Customer Portal
+              // Load the Customer Portal only when payment history exists
               if (data.status === "has_payment_history" && !billingPortalUrl && !billingPortalLoading) {
                 setBillingPortalLoading(true)
                 setBillingPortalError(null)
@@ -287,7 +287,7 @@ export default function SettingsPage() {
                     }
                   })
                   .catch((error) => {
-                console.log("Failed to load Customer Portal:", error)
+                    console.log("Failed to load Customer Portal:", error)
                     setBillingPortalError("Network error. Please try again later.")
                   })
                   .finally(() => {
@@ -295,13 +295,13 @@ export default function SettingsPage() {
                   })
               }
             } else {
-              // 检查失败，默认显示无支付记录
+              // On failure, default to no payment history
               setHasPaymentHistory(false)
               setPaymentStatus("no_payment_history")
             }
           })
           .catch((error) => {
-            console.log("检查支付记录失败:", error)
+            console.log("Failed to check payment history:", error)
             setHasPaymentHistory(false)
             setPaymentStatus("no_payment_history")
           })
@@ -309,7 +309,7 @@ export default function SettingsPage() {
             setCheckingPaymentHistory(false)
           })
       } else if (paymentStatus === "has_payment_history" && !billingPortalUrl && !billingPortalLoading) {
-        // 如果已经有支付记录，但还没有加载 Portal，则加载
+        // If payment history exists but the portal is not loaded yet, load it now
         setBillingPortalLoading(true)
         setBillingPortalError(null)
         
@@ -322,7 +322,7 @@ export default function SettingsPage() {
             }
           })
           .catch((error) => {
-            console.log("加载 Customer Portal 失败:", error)
+            console.log("Failed to load Customer Portal:", error)
             setBillingPortalError("Network error. Please try again later.")
           })
           .finally(() => {
@@ -332,28 +332,28 @@ export default function SettingsPage() {
     }
   }, [activeTab, user?.id, billingPortalUrl, billingPortalLoading, hasPaymentHistory, checkingPaymentHistory, paymentStatus])
 
-  // 处理文件上传
+  // Handle avatar file upload
   const handleFileUpload = async (file: File) => {
     if (!user?.id) {
       setUploadError("Please log in first")
       return
     }
 
-    // 验证文件类型
+    // Validate file type
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]
     if (!allowedTypes.includes(file.type)) {
       setUploadError("Unsupported file type. Supported: JPG, PNG, WebP, GIF")
       return
     }
 
-    // 验证文件大小 (5MB)
+    // Validate file size (5MB)
     const maxSize = 5 * 1024 * 1024
     if (file.size > maxSize) {
       setUploadError("File size exceeds limit (Max 5MB)")
       return
     }
 
-    // 创建预览
+    // Create preview image
     const preview = URL.createObjectURL(file)
     setPreviewUrl(preview)
     setUploadError(null)
@@ -377,22 +377,22 @@ export default function SettingsPage() {
         throw new Error(result.error || "Upload failed")
       }
 
-      // 更新头像URL（添加缓存破坏参数）
+      // Update avatar URL with cache-busting parameter
       const avatarUrlWithCache = `${result.url}?t=${Date.now()}`
       
-      // 预加载新图片，确保加载完成后再切换
+      // Preload the new image to ensure it is ready before switching
       const img = new Image()
       
-      // 设置加载完成和错误处理回调
+      // Register load and error handlers
       let imageLoaded = false
       
       img.onload = () => {
         if (!imageLoaded) {
           imageLoaded = true
-          // 图片加载成功后，更新状态并清除预览
+          // After the image loads, update state and clear the preview
           updateAvatar(avatarUrlWithCache)
           setPreviewUrl(null)
-          // 清理预览URL
+          // Revoke the preview URL
           if (preview) {
             URL.revokeObjectURL(preview)
           }
@@ -402,10 +402,10 @@ export default function SettingsPage() {
       img.onerror = () => {
         if (!imageLoaded) {
           imageLoaded = true
-          // 即使加载失败，也更新URL（可能是网络问题，但URL是正确的）
-          // 保持预览URL一段时间，避免显示fallback
+          // Even if loading fails, update the URL (network hiccup, URL is valid)
+          // Keep the preview for a moment to avoid flashing the fallback
           updateAvatar(avatarUrlWithCache)
-          // 延迟清除预览，给用户更多时间看到预览图
+          // Clear the preview after a short delay so users can see it briefly
           setTimeout(() => {
             setPreviewUrl(null)
             if (preview) {
@@ -415,13 +415,12 @@ export default function SettingsPage() {
         }
       }
       
-      // 设置图片源（这会触发加载）
+      // Set the image source which triggers loading
       img.src = avatarUrlWithCache
       
-      // 如果图片已经在缓存中（complete 为 true），onload 可能不会触发
-      // 所以需要检查 complete 状态
+      // If the image is cached (complete is true), onload might not fire, so check complete
       if (img.complete && img.naturalWidth > 0) {
-        // 图片已在缓存中且有效，立即触发切换
+        // Image already cached and valid, update immediately
         if (!imageLoaded) {
           imageLoaded = true
           updateAvatar(avatarUrlWithCache)
@@ -435,17 +434,17 @@ export default function SettingsPage() {
       setUploadProgress(100)
       setUploadSuccess("Avatar updated successfully")
 
-      // 触发自定义事件，通知其他组件更新头像
+      // Broadcast an avatar-updated event for other components to react
       window.dispatchEvent(new CustomEvent('avatar-updated', { 
         detail: { avatarUrl: avatarUrlWithCache } 
       }))
 
-      // 3秒后自动清除成功提示
+      // Auto-clear the success message after 3 seconds
       setTimeout(() => {
         setUploadSuccess(null)
       }, 3000)
     } catch (error) {
-      console.log("上传头像失败:", error)
+      console.log("Failed to upload avatar:", error)
       setUploadError(error instanceof Error ? error.message : "Upload failed")
       setPreviewUrl(null)
       if (preview) {
@@ -457,24 +456,22 @@ export default function SettingsPage() {
     }
   }
 
-  // 处理文件选择
+  // Handle file selection
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       handleFileUpload(file)
     }
-    // 重置input，允许重复选择同一文件
+    // Reset the input so the same file can be selected again
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
   }
 
-
-  // 获取头像显示URL（优先使用预览，然后是已保存的头像）
-  // avatarUrl 已经包含了缓存破坏参数，直接使用即可
+  // Get the avatar URL (prefer preview, then saved avatar). avatarUrl already has cache busting applied.
   const displayAvatarUrl = previewUrl || avatarUrl || "/placeholder-user.jpg"
 
-  // 获取用户首字母（用于头像占位符）
+  // Derive initials for the avatar fallback
   const getInitials = () => {
     if (displayName) {
       return displayName.charAt(0).toUpperCase()
@@ -505,7 +502,7 @@ export default function SettingsPage() {
                 <AvatarImage 
                   src={displayAvatarUrl || undefined} 
                   alt="Avatar"
-                  key={displayAvatarUrl} // 添加key强制重新渲染，避免缓存问题
+                  key={displayAvatarUrl} // Force re-render to avoid caching issues
                 />
                 <AvatarFallback className="bg-orange-500 text-white text-2xl font-bold">
                   {getInitials()}
@@ -611,7 +608,7 @@ export default function SettingsPage() {
   )
 
   const renderBillingContent = () => {
-    // 如果未登录，显示提示
+    // Show prompt when user is not logged in
     if (!user?.id) {
       return (
         <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -622,7 +619,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 如果正在检查支付记录，显示加载状态
+    // Show loading state when payment history is being checked
     if (checkingPaymentHistory) {
       return (
         <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -634,7 +631,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 如果未绑定 Stripe 账户，显示提示
+    // Display message when the Stripe account is not linked
     if (paymentStatus === "no_vendor") {
       return (
         <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -663,7 +660,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 如果没有支付记录，显示提示
+    // Display message when no payment history exists
     if (paymentStatus === "no_payment_history") {
       return (
         <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -692,7 +689,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 如果正在加载，显示加载状态
+    // Show loading state while the portal is being fetched
     if (billingPortalLoading) {
       return (
         <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -704,7 +701,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 如果加载失败，显示错误信息
+    // Display error message when loading fails
     if (billingPortalError) {
       return (
         <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -725,7 +722,7 @@ export default function SettingsPage() {
                     }
                   })
                   .catch((error) => {
-                    console.log("加载 Customer Portal 失败:", error)
+                    console.log("Failed to load Customer Portal:", error)
                     setBillingPortalError("Network error. Please try again later.")
                   })
                   .finally(() => {
@@ -740,7 +737,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 如果有 URL，显示提示信息和新窗口打开按钮
+    // With a valid URL, show guidance and open-in-new-tab button
     // Note: Stripe Customer Portal does not support embedding inside an iframe (CSP limitation)
     if (billingPortalUrl) {
       return (
@@ -775,7 +772,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 默认状态（不应该到达这里）
+    // Fallback state (should not be reached)
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <div className="text-center">

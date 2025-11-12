@@ -37,13 +37,19 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function printUserInfo(user: User, context: string) {
-  console.log(`\n🎉 ${context} - 用户信息:`);
+  console.log(`\n🎉 ${context} - User Information:`);
   console.log("=====================================");
-  console.log(`📧 邮箱: ${user.email}`);
-  console.log(`🆔 用户ID: ${user.id}`);
-  console.log(`👤 显示名称: ${user.user_metadata?.full_name || "未设置"}`);
-  console.log(`🖼️ 头像URL: ${user.user_metadata?.avatar_url || "未设置"}`);
-  console.log(`📅 创建时间: ${new Date(user.created_at).toLocaleString("en-US")}`);
+  console.log(`📧 Email: ${user.email}`);
+  console.log(`🆔 User ID: ${user.id}`);
+  console.log(
+    `👤 Display Name: ${user.user_metadata?.full_name || "Not Provided"}`
+  );
+  console.log(
+    `🖼️ Avatar URL: ${user.user_metadata?.avatar_url || "Not Provided"}`
+  );
+  console.log(
+    `📅 Created At: ${new Date(user.created_at).toLocaleString("en-US")}`
+  );
   console.log("=====================================\n");
 }
 
@@ -79,7 +85,7 @@ const SIGN_OUT_LOADING_FALLBACK = 3000;
 
 const SUBSCRIPTION_CACHE_KEY = (userId: string) =>
   `subscription_status_${userId}`;
-const SUBSCRIPTION_CACHE_EXPIRY = 5 * 60 * 1000; // 5分钟
+const SUBSCRIPTION_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
 
 function useSubscriptionState(user: User | null) {
   const [subscriptionStatus, setSubscriptionStatus] =
@@ -132,7 +138,7 @@ function useSubscriptionState(user: User | null) {
         setCached(userId, status);
         return status;
       } catch (err) {
-        console.error("❌ 获取订阅状态失败:", err);
+        console.error("❌ Failed to fetch subscription status:", err);
         const cached = getCached(userId);
         if (cached) setSubscriptionStatus(cached);
         throw err;
@@ -197,17 +203,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     latestUserIdRef.current = user?.id;
   }, [user?.id]);
 
-  // 🚀 初始化会话
+  // 🚀 Initialize session
   useEffect(() => {
     const initSession = async () => {
       const { data } = await supabase.auth.getSession();
       if (data.session?.user) {
         setSession(data.session);
         setUser(data.session.user);
-        printUserInfo(data.session.user, "初始会话");
+        printUserInfo(data.session.user, "Initial Session");
         await checkSubscriptionStatus(data.session.user.id);
       } else {
-        console.log("等待 Supabase IndexedDB 恢复会话...");
+        console.log("Waiting for Supabase IndexedDB to restore session...");
         await new Promise((r) => setTimeout(r, 700));
         const retry = await supabase.auth.getSession();
         if (retry.data.session?.user) {
@@ -221,7 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initSession();
   }, [checkSubscriptionStatus]);
 
-  // ✅ 状态变化监听
+  // ✅ Listen for auth state changes
   useEffect(() => {
     const {
       data: { subscription },
@@ -241,7 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [checkSubscriptionStatus, setSubscriptionStatus]);
 
-  // 🚪 登出逻辑
+  // 🚪 Sign-out workflow
   const signOut = async () => {
     const userId = user?.id;
     setLoading(true);

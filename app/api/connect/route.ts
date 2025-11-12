@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   try {
     const { url, key } = await request.json();
-    console.log("连接数据库接口调用:", { url, key });
+    console.log("Connect API invoked:", { url, key });
 
-    // 调用外部 analyze API
+    // Call external analyze API
     const analyzeResponse = await fetch(
       "https://my-connector.onrender.com/analyze",
       {
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     if (!analyzeResponse.ok) {
       const errorData = await analyzeResponse.text();
       throw new Error(
-        `外部API调用失败: ${analyzeResponse.status} - ${errorData}`
+        `External analyze API failed: ${analyzeResponse.status} - ${errorData}`
       );
     }
 
@@ -40,11 +40,14 @@ export async function POST(request: Request) {
       analyzeResult: analyzeData,
     });
   } catch (error) {
-    console.log("连接数据库接口错误:", error);
+    console.log("Connect API error:", error);
     return NextResponse.json(
       {
-        error: "连接失败",
-        details: error instanceof Error ? error.message : "无法建立数据库连接",
+        error: "Connection failed",
+        details:
+          error instanceof Error
+            ? error.message
+            : "Unable to establish database connection",
       },
       { status: 500 }
     );

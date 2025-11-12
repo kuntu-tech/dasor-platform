@@ -115,7 +115,7 @@ export async function getVendorStatus(userId: string): Promise<VendorStatusRespo
   }
 }
 
-// OAuth 相关接口
+// OAuth-related interfaces
 export interface OAuthStartRequestBody {
   email: string;
   userId?: string;
@@ -183,11 +183,11 @@ export async function linkVendorAccount(body: OAuthLinkRequestBody): Promise<OAu
   return json;
 }
 
-// 订阅相关接口
+// Subscription-related interfaces
 export interface CreateSubscriptionRequestBody {
   interval: "month" | "year";
-  successUrl?: string; // 支付成功回调 URL（可选）
-  cancelUrl?: string; // 支付取消回调 URL（可选）
+  successUrl?: string; // Callback URL after successful payment (optional)
+  cancelUrl?: string; // Callback URL after payment cancellation (optional)
 }
 
 export interface CreateSubscriptionResponse {
@@ -210,7 +210,7 @@ export async function createSubscription(
   vendorId: number,
   body: CreateSubscriptionRequestBody
 ): Promise<CreateSubscriptionResponse> {
-  // 使用后端代理 API 避免 CORS 问题
+  // Use the backend proxy API to avoid CORS issues
   const res = await fetch(`/api/subscriptions/${vendorId}`, {
     method: "POST",
     headers: {
@@ -220,7 +220,7 @@ export async function createSubscription(
     body: JSON.stringify(body),
   });
 
-  // 尝试解析响应
+  // Attempt to parse the response
   let json: CreateSubscriptionResponse;
   try {
     json = (await res.json()) as CreateSubscriptionResponse;
@@ -232,7 +232,7 @@ export async function createSubscription(
     };
   }
 
-  // 检查响应状态和数据
+  // Validate response status and payload
   if (!res.ok) {
     console.log("Subscription API HTTP error:", res.status, json);
     return {
@@ -241,7 +241,7 @@ export async function createSubscription(
     };
   }
 
-  // 检查响应数据是否有 success 字段
+  // Ensure the response includes a success flag
   if (json.success === false || (json.success === undefined && !json.data?.checkoutUrl)) {
     console.log("Subscription API error:", res.status, json);
     return {
@@ -253,7 +253,7 @@ export async function createSubscription(
   return json;
 }
 
-// 同步订阅状态接口
+// Sync subscription status API
 export interface SyncSubscriptionStatusResponse {
   success: boolean;
   data?: {
@@ -269,13 +269,13 @@ export async function syncSubscriptionStatus(
   vendorId: number,
   sessionId?: string
 ): Promise<SyncSubscriptionStatusResponse> {
-  // 构建请求体（如果提供了 sessionId）
+  // Build the request body (include sessionId when provided)
   const requestBody: { sessionId?: string } = {};
   if (sessionId) {
     requestBody.sessionId = sessionId;
   }
 
-  // 使用后端代理 API 避免 CORS 问题
+  // Use the backend proxy API to avoid CORS issues
   const res = await fetch(`/api/subscriptions/${vendorId}/sync-status`, {
     method: "POST",
     headers: {
@@ -285,7 +285,7 @@ export async function syncSubscriptionStatus(
     body: Object.keys(requestBody).length > 0 ? JSON.stringify(requestBody) : undefined,
   });
 
-  // 尝试解析响应
+  // Attempt to parse the response
   let json: SyncSubscriptionStatusResponse;
   try {
     json = (await res.json()) as SyncSubscriptionStatusResponse;
@@ -297,7 +297,7 @@ export async function syncSubscriptionStatus(
     };
   }
 
-  // 检查响应状态和数据
+  // Validate response status and payload
   if (!res.ok) {
     console.log("Sync-status API HTTP error:", res.status, json);
     return {
@@ -306,7 +306,7 @@ export async function syncSubscriptionStatus(
     };
   }
 
-  // 检查响应数据是否有 success 字段
+  // Ensure the response indicates success
   if (json.success === false) {
     console.log("Sync-status API error:", res.status, json);
     return {
@@ -318,37 +318,37 @@ export async function syncSubscriptionStatus(
   return json;
 }
 
-// App 支付相关接口
+// App payment interfaces
 export interface CreateAppPaymentRequestBody {
-  app_userid: string; // app_users.id - 通过此ID查询获取app_id和用户信息
-  successUrl?: string; // 支付成功回调地址（可选）
-  cancelUrl?: string; // 支付取消回调地址（可选）
+  app_userid: string; // app_users.id – used to look up app_id and user details
+  successUrl?: string; // Callback URL after successful payment (optional)
+  cancelUrl?: string; // Callback URL when payment is cancelled (optional)
 }
 
 export interface CreateAppPaymentResponse {
   success: boolean;
   data?: {
     type: "free" | "paid";
-    url?: string; // 付费 App 的支付链接
-    sessionId?: string; // 付费 App 的 session ID
-    paymentModel?: string; // 支付模式 (subscription/one_time)
-    priceAmount?: number; // 价格
-    message?: string; // 免费 App 的提示信息
+    url?: string; // Payment link for paid apps
+    sessionId?: string; // Session ID for paid apps
+    paymentModel?: string; // Payment mode (subscription/one_time)
+    priceAmount?: number; // Price amount
+    message?: string; // Informational message for free apps
   };
   message?: string;
   error?: string;
-  details?: any; // 错误详情（可选）
+  details?: any; // Additional error details (optional)
 }
 
 /**
- * 创建 App 支付会话
- * @param body 请求参数 { app_userid } - app_userid 对应 app_users.id
- * @returns 支付信息
+ * Create an app payment session
+ * @param body Request payload { app_userid } - corresponds to app_users.id
+ * @returns Payment information
  */
 export async function createAppPayment(
   body: CreateAppPaymentRequestBody
 ): Promise<CreateAppPaymentResponse> {
-  // 使用后端代理 API 避免 CORS 问题
+  // Use the backend proxy API to avoid CORS issues
   const url = `/api/app-payments/create`;
   console.log("Calling createAppPayment:", url, body);
 
@@ -364,7 +364,7 @@ export async function createAppPayment(
 
     console.log("createAppPayment response status:", res.status);
 
-    // 尝试解析响应
+    // Attempt to parse the response
     let json: CreateAppPaymentResponse;
     try {
       json = (await res.json()) as CreateAppPaymentResponse;
@@ -376,10 +376,10 @@ export async function createAppPayment(
       };
     }
 
-    // 检查响应状态
+    // Validate response status
     if (!res.ok) {
       console.log("App Payment API HTTP error:", res.status, json);
-      // 尝试获取更详细的错误信息
+      // Attempt to extract more detailed error information
       const errorMessage = 
         json.error || 
         json.details?.error || 
@@ -394,7 +394,7 @@ export async function createAppPayment(
       };
     }
 
-    // 检查响应数据
+    // Validate response payload
     if (json.success === false) {
       console.log("App Payment API error:", res.status, json);
       return {
