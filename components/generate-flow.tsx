@@ -176,7 +176,10 @@ export function GenerateFlow() {
           }
         }
       } catch (err) {
-        console.warn("Failed to parse run_result_publish, using default payload", err);
+        console.warn(
+          "Failed to parse run_result_publish, using default payload",
+          err
+        );
       }
 
       const response = await fetch(
@@ -354,10 +357,12 @@ export function GenerateFlow() {
         }
 
         if (payload?.status === "failed") {
-        setJobState("failed");
-        setErrorMessage(
-          payload?.error || payload?.message || "Generation failed, please try again"
-        );
+          setJobState("failed");
+          setErrorMessage(
+            payload?.error ||
+              payload?.message ||
+              "Generation failed, please try again"
+          );
           return;
         }
 
@@ -510,11 +515,15 @@ export function GenerateFlow() {
         queries: extractedQueries,
         anchorIndex: anchIndexNum,
         user_id: user?.id || "",
-        supabase_config: {
-          supabase_url: dbConnectionDataObj.connectionUrl,
-          supabase_key: dbConnectionDataObj.apiKey,
-          access_token: dbConnectionDataObj.accessToken,
-        },
+        // supabase_config: {
+        //   supabase_url: dbConnectionDataObj.connectionUrl,
+        //   supabase_key: dbConnectionDataObj.apiKey,
+        //   access_token: dbConnectionDataObj.accessToken,
+        // },
+        connection_id:
+          dbConnectionDataObj.connectionId ||
+          dbConnectionDataObj.connection_id ||
+          undefined,
         app: {
           name: appName,
           description: appDescription,
