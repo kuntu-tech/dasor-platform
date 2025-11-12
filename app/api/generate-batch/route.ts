@@ -13,6 +13,7 @@ type BatchPayload = {
     supabase_url?: string;
     supabase_key?: string;
   };
+  connection_id?: string;
   queries?: unknown[];
   anchorIndex?: unknown;
   app?: {
@@ -31,10 +32,9 @@ const requiredFieldError = (payload: BatchPayload): string | null => {
     return "user_id is required";
   }
   if (
-    !payload.supabase_config?.supabase_url ||
-    !payload.supabase_config?.supabase_key
+    !payload.connection_id
   ) {
-    return "supabase_config must contain supabase_url and supabase_key";
+    return "connection_id is required";
   }
   if (!Array.isArray(payload.queries) || payload.queries.length === 0) {
     return "queries array cannot be empty";
