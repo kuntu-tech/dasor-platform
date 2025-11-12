@@ -59,11 +59,12 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        <div className="mb-8 flex items-center justify-center">
+        <div className="mb-8 flex flex-col items-center justify-center gap-2">
           <CreateAppButton size="lg" className="text-center">
             <Plus className="mr-2 size-4" />
             Create Your App
           </CreateAppButton>
+          <p className="text-sm text-muted-foreground">Import from Supabase</p>
         </div>
 
         {hasApps ? (
