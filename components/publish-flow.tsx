@@ -662,7 +662,6 @@ export function PublishFlow() {
       alert("Failed to load data. Please try again.");
     }
   };
->>>>>>> origin/dev
 
   if (isPublished) {
     return (
