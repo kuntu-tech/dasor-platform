@@ -344,7 +344,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         processedUsers.clear();
         setSubscriptionStatus(null);
         const currentUserId = latestUserIdRef.current;
-        if (currentUserId) clearSubscriptionCache(currentUserId);
+        if (currentUserId) {
+          clearSubscriptionCache(currentUserId);
+          // Clear subscription check session flags
+          if (typeof window !== "undefined") {
+            sessionStorage.removeItem(`subscription_checked_${currentUserId}`);
+            sessionStorage.removeItem(
+              `subscription_popup_shown_${currentUserId}`
+            );
+          }
+        }
         performLocalSignOut();
         syncGuardRef.current = "idle";
         setIsVerifyingSignOut(false);
@@ -365,7 +374,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       clearTimeout(timeoutId);
       subscription.unsubscribe();
-      if (signOutVerifyTimerRef.current) clearTimeout(signOutVerifyTimerRef.current);
+      if (signOutVerifyTimerRef.current)
+        clearTimeout(signOutVerifyTimerRef.current);
       setIsVerifyingSignOut(false);
     };
   }, []);
@@ -429,7 +439,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setUser(null);
     clearLocalAuthArtifacts(id);
-    if (id) clearSubscriptionCache(id);
+    if (id) {
+      clearSubscriptionCache(id);
+      // Clear subscription check session flags
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem(`subscription_checked_${id}`);
+        sessionStorage.removeItem(`subscription_popup_shown_${id}`);
+      }
+    }
     setSubscriptionStatus(null);
 
     try {

@@ -32,26 +32,52 @@ export default function ConnectPage() {
       return;
     }
 
-    // Use cached subscription status when available to avoid loading state
+    // Check if subscription has already been validated in this session
+    const subscriptionCheckedKey = `subscription_checked_${user.id}`;
+    const hasCheckedInSession =
+      sessionStorage.getItem(subscriptionCheckedKey) === "true";
+
+    // Use cached subscription status when available
     if (subscriptionStatus) {
       setChecking(false);
       if (subscriptionStatus.hasActiveSubscription) {
         setAllowed(true);
+        // Mark as checked in session
+        sessionStorage.setItem(subscriptionCheckedKey, "true");
       } else {
         setAllowed(false);
-        router.replace("/?subscription_required=1");
+        // Only redirect if not already checked in this session
+        if (!hasCheckedInSession) {
+          sessionStorage.setItem(subscriptionCheckedKey, "true");
+          router.replace("/?subscription_required=1");
+        }
       }
       return;
     }
 
-    // Only call the API when status is missing and not currently loading
-    // This is rare because subscription is typically checked on sign-in
+    // Only check subscription on first visit (not on refresh)
+    // If subscription was already checked in this session, allow access
+    if (hasCheckedInSession) {
+      setChecking(false);
+      setAllowed(true);
+      return;
+    }
+
+    // Only call the API when status is missing, not loading, and not checked in session
+    // This ensures we only check once per login session
     if (!subscriptionLoading) {
-      refreshSubscriptionStatus().catch((error) => {
-        console.log("Subscription check failed:", error);
-        setChecking(false);
-        router.replace("/?subscription_required=1");
-      });
+      refreshSubscriptionStatus()
+        .then(() => {
+          // Mark as checked after successful check
+          sessionStorage.setItem(subscriptionCheckedKey, "true");
+        })
+        .catch((error) => {
+          console.log("Subscription check failed:", error);
+          setChecking(false);
+          // Mark as checked even on error to prevent repeated checks
+          sessionStorage.setItem(subscriptionCheckedKey, "true");
+          router.replace("/?subscription_required=1");
+        });
     }
   }, [
     user?.id,
@@ -68,12 +94,27 @@ export default function ConnectPage() {
       return;
     }
 
+    // Check if subscription has already been validated in this session
+    const subscriptionCheckedKey = `subscription_checked_${user.id}`;
+    const hasCheckedInSession =
+      sessionStorage.getItem(subscriptionCheckedKey) === "true";
+
     setChecking(false);
     if (subscriptionStatus.hasActiveSubscription) {
       setAllowed(true);
+      // Mark as checked in session
+      sessionStorage.setItem(subscriptionCheckedKey, "true");
     } else {
       setAllowed(false);
-      router.replace("/?subscription_required=1");
+      // Only redirect with parameter if not already checked in this session
+      // This prevents repeated popup on page refresh
+      if (!hasCheckedInSession) {
+        sessionStorage.setItem(subscriptionCheckedKey, "true");
+        router.replace("/?subscription_required=1");
+      } else {
+        // If already checked, redirect to home without parameter to avoid popup
+        router.replace("/");
+      }
     }
   }, [subscriptionStatus, user?.id, loading, router]);
 
