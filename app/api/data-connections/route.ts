@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 查重：同一用户、同一来源、相同 project_id 视为重复
+    // Deduplicate: same user, source, and project_id counts as existing record
     if (connectionInfo && typeof connectionInfo === "object") {
       const projectId = (connectionInfo as any)?.project_id;
       if (projectId) {

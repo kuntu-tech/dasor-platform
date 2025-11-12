@@ -31,7 +31,7 @@ export function CreateAppButton({
   const [currentSubscriptionStatus, setCurrentSubscriptionStatus] =
     useState(subscriptionStatus);
 
-  // 同步订阅状态
+  // Synchronize subscription status
   useEffect(() => {
     setCurrentSubscriptionStatus(subscriptionStatus);
   }, [subscriptionStatus]);
@@ -55,7 +55,7 @@ export function CreateAppButton({
     try {
       setChecking(true);
 
-      // 如果订阅状态已缓存，直接使用
+      // Use cached subscription status when available
       if (currentSubscriptionStatus) {
         if (currentSubscriptionStatus.hasActiveSubscription) {
           router.push(successHref);
@@ -70,9 +70,9 @@ export function CreateAppButton({
         }
       }
 
-      // 如果订阅状态未加载，等待加载完成
+      // Wait for subscription status to load when missing
       if (subscriptionLoading) {
-        // 等待订阅状态加载完成（最多等待3秒）
+        // Await up to 3 seconds for subscription status resolution
         let waitCount = 0;
         while (subscriptionLoading && waitCount < 30) {
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -80,14 +80,14 @@ export function CreateAppButton({
         }
       }
 
-      // 如果还是没有订阅状态，强制刷新
+      // Force refresh if status is still unavailable
       if (!currentSubscriptionStatus && !subscriptionStatus) {
         await refreshSubscriptionStatus();
-        // 等待状态更新（给React状态更新和useEffect执行时间）
+        // Allow time for React state updates and useEffect execution
         await new Promise((resolve) => setTimeout(resolve, 300));
       }
 
-      // 使用最新的订阅状态（优先使用currentSubscriptionStatus，因为它会通过useEffect自动同步）
+      // Prioritize currentSubscriptionStatus because it auto-syncs via useEffect
       const finalStatus = currentSubscriptionStatus || subscriptionStatus;
       if (finalStatus?.hasActiveSubscription) {
         router.push(successHref);

@@ -113,7 +113,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     return ""
   }
 
-  // 处理ESC键关闭
+// Handle ESC key to close the modal
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -123,7 +123,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
 
     if (isOpen) {
       document.addEventListener("keydown", handleEscape)
-      // 防止背景滚动
+      // Prevent background scrolling
       document.body.style.overflow = "hidden"
     }
 
@@ -133,7 +133,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     }
   }, [isOpen, onClose])
 
-  // 获取用户资料
+// Fetch user profile data
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!user?.id) {
@@ -145,7 +145,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
         return
       }
 
-      // 先用 Supabase Auth 元数据填充，避免表单短暂为空
+      // Prefill from Supabase Auth metadata to avoid temporary empty fields
       const metadataDisplayName =
         (user.user_metadata?.full_name as string | undefined) ??
         (user.user_metadata?.name as string | undefined) ??
@@ -243,7 +243,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     }
   }, [user?.id, isOpen, avatarCacheKey, updateAvatar, getLatestAccessToken])
 
-  // 当弹窗打开时，设置默认标签页
+// Set the default tab whenever the modal opens
   useEffect(() => {
     if (isOpen) {
       setActiveTab(defaultTab)
@@ -264,10 +264,10 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     }
   }, [updateAvatar])
 
-  // 当切换到 billing 标签时，先检查支付记录，再决定是否加载 Customer Portal
+// When switching to the billing tab, check payment history before loading Customer Portal
   useEffect(() => {
     if (activeTab === "billing" && user?.id) {
-      // 如果还没有检查过支付记录，先检查
+      // Check payment history if not already done
       if (hasPaymentHistory === null && !checkingPaymentHistory) {
         setCheckingPaymentHistory(true)
         
@@ -278,7 +278,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
               setHasPaymentHistory(data.hasPaymentHistory)
               setPaymentStatus(data.status || null)
               
-              // 如果有支付记录，才加载 Customer Portal
+              // Only load the portal when payment history exists
               if (data.status === "has_payment_history" && !billingPortalUrl && !billingPortalLoading) {
                 setBillingPortalLoading(true)
                 setBillingPortalError(null)
@@ -300,7 +300,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
                   })
               }
             } else {
-              // 检查失败，默认显示无支付记录
+              // On failure, default to “no payment history”
               setHasPaymentHistory(false)
               setPaymentStatus("no_payment_history")
             }
@@ -314,7 +314,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
             setCheckingPaymentHistory(false)
           })
       } else if (paymentStatus === "has_payment_history" && !billingPortalUrl && !billingPortalLoading) {
-        // 如果已经有支付记录，但还没有加载 Portal，则加载
+        // Load the portal if payment history exists but the portal has not yet loaded
         setBillingPortalLoading(true)
         setBillingPortalError(null)
         
@@ -337,34 +337,34 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     }
   }, [activeTab, user?.id, billingPortalUrl, billingPortalLoading, hasPaymentHistory, checkingPaymentHistory, paymentStatus])
 
-  // 处理文件上传
+// Handle avatar file upload
   const handleFileUpload = async (file: File) => {
     if (!user?.id) {
       setUploadError("Please log in first")
       return
     }
 
-    // 验证文件类型
+    // Validate file type
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]
     if (!allowedTypes.includes(file.type)) {
       setUploadError("Unsupported file type. Supported: JPG, PNG, WebP, GIF")
       return
     }
 
-    // 验证文件大小 (5MB)
+    // Validate file size (5 MB)
     const maxSize = 5 * 1024 * 1024
     if (file.size > maxSize) {
       setUploadError("File size exceeds limit (Max 5MB)")
       return
     }
 
-    // 创建预览
+    // Create preview URL
     const preview = URL.createObjectURL(file)
     setPreviewUrl(preview)
     setUploadError(null)
     setUploadSuccess(null)
     setAvatarLoading(true)
-    setUploadProgress(50) // 模拟进度
+    setUploadProgress(50) // simulate midpoint progress
 
     try {
       const formData = new FormData()
@@ -382,22 +382,22 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
         throw new Error(result.error || "Upload failed")
       }
 
-      // 更新头像URL（添加缓存破坏参数）
+      // Update avatar URL (append cache-busting param)
       const avatarUrlWithCache = `${result.url}?t=${Date.now()}`
       
-      // 预加载新图片，确保加载完成后再切换
+      // Preload the new image to ensure it’s ready before switching
       const img = new Image()
       
-      // 设置加载完成和错误处理回调
+      // Attach load and error handlers
       let imageLoaded = false
       
       img.onload = () => {
         if (!imageLoaded) {
           imageLoaded = true
-          // 图片加载成功后，更新状态并清除预览
+          // On successful load, update state and clear preview
           updateAvatar(avatarUrlWithCache)
           setPreviewUrl(null)
-          // 清理预览URL
+          // Clean up the preview URL
           if (preview) {
             URL.revokeObjectURL(preview)
           }
@@ -407,10 +407,10 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
       img.onerror = () => {
         if (!imageLoaded) {
           imageLoaded = true
-          // 即使加载失败，也更新URL（可能是网络问题，但URL是正确的）
-          // 保持预览URL一段时间，避免显示fallback
+          // Even if loading fails, update the URL (network issues might be transient)
+          // Keep preview URL briefly to avoid showing fallback immediately
           updateAvatar(avatarUrlWithCache)
-          // 延迟清除预览，给用户更多时间看到预览图
+          // Delay clearing the preview so the user can view it longer
           setTimeout(() => {
             setPreviewUrl(null)
             if (preview) {
@@ -420,13 +420,13 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
         }
       }
       
-      // 设置图片源（这会触发加载）
+      // Assign the image source (this triggers loading)
       img.src = avatarUrlWithCache
       
-      // 如果图片已经在缓存中（complete 为 true），onload 可能不会触发
-      // 所以需要检查 complete 状态
+      // If the image is cached (complete === true), the onload might not fire
+      // therefore check the complete state
       if (img.complete && img.naturalWidth > 0) {
-        // 图片已在缓存中且有效，立即触发切换
+        // Image is cached and valid; update immediately
         if (!imageLoaded) {
           imageLoaded = true
           updateAvatar(avatarUrlWithCache)
@@ -440,12 +440,12 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
       setUploadProgress(100)
       setUploadSuccess("Avatar updated successfully")
 
-      // 触发自定义事件，通知其他组件更新头像
+      // Dispatch a custom event so other components refresh the avatar
       window.dispatchEvent(new CustomEvent('avatar-updated', { 
         detail: { avatarUrl: avatarUrlWithCache } 
       }))
 
-      // 3秒后自动清除成功提示
+      // Automatically remove success message after 3 seconds
       setTimeout(() => {
         setUploadSuccess(null)
       }, 3000)
@@ -462,7 +462,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     }
   }
 
-  // 处理文件选择
+// Handle file picker change
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -474,12 +474,12 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
   }
 
 
-  // 获取头像显示URL（优先使用预览，然后是已保存的头像）
-  // avatarUrl 已经包含了缓存破坏参数，直接使用即可
+// Determine avatar display URL (prefer preview over stored avatar)
+// avatarUrl already contains cache-busting params; use as-is
   const displayAvatarUrl =
     previewUrl || avatarUrl || "/placeholder-user.jpg"
 
-  // 获取用户首字母
+// Derive user initials as fallback
   const getInitials = () => {
     if (displayName) {
       return displayName.charAt(0).toUpperCase()
@@ -510,7 +510,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
                 <AvatarImage 
                   src={displayAvatarUrl || undefined} 
                   alt="Avatar"
-                  key={displayAvatarUrl} // 添加key强制重新渲染，避免缓存问题
+                key={displayAvatarUrl} // force re-render to bypass caching issues
                 />
                 <AvatarFallback className="bg-orange-500 text-white text-2xl font-bold">
                   {getInitials()}
@@ -616,7 +616,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
   )
 
   const renderBillingContent = () => {
-    // 如果未登录，显示提示
+    // Show prompt when the user is not signed in
     if (!user?.id) {
       return (
         <div className="flex items-center justify-center h-full">
@@ -627,7 +627,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
       )
     }
 
-    // 如果正在检查支付记录，显示加载状态
+    // Display loading state while checking payment history
     if (checkingPaymentHistory) {
       return (
         <div className="flex items-center justify-center h-full">
@@ -639,7 +639,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
       )
     }
 
-    // 如果未绑定 Stripe 账户，显示提示
+    // Prompt when Stripe account is not linked
     if (paymentStatus === "no_vendor") {
       return (
         <div className="flex items-center justify-center h-full">
@@ -668,7 +668,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
       )
     }
 
-    // 如果没有支付记录，显示提示
+    // Prompt when no payment history exists
     if (paymentStatus === "no_payment_history") {
       return (
         <div className="flex items-center justify-center h-full">
@@ -697,7 +697,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
       )
     }
 
-    // 如果正在加载，显示加载状态
+    // Render loading state while data is fetching
     if (billingPortalLoading) {
       return (
         <div className="flex items-center justify-center h-full">
@@ -709,7 +709,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
       )
     }
 
-    // 如果加载失败，显示错误信息
+    // Show error message on load failure
     if (billingPortalError) {
       return (
         <div className="flex items-center justify-center h-full">
@@ -745,7 +745,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
       )
     }
 
-    // 如果有 URL，显示提示信息和新窗口打开按钮
+    // Present CTA when the portal URL is available
     // Note: Stripe Customer Portal does not support embedding inside an iframe (CSP limitation)
     if (billingPortalUrl) {
       return (
@@ -780,7 +780,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
       )
     }
 
-    // 默认状态（不应该到达这里）
+    // Default state (should be unreachable)
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -794,13 +794,13 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* 蒙版 */}
+      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
       
-      {/* 窗口 */}
+      {/* Modal window */}
       <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-6xl h-[80vh] mx-4 flex overflow-hidden">
         <Button
           variant="ghost"
@@ -812,7 +812,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
           <span className="sr-only">Close settings</span>
         </Button>
 
-        {/* 左侧导航栏 */}
+        {/* Left sidebar */}
         <div className="w-64 bg-gray-50 border-r border-gray-200 p-6 flex flex-col">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-lg font-semibold">Settings</h2>
@@ -836,7 +836,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
           </nav>
         </div>
 
-        {/* 主内容区 */}
+        {/* Main content area */}
         <div className="flex-1 overflow-y-auto">
           <div className={activeTab === "billing" ? "h-full" : "p-8"}>
             {activeTab === "account" && renderAccountContent()}

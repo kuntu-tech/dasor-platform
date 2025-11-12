@@ -13,47 +13,47 @@ export default function OAuthCallbackPage() {
   const abortControllers = useRef<{ payment?: AbortController; callback?: AbortController }>({});
 
   useEffect(() => {
-    // 防止重复执行
+    // Prevent duplicate execution
     if (hasProcessed.current) {
       return;
     }
 
     const handleCallback = async () => {
-      // 标记为已处理
+      // Flag as processed
       hasProcessed.current = true;
       try {
-        // Stripe OAuth 回调参数
+        // Stripe OAuth callback parameters
         const code = searchParams.get("code");
         const state = searchParams.get("state");
         const error = searchParams.get("error");
         
-        // 后端处理后的结果参数
+        // Parameters returned after backend processing
         const oauth = searchParams.get("oauth");
         const vendorId = searchParams.get("vendorId");
         const accountId = searchParams.get("accountId");
 
         let hasPaymentHistory = true;
 
-        // 如果有 error，说明 Stripe 授权被拒绝
+        // Presence of error indicates Stripe authorization was denied
         if (error) {
           setStatus("error");
           setMessage(decodeURIComponent(error || "Stripe authorization was denied"));
           return;
         }
 
-        // 如果已经是后端处理后的结果（有 oauth 参数）
+        // Handle backend-processed result (identified by oauth param)
         if (oauth === "success") {
           setStatus("success");
           setMessage("Account linked successfully!");
           setTimeout(() => {
-            // 获取保存的来源页面，如果没有则使用首页
+            // Retrieve stored return path; default to homepage
             const returnPath = typeof window !== "undefined" 
               ? sessionStorage.getItem("oauth_return_path") || "/"
               : "/";
             if (typeof window !== "undefined") {
               sessionStorage.removeItem("oauth_return_path");
             }
-            // 返回到来源页面，并带上参数打开设置对话框的 payout 标签页
+            // Return to origin page and append query to open payout tab
             router.push(`${returnPath}${returnPath === "/" ? "?" : "&"}openSettings=payout`);
           }, 3000);
           return;
@@ -65,10 +65,10 @@ export default function OAuthCallbackPage() {
           return;
         }
 
-        // 如果是 Stripe 回调（有 code 和 state）
+        // Stripe callback path (when both code and state are provided)
         if (code && state) {
           try {
-            // 先检查当前用户是否有支付记录
+            // Ensure the user has a payment history
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.user?.id) {
               setStatus("error");
@@ -76,7 +76,7 @@ export default function OAuthCallbackPage() {
               return;
             }
 
-            // 检查用户是否有支付记录
+            // Query payment history for the current user
             const paymentController = new AbortController();
             abortControllers.current.payment = paymentController;
             const paymentTimeout = window.setTimeout(() => {
@@ -103,19 +103,18 @@ export default function OAuthCallbackPage() {
 
             if (!checkResponse.ok) {
               console.log("Error checking payment history");
-              // 如果检查失败，继续执行 OAuth 流程
+              // If the check fails, continue OAuth flow regardless
             } else {
               const checkData = await checkResponse.json();
               
-              // 如果没有支付记录，显示静态页面
+              // Show static messaging if no payment history exists
               if (checkData.success && !checkData.hasPaymentHistory) {
                 hasPaymentHistory = false;
                 setMessage("No payment history yet. Completing authorization...");
               }
             }
 
-            // 如果有支付记录，继续执行 OAuth 流程
-            // 通过本地 API 代理转发请求，绕过浏览器限制
+            // Continue the OAuth flow via local proxy when payment history exists
             const callbackUrl = `/api/proxy-oauth-callback?code=${code}&state=${state}`;
             console.log("Calling OAuth callback:", callbackUrl);
             
@@ -167,15 +166,20 @@ export default function OAuthCallbackPage() {
                   : "Account linked successfully! Your payouts will appear here after you receive payments."
               );
               setTimeout(() => {
-                // 获取保存的来源页面，如果没有则使用首页
-                const returnPath = typeof window !== "undefined" 
-                  ? sessionStorage.getItem("oauth_return_path") || "/"
-                  : "/";
+                // Retrieve the saved origin path or default to home
+                const returnPath =
+                  typeof window !== "undefined"
+                    ? sessionStorage.getItem("oauth_return_path") || "/"
+                    : "/";
                 if (typeof window !== "undefined") {
                   sessionStorage.removeItem("oauth_return_path");
                 }
-                // 返回到来源页面，并带上参数打开设置对话框的 payout 标签页
-                router.push(`${returnPath}${returnPath === "/" ? "?" : "&"}openSettings=payout`);
+                // Navigate back with query parameter to open the payout tab
+                router.push(
+                  `${returnPath}${
+                    returnPath === "/" ? "?" : "&"
+                  }openSettings=payout`
+                );
               }, 3000);
             } else {
               setStatus("error");
@@ -193,7 +197,7 @@ export default function OAuthCallbackPage() {
           return;
         }
 
-        // 既不是 Stripe 回调也不是后端结果
+        // Invalid scenario: neither Stripe callback nor backend result
         setStatus("error");
         setMessage("Invalid callback parameters");
       } catch (error) {

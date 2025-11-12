@@ -72,11 +72,11 @@ export function ConditionalSidebar({
       }
     } catch (error) {
       setHasConnectedStripeAccount(null);
-      console.log("获取Stripe连接状态失败:", error);
+      console.log("Failed to retrieve Stripe connection status:", error);
     }
   }, [user?.id]);
 
-  // 获取用户头像
+  // Retrieve user avatar
   const avatarCacheKey = useMemo(() => {
     if (typeof window === "undefined") {
       return null;
@@ -112,7 +112,7 @@ export function ConditionalSidebar({
     try {
       const { data, error } = await supabase.auth.getSession();
       if (error) {
-        console.warn("刷新 Supabase 会话失败:", error);
+        console.warn("Failed to refresh Supabase session:", error);
       }
       if (data?.session?.access_token) {
         accessToken = data.session.access_token;
@@ -122,7 +122,7 @@ export function ConditionalSidebar({
         resolvedAccessToken: accessToken,
       });
     } catch (error) {
-      console.warn("获取 Supabase 会话异常:", error);
+      console.warn("Unexpected error while getting Supabase session:", error);
     }
     return accessToken;
   }, [session?.access_token, user?.id]);
@@ -195,7 +195,7 @@ export function ConditionalSidebar({
         metadataAvatar,
       });
     } catch (error) {
-      console.log("获取用户头像失败:", error);
+      console.log("Failed to fetch user avatar:", error);
       const metadataAvatar =
         (user?.user_metadata?.avatar_url as string | undefined) ??
         (user?.user_metadata?.picture as string | undefined) ??
@@ -268,7 +268,7 @@ export function ConditionalSidebar({
     };
   }, [fetchStripeStatus]);
 
-  // 监听头像更新事件
+  // Listen for avatar update events
   useEffect(() => {
     const handleAvatarUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ avatarUrl?: string }>).detail;
@@ -286,16 +286,16 @@ export function ConditionalSidebar({
     };
   }, [fetchUserAvatar]);
 
-  // 检查 URL 参数，如果需要打开设置对话框
+  // Inspect URL parameters to decide whether the settings dialog should open
   useEffect(() => {
     const openSettings = searchParams.get("openSettings");
     if (openSettings) {
-      // 验证标签页是否有效
+      // Verify that the requested tab name is valid
       const validTabs = ["account", "billing", "payout"];
       if (validTabs.includes(openSettings)) {
         setSettingsDefaultTab(openSettings);
         setIsSettingsOpen(true);
-        // 清除 URL 参数，避免刷新时重复打开
+        // Remove URL parameters so refreshes do not reopen the dialog
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.delete("openSettings");
         router.replace(newUrl.pathname + (newUrl.search || ""), { scroll: false });
@@ -303,7 +303,7 @@ export function ConditionalSidebar({
     }
   }, [searchParams, router]);
 
-  // 公开页面路径（不需要认证的页面）
+  // Public routes that do not require authentication
   const publicPaths = [
     "/auth/login",
     "/auth/register",
@@ -319,11 +319,11 @@ export function ConditionalSidebar({
     (user?.user_metadata?.picture as string | undefined) ??
     "/placeholder-user.jpg";
 
-  // 顶部导航栏组件
+  // Top navigation bar component
   const TopNavBar = () => (
     <div className="fixed top-0 left-0 right-0 z-50 bg-white px-4 py-3">
       <div className="flex items-center justify-between">
-        {/* Logo - 左上角 */}
+        {/* Logo - top-left */}
         <Link href="/" className="flex items-center gap-2">
           {/* <div className="size-10 rounded-lg bg-primary flex items-center justify-center"> */}
           <img src="/logo.png" alt="Logo" className="size-10 object-contain" />
@@ -331,7 +331,7 @@ export function ConditionalSidebar({
           <span className="text-lg font-semibold text-gray-900">Datail</span>
         </Link>
 
-        {/* 用户头像 - 右上角 */}
+        {/* User avatar - top-right */}
         <Popover>
           <PopoverTrigger asChild>
             <div className="relative cursor-pointer hover:ring-2 hover:ring-gray-300 hover:ring-offset-2 rounded-full transition-all duration-200">
@@ -417,9 +417,9 @@ export function ConditionalSidebar({
                   try {
                     await signOut();
                   } catch (error) {
-                    console.log("登出失败:", error);
+                    console.log("Sign-out failed:", error);
                   } finally {
-                    // 等待状态更新后再跳转，确保状态同步
+                    // Wait briefly before redirecting to ensure state sync
                     setTimeout(redirectToLogin, 50);
                   }
                 }}

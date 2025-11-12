@@ -31,7 +31,7 @@ interface AnalysisData {
   marketsData: MarketSegment[];
 }
 interface MarketExplorationPageProps {
-  marketsData?: any[]; // 兼容新接口段数据
+  marketsData?: any[]; // Compatible with new API segment payloads
 }
 type RefreshType =
   | "none"
@@ -67,9 +67,9 @@ export default function MarketExplorationPage({
     }
   }, [segmentsData]);
 
-  // 加载指定版本的数据
+  // Load data for a specific version
   const loadVersionData = async (runId: string) => {
-    // 如果正在生成中，不允许切换版本
+    // Block switching when generation is in progress
     if (isGenerating) {
       console.warn("Cannot switch version while generating is in progress");
       return;
@@ -78,12 +78,12 @@ export default function MarketExplorationPage({
     try {
       console.log("Loading data for run_id:", runId);
 
-      // 显示加载状态（切换版本）
+      // Show loading state while switching versions
       setIsGenerating(true);
       setGenerationProgress(0);
       setRefreshType("switching-version");
 
-      // 从 localStorage 获取 user_id 和 task_id
+      // Read user_id and task_id from localStorage
       const runResultStr = localStorage.getItem("run_result");
       let userId = user?.id || "";
       let taskId = "";
@@ -104,7 +104,7 @@ export default function MarketExplorationPage({
         return;
       }
 
-      // 调用 API 获取对应版本的数据（需要传递 user_id 和 task_id）
+      // Call API to fetch version data (requires user_id and task_id)
       setGenerationProgress(30);
       const response = await fetch(
         `/api/run-result/${runId}?user_id=${userId}&task_id=${taskId}`
@@ -127,11 +127,11 @@ export default function MarketExplorationPage({
 
       console.log("Loaded version data:", runResult);
 
-      // 更新 localStorage
+      // Update localStorage
       setGenerationProgress(70);
       localStorage.setItem("run_result", JSON.stringify(runResult));
 
-      // 如果有 segments 数据，更新页面
+      // Update page state when segment data exists
       setGenerationProgress(85);
       if (runResult.segments && Array.isArray(runResult.segments)) {
         const mapped = runResult.segments.map((seg: any) => ({
@@ -146,7 +146,7 @@ export default function MarketExplorationPage({
         localStorage.setItem("marketsData", JSON.stringify(mapped));
       }
 
-      // 更新 standalJson（如果存在）
+      // Refresh standalJson cache when available
       if (runResult.anchIndex !== undefined || runResult.segments) {
         localStorage.setItem(
           "standalJson",
@@ -159,7 +159,7 @@ export default function MarketExplorationPage({
 
       setGenerationProgress(100);
 
-      // 延迟后隐藏加载状态
+      // Hide loading state after a short delay
       setTimeout(() => {
         setIsGenerating(false);
         setGenerationProgress(0);
@@ -172,7 +172,7 @@ export default function MarketExplorationPage({
     }
   };
 
-  // 获取版本列表的函数
+  // Fetch the list of available versions
   const fetchVersions = async (shouldLoadData = true) => {
     if (!user?.id) {
       console.warn("No user ID, cannot fetch versions");
@@ -180,7 +180,7 @@ export default function MarketExplorationPage({
     }
 
     try {
-      // 只从 run_result 中获取 task_id，不更新，保持不变
+      // Read task_id from run_result only; do not mutate or persist elsewhere
       const runResultStr = localStorage.getItem("run_result");
       let taskId = "";
 
@@ -207,7 +207,7 @@ export default function MarketExplorationPage({
         return;
       }
 
-      // 调用 API 获取版本列表（必须同时提供 user_id 和 task_id）
+      // Call API to fetch version list (requires both user_id and task_id)
       const apiUrl = `/api/run-results?user_id=${user.id}&task_id=${taskId}`;
 
       console.log("Fetching versions from:", apiUrl);
@@ -219,7 +219,7 @@ export default function MarketExplorationPage({
           headers: {
             "Content-Type": "application/json",
           },
-          cache: "no-store", // 禁用缓存，避免使用缓存的错误响应
+          cache: "no-store", // Disable caching to avoid stale responses
         });
 
         if (!response.ok) {
@@ -236,10 +236,10 @@ export default function MarketExplorationPage({
         const runResults = result.data || [];
         console.log("Fetched run results:", runResults);
 
-        // 将 run_id (r_1, r_2...) 映射为显示格式 (v1, v2...)
+        // Map run_id (r_1, r_2, ...) to display labels (v1, v2, ...)
         const versionList = runResults.map((item: any) => {
           const runId = item.run_id || "";
-          // 提取数字部分：r_1 -> 1, r_2 -> 2
+          // Extract numeric portion: r_1 -> 1, r_2 -> 2
           const match = runId.match(/r_(\d+)/);
           const number = match ? match[1] : "";
           const display = number ? `v${number}` : runId;
@@ -250,7 +250,7 @@ export default function MarketExplorationPage({
           };
         });
 
-        // 按 run_id 降序排列（最新的在前）
+        // Sort run_id descending so newest appears first
         versionList.sort((a: any, b: any) => {
           const numA = parseInt(a.runId.match(/r_(\d+)/)?.[1] || "0");
           const numB = parseInt(b.runId.match(/r_(\d+)/)?.[1] || "0");
@@ -261,30 +261,30 @@ export default function MarketExplorationPage({
 
         setVersions(versionList);
 
-        // 创建映射表
+        // Build a lookup map
         const map = new Map<string, string>();
         versionList.forEach((v: any) => {
           map.set(v.display, v.runId);
         });
         setVersionMap(map);
 
-        // 设置默认选中第一个版本（最新的版本）
+        // Default to the first (latest) version
         if (versionList.length > 0) {
           const firstVersion = versionList[0];
           console.log("Setting selected version to:", firstVersion.display);
           console.log("Total versions found:", versionList.length);
 
-          // 只有在 shouldLoadData 为 true 时才加载数据
-          // 首次进入时（shouldLoadData = false），只设置选中版本，不加载数据
+          // Load data only when shouldLoadData is true
+          // On initial entry (shouldLoadData = false), only set selection
           if (shouldLoadData) {
             setSelectedVersion(firstVersion.display);
-            // 自动加载第一个版本的数据
+            // Auto-load the first version
             if (firstVersion.runId) {
               await loadVersionData(firstVersion.runId);
             }
           } else {
-            // 首次进入时，只设置选中版本，不加载数据（避免刷新页面）
-            // 但如果 selectedVersion 为空，则设置默认值
+            // On first entry just set the selected version (avoid refresh)
+            // If selectedVersion is empty, set the default
             if (!selectedVersion) {
               setSelectedVersion(firstVersion.display);
             }
@@ -300,45 +300,44 @@ export default function MarketExplorationPage({
     }
   };
 
-  // 初始加载时获取版本列表（不加载数据，避免刷新页面）
+  // On mount, fetch version list (skip data load to avoid refresh)
   useEffect(() => {
-    // 检查是否是首次生成进入（从 connect-flow 跳转过来的）
-    // 如果是首次生成进入，localStorage 中应该已经有 run_result 和 marketsData
+    // Determine if we arrive immediately after generation (from connect-flow)
+    // In that case, run_result and marketsData should already exist in localStorage
     const runResultStr = localStorage.getItem("run_result");
     const marketsDataStr = localStorage.getItem("marketsData");
 
-    // 如果已经有数据，说明是首次生成进入，不需要调用接口获取版本列表
+    // If data already exists, treat as first-time entry and skip API call
     if (runResultStr && marketsDataStr) {
-      console.log("首次生成进入，已有数据，跳过版本列表接口调用");
+      console.log("First-time generation entry detected, skip version list API call");
 
-      // 只从 localStorage 中提取版本信息（如果有的话）
+      // Pull version info from localStorage when possible
       try {
         const runResult = JSON.parse(runResultStr);
         if (runResult.run_id) {
-          // 提取 run_id 并设置版本显示
+          // Extract run_id and compute display label
           const match = runResult.run_id.match(/r_(\d+)/);
           const number = match ? match[1] : "";
           const display = number ? `v${number}` : runResult.run_id;
 
-          // 设置版本信息（不调用接口）
+          // Populate version state without API calls
           setVersions([{ display, runId: runResult.run_id }]);
           setVersionMap(new Map([[display, runResult.run_id]]));
           if (!selectedVersion) {
             setSelectedVersion(display);
           }
 
-          // task_id 只从 run_result 中读取，不更新，保持不变
-          // 不需要保存到 localStorage 或更新状态
+          // task_id stays read-only from run_result
         }
       } catch (e) {
         console.log("Failed to parse run_result:", e);
       }
 
-      return; // 首次生成进入，不调用接口
+      return; // Early exit for first-time generation entry
     }
 
-    // 如果不是首次生成进入（刷新页面或直接访问），才调用接口获取版本列表
-    console.log("非首次进入，调用接口获取版本列表");
+    // For refresh or direct visit, fetch versions via API
+    console.log("Not first-time entry, fetching version list via API");
     fetchVersions(false);
   }, [user?.id]);
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisData | null>(
@@ -354,8 +353,8 @@ export default function MarketExplorationPage({
   const [versions, setVersions] = useState<
     Array<{ display: string; runId: string }>
   >([]);
-  const [versionMap, setVersionMap] = useState<Map<string, string>>(new Map()); // display -> runId 映射
-  // task_id 只从 run_result 中读取，不保存状态，不更新
+  const [versionMap, setVersionMap] = useState<Map<string, string>>(new Map()); // display -> runId mapping
+  // task_id is read only from run_result; do not store or update separately
 
   const pollJobProgress = useCallback(
     async (
@@ -598,9 +597,9 @@ export default function MarketExplorationPage({
   const handleSend = async () => {
     if (!inputValue.trim()) return;
 
-    // 调用 feedback-mrf/process 接口
+    // Invoke the feedback-mrf/process endpoint
     try {
-      // 从 localStorage 获取必要的数据
+      // Load required data from localStorage
       const runResultStr = localStorage.getItem("run_result");
       const dbConnectionDataStr = localStorage.getItem("dbConnectionData");
 
@@ -625,21 +624,24 @@ export default function MarketExplorationPage({
         }
       }
 
-      // 根据选中的版本获取对应的 run_id
+      // Determine run_id based on the selected version
       const baseRunId =
         versionMap.get(selectedVersion) || runResult?.run_id || "r_1";
 
-      // 获取 task_id：只从 run_result 中读取，不更新，保持不变
+      // Read task_id from run_result only; do not overwrite it
       const taskId = runResult?.task_id || "";
 
       if (!taskId) {
-        // alert("无法获取 task_id，请重新连接数据库");
+        // alert("Unable to retrieve task_id. Please reconnect the database");
         return;
       }
 
-      console.log("聊天生成：使用 task_id（从 run_result 读取）:", taskId);
+      console.log(
+        "Chat generation: using task_id read from run_result:",
+        taskId
+      );
 
-      // 准备请求参数
+      // Assemble request payload
       const requestBody = {
         feedback_text: inputValue.trim(),
         base_run_id: baseRunId,
@@ -654,10 +656,10 @@ export default function MarketExplorationPage({
 
       setIsGenerating(true);
       setGenerationProgress(0);
-      // 生成开始时关闭版本下拉框
+      // Close the version dropdown while generation runs
       setIsVersionDropdownOpen(false);
 
-      // 第一步：调用 feedback-mrf/process 接口 (0% -> 30%)
+      // Step 1: call feedback-mrf/process (0% → 30%)
       setGenerationProgress(10);
       const response = await fetch(
         // "http://localhost:8000/api/v1/feedback-mrf/process",
@@ -678,7 +680,7 @@ export default function MarketExplorationPage({
         alert("Clarify your prompt so the system can continue");
       }
 
-      setGenerationProgress(30); // feedback-mrf/process 完成，进度 30%
+      setGenerationProgress(30); // feedback-mrf/process complete, progress 30%
       const result = await response.json();
       console.log("Feedback API response:", result);
 
@@ -703,7 +705,7 @@ export default function MarketExplorationPage({
         }
       }
 
-      // 检查返回结果中是否有 run_results
+      // Ensure run_results exists in the response
       if (!runResultsPayload) {
         console.warn(
           "No run_results available for standal_sql request",
@@ -715,11 +717,11 @@ export default function MarketExplorationPage({
         return;
       }
 
-      // 第二步：调用 standal_sql 接口 (30% -> 70%)
+      // Step 2: call standal_sql (30% → 70%)
       console.log("Calling standal_sql with run_results...");
-      setGenerationProgress((prev) => Math.max(prev, 40)); // 开始调用 standal_sql，进度 40%
+      setGenerationProgress((prev) => Math.max(prev, 40)); // standal_sql invocation starts, progress 40%
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 600_000); // 10分钟超时
+      const timeout = setTimeout(() => controller.abort(), 600_000); // 10 minute timeout
 
       const standalRes = await fetch(
         "https://business-insight.datail.ai/api/v1/standal_sql",
@@ -733,7 +735,7 @@ export default function MarketExplorationPage({
       );
 
       clearTimeout(timeout);
-      setGenerationProgress(70); // standal_sql 调用完成，进度 70%
+      setGenerationProgress(70); // standal_sql completed, progress 70%
       const standalText = await standalRes.text();
       console.log("standal_sql response:", standalText);
 
@@ -755,7 +757,7 @@ export default function MarketExplorationPage({
 
       console.log("standal_sql completed successfully:", standalJson);
 
-      // 第三步：处理数据并更新 localStorage (70% -> 90%)
+      // Step 3: process data and update localStorage (70% → 90%)
       setGenerationProgress(80);
       if (standalJson?.run_results?.run_result) {
         localStorage.setItem(
@@ -766,11 +768,11 @@ export default function MarketExplorationPage({
           })
         );
 
-        // 更新 run_result（必须在调用 fetchVersions 之前更新）
+        // Update run_result (must happen before calling fetchVersions)
         const updatedRunResult = standalJson.run_results.run_result;
         localStorage.setItem("run_result", JSON.stringify(updatedRunResult));
 
-        // 更新 segmentsData 以刷新页面
+        // Refresh segmentsData so the UI updates immediately
         setGenerationProgress(85);
         const segments = updatedRunResult.segments || [];
         const mapped = segments.map((seg: any) => ({
@@ -784,22 +786,22 @@ export default function MarketExplorationPage({
         setSegmentsData(mapped);
         localStorage.setItem("marketsData", JSON.stringify(mapped));
 
-        // 第四步：刷新版本列表 (90% -> 100%)
+        // Step 4: refresh version list (90% → 100%)
         setGenerationProgress(90);
-        // 确保在 localStorage 更新后再调用，并添加延迟确保数据库写入完成
-        // 使用重试机制，确保能够获取到最新版本
+        // Ensure localStorage is updated before fetching; add delay for DB writes
+        // Use a retry loop to guarantee the latest version is retrieved
         const refreshVersionsWithRetry = async (
           retries = 5,
           delay = 1000,
           initialDelay = 2000
         ) => {
-          // 记录刷新前的版本数量
+          // Record version count before refresh
           const previousVersionCount = versions.length;
           console.log(
             `Previous version count: ${previousVersionCount}, waiting ${initialDelay}ms for database write...`
           );
 
-          // 先等待初始延迟，给数据库足够时间写入
+          // Wait the initial delay to give the database time to persist
           await new Promise((resolve) => setTimeout(resolve, initialDelay));
 
           for (let i = 0; i < retries; i++) {
@@ -808,9 +810,9 @@ export default function MarketExplorationPage({
                 `Refreshing versions (attempt ${i + 1}/${retries})...`
               );
 
-              // 调用 fetchVersions 获取最新版本列表
-              // 注意：这里不能直接调用 fetchVersions，因为它会触发 loadVersionData
-              // 我们需要手动获取版本列表并检查数量
+              // Fetch the newest version list
+              // Note: do not call fetchVersions directly—it will trigger loadVersionData
+              // Instead manually fetch and compare the list size
               const taskId =
                 localStorage.getItem("originalTaskId") ||
                 JSON.parse(localStorage.getItem("run_result") || "{}")
@@ -844,23 +846,23 @@ export default function MarketExplorationPage({
                 `Current version count: ${currentVersionCount}, previous: ${previousVersionCount}`
               );
 
-              // 检查版本数量是否增加（说明新版本已写入数据库）
+              // If the count increases, a new version has been persisted
               if (currentVersionCount > previousVersionCount) {
                 console.log(
                   `New version detected! Count increased from ${previousVersionCount} to ${currentVersionCount}`
                 );
-                // 版本数量增加了，调用完整的 fetchVersions 来更新 UI（需要加载数据）
+                // New version detected: run fetchVersions to refresh UI (and load data)
                 await fetchVersions(true);
-                setGenerationProgress(100); // 所有操作完成，进度 100%
+                setGenerationProgress(100); // All done, progress 100%
                 return;
               } else if (i < retries - 1) {
-                // 版本数量还没增加，继续等待并重试
+                // No new version yet—wait and retry
                 console.log(
                   `Version count not increased yet, waiting ${delay}ms before retry...`
                 );
                 await new Promise((resolve) => setTimeout(resolve, delay));
               } else {
-                // 最后一次重试，即使版本数量没增加也更新（可能是数据库延迟）
+                // Final retry: refresh anyway (database might still be syncing)
                 console.log("Max retries reached, updating versions anyway...");
                 await fetchVersions(true);
                 setGenerationProgress(100);
@@ -871,10 +873,10 @@ export default function MarketExplorationPage({
                 error
               );
               if (i < retries - 1) {
-                // 如果不是最后一次重试，等待后重试
+                // Not the final retry yet; wait and retry
                 await new Promise((resolve) => setTimeout(resolve, delay));
               } else {
-                // 最后一次重试失败，仍然完成进度
+                // Final retry failed; mark progress complete regardless
                 console.log("Failed to refresh versions after all retries");
                 setGenerationProgress(100);
               }
@@ -882,14 +884,14 @@ export default function MarketExplorationPage({
           }
         };
 
-        // 立即开始刷新流程（内部会先等待初始延迟）
+        // Kick off the refresh workflow (internally waits for initial delay)
         refreshVersionsWithRetry();
       } else {
-        // 如果没有数据，直接完成
+        // No data returned; finish immediately
         setGenerationProgress(100);
       }
 
-      // 原有的刷新逻辑（保留用于 UI 更新）
+      // Legacy refresh logic retained for UI updates
       const lowerInput = inputValue.toLowerCase();
       const isVersionChange = lowerInput.includes("change segment");
       let detectedRefreshType: RefreshType = "none";
@@ -922,7 +924,7 @@ export default function MarketExplorationPage({
       }
       setRefreshType(detectedRefreshType);
 
-      // 延迟后重置状态
+      // Reset state after a short delay
       setTimeout(() => {
         if (isVersionChange) {
           const currentVersionNumber = parseInt(
@@ -959,7 +961,7 @@ export default function MarketExplorationPage({
   };
   const handleGenerateApp = () => {
     console.log("Generating ChatApp");
-    // 保留由 ValueQuestionsSection 写入的 selectedProblems（仅当前选中 Tab 的 valueQuestions）
+    // Preserve selectedProblems saved by ValueQuestionsSection (current tab only)
     router.push("/generate");
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -979,7 +981,7 @@ export default function MarketExplorationPage({
             <div className="relative">
               <button
                 onClick={() => {
-                  // 生成过程中不允许打开下拉框
+                  // Disable dropdown while generation is running
                   if (isGenerating) {
                     return;
                   }
@@ -1010,7 +1012,7 @@ export default function MarketExplorationPage({
                           e.preventDefault();
                           e.stopPropagation();
 
-                          // 生成过程中不允许切换版本（双重检查）
+                          // Double-check: disallow version switching while generating
                           if (isGenerating) {
                             console.warn(
                               "Cannot switch version while generating"
@@ -1019,7 +1021,7 @@ export default function MarketExplorationPage({
                             return;
                           }
 
-                          // 如果选择的是当前版本，不重复加载
+                          // Skip reload if user selects the current version
                           if (version.display === selectedVersion) {
                             setIsVersionDropdownOpen(false);
                             return;
@@ -1031,18 +1033,18 @@ export default function MarketExplorationPage({
                             currentVersion: selectedVersion,
                           });
 
-                          // 先关闭下拉框，防止重复点击
+                          // Close dropdown to prevent repeated clicks
                           setIsVersionDropdownOpen(false);
 
-                          // 切换版本时加载对应的数据
-                          // loadVersionData 内部会再次检查 isGenerating 状态
+                          // Load the corresponding data for the selected version
+                          // loadVersionData performs its own isGenerating guard
                           try {
                             await loadVersionData(version.runId);
-                            // 只有在成功加载后才更新选中版本
+                            // Update selection only after data loads successfully
                             setSelectedVersion(version.display);
                           } catch (error) {
                             console.log("Failed to load version data:", error);
-                            // 如果加载失败，恢复原来的选中版本
+                            // On failure keep the previous version selection
                           }
                         }}
                         disabled={isGenerating}
@@ -1059,7 +1061,7 @@ export default function MarketExplorationPage({
                     ))
                   ) : (
                     <div className="px-4 py-2 text-sm text-gray-500">
-                      暂无版本
+                      No versions available
                     </div>
                   )}
                 </div>

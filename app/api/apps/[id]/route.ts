@@ -9,7 +9,7 @@ export async function GET(
 ) {
   const { id: appId } = await params;
   if (!appId) {
-    return NextResponse.json({ error: "缺少 appId" }, { status: 400 });
+    return NextResponse.json({ error: "Missing appId" }, { status: 400 });
   }
 
   try {
@@ -20,18 +20,27 @@ export async function GET(
       .maybeSingle();
 
     if (error) {
-      console.log("查询 app 详情失败:", error);
-      return NextResponse.json({ error: "查询 app 详情失败" }, { status: 500 });
+      console.log("Failed to fetch app details:", error);
+      return NextResponse.json(
+        { error: "Failed to fetch app details" },
+        { status: 500 }
+      );
     }
 
     if (!data) {
-      return NextResponse.json({ error: "未找到对应 app" }, { status: 404 });
+      return NextResponse.json(
+        { error: "App not found" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({ success: true, data });
   } catch (err) {
-    console.log("app 详情接口异常:", err);
-    return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
+    console.log("Unexpected error while fetching app details:", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -55,13 +64,16 @@ async function handleUpdate(
 ) {
   const { id: appId } = await paramsPromise;
   if (!appId) {
-    return NextResponse.json({ error: "缺少 appId" }, { status: 400 });
+    return NextResponse.json({ error: "Missing appId" }, { status: 400 });
   }
 
   try {
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== "object") {
-      return NextResponse.json({ error: "请求体不能为空" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Request body cannot be empty" },
+        { status: 400 }
+      );
     }
 
     const allowedFields = [
@@ -96,12 +108,15 @@ async function handleUpdate(
           payload.app_meta_info = null;
         }
       } catch (e) {
-        console.warn("app_meta_info 解析失败", e);
+        console.warn("Failed to parse app_meta_info", e);
       }
     }
 
     if (Object.keys(payload).length === 0) {
-      return NextResponse.json({ error: "没有可更新的字段" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No fields to update" },
+        { status: 400 }
+      );
     }
 
     const { data, error } = await supabaseAdmin
@@ -112,17 +127,20 @@ async function handleUpdate(
       .single();
 
     if (error) {
-      console.log("更新 app 失败:", error);
+      console.log("Failed to update app:", error);
       return NextResponse.json(
-        { error: "更新 app 失败", details: error.message || String(error) },
+        { error: "Failed to update app", details: error.message || String(error) },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ success: true, data });
   } catch (err) {
-    console.log("更新 app 接口异常:", err);
-    return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
+    console.log("Unexpected error while updating app:", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -132,11 +150,11 @@ export async function DELETE(
 ) {
   const { id: appId } = await params;
   if (!appId) {
-    return NextResponse.json({ error: "缺少 appId" }, { status: 400 });
+    return NextResponse.json({ error: "Missing appId" }, { status: 400 });
   }
 
   try {
-    // 先检查应用是否存在
+    // Verify app exists before deletion
     const { data: existingApp, error: checkError } = await supabaseAdmin
       .from("apps")
       .select("id")
@@ -144,10 +162,10 @@ export async function DELETE(
       .maybeSingle();
 
     if (checkError) {
-      console.log("查询 app 失败:", checkError);
+      console.log("Failed to query app:", checkError);
       return NextResponse.json(
         {
-          error: "删除 app 失败",
+          error: "Failed to delete app",
           details: checkError.message || String(checkError),
         },
         { status: 500 }
@@ -155,10 +173,10 @@ export async function DELETE(
     }
 
     if (!existingApp) {
-      return NextResponse.json({ error: "未找到对应 app" }, { status: 404 });
+      return NextResponse.json({ error: "App not found" }, { status: 404 });
     }
 
-    // 执行删除操作
+    // Perform deletion
     const { data, error } = await supabaseAdmin
       .from("apps")
       .delete()
@@ -166,10 +184,10 @@ export async function DELETE(
       .select();
 
     if (error) {
-      console.log("删除 app 失败:", error);
+      console.log("Failed to delete app:", error);
       return NextResponse.json(
         {
-          error: "删除 app 失败",
+          error: "Failed to delete app",
           details: error.message || String(error),
         },
         { status: 500 }
@@ -178,16 +196,16 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: "应用已删除",
+      message: "App deleted",
       data: data?.[0] || null,
     });
   } catch (err) {
-    console.log("删除 app 接口异常:", err);
+    console.log("Unexpected error while deleting app:", err);
     const errorMessage =
       err instanceof Error ? err.message : String(err) || "Unknown error";
     return NextResponse.json(
       {
-        error: "删除 app 失败",
+        error: "Failed to delete app",
         details: errorMessage,
       },
       { status: 500 }

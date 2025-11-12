@@ -12,7 +12,7 @@ export default function SubscriptionCancelPage() {
   const [vendorId, setVendorId] = useState<string | null>(null)
 
   useEffect(() => {
-    // 从 URL 参数中获取信息
+    // Retrieve info from URL parameters
     const vendorIdParam = searchParams.get("vendorId")
     setVendorId(vendorIdParam)
   }, [searchParams])
@@ -26,7 +26,7 @@ export default function SubscriptionCancelPage() {
   }
 
   const handleTryAgain = () => {
-    // 返回定价页面或订阅页面
+    // Return to pricing or subscription page
     router.push("/")
   }
 

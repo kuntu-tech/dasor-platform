@@ -365,12 +365,12 @@ export function ConnectFlow() {
   const [showInputError, setShowInputError] = useState<boolean>(false);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [accessToken, setAccessToken] = useState("");
-  // 简化的数据库验证函数 - 支持测试用的 URL 和 API Key
+  // Simplified database validation helper supporting test URLs and API keys
   const performRealDatabaseValidation = async (
     url: string,
     key: string
   ): Promise<void> => {
-    // 测试用的有效组合
+    // Valid test combinations
     const validTestCombinations = [
       { url: "https://demo.supabase.co", key: "demo-key-abcdefghijklmnop" },
       {
@@ -384,35 +384,35 @@ export function ConnectFlow() {
       { url: "https://localhost:3000", key: "localhost-key-123456789" },
     ];
 
-    // 特殊测试组合 - 连接成功但数据真实性验证失败
+    // Special test combination: connection succeeds but data validation fails later
     const dataValidationFailedCombination = {
       url: "https://test.supabase.co",
       key: "test-api-key-123456789",
     };
 
-    // 检查是否是数据真实性验证失败的测试组合
+    // Check if this is the data validation failure test combination
     if (
       url === dataValidationFailedCombination.url &&
       key === dataValidationFailedCombination.key
     ) {
-      // 模拟连接验证延迟
+      // Simulate connection validation delay
       await new Promise((resolve) => setTimeout(resolve, 500));
-      // 连接成功，但会在后续步骤中触发数据真实性验证失败
+      // Connection succeeds but subsequent steps will trigger data validation failure
       return;
     }
 
-    // 检查是否是其他测试用的有效组合
+    // Check for other valid test combinations
     const isValidTest = validTestCombinations.some(
       (combo) => url === combo.url && key === combo.key
     );
 
     if (isValidTest) {
-      // 模拟验证延迟
+      // Simulate validation delay
       await new Promise((resolve) => setTimeout(resolve, 500));
-      return; // 验证通过
+      return; // Validation passed
     }
 
-    // 对于其他组合，进行基本格式验证
+    // Perform basic format validation for all other inputs
     if (!url.includes("supabase.co") && !url.includes("localhost")) {
       throw new Error(
         "Invalid Supabase URL format. Try: https://test.supabase.co"
@@ -423,7 +423,7 @@ export function ConnectFlow() {
       throw new Error("Invalid API Key format. Try: test-api-key-123456789");
     }
 
-    // 模拟验证失败（用于测试错误情况）
+    // Simulate validation failure (for testing error scenarios)
     throw new Error(
       "Invalid Supabase URL format. Try: https://test.supabase.co"
     );
@@ -466,11 +466,11 @@ export function ConnectFlow() {
   //       if (currentIndex < steps.length) {
   //         setAnalysisStep(steps[currentIndex]);
 
-  //         // 注意：真实的验证已经在 handleConnect 中完成
-  //         // 这里只是显示进度，不再进行模拟验证
+  //         // Note: Actual validation already happens inside handleConnect
+  //         // This block now only updates progress visuals
   //       } else {
   //         clearInterval(interval);
-  //         // 当所有步骤完成时，设置分析结果并跳转到结果页面
+  //         // When all steps finish, set analysis results and move to the results page
   //         setAnalysisResults(
   //           [
   //             // E-commerce Platform Operators - 10 problems
@@ -767,7 +767,7 @@ export function ConnectFlow() {
   //         );
   //         // setStep("results");
   //       }
-  //     }, 1900); // 缩短为原来的一半以加快分析过程
+  //     }, 1900); // Half the previous duration to speed up analysis
 
   //     return () => clearInterval(interval);
   //   }
@@ -775,20 +775,20 @@ export function ConnectFlow() {
   const handleConnectAPI = async () => {
     console.log("handleConnectAPI");
 
-    // 清除之前的错误信息
+    // Clear previous error messages
     setConnectionError(null);
     setDataValidationError(null);
     setShowInputError(false);
     setStep("analyzing");
     setIsAnalyzing(false);
 
-    // 校验 connectionUrl 格式
+    // Validate connectionUrl format
     if (!connectionUrl || connectionUrl.trim() === "") {
       setConnectionError("Connection URL cannot be empty");
       return;
     }
 
-    // 校验 URL 格式
+    // Validate URL format
     // try {
     //   new URL(connectionUrl);
     // } catch (error) {
@@ -796,13 +796,13 @@ export function ConnectFlow() {
     //   return;
     // }
 
-    // 校验 access token 格式
+    // Validate access token format
     if (!accessToken || accessToken.trim() === "") {
       setConnectionError("access token cannot be empty");
       return;
     }
 
-    // 校验 access token 长度（通常至少8位）
+    // Ensure access token length (typically at least 8 characters)
     if (accessToken.length < 8) {
       setConnectionError("Access token must be at least 8 characters long");
       return;
@@ -812,19 +812,19 @@ export function ConnectFlow() {
       return;
     }
 
-    // 校验 API Key 长度（通常至少8位）
+    // Ensure API Key length (typically at least 8 characters)
     if (apiKey.length < 8) {
       setConnectionError("API key must be at least 8 characters long");
       return;
     }
 
-    // 开始分析流程
+    // Begin the analysis flow
     setStep("analyzing");
     setAnalysisStep("connecting");
     setIsAnalyzing(true);
     console.log(aaaa, "--------------------------------");
     try {
-      // 第一步：连接数据库
+      // Step 1: connect to the database
       console.log("Step 1: Connecting to database...");
       // const connectResponse = await fetch("/api/connect", {
       //   method: "POST",
@@ -864,10 +864,10 @@ export function ConnectFlow() {
       //   "Database connection successful:",
       //   connectData.results.market_analysis
       // );
-      // // 连接成功，进入数据验证步骤
+      // // Connection succeeded, proceed to data validation
       // setAnalysisStep("validating-data");
 
-      // // 第二步：数据验证
+      // // Step 2: data validation
       // console.log("Step 2: Validating data...");
       // const validateResponse = await fetch(
       //   "https://my-connector.onrender.com/review",
@@ -901,10 +901,10 @@ export function ConnectFlow() {
       //   return;
       // }
 
-      // 数据验证成功，继续后续步骤
+      // Data validation succeeded, continue to subsequent steps
       setAnalysisStep("reading-schema");
 
-      // 模拟后续步骤的进度
+      // Simulate progress for the next steps
       const steps = [
         "reading-schema",
         "sampling-data",
@@ -916,7 +916,7 @@ export function ConnectFlow() {
         setAnalysisStep(steps[i] as AnalysisStep);
       }
 
-      // 获取分析结果
+      // Fetch analysis results
       // const analyzeResponse = await fetch("/api/analyze", {
       //   method: "POST",
       //   headers: {
@@ -926,7 +926,7 @@ export function ConnectFlow() {
       // });
 
       // if (!analyzeResponse.ok) {
-      //   throw new Error("分析失败");
+      //   throw new Error("Analysis failed");
       // }
 
       // const analyzeData = await analyzeResponse.json();
@@ -947,7 +947,7 @@ export function ConnectFlow() {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 
-      // 根据当前步骤设置相应的错误
+      // Set the appropriate error based on the current step
       if (analysisStep === "connecting") {
         setConnectionError(`Connection failed: ${errorMessage}`);
       } else if (analysisStep === "validating-data") {
@@ -956,7 +956,7 @@ export function ConnectFlow() {
         setConnectionError(`Processing failed: ${errorMessage}`);
       }
 
-      // 停留在 analyzing step 显示错误状态
+      // Stay on the analyzing step to display error state
       setStep("analyzing");
       setIsAnalyzing(false);
     }
@@ -969,9 +969,9 @@ export function ConnectFlow() {
     setConnectionError(null); // Reset connection error
     setDataValidationError(null); // Reset data validation error
 
-    // 如果已经验证过，直接跳过验证步骤
+    // If already validated, skip the validation steps
     if (hasValidated) {
-      // 直接进入后续流程
+      // Proceed directly to later stages
       setTimeout(() => {
         const initialResults: AnalysisResultItem[] = [
           // E-commerce Platform Operators - 10 problems
@@ -1276,28 +1276,28 @@ export function ConnectFlow() {
         setStep("results");
       }, 500);
     } else {
-      // 如果未验证过，进行真实验证
+      // If validation has not run, perform the real validation
       try {
         await performRealDatabaseValidation(connectionUrl, accessToken);
-        // 验证成功，标记为已验证
+        // Validation succeeded, mark as verified
         setHasValidated(true);
 
-        // 特殊处理：如果是 test.supabase.co 组合，在第二步进行数据真实性验证
+        // Special case: for the test.supabase.co combo, perform authenticity validation in step two
         if (
           connectionUrl === "https://test.supabase.co" &&
           accessToken === "test-api-key-123456789"
         ) {
-          // 模拟数据真实性验证失败
+          // Simulate data authenticity validation failure
           setTimeout(() => {
             setDataValidationError(
               "Data authenticity validation failed: No available data tables or empty data in database"
             );
-          }, 1000); // 缩短为原来的一半
+          }, 1000); // Half of the original duration
           return;
         }
 
-        // 不在这里直接跳转，让 useEffect 中的步骤逻辑处理后续流程
-        // 这样用户可以看到完整的验证进度
+        // Do not jump ahead here; allow the useEffect step logic to continue
+        // This ensures the user can see the full validation progress
         // setTimeout(() => {
         const initialResults: AnalysisResultItem[] = [
           // E-commerce Platform Operators - 10 problems
@@ -1609,7 +1609,7 @@ export function ConnectFlow() {
             error instanceof Error ? error.message : "Unknown error"
           }`
         );
-        // 连接失败时，不继续后续流程
+        // Stop the flow when the connection fails
         return;
       }
     }
@@ -1869,7 +1869,7 @@ Access Tokens"</span>
                 </div>
               </div>
 
-              {/* 测试用的 URL 和 API Key 提示 */}
+              {/* Test URL and API Key hints */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-6 space-y-3">
                 <div className="flex items-start gap-3">
                   <Info className="size-5 text-green-600 mt-0.5 shrink-0" />
@@ -1948,7 +1948,7 @@ Access Tokens"</span>
                   </div>
                 </div>
 
-                {/* 如果数据库连接失败，显示连接错误信息 */}
+                {/* Display database connection error details when failure occurs */}
                 {connectionError && (
                   <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
                     <div className="flex items-start gap-3">
@@ -2020,7 +2020,7 @@ Access Tokens"</span>
 
                 {/* Data Availability Validation */}
 
-                {/* 如果数据真实性验证失败，显示错误信息和建议 */}
+                {/* Show error details and suggestions when data authenticity validation fails */}
                 {dataValidationError && (
                   <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
                     <div className="flex items-start gap-3">

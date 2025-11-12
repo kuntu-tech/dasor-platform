@@ -16,7 +16,7 @@ export default function ForgotPasswordPage() {
 
   const handleResetPassword = async () => {
     if (!email) {
-      setError("请输入邮箱地址");
+      setError("Please enter your email address.");
       return;
     }
 
@@ -30,14 +30,14 @@ export default function ForgotPasswordPage() {
       });
 
       if (error) {
-        console.log("发送重置邮件错误:", error);
-        setError(error.message || "发送重置邮件失败");
+        console.log("Failed to send reset email:", error);
+        setError(error.message || "Failed to send reset email.");
       } else {
-        setSuccess("重置密码邮件已发送，请检查您的邮箱");
+        setSuccess("Password reset email sent. Please check your inbox.");
       }
     } catch (error: any) {
-      console.log("发送重置邮件异常:", error);
-      setError("发送重置邮件失败，请稍后重试");
+      console.log("Unexpected error while sending reset email:", error);
+      setError("Failed to send password reset email. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -113,7 +113,7 @@ export default function ForgotPasswordPage() {
                 className="w-full h-12 bg-black hover:bg-gray-900 text-white font-medium text-base"
                 disabled={loading}
               >
-                {loading ? "发送中..." : "Send Reset Link"}
+                {loading ? "Sending..." : "Send Reset Link"}
               </Button>
 
               {/* Back to Login */}
