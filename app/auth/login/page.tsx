@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
-import Prism from "@/components/Prism";
 import { useAuth } from "@/components/AuthProvider";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,20 +51,10 @@ export default function LoginPage() {
       {/* Left Side - Login Form */}
       <div className="w-1/2 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          {/* Logo */}
-          <div className="mb-8">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                <div className="w-3 h-3 bg-gray-600 rounded-full"></div>
-                <div className="w-3 h-3 bg-gray-600 rounded-full"></div>
-              </div>
-              <span className="text-2xl font-bold text-gray-900">Datail</span>
-            </div>
-          </div>
+       
 
           {/* Main Content */}
-          <div className="space-y-6">
+          <div className="space-y-10">
             {/* Title */}
             <div className="text-center">
               <h1 className="text-2xl font-semibold text-gray-900">
@@ -80,7 +70,7 @@ export default function LoginPage() {
                   htmlFor="email"
                   className="text-sm font-medium text-gray-700"
                 >
-                  EMAIL OR USERNAME
+                  Email Address
                 </Label>
                 <Input
                   id="email"
@@ -98,7 +88,7 @@ export default function LoginPage() {
                   htmlFor="password"
                   className="text-sm font-medium text-gray-700"
                 >
-                  PASSWORD
+                  Password
                 </Label>
                 <div className="relative">
                   <Input
@@ -141,16 +131,7 @@ export default function LoginPage() {
                 Log In
               </Button>
 
-              {/* Forgot Password */}
-              <div className="text-center">
-                <Button
-                  variant="link"
-                  asChild
-                  className="text-sm text-gray-600 hover:text-gray-800 p-0 h-auto"
-                >
-                  <Link href="/auth/forgot-password">Forgot password?</Link>
-                </Button>
-              </div>
+        
 
               {/* SSO Section */}
               <div className="space-y-4">
@@ -199,76 +180,50 @@ export default function LoginPage() {
                   </Button>
                 </div>
               </div>
+      {/* Forgot Password */}
+      <div className="text-right">
+                <Button
+                  variant="link"
+                  asChild
+                  className="text-sm text-gray-600 hover:text-gray-800 p-0 h-auto"
+                >
+                  <Link href="/auth/forgot-password">Forgot password?</Link>
+                </Button>
+              </div>
 
               {/* Sign Up Link */}
-              <div className="text-center pt-4">
+              <div className="text-right ">
                 <span className="text-sm text-gray-600">New to Datail? </span>
                 <Button
                   variant="link"
                   asChild
-                  className="text-sm text-gray-600 hover:text-gray-800 p-0 h-auto font-medium"
+                  className="text-sm text-green-600 hover:text-green-800 p-0 h-auto font-medium"
                 >
                   <Link href="/auth/register">Sign up</Link>
                 </Button>
               </div>
 
-              {/* Help Link */}
-              <div className="text-center">
-                <Button
-                  variant="link"
-                  className="text-sm text-gray-600 hover:text-gray-800 p-0 h-auto"
-                >
-                  Get help
-                </Button>
-              </div>
+          
 
-              {/* Privacy Notice */}
-              <div className="text-center pt-4">
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  This site is protected by reCAPTCHA Enterprise and the Google{" "}
-                  <Button
-                    variant="link"
-                    className="text-xs text-gray-500 hover:text-gray-700 p-0 h-auto underline"
-                  >
-                    Privacy Policy
-                  </Button>{" "}
-                  and{" "}
-                  <Button
-                    variant="link"
-                    className="text-xs text-gray-500 hover:text-gray-700 p-0 h-auto underline"
-                  >
-                    Terms of Service
-                  </Button>{" "}
-                  apply.
-                </p>
-              </div>
+             
             </div>
           </div>
         </div>
       </div>
 
-      {/* Right Side - Text Display with Prism Background */}
+      {/* Right Side - Background Image */}
       <div className="w-1/2 relative">
-        <Prism
-          height={3.5}
-          baseWidth={5.5}
-          animationType="3drotate"
-          glow={1}
-          noise={0.3}
-          transparent={true}
-          scale={2.5}
-          hueShift={0}
-          colorFrequency={1}
-          hoverStrength={2}
-          inertia={0.05}
-          bloom={1}
-          suspendWhenOffscreen={true}
-          timeScale={0.8}
+        <Image
+          src="/jimeng222.png"
+          alt="Login background"
+          fill
+          className="object-cover"
+          priority
         />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <h1 className="text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
-              Data to app, <span className="text-blue-500">fast</span>
+            <h1 className="text-5xl font-extrabold text-white mb-4 tracking-tight">
+              Data to ChatAPP, <span className="text-blue-500">Fast!</span>
             </h1>
           </div>
         </div>

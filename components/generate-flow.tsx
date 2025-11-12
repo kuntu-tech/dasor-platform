@@ -684,7 +684,7 @@ export function GenerateFlow() {
             ) : isSucceeded ? (
               <CheckCircle2 className="size-12 text-green-600 mb-6" />
             ) : (
-              <Loader2 className="size-12 text-blue-600 animate-spin mb-6" />
+              <Loader2 className="size-12 text-gray-600 animate-spin mb-6" />
             )}
 
             <CardDescription className="text-center max-w-md mb-8">
@@ -747,67 +747,67 @@ export function GenerateFlow() {
                   )} */}
                 </div>
               )}
+            </div>
 
-              <div className="mt-8 w-full">
-                <h2 className="text-lg font-medium text-muted-foreground mb-3">
-                  Selected Features:
-                </h2>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {allQuestions.length === 0 ? (
-                    <div className="text-center text-muted-foreground py-8">
-                      <p>
-                        No features selected. Please go back and select
-                        features.
-                      </p>
-                    </div>
-                  ) : (
-                    allQuestions.map((question, index) => {
-                      const statusConfig = {
-                        pending: {
-                          icon: Clock,
-                          color: "text-muted-foreground",
-                          label: "",
-                          bgColor: "bg-gray-50",
-                        },
-                        generating: {
-                          icon: Loader2,
-                          color: "text-blue-600",
-                          label: "Generating",
-                          bgColor: "bg-blue-50",
-                        },
-                        done: {
-                          icon: CheckCircle2,
-                          color: "text-green-600",
-                          label: "",
-                          bgColor: "bg-green-50",
-                        },
-                      };
+            <div className="mt-8 w-full max-w-2xl">
+              <h2 className="text-lg font-medium text-muted-foreground mb-3">
+                Selected Features:
+              </h2>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {allQuestions.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    <p>
+                      No features selected. Please go back and select
+                      features.
+                    </p>
+                  </div>
+                ) : (
+                  allQuestions.map((question, index) => {
+                    const statusConfig = {
+                      pending: {
+                        icon: Clock,
+                        color: "text-gray-600",
+                        label: "",
+                        bgColor: "bg-gray-100",
+                      },
+                      generating: {
+                        icon: Loader2,
+                        color: "text-gray-700",
+                        label: "Generating",
+                        bgColor: "bg-gray-200",
+                      },
+                      done: {
+                        icon: CheckCircle2,
+                        color: "text-green-600",
+                        label: "",
+                        bgColor: "bg-green-50",
+                      },
+                    };
 
-                      const config = statusConfig[question.status];
-                      const Icon = config.icon;
+                    const config = statusConfig[question.status];
+                    const Icon = config.icon;
 
-                      return (
-                        <div
-                          key={question.id}
-                          className={`flex items-center gap-3 text-sm p-3 rounded-lg transition-colors ${config.bgColor}`}
-                        >
-                          {question.status === "generating" && isProcessing ? (
-                            <Icon
-                              className={`size-5 ${config.color} shrink-0 animate-spin`}
-                            />
-                          ) : (
-                            <Icon
-                              className={`size-5 ${config.color} shrink-0`}
-                            />
-                          )}
-                          <span className="text-foreground flex-1">
-                            {index + 1}. {question.text}
-                          </span>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+                    return (
+                      <div
+                        key={question.id}
+                        className={`flex items-center gap-3 text-sm p-3 rounded-lg transition-colors ${config.bgColor}`}
+                      >
+                        {question.status === "generating" && isProcessing ? (
+                          <Icon
+                            className={`size-5 ${config.color} shrink-0 animate-spin`}
+                          />
+                        ) : (
+                          <Icon
+                            className={`size-5 ${config.color} shrink-0`}
+                          />
+                        )}
+                        <span className="text-foreground flex-1">
+                          {index + 1}. {question.text}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
             <Button

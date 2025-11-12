@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { CircleProgress } from "@/components/ui/circle-progress";
 import aaaa from "@/formatted_analysis_result.json";
 type Step = "connect" | "analyzing" | "results";
 type AnalysisStep =
@@ -1501,43 +1502,36 @@ export function ConnectFlow() {
 
     value = Math.max(0, Math.min(100, value));
 
-    const statusClasses: Record<StepVisualStatus, string> = {
-      waiting: "text-muted-foreground bg-transparent",
-      "in-progress": "border-2 border-primary text-primary bg-transparent",
-      completed: "border-2 border-green-500 text-green-600 bg-transparent",
-      error: "border-2 border-red-500 text-red-600 bg-transparent",
-    };
-
     const isCompleted = status === "completed" && value === 100;
 
     return (
       <div className="relative flex h-9 w-9 items-center justify-center">
-        {status === "in-progress" && (
-          <svg
-            className="absolute inset-0 animate-spin"
-            viewBox="0 0 36 36"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle
-              cx="18"
-              cy="18"
-              r="15"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeDasharray="70 94"
-              className="text-primary"
-            />
-          </svg>
-        )}
-        {isCompleted ? (
+        {status === "in-progress" ? (
+          <div className="relative">
+            <div className="animate-spin">
+              <CircleProgress
+                value={25}
+                maxValue={100}
+                size={36}
+                strokeWidth={2}
+                getColor={() => "stroke-primary"}
+                disableAnimation={true}
+                className="text-primary"
+              />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xs font-semibold text-primary">
+                {value}%
+              </span>
+            </div>
+          </div>
+        ) : isCompleted ? (
           <CheckCircle2 className="size-9 text-green-500" />
         ) : (
-          <div
-            className={`relative flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold transition-all duration-300 ${statusClasses[status]}`}
-          >
-            {value}%
+          <div className="relative flex h-9 w-9 items-center justify-center">
+            <span className="text-xs font-semibold text-muted-foreground">
+              {value}%
+            </span>
           </div>
         )}
       </div>
