@@ -7,6 +7,7 @@ import {
   useState,
   useCallback,
   useRef,
+  type ReactNode,
 } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
@@ -89,7 +90,6 @@ function resolveAuthStorageKey() {
 }
 
 const SIGN_OUT_REQUEST_TIMEOUT = 4000;
-const SIGN_OUT_LOADING_FALLBACK = 3000;
 
 function clearLocalAuthArtifacts(userId?: string) {
   if (typeof window === "undefined") return;
@@ -153,13 +153,12 @@ async function checkAndSaveNewUser(user: User, context = "unknown") {
   }
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVerifyingSignOut, setIsVerifyingSignOut] = useState(false);
 
-  // --- Subscription state ---
   const [subscriptionStatus, setSubscriptionStatus] =
     useState<SubscriptionCheckResponse | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
@@ -202,7 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const cached = getCachedSubscription(id);
         if (cached) {
           setSubscriptionStatus(cached);
-          void checkSubscriptionStatus(id, false).catch(console.error);
+          void checkSubscriptionStatus(id, false).catch(console.log);
           return cached;
         }
       }
@@ -213,7 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCachedSubscription(id, status);
         return status;
       } catch (e) {
-        console.error("Failed to fetch subscription:", e);
+        console.log("Failed to fetch subscription:", e);
         const cached = getCachedSubscription(id);
         if (cached) setSubscriptionStatus(cached);
         throw e;
@@ -229,7 +228,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await checkSubscriptionStatus(user.id, false);
   }, [user?.id, checkSubscriptionStatus]);
 
-  // --- Auth core logic ---
   const latestUserIdRef = useRef<string | undefined>(undefined);
   const syncGuardRef = useRef<"idle" | "syncing" | "signing-out">("idle");
   const signOutVerifyTimerRef = useRef<number | null>(null);
@@ -274,6 +272,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        console.log("🔄 Initial auth state loaded:", { session });
         if (session?.user) {
           printUserInfo(session.user, "Initial");
           await checkAndSaveNewUser(session.user, "Initial");
@@ -282,10 +281,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         console.log("Error initializing session:", e);
         setLoading(false);
+        console.log("🔄 Initial auth state loaded:", { session: null });
       }
     };
 
     const performLocalSignOut = () => {
+      if (syncGuardRef.current !== "idle") {
+        console.log("Skipping redundant sign-out cleanup");
+        return;
+      }
       processedUsers.clear();
       clearLocalAuthArtifacts(latestUserIdRef.current);
       setSession(null);
@@ -293,21 +297,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     };
 
-    // Add timeout protection to avoid infinite waiting
     let loadingFinished = false;
     const timeoutId = setTimeout(() => {
       if (!loadingFinished) {
         console.warn("Session fetch timeout, forcing loading to false");
         setLoading(false);
       }
-    }, 10000); // 10 second timeout
+    }, 10000);
 
     getInitialSession().then(() => {
       loadingFinished = true;
       clearTimeout(timeoutId);
     });
 
-    // Listen to auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
@@ -323,12 +325,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(nextSession.user);
         setLoading(false);
 
-        // After successful login, print user info and check if new user
         printUserInfo(nextSession.user, "Sign In Success");
         await checkAndSaveNewUser(nextSession.user, "Sign In Success");
         processedUsers.add(nextSession.user.id);
-        // Automatically check subscription status
-        checkSubscriptionStatus(nextSession.user.id).catch(console.error);
+        checkSubscriptionStatus(nextSession.user.id).catch(console.log);
         return;
       }
 
@@ -341,233 +341,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (event === "SIGNED_OUT") {
-        if (signOutVerifyTimerRef.current) {
-          clearTimeout(signOutVerifyTimerRef.current);
-          signOutVerifyTimerRef.current = null;
-        }
-
-        // Clear processed state, allow reprocessing on next login
         processedUsers.clear();
-        // Clear subscription status
         setSubscriptionStatus(null);
         const currentUserId = latestUserIdRef.current;
-        if (currentUserId) {
-          clearSubscriptionCache(currentUserId);
-        }
-
-        const verifySignOut = async (attempt = 0) => {
-          if (syncGuardRef.current === "signing-out") {
-            console.log(
-              "Explicit sign out flow detected, skipping delayed verification cleanup"
-            );
-            setIsVerifyingSignOut(false);
-            return;
-          }
-
-          const {
-            data: { session: latestSession },
-          } = await supabase.auth.getSession();
-
-          if (latestSession?.user) {
-            console.log(
-              "✅ Session still valid detected, restoring user state"
-            );
-            setSession(latestSession);
-            setUser(latestSession.user);
-            processedUsers.add(latestSession.user.id);
-            setLoading(false);
-            syncGuardRef.current = "idle";
-            signOutVerifyTimerRef.current = null;
-            setIsVerifyingSignOut(false);
-            // Restore subscription status check
-            checkSubscriptionStatus(latestSession.user.id).catch(console.error);
-            return;
-          }
-
-          if (attempt < 3) {
-            console.log(
-              `Attempt ${attempt + 1} delayed verification invalid, retrying...`
-            );
-            signOutVerifyTimerRef.current = window.setTimeout(
-              () => verifySignOut(attempt + 1),
-              700
-            );
-            return;
-          }
-
-          console.log(
-            "🧹 After 3 verifications still no session, performing local cleanup"
-          );
-          performLocalSignOut();
-          syncGuardRef.current = "idle";
-          signOutVerifyTimerRef.current = null;
-          setIsVerifyingSignOut(false);
-        };
-
-        syncGuardRef.current = "syncing";
-        setIsVerifyingSignOut(true);
-        verifySignOut();
-
+        if (currentUserId) clearSubscriptionCache(currentUserId);
+        performLocalSignOut();
+        syncGuardRef.current = "idle";
+        setIsVerifyingSignOut(false);
         return;
       }
 
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
       setLoading(false);
-      if (nextSession?.user) {
-        processedUsers.add(nextSession.user.id);
-      }
+      if (nextSession?.user) processedUsers.add(nextSession.user.id);
     });
 
-    const syncSessionFromStorage = async () => {
-      if (syncGuardRef.current !== "idle") {
-        console.log(
-          `Cross-tab sync: Current state is ${syncGuardRef.current}, skipping sync`
-        );
-        return;
-      }
-
-      syncGuardRef.current = "syncing";
-      try {
-        const {
-          data: { session: latestSession },
-          error,
-        } = await supabase.auth.getSession();
-
-        if (error) {
-          console.warn("Cross-tab sync Supabase session failed:", error);
-          return;
-        }
-
-        if (latestSession?.user) {
-          setSession(latestSession);
-          setUser(latestSession.user);
-          setLoading(false);
-          processedUsers.add(latestSession.user.id);
-        } else {
-          console.log(
-            "Cross-tab sync: Session cleared detected, performing local sign out"
-          );
-          performLocalSignOut();
-        }
-      } catch (error) {
-        console.warn("Cross-tab sync Supabase session exception:", error);
-      } finally {
-        if (syncGuardRef.current === "syncing") {
-          syncGuardRef.current = "idle";
-        }
-      }
-    };
-
-    const handleStorage = (event: StorageEvent) => {
-      if (!event.key) return;
-      const authStorageKey = resolveAuthStorageKey();
-      if (event.key === authStorageKey) {
-        console.log(
-          "Supabase auth storage change detected, attempting to parse storage value"
-        );
-        if (event.newValue) {
-          try {
-            const parsed = JSON.parse(event.newValue);
-            const latestSession = parsed?.currentSession ?? null;
-
-            if (latestSession?.user) {
-              setSession(latestSession);
-              setUser(latestSession.user);
-              setLoading(false);
-              processedUsers.add(latestSession.user.id);
-              return;
-            }
-            console.log(
-              "Storage sync: currentSession is empty, triggering getSession fallback check"
-            );
-          } catch (error) {
-            console.warn(
-              "Failed to parse Supabase auth storage, falling back to getSession",
-              error
-            );
-          }
-          void syncSessionFromStorage();
-        } else {
-          console.log(
-            "Storage sync: Auth info removal detected, triggering getSession to verify session state"
-          );
-          void syncSessionFromStorage();
-        }
-        return;
-      }
-      if (
-        CLEAR_CACHE_KEYS_BASE.includes(event.key) ||
-        (latestUserIdRef.current &&
-          event.key === `cached_avatar_${latestUserIdRef.current}`)
-      ) {
-        console.log(
-          "Cache key removal detected, performing sync update",
-          event.key
-        );
-      }
-    };
-
-    window.addEventListener("storage", handleStorage);
+    window.addEventListener("storage", (e) => {
+      const authKey = resolveAuthStorageKey();
+      if (e.key === authKey) getInitialSession();
+    });
 
     return () => {
       clearTimeout(timeoutId);
       subscription.unsubscribe();
-      window.removeEventListener("storage", handleStorage);
-      if (signOutVerifyTimerRef.current) {
-        clearTimeout(signOutVerifyTimerRef.current);
-        signOutVerifyTimerRef.current = null;
-      }
+      if (signOutVerifyTimerRef.current) clearTimeout(signOutVerifyTimerRef.current);
       setIsVerifyingSignOut(false);
     };
   }, []);
 
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      console.log("🚫 Page unloading, pausing cross-tab sync cleanup logic");
-      syncGuardRef.current = "signing-out";
-      setTimeout(() => {
-        if (syncGuardRef.current === "signing-out") {
-          syncGuardRef.current = "idle";
-        }
-      }, 3000);
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []);
-
-  // Check subscription status when user changes
-  useEffect(() => {
-    if (user?.id && !subscriptionStatus) {
-      // If user exists but no subscription status, check subscription status
-      checkSubscriptionStatus(user.id).catch(console.error);
-    } else if (!user) {
-      // If user doesn't exist, clear subscription status
-      setSubscriptionStatus(null);
-    }
-  }, [user?.id, subscriptionStatus, checkSubscriptionStatus]);
-
   const signInWithGoogle = async () => {
     setLoading(true);
-    console.log("🚀 Starting Google sign in flow...");
-    console.log(`📍 Redirect URL: ${window.location.origin}/auth/callback`);
-
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: `${window.location.origin}/auth/callback` },
       });
-      if (error) {
-        console.log("❌ Google sign in error:", error);
-        throw error;
-      }
-
-      console.log(
-        "✅ OAuth request sent successfully, waiting for redirect..."
-      );
+      if (error) throw error;
     } catch (error) {
       console.log("❌ Google sign in failed:", error);
     } finally {
@@ -582,30 +392,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
       });
-
-      if (error) {
-        console.log("❌ Email sign in error:", error);
-        setLoading(false);
-        throw error;
-      }
-
-      console.log("✅ Email sign in successful:", data);
-
-      // Immediately update state after successful login to ensure state sync
-      // onAuthStateChange will trigger later, but we update state immediately for timely response
-      // Business logic (like checkAndSaveNewUser) is handled uniformly by onAuthStateChange
+      if (error) throw error;
       if (data.session) {
         setSession(data.session);
         setUser(data.session.user);
-        setLoading(false);
-        // Note: checkAndSaveNewUser will be called in onAuthStateChange to avoid duplicate processing
-      } else {
-        setLoading(false);
+        await checkAndSaveNewUser(data.session.user, "Fallback Email SignIn");
       }
-    } catch (error) {
-      console.log("❌ Email sign in failed:", error);
+    } finally {
       setLoading(false);
-      throw error;
     }
   };
 
@@ -615,28 +409,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fullName?: string
   ) => {
     setLoading(true);
-    console.log("📝 Starting email sign up flow...");
-
     try {
-      const { data, error } = await supabase.auth.signUp({
+      await supabase.auth.signUp({
         email,
         password,
         options: { data: { full_name: fullName || "" } },
       });
-
-      if (error) {
-        console.log("❌ Email sign up error:", error);
-        throw error;
-      }
-
-      console.log("✅ Email sign up successful:", data);
-
-      if (data.user && !data.session) {
-        console.log("📧 Please check your email for verification link");
-      }
-    } catch (error) {
-      console.log("❌ Email sign up failed:", error);
-      throw error;
     } finally {
       setLoading(false);
     }
@@ -645,109 +423,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setLoading(true);
     const id = user?.id;
+    processedUsers.clear();
     syncGuardRef.current = "signing-out";
     setIsVerifyingSignOut(false);
-
-    // Immediately update local state to avoid staying on protected pages for too long
     setSession(null);
     setUser(null);
     clearLocalAuthArtifacts(id);
-
-    // Clear subscription status cache
-    if (id) {
-      clearSubscriptionCache(id);
-    }
-    // Clear subscription status
+    if (id) clearSubscriptionCache(id);
     setSubscriptionStatus(null);
 
-    const loadingFallbackTimer = setTimeout(() => {
-      console.info(
-        "[AuthProvider] Sign out is taking longer than expected. Local session has already been cleared."
-      );
-      setLoading(false);
-    }, SIGN_OUT_LOADING_FALLBACK);
-
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const clearLocalSession = async () => {
-      try {
-        const { error: localError } = await supabase.auth.signOut({
-          scope: "local",
-        });
-        if (localError) {
-          console.warn(
-            "⚠️ Failed to clear local Supabase session:",
-            localError
-          );
-        } else {
-          console.log("🧹 Local Supabase session cleared");
-        }
-      } catch (localError) {
-        console.warn(
-          "⚠️ Exception clearing local Supabase session:",
-          localError
-        );
-      }
-    };
-
-    let signOutError: unknown = null;
-    let didTimeout = false;
-
     try {
-      const result = await Promise.race([
+      await Promise.race([
         supabase.auth.signOut({ scope: "global" }),
-        new Promise<"timeout">((resolve) => {
-          timeoutId = setTimeout(() => {
-            console.warn(
-              "⚠️ Supabase signOut timeout, continuing local sign out flow"
-            );
-            resolve("timeout");
-          }, SIGN_OUT_REQUEST_TIMEOUT);
-        }),
+        new Promise((r) => setTimeout(r, SIGN_OUT_REQUEST_TIMEOUT, "timeout")),
       ]);
-
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-
-      if (result !== "timeout") {
-        if (result.error) {
-          console.log("❌ Sign out error:", result.error);
-          signOutError = result.error;
-        }
-
-        console.log("✅ Sign out successful");
-      } else {
-        didTimeout = true;
-        console.info(
-          "[AuthProvider] Supabase signOut timed out; local session cleared and redirecting."
-        );
-      }
-    } catch (error) {
-      console.log("❌ Sign out failed:", error);
-      signOutError = error;
+    } catch (e) {
+      console.warn("Sign out failed:", e);
     } finally {
-      clearTimeout(loadingFallbackTimer);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      await clearLocalSession();
-      if (signOutError) {
-        console.warn(
-          "Exception occurred during sign out, local cleanup completed, can be ignored:",
-          signOutError
-        );
-      }
-      if (didTimeout) {
-        supabase.auth
-          .signOut({ scope: "global" })
-          .catch((err) =>
-            console.warn("Failed to retry global sign out after timeout", err)
-          );
-      }
-      if ((didTimeout || signOutError) && typeof window !== "undefined") {
-        window.location.replace("/auth/login");
-      }
       setLoading(false);
       syncGuardRef.current = "idle";
       setIsVerifyingSignOut(false);
