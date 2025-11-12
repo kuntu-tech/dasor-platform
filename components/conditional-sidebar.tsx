@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -24,8 +24,8 @@ import { SettingsModal } from "@/components/settings-modal";
 import { PricingModal } from "@/components/pricing-modal";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { getVendorStatus } from "@/portable-pages/lib/connectApi";
+import { supabase } from "@/lib/supabase";
 export function ConditionalSidebar({
   children,
 }: {
@@ -43,7 +43,7 @@ export function ConditionalSidebar({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsDefaultTab, setSettingsDefaultTab] = useState("account");
   const [isPricingOpen, setIsPricingOpen] = useState(false);
-  const { signOut, user } = useAuth();
+  const { signOut, user, session } = useAuth();
   const router = useRouter();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasConnectedStripeAccount, setHasConnectedStripeAccount] = useState<boolean | null>(null);
@@ -72,38 +72,185 @@ export function ConditionalSidebar({
       }
     } catch (error) {
       setHasConnectedStripeAccount(null);
-      console.log("获取Stripe连接状态失败:", error);
+      console.log("Failed to retrieve Stripe connection status:", error);
     }
   }, [user?.id]);
 
-  // 获取用户头像
-  const fetchUserAvatar = useCallback(async () => {
-    if (user?.id) {
-      try {
-        const { data, error } = await supabase
-          .from("users")
-          .select("avatar_url")
-          .eq("id", user.id)
-          .single();
-        
-        if (!error && data?.avatar_url) {
-          setAvatarUrl(data.avatar_url);
+  // Retrieve user avatar
+  const avatarCacheKey = useMemo(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    return user?.id ? `cached_avatar_${user.id}` : null;
+  }, [user?.id]);
+
+  const updateAvatar = useCallback(
+    (url: string | null) => {
+      setAvatarUrl(url);
+      if (typeof window === "undefined") {
+        return;
+      }
+      if (!avatarCacheKey) {
+        return;
+      }
+
+      if (url) {
+        localStorage.setItem(avatarCacheKey, url);
+      } else {
+        localStorage.removeItem(avatarCacheKey);
+      }
+    },
+    [avatarCacheKey]
+  );
+
+  const getLatestAccessToken = useCallback(async (): Promise<string | null> => {
+    let accessToken = session?.access_token ?? null;
+    console.log("[ConditionalSidebar] getLatestAccessToken - initial", {
+      userId: user?.id,
+      sessionAccessToken: session?.access_token,
+    });
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.warn("Failed to refresh Supabase session:", error);
+      }
+      if (data?.session?.access_token) {
+        accessToken = data.session.access_token;
+      }
+      console.log("[ConditionalSidebar] getLatestAccessToken - after supabase.auth.getSession", {
+        supabaseAccessToken: data?.session?.access_token,
+        resolvedAccessToken: accessToken,
+      });
+    } catch (error) {
+      console.warn("Unexpected error while getting Supabase session:", error);
+    }
+    return accessToken;
+  }, [session?.access_token, user?.id]);
+
+  const fetchUserAvatar = useCallback(async (): Promise<boolean> => {
+    console.log("[ConditionalSidebar] fetchUserAvatar - start", {
+      userId: user?.id,
+      sessionAccessToken: session?.access_token,
+    });
+    if (!user?.id) {
+      updateAvatar(null);
+      console.log("[ConditionalSidebar] fetchUserAvatar - no user, clear avatar");
+      return false;
+    }
+
+    const accessToken = await getLatestAccessToken();
+    console.log("[ConditionalSidebar] fetchUserAvatar - resolved access token", {
+      accessTokenPresent: Boolean(accessToken),
+    });
+
+    if (!accessToken) {
+      const metadataAvatar =
+        (user.user_metadata?.avatar_url as string | undefined) ??
+        (user.user_metadata?.picture as string | undefined) ??
+        null;
+      updateAvatar(metadataAvatar ?? null);
+      console.log("[ConditionalSidebar] fetchUserAvatar - no access token, using metadata avatar", {
+        metadataAvatar,
+      });
+      return false;
+    }
+
+    try {
+      const response = await fetch("/api/users/self", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: user.id }),
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        console.warn("[ConditionalSidebar] fetchUserAvatar - /api/users/self failed", {
+          status: response.status,
+          statusText: response.statusText,
+        });
+        throw new Error(`Failed to fetch profile: ${response.status}`);
+      }
+
+      const json = await response.json();
+      const avatarUrl =
+        (json?.data?.avatar_url as string | undefined) ?? null;
+
+      if (avatarUrl) {
+        updateAvatar(avatarUrl);
+        console.log("[ConditionalSidebar] fetchUserAvatar - fetched avatar from API", {
+          avatarUrl,
+        });
+        return true;
+      }
+
+      const metadataAvatar =
+        (user.user_metadata?.avatar_url as string | undefined) ??
+        (user.user_metadata?.picture as string | undefined) ??
+        null;
+      updateAvatar(metadataAvatar ?? null);
+      console.log("[ConditionalSidebar] fetchUserAvatar - API returned no avatar, fallback to metadata", {
+        metadataAvatar,
+      });
+    } catch (error) {
+      console.log("Failed to fetch user avatar:", error);
+      const metadataAvatar =
+        (user?.user_metadata?.avatar_url as string | undefined) ??
+        (user?.user_metadata?.picture as string | undefined) ??
+        null;
+      updateAvatar(metadataAvatar ?? null);
+      console.warn("[ConditionalSidebar] fetchUserAvatar - error fallback metadata", {
+        metadataAvatar,
+      });
+    }
+
+    return false;
+  }, [
+    getLatestAccessToken,
+    updateAvatar,
+    user?.id,
+    user?.user_metadata,
+  ]);
+  useEffect(() => {
+    if (!user?.id) {
+      updateAvatar(null);
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      if (avatarCacheKey) {
+        const cachedUrl = localStorage.getItem(avatarCacheKey);
+        if (cachedUrl) {
+          setAvatarUrl(cachedUrl);
         } else {
           const metadataAvatar =
-            user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
-          setAvatarUrl(metadataAvatar);
+            (user.user_metadata?.avatar_url as string | undefined) ??
+            (user.user_metadata?.picture as string | undefined) ??
+            null;
+          setAvatarUrl(metadataAvatar ?? null);
         }
-      } catch (error) {
-        console.log("获取用户头像失败:", error);
-        setAvatarUrl(null);
       }
-    } else {
-      setAvatarUrl(null);
     }
-  }, [user?.id]);
-  useEffect(() => {
-    fetchUserAvatar();
-  }, [fetchUserAvatar]);
+
+    const fetchWithRetry = async (attempt = 0) => {
+      const hasDbAvatar = await fetchUserAvatar();
+
+      if (!hasDbAvatar && attempt < 2) {
+        setTimeout(() => fetchWithRetry(attempt + 1), 500 * (attempt + 1));
+      }
+    };
+
+    fetchWithRetry();
+  }, [
+    avatarCacheKey,
+    fetchUserAvatar,
+    updateAvatar,
+    user?.id,
+    user?.user_metadata?.avatar_url,
+    user?.user_metadata?.picture,
+  ]);
 
   useEffect(() => {
     fetchStripeStatus();
@@ -121,12 +268,12 @@ export function ConditionalSidebar({
     };
   }, [fetchStripeStatus]);
 
-  // 监听头像更新事件
+  // Listen for avatar update events
   useEffect(() => {
     const handleAvatarUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ avatarUrl?: string }>).detail;
       if (detail?.avatarUrl) {
-        setAvatarUrl(detail.avatarUrl);
+        updateAvatar(detail.avatarUrl ?? null);
       } else {
         fetchUserAvatar();
       }
@@ -139,16 +286,16 @@ export function ConditionalSidebar({
     };
   }, [fetchUserAvatar]);
 
-  // 检查 URL 参数，如果需要打开设置对话框
+  // Inspect URL parameters to decide whether the settings dialog should open
   useEffect(() => {
     const openSettings = searchParams.get("openSettings");
     if (openSettings) {
-      // 验证标签页是否有效
+      // Verify that the requested tab name is valid
       const validTabs = ["account", "billing", "payout"];
       if (validTabs.includes(openSettings)) {
         setSettingsDefaultTab(openSettings);
         setIsSettingsOpen(true);
-        // 清除 URL 参数，避免刷新时重复打开
+        // Remove URL parameters so refreshes do not reopen the dialog
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.delete("openSettings");
         router.replace(newUrl.pathname + (newUrl.search || ""), { scroll: false });
@@ -156,7 +303,7 @@ export function ConditionalSidebar({
     }
   }, [searchParams, router]);
 
-  // 公开页面路径（不需要认证的页面）
+  // Public routes that do not require authentication
   const publicPaths = [
     "/auth/login",
     "/auth/register",
@@ -167,16 +314,16 @@ export function ConditionalSidebar({
   const isPublicPage = publicPaths.includes(pathname);
 
   const displayAvatarUrl =
-    avatarUrl ||
-    user?.user_metadata?.avatar_url ||
-    user?.user_metadata?.picture ||
+    avatarUrl ??
+    (user?.user_metadata?.avatar_url as string | undefined) ??
+    (user?.user_metadata?.picture as string | undefined) ??
     "/placeholder-user.jpg";
 
-  // 顶部导航栏组件
+  // Top navigation bar component
   const TopNavBar = () => (
     <div className="fixed top-0 left-0 right-0 z-50 bg-white px-4 py-3">
       <div className="flex items-center justify-between">
-        {/* Logo - 左上角 */}
+        {/* Logo - top-left */}
         <Link href="/" className="flex items-center gap-2">
           {/* <div className="size-10 rounded-lg bg-primary flex items-center justify-center"> */}
           <img src="/logo.png" alt="Logo" className="size-10 object-contain" />
@@ -184,7 +331,7 @@ export function ConditionalSidebar({
           <span className="text-lg font-semibold text-gray-900">Datail</span>
         </Link>
 
-        {/* 用户头像 - 右上角 */}
+        {/* User avatar - top-right */}
         <Popover>
           <PopoverTrigger asChild>
             <div className="relative cursor-pointer hover:ring-2 hover:ring-gray-300 hover:ring-offset-2 rounded-full transition-all duration-200">
@@ -270,9 +417,9 @@ export function ConditionalSidebar({
                   try {
                     await signOut();
                   } catch (error) {
-                    console.log("登出失败:", error);
+                    console.log("Sign-out failed:", error);
                   } finally {
-                    // 等待状态更新后再跳转，确保状态同步
+                    // Wait briefly before redirecting to ensure state sync
                     setTimeout(redirectToLogin, 50);
                   }
                 }}

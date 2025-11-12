@@ -1,6 +1,6 @@
 import { StripeAccount } from '@/lib/types/stripe'
 
-export const mockStripeAccount: StripeAccount | null = null // 初始状态为未连接
+export const mockStripeAccount: StripeAccount | null = null // Initial state indicates no connection
 
 export const mockStripeAccountConnected: StripeAccount = {
   id: 'stripe_1',
@@ -26,10 +26,10 @@ export const mockStripeAccountConnected: StripeAccount = {
 
 export const mockStripeOAuthUrl = 'https://connect.stripe.com/oauth/authorize?response_type=code&client_id=ca_test_1234567890&scope=read_write&redirect_uri=https://your-app.com/stripe/callback'
 
-// 模拟Stripe API调用
+// Mock Stripe API calls
 export const mockStripeAPI = {
   connectAccount: async (authCode: string): Promise<StripeAccount> => {
-    // 模拟API延迟
+    // Simulate API latency
     await new Promise(resolve => setTimeout(resolve, 2000))
     
     return {
@@ -62,7 +62,7 @@ export const mockStripeAPI = {
   
   updatePermissions: async (accountId: string, permissions: Partial<StripeAccount['permissions']>): Promise<StripeAccount> => {
     await new Promise(resolve => setTimeout(resolve, 1000))
-    // 返回更新后的账户信息
+    // Return the updated account information
     return mockStripeAccountConnected
   }
 }

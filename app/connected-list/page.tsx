@@ -40,7 +40,7 @@ export default function ConnectedListPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // 模拟加载已连接的数据源
+    // Simulate fetching connected data sources
     const mockConnectedSources: ConnectedDataSource[] = [
       {
         id: "source-1",
@@ -102,7 +102,7 @@ export default function ConnectedListPage() {
 
   const handleGenerateFromSelected = () => {
     if (selectedSources.size > 0) {
-      // 将选中的数据源信息存储到localStorage，供生成流程使用
+      // Persist selected sources in localStorage for downstream generation flow
       const selectedData = connectedSources.filter(source => selectedSources.has(source.id))
       localStorage.setItem("selectedConnectedSources", JSON.stringify(selectedData))
       router.push("/generate")

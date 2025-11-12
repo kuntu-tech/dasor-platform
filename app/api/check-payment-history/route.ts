@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 1. 检查 dataset_vendors 表中是否有该用户的记录
+    // Step 1: check dataset_vendors for this user's record
     const { data: vendor, error: vendorError } = await supabaseAdmin
       .from("dataset_vendors")
       .select("id")
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 如果没有 vendor 记录，返回未绑定 Stripe 账户
+    // No vendor record means Stripe account is not linked
     if (!vendor) {
       return NextResponse.json({
         success: true,
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 2. 检查 transactions 表中是否有该 vendor_id 的记录
+    // Step 2: check whether transactions exist for the vendor_id
     const { data: transactions, error: transactionsError } = await supabaseAdmin
       .from("transactions")
       .select("id")
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 如果有交易记录，返回 true
+    // Return true when transactions exist
     const hasPaymentHistory = transactions && transactions.length > 0;
 
     return NextResponse.json({

@@ -3,18 +3,28 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { CheckCircle2, ArrowRight, Home, Loader2 } from "lucide-react";
 import { syncSubscriptionStatus } from "@/portable-pages/lib/connectApi";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function SubscriptionSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, refreshSubscriptionStatus } = useAuth();
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [vendorId, setVendorId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncSuccess, setSyncSuccess] = useState(false);
 
-  // 同步订阅状态
+  // Synchronize subscription status
   const handleSyncStatus = async (
     vendorId: string,
     sessionIdValue?: string | null
@@ -24,7 +34,7 @@ export default function SubscriptionSuccessPage() {
     setSyncSuccess(false);
 
     try {
-      // 调用 API 库函数，传递 sessionId（如果有）
+      // Invoke API helper and pass sessionId when available
       const data = await syncSubscriptionStatus(
         Number(vendorId),
         sessionIdValue || undefined
@@ -32,8 +42,17 @@ export default function SubscriptionSuccessPage() {
 
       if (data.success) {
         setSyncSuccess(true);
-        console.log("订阅状态同步成功:", data);
-        // 同步成功后，延迟 2 秒自动跳转到 connect 页面
+        console.log("Subscription status synced:", data);
+        // Refresh subscription status cache
+        if (user?.id) {
+          try {
+            await refreshSubscriptionStatus();
+            console.log("Subscription status cache refreshed");
+          } catch (error) {
+            console.warn("Failed to refresh subscription status cache:", error);
+          }
+        }
+        // After a successful sync, redirect to connect page after 2 seconds
         setTimeout(() => {
           router.push("/connect");
         }, 2000);
@@ -41,30 +60,39 @@ export default function SubscriptionSuccessPage() {
         throw new Error(data.error || "Sync failed");
       }
     } catch (error) {
-      console.log("同步订阅状态错误:", error);
+      console.log("Subscription sync error:", error);
       setSyncError(
         error instanceof Error
           ? error.message
           : "Failed to sync subscription status"
       );
-      // 即使同步失败，也不阻止用户继续，因为 Webhook 可能已经处理
+      // Even if sync fails, allow the user to continue because the webhook may have succeeded
     } finally {
       setIsSyncing(false);
     }
   };
 
   useEffect(() => {
-    // 从 URL 参数中获取 Stripe 返回的信息
+    // Extract Stripe callback parameters from the URL
+    const sessionIdParam = searchParams.get("session_id");
     const vendorIdParam = searchParams.get("vendorId");
 
-    // 调用同步接口确保数据完整（即使 Webhook 已经处理，这里也会确保数据同步）
+    setSessionId(sessionIdParam);
+    setVendorId(vendorIdParam);
+
+    // Call sync endpoint to ensure data consistency, even if the webhook already processed it
     if (vendorIdParam) {
-      handleSyncStatus(vendorIdParam, searchParams.get("session_id"));
+      handleSyncStatus(vendorIdParam, sessionIdParam);
     }
   }, [searchParams]);
 
   const handleGoHome = () => {
     router.push("/");
+  };
+
+  const handleViewSubscription = () => {
+    // Navigate to subscription management page
+    router.push("/settings?tab=billing");
   };
 
   return (
@@ -79,10 +107,13 @@ export default function SubscriptionSuccessPage() {
           <CardTitle className="text-3xl font-bold mb-2">
             Subscription Successful!
           </CardTitle>
+          <CardDescription className="text-lg">
+            Your subscription has been successfully activated
+          </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* 同步状态提示 */}
+          {/* Sync status indicator */}
           {isSyncing && (
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
@@ -103,6 +134,12 @@ export default function SubscriptionSuccessPage() {
             </div>
           )}
 
+          {sessionId && (
+            <div className="text-center text-sm text-muted-foreground">
+              <p>Session ID: {sessionId.substring(0, 20)}...</p>
+            </div>
+          )}
+
           <div className="flex flex-col gap-3">
             {syncSuccess && (
               <Button
@@ -116,6 +153,16 @@ export default function SubscriptionSuccessPage() {
             )}
 
             <Button
+              onClick={handleViewSubscription}
+              variant={syncSuccess ? "outline" : "default"}
+              className="w-full"
+              size="lg"
+            >
+              View Subscription Details
+              <ArrowRight className="ml-2 size-4" />
+            </Button>
+
+            <Button
               onClick={handleGoHome}
               variant="outline"
               className="w-full"
@@ -124,6 +171,12 @@ export default function SubscriptionSuccessPage() {
               <Home className="mr-2 size-5" />
               Return to Home
             </Button>
+          </div>
+
+          <div className="text-center text-sm text-muted-foreground mt-4">
+            <p>
+              Thank you for your subscription! You can now use all Pro features.
+            </p>
           </div>
         </CardContent>
       </Card>

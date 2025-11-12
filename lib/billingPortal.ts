@@ -1,11 +1,11 @@
 import { CONNECT_API_BASE } from "@/portable-pages/lib/connectApi";
 
 /**
- * 获取 Customer Portal URL（不直接打开）
- * @param userId 用户 ID (必填)
- * @param returnUrl 客户完成操作后返回的 URL (可选)
- * @param sessionId Checkout Session ID，用于快速获取 customer ID (可选)
- * @returns Promise<string | null> 返回 URL 或 null（如果失败）
+ * Retrieve the Customer Portal URL without opening it
+ * @param userId Customer identifier (required)
+ * @param returnUrl URL to return to after exiting the portal (optional)
+ * @param sessionId Checkout session ID used to quickly resolve the customer (optional)
+ * @returns Promise<string | null> URL string on success or null when unavailable
  */
 export async function getBillingPortalUrl(
   userId: string,
@@ -39,23 +39,23 @@ export async function getBillingPortalUrl(
     const result = await response.json();
 
     if (result.success && result.data?.url) {
-      console.log("获取 Customer Portal URL 成功:", result.data.url);
+      console.log("Customer Portal URL retrieved successfully:", result.data.url);
       return result.data.url;
     } else {
-      console.log("获取 Customer Portal URL 失败:", result);
+      console.log("Failed to retrieve Customer Portal URL:", result);
       return null;
     }
   } catch (error) {
-    console.log("请求失败:", error);
+    console.log("Request failed:", error);
     return null;
   }
 }
 
 /**
- * 打开 Customer Portal (账单门户) - 在新窗口打开
- * @param userId 用户 ID (必填)
- * @param returnUrl 客户完成操作后返回的 URL (可选)
- * @param sessionId Checkout Session ID，用于快速获取 customer ID (可选)
+ * Open the Customer Portal (billing portal) in a new window
+ * @param userId Customer identifier (required)
+ * @param returnUrl URL to navigate back to after completion (optional)
+ * @param sessionId Checkout session ID to quickly resolve the customer (optional)
  */
 export async function openBillingPortal(
   userId: string,
@@ -66,6 +66,6 @@ export async function openBillingPortal(
   if (url) {
     window.open(url, "_blank");
   } else {
-    alert("获取客户门户失败，请稍后重试");
+    alert("Failed to load customer portal, please try again later");
   }
 }

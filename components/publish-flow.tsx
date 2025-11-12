@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CheckCircle2, Copy } from "lucide-react";
+import { CheckCircle2, Copy, Check, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/AuthProvider";
 import { triggerConfettiFireworks } from "@/components/ui/confetti-fireworks";
@@ -30,8 +30,6 @@ interface MonetizationEligibility {
   canUseSubscription: boolean;
   subscriptionReason: string | null;
 }
-
-const STRIPE_ONBOARDING_PATH = "/settings?payoutTab=payout";
 
 function parseSubscriptionPeriodEnd(raw?: string | null): Date | null {
   if (!raw) return null;
@@ -125,6 +123,7 @@ function deriveMonetizationEligibility(
 }
 export function PublishFlow() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const appId = searchParams.get("id");
   const { session, user } = useAuth();
   const [appName, setAppName] = useState("");
@@ -146,6 +145,11 @@ export function PublishFlow() {
     null
   );
   const [vendorStatusLoading, setVendorStatusLoading] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState<{
+    item: string;
+    status: "success" | "error";
+  } | null>(null);
+  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -170,7 +174,7 @@ export function PublishFlow() {
       }
       return payload?.data || null;
     } catch (err) {
-      console.warn("从数据库加载应用数据失败:", err);
+      console.warn("Failed to load app data from database:", err);
       return null;
     }
   }, [appId]);
@@ -179,7 +183,7 @@ export function PublishFlow() {
     (appData: any) => {
       if (!appData || metadataApplied) return;
 
-      // 从数据库的 app_meta_info 中提取数据
+      // Extract data from app_meta_info stored in the database
       const appMetaInfo = appData?.app_meta_info;
       if (appMetaInfo && typeof appMetaInfo === "object") {
         const chatMeta =
@@ -206,7 +210,7 @@ export function PublishFlow() {
         }
       }
 
-      // 如果 app_meta_info 中没有，则使用数据库中的 name 和 description
+      // Fallback to database name and description when app_meta_info is missing
       setAppName((prev) => {
         if (prev) return prev;
         if (typeof appData?.name === "string" && appData.name.trim()) {
@@ -246,7 +250,7 @@ export function PublishFlow() {
       })
       .catch((err) => {
         if ((err as Error).name === "AbortError") return;
-        console.warn("加载应用数据失败:", err);
+        console.warn("Failed to load app data:", err);
       });
 
     return () => controller.abort();
@@ -288,6 +292,14 @@ export function PublishFlow() {
     };
   }, [user?.id]);
 
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const monetizationEligibility = useMemo(
     () => deriveMonetizationEligibility(vendorStatus, vendorStatusError),
     [vendorStatus, vendorStatusError]
@@ -309,12 +321,82 @@ export function PublishFlow() {
     return monetizationEligibility.canUseFree;
   }, [monetization, monetizationEligibility]);
 
+  const showCopyFeedback = useCallback(
+    (itemType: string, status: "success" | "error") => {
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+      setCopyFeedback({ item: itemType, status });
+      feedbackTimeoutRef.current = setTimeout(() => {
+        setCopyFeedback(null);
+        feedbackTimeoutRef.current = null;
+      }, 2000);
+    },
+    []
+  );
+
+  const fallbackCopyText = (text: string) => {
+    if (typeof document === "undefined") {
+      throw new Error("Document not available for fallback copy");
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "absolute";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const succeeded = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    if (!succeeded) {
+      throw new Error("Fallback copy command failed");
+    }
+  };
+
+  const handleCopy = useCallback(
+    async (text: string, itemType: string) => {
+      const safeText = text ?? "";
+      const attemptClipboardCopy = async () => {
+        if (navigator?.clipboard?.writeText) {
+          await navigator.clipboard.writeText(safeText);
+          return true;
+        }
+        return false;
+      };
+
+      try {
+        const clipboardWorked = await attemptClipboardCopy();
+        if (!clipboardWorked) {
+          fallbackCopyText(safeText);
+        }
+        showCopyFeedback(itemType, "success");
+      } catch (err) {
+        console.log("Failed to copy text:", err);
+        try {
+          fallbackCopyText(safeText);
+          showCopyFeedback(itemType, "success");
+        } catch (fallbackErr) {
+          console.log("Fallback copy failed:", fallbackErr);
+          showCopyFeedback(itemType, "error");
+        }
+      }
+    },
+    [showCopyFeedback]
+  );
+
+  const openPayoutSettingsModal = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("openSettings", "payout");
+    const queryString = params.toString();
+    router.push(`?${queryString}`, { scroll: false });
+  }, [router, searchParams]);
+
   const handlePublish = async () => {
     if (!canPublish || vendorStatusLoading) {
       return;
     }
     try {
-      // 从数据库读取的 app_meta_info，如果没有则使用空对象
+      // app_meta_info retrieved from the database; default to empty object when absent
       let appMetaInfo: any = {};
       if (
         appDataFromDb?.app_meta_info &&
@@ -323,7 +405,7 @@ export function PublishFlow() {
         appMetaInfo = { ...appDataFromDb.app_meta_info };
       }
 
-      // 更新 chatMeta 中的 name 和 description
+      // Update chatMeta name and description fields
       const chatMeta =
         appMetaInfo.chatAppMeta ||
         appMetaInfo.chatappmeta ||
@@ -351,7 +433,7 @@ export function PublishFlow() {
           build_status: "success",
           deployment_status: "success",
           published_at: new Date().toISOString(),
-          // 不显式传 connection_id，后端将为当前用户选择最近的激活连接
+          // Omit connection_id so the backend selects the most recent active connection
           app_meta_info: appMetaInfo,
         }),
       });
@@ -360,7 +442,7 @@ export function PublishFlow() {
 
       if (!response.ok) {
         if (response.status === 409) {
-          // 重名错误，显示特定提示
+          // Surface duplicate-name errors with specific messaging
           alert(
             data.error || "App name already exists. Please use a different name"
           );
@@ -369,10 +451,10 @@ export function PublishFlow() {
         throw new Error(data.error || "Save failed");
       }
 
-      console.log("应用保存成功:", data);
+      console.log("Application saved successfully:", data);
       setIsPublished(true);
     } catch (error) {
-      console.log("应用保存失败:", error);
+      console.log("Application save failed:", error);
       const message =
         error instanceof Error && error.message
           ? error.message
@@ -400,6 +482,187 @@ export function PublishFlow() {
       }
     };
   }, [isPublished]);
+
+  const handleContinueToGenerate = async () => {
+    if (!appId || !user?.id) {
+      console.log("Missing appId or user id");
+      return;
+    }
+
+    try {
+      // Fetch app data
+      const response = await fetch(`/api/apps/${appId}`, { cache: "no-store" });
+      const payload = await response.json();
+
+      if (!response.ok || !payload.data) {
+        throw new Error(payload?.error || "Failed to fetch app data");
+      }
+
+      const app = payload.data;
+      const connectionId = app.connection_id;
+
+      // if (!connectionId) {
+      //   console.log("App does not have connection_id");
+      //   alert(
+      //     "App does not have a connection. Please connect a database first."
+      //   );
+      //   return;
+      // }
+
+      // Retrieve task_id from generator_meta or app_meta_info
+      let taskId = "";
+
+      // Attempt to read from app_meta_info
+      if (app.app_meta_info && typeof app.app_meta_info === "object") {
+        taskId = app.app_meta_info.task_id;
+        // if (runResult && runResult.task_id) {
+        //   taskId = runResult.task_id;
+        // }
+      }
+
+      // If no task_id exists on the app, try reading from localStorage
+      // if (!taskId) {
+      //   const runResultStr = localStorage.getItem("run_result");
+      //   if (runResultStr) {
+      //     try {
+      //       const runResult = JSON.parse(runResultStr);
+      //       taskId = runResult.task_id || "";
+      //     } catch (e) {
+      //       console.log("Failed to parse run_result from localStorage:", e);
+      //     }
+      //   }
+      // }
+
+      if (!taskId) {
+        alert(
+          "Cannot find task_id. Please ensure the app has been generated from a valid connection."
+        );
+        return;
+      }
+
+      // Fetch run_result data by task_id, run_id=r_1, and user_id
+      let runId = "r_1";
+      let runResult = null;
+
+      // First try run_id=r_1
+      console.log(
+        `Attempting to fetch run_result for run_id=${runId}, task_id=${taskId}, user_id=${user.id}`
+      );
+      let runResultResponse = await fetch(
+        `/api/run-result/${runId}?user_id=${user.id}&task_id=${taskId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+        }
+      );
+
+      if (runResultResponse.ok) {
+        const runResultData = await runResultResponse.json();
+        console.log("API response for r_1:", runResultData);
+
+        // API returns data as { success: true, data: run_result }
+        if (runResultData.data && runResultData.data !== null) {
+          runResult = runResultData.data;
+        }
+      }
+
+      // If r_1 is missing, fallback to the latest run_id
+      if (!runResult) {
+        console.log(
+          `run_id=r_1 not found, attempting to fetch latest run_result for task_id=${taskId}`
+        );
+        const runResultsResponse = await fetch(
+          `/api/run-results?user_id=${user.id}&task_id=${taskId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${session?.access_token}`,
+            },
+          }
+        );
+
+        if (runResultsResponse.ok) {
+          const runResultsData = await runResultsResponse.json();
+          console.log("Available run_ids:", runResultsData);
+
+          if (runResultsData.data && runResultsData.data.length > 0) {
+            // Retrieve the latest run_id (sorted by creation time, first is newest)
+            const latestRunId = runResultsData.data[0].run_id;
+            console.log(`Using latest run_id: ${latestRunId} instead of r_1`);
+
+            // Use the latest run_id to query data
+            runResultResponse = await fetch(
+              `/api/run-result/${latestRunId}?user_id=${user.id}&task_id=${taskId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${session?.access_token}`,
+                },
+              }
+            );
+
+            if (runResultResponse.ok) {
+              const runResultData = await runResultResponse.json();
+              if (runResultData.data && runResultData.data !== null) {
+                runResult = runResultData.data;
+              }
+            }
+          }
+        }
+      }
+
+      // If still empty, raise an error
+      // if (!runResult) {
+      //   console.log(
+      //     `No run_result found for task_id=${taskId}, user_id=${user.id}`
+      //   );
+      //   throw new Error(
+      //     `No run_result data found for this app. Please ensure the app was generated from a valid connection and has analysis results.`
+      //   );
+      // }
+
+      // Persist to localStorage
+      localStorage.setItem("run_result", JSON.stringify(runResult));
+
+      // Extract segments data
+      if (runResult.segments) {
+        localStorage.setItem("marketsData", JSON.stringify(runResult.segments));
+      }
+
+      // Save standalJson when available (it usually comes from elsewhere, not run_result)
+      // Try to read standalJson from localStorage when present
+      const existingStandalJson = localStorage.getItem("standalJson");
+      if (!existingStandalJson && runResult.standalJson) {
+        localStorage.setItem(
+          "standalJson",
+          JSON.stringify(runResult.standalJson)
+        );
+      }
+
+      // Persist connection data when required
+      const dbConnectionDataStr = localStorage.getItem("dbConnectionData");
+      if (!dbConnectionDataStr) {
+        // If missing, attempt to load using the app's connection_id
+        // Store connectionId for future usage
+        const dbConnectionData = {
+          connectionId: connectionId,
+        };
+        localStorage.setItem(
+          "dbConnectionData",
+          JSON.stringify(dbConnectionData)
+        );
+      }
+
+      // Flag ConnectFlow to jump directly to the results step
+      localStorage.setItem("skipToBusinessInsight", "true");
+
+      // Navigate to the connect page
+      router.push("/connect");
+    } catch (error) {
+      console.log("Failed to continue to generate:", error);
+      alert("Failed to load data. Please try again.");
+    }
+  };
+>>>>>>> origin/dev
 
   if (isPublished) {
     return (
@@ -430,21 +693,47 @@ export function PublishFlow() {
                   <Label className="text-sm font-medium text-gray-700">
                     URL
                   </Label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-start gap-2">
                     <Input
                       value={currentAppUrl}
                       readOnly
                       className="flex-1 bg-gray-50"
                     />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        navigator.clipboard.writeText(currentAppUrl)
-                      }
-                    >
-                      <Copy className="size-4" />
-                    </Button>
+                    <div className="flex flex-col items-center gap-1 min-w-[44px]">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopy(currentAppUrl ?? "", "url")}
+                        className="flex items-center gap-1"
+                      >
+                        {copyFeedback?.item === "url" ? (
+                          copyFeedback.status === "success" ? (
+                            <Check className="size-4 text-emerald-600" />
+                          ) : (
+                            <AlertCircle className="size-4 text-destructive" />
+                          )
+                        ) : (
+                          <Copy className="size-4" />
+                        )}
+                        <span className="sr-only">Copy URL</span>
+                      </Button>
+                      <span
+                        aria-live="polite"
+                        className={`text-xs font-medium transition-opacity duration-150 h-4 flex items-center ${
+                          copyFeedback?.item === "url"
+                            ? copyFeedback.status === "success"
+                              ? "text-emerald-600 opacity-100"
+                              : "text-destructive opacity-100"
+                            : "opacity-0 text-transparent"
+                        }`}
+                      >
+                        {copyFeedback?.item === "url"
+                          ? copyFeedback.status === "success"
+                            ? "Copied!"
+                            : "Copy failed"
+                          : "\u00A0"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -453,19 +742,47 @@ export function PublishFlow() {
                   <Label className="text-sm font-medium text-gray-700">
                     Name
                   </Label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-start gap-2">
                     <Input
                       value={appName}
                       readOnly
                       className="flex-1 bg-gray-50"
                     />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigator.clipboard.writeText(appName)}
-                    >
-                      <Copy className="size-4" />
-                    </Button>
+                    <div className="flex flex-col items-center gap-1 min-w-[44px]">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopy(appName ?? "", "name")}
+                        className="flex items-center gap-1"
+                      >
+                        {copyFeedback?.item === "name" ? (
+                          copyFeedback.status === "success" ? (
+                            <Check className="size-4 text-emerald-600" />
+                          ) : (
+                            <AlertCircle className="size-4 text-destructive" />
+                          )
+                        ) : (
+                          <Copy className="size-4" />
+                        )}
+                        <span className="sr-only">Copy app name</span>
+                      </Button>
+                      <span
+                        aria-live="polite"
+                        className={`text-xs font-medium transition-opacity duration-150 h-4 flex items-center ${
+                          copyFeedback?.item === "name"
+                            ? copyFeedback.status === "success"
+                              ? "text-emerald-600 opacity-100"
+                              : "text-destructive opacity-100"
+                            : "opacity-0 text-transparent"
+                        }`}
+                      >
+                        {copyFeedback?.item === "name"
+                          ? copyFeedback.status === "success"
+                            ? "Copied!"
+                            : "Copy failed"
+                          : "\u00A0"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -480,22 +797,56 @@ export function PublishFlow() {
                       readOnly
                       className="flex-1 bg-gray-50 min-h-[60px]"
                     />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigator.clipboard.writeText(description)}
-                    >
-                      <Copy className="size-4" />
-                    </Button>
+                    <div className="flex flex-col items-center gap-1 min-w-[44px]">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          handleCopy(description ?? "", "description")
+                        }
+                        className="flex items-center gap-1"
+                      >
+                        {copyFeedback?.item === "description" ? (
+                          copyFeedback.status === "success" ? (
+                            <Check className="size-4 text-emerald-600" />
+                          ) : (
+                            <AlertCircle className="size-4 text-destructive" />
+                          )
+                        ) : (
+                          <Copy className="size-4" />
+                        )}
+                        <span className="sr-only">Copy description</span>
+                      </Button>
+                      <span
+                        aria-live="polite"
+                        className={`text-xs font-medium transition-opacity duration-150 h-4 flex items-center text-center ${
+                          copyFeedback?.item === "description"
+                            ? copyFeedback.status === "success"
+                              ? "text-emerald-600 opacity-100"
+                              : "text-destructive opacity-100"
+                            : "opacity-0 text-transparent"
+                        }`}
+                      >
+                        {copyFeedback?.item === "description"
+                          ? copyFeedback.status === "success"
+                            ? "Copied!"
+                            : "Copy failed"
+                          : "\u00A0"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-3">
-                <Button variant="outline" asChild>
-                  <Link href="/">Return to home</Link>
+                <Button variant="outline" onClick={handleContinueToGenerate}>
+                  Continue To Generate
                 </Button>
-                <Button>Go to ChatGPT</Button>
+                <Button>
+                  <Link href="https://chatgpt.com/#settings/Connectors">
+                    Go to ChatGPT
+                  </Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -571,7 +922,9 @@ export function PublishFlow() {
                   </div>
                   {!vendorStatusLoading &&
                     !monetizationEligibility.canUseFree &&
-                    monetizationEligibility.freeReason && (
+                    monetizationEligibility.freeReason &&
+                    monetizationEligibility.freeReason !==
+                      monetizationEligibility.subscriptionReason && (
                       <p className="text-sm text-destructive">
                         {monetizationEligibility.freeReason}
                       </p>
@@ -595,20 +948,26 @@ export function PublishFlow() {
                       </p>
                     </div>
                   </div>
+                  <p className="text-sm text-muted-foreground">
+                    {monetizationEligibility.freeReason}
+                  </p>
                   {!vendorStatusLoading &&
-                    monetizationEligibility.subscriptionReason && (
+                    monetizationEligibility.subscriptionReason &&
+                    monetizationEligibility.freeReason !==
+                      monetizationEligibility.subscriptionReason && (
                       <p className="text-sm text-destructive">
                         {monetizationEligibility.subscriptionReason}
                         {monetizationEligibility.canUseFree &&
                           !monetizationEligibility.canUseSubscription && (
                             <>
                               {" "}
-                              <Link
-                                href={STRIPE_ONBOARDING_PATH}
-                                className="underline"
+                              <button
+                                type="button"
+                                onClick={openPayoutSettingsModal}
+                                className="underline text-left text-sm font-medium text-destructive"
                               >
                                 Open payout settings
-                              </Link>
+                              </button>
                             </>
                           )}
                       </p>
@@ -623,41 +982,47 @@ export function PublishFlow() {
             </div>
 
             {monetization === "subscription" && (
-              <div className="space-y-2">
-                <Label htmlFor="price">Subscription Price (Monthly)</Label>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">$</span>
-                  <Input
-                    id="price"
-                    type="number"
-                    placeholder="9.9"
-                    className="flex-1"
-                    value={paymentPrice}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      // 允许空字符串，这样用户可以删除所有内容
-                      if (value === "") {
-                        setPaymentPrice("");
-                      } else {
-                        // 只允许数字和小数点
-                        const numValue = value.replace(/[^0-9.]/g, "");
-                        setPaymentPrice(numValue);
-                      }
-                    }}
-                    onBlur={(e) => {
-                      // 失去焦点时，如果为空或无效，设置为 "0"
-                      const value = e.target.value;
-                      if (
-                        value === "" ||
-                        isNaN(Number(value)) ||
-                        Number(value) < 0
-                      ) {
-                        setPaymentPrice("0");
-                      }
-                    }}
-                  />
+              <>
+                <p className="text-sm text-destructive">
+                  You&apos;ll need to set &quot;Authentication -&gt; OAuth&quot;
+                  on ChatGPT in order to receive payments.
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="price">Subscription Price (Monthly)</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">$</span>
+                    <Input
+                      id="price"
+                      type="number"
+                      placeholder="9.9"
+                      className="flex-1"
+                      value={paymentPrice}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // 允许空字符串，这样用户可以删除所有内容
+                        if (value === "") {
+                          setPaymentPrice("");
+                        } else {
+                          // 只允许数字和小数点
+                          const numValue = value.replace(/[^0-9.]/g, "");
+                          setPaymentPrice(numValue);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // 失去焦点时，如果为空或无效，设置为 "0"
+                        const value = e.target.value;
+                        if (
+                          value === "" ||
+                          isNaN(Number(value)) ||
+                          Number(value) < 0
+                        ) {
+                          setPaymentPrice("0");
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             <Button

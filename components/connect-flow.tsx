@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import MarketExplorationPage from "@/app/market-exploration/page";
@@ -382,15 +382,15 @@ export function ConnectFlow() {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [accessToken, setAccessToken] = useState("");
   const { user } = useAuth();
-  const [progress, setProgress] = useState(0); // 百分比
+  const [progress, setProgress] = useState(0); // percentage
   const [jobStatus, setJobStatus] = useState("init");
   // const [connectionId, setConnectionId] = useState("");
-  // 简化的数据库验证函数 - 支持测试用的 URL 和 API Key
+  // Simplified database validation helper supporting test URLs and API keys
   const performRealDatabaseValidation = async (
     url: string,
     key: string
   ): Promise<void> => {
-    // 测试用的有效组合
+    // Valid test combinations for demos
     const validTestCombinations = [
       { url: "https://demo.supabase.co", key: "demo-key-abcdefghijklmnop" },
       {
@@ -404,35 +404,35 @@ export function ConnectFlow() {
       { url: "https://localhost:3000", key: "localhost-key-123456789" },
     ];
 
-    // 特殊测试组合 - 连接成功但数据真实性验证失败
+    // Special combination: connection succeeds but data validation fails later
     const dataValidationFailedCombination = {
       url: "https://test.supabase.co",
       key: "test-api-key-123456789",
     };
 
-    // 检查是否是数据真实性验证失败的测试组合
+    // Check whether this matches the data-validation failure combination
     if (
       url === dataValidationFailedCombination.url &&
       key === dataValidationFailedCombination.key
     ) {
-      // 模拟连接验证延迟
+      // Simulate latency for connection validation
       await new Promise((resolve) => setTimeout(resolve, 500));
-      // 连接成功，但会在后续步骤中触发数据真实性验证失败
+      // Connection succeeds; data validation will fail downstream
       return;
     }
 
-    // 检查是否是其他测试用的有效组合
+    // Evaluate other valid test combos
     const isValidTest = validTestCombinations.some(
       (combo) => url === combo.url && key === combo.key
     );
 
     if (isValidTest) {
-      // 模拟验证延迟
+      // Simulate validation delay
       await new Promise((resolve) => setTimeout(resolve, 500));
-      return; // 验证通过
+      return; // Validation passed
     }
 
-    // 对于其他组合，进行基本格式验证
+    // Perform basic format validation for all other inputs
     if (!url.includes("supabase.co") && !url.includes("localhost")) {
       throw new Error(
         "Invalid Supabase URL format. Try: https://test.supabase.co"
@@ -443,11 +443,92 @@ export function ConnectFlow() {
       throw new Error("Invalid API Key format. Try: test-api-key-123456789");
     }
 
-    // 模拟验证失败（用于测试错误情况）
+    // Simulate failure (used for testing error handling)
     throw new Error(
       "Invalid Supabase URL format. Try: https://test.supabase.co"
     );
   };
+
+  // Detect redirect from publish page and pre-populate markets defaults
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const skipToBusinessInsight = localStorage.getItem("skipToBusinessInsight");
+    if (skipToBusinessInsight === "true") {
+      // Clear the flag
+      localStorage.removeItem("skipToBusinessInsight");
+
+      // Load marketsData from localStorage and use as defaults
+      const marketsDataStr = localStorage.getItem("marketsData");
+      if (marketsDataStr) {
+        try {
+          const marketsData = JSON.parse(marketsDataStr);
+          if (Array.isArray(marketsData) && marketsData.length > 0) {
+            // Ensure every field has a default value when mapping markets
+            const mappedMarkets = marketsData.map(
+              (seg: any, index: number) => ({
+                id: seg.id || seg.segmentId || seg.name || `segment-${index}`,
+                title: seg.title || seg.name || "Untitled Segment",
+                analysis: seg.analysis || {},
+                valueQuestions: seg.valueQuestions || [],
+              })
+            );
+            setMarkets(mappedMarkets);
+          }
+        } catch (e) {
+          console.log("Failed to parse marketsData from localStorage:", e);
+        }
+      }
+
+      // If run_result exists, jump directly to the results step
+      const runResultStr = localStorage.getItem("run_result");
+      if (runResultStr) {
+        // Directly transition to the results step (business insight)
+        setStep("results");
+        setAnalysisStep("complete");
+        setProgress(100);
+        setHasValidated(true);
+
+        // Seed default analysisResults so the page renders correctly
+        // The results view requires either analysisResults or marketsDataWithDefaults
+        setAnalysisResults((prev) => {
+          if (prev.length === 0) {
+            return testAnalysisData;
+          }
+          return prev;
+        });
+      }
+    }
+  }, []);
+
+  // Compute fallback marketsData (used after publish-page redirects)
+  const marketsDataWithDefaults = useMemo(() => {
+    if (markets.length > 0) {
+      return markets;
+    }
+
+    // When no markets are present, attempt to hydrate from localStorage
+    if (typeof window !== "undefined") {
+      try {
+        const marketsDataStr = localStorage.getItem("marketsData");
+        if (marketsDataStr) {
+          const marketsData = JSON.parse(marketsDataStr);
+          if (Array.isArray(marketsData) && marketsData.length > 0) {
+            return marketsData.map((seg: any, index: number) => ({
+              id: seg.id || seg.segmentId || seg.name || `segment-${index}`,
+              title: seg.title || seg.name || "Untitled Segment",
+              analysis: seg.analysis || {},
+              valueQuestions: seg.valueQuestions || [],
+            }));
+          }
+        }
+      } catch (e) {
+        console.log("Failed to parse marketsData from localStorage:", e);
+      }
+    }
+
+    return [];
+  }, [markets]);
 
   // useEffect(() => {
   //   // If URL param results=1, jump directly to results screen with existing/default suggestions
@@ -486,11 +567,11 @@ export function ConnectFlow() {
   //       if (currentIndex < steps.length) {
   //         setAnalysisStep(steps[currentIndex]);
 
-  //         // 注意：真实的验证已经在 handleConnect 中完成
-  //         // 这里只是显示进度，不再进行模拟验证
+  //         // Note: actual validation is completed within handleConnect
+  //         // This section only updates progress visuals
   //       } else {
   //         clearInterval(interval);
-  //         // 当所有步骤完成时，设置分析结果并跳转到结果页面
+  //         // When all steps finish, set analysis results and navigate to results
   //         setAnalysisResults(
   //           [
   //             // E-commerce Platform Operators - 10 problems
@@ -787,7 +868,7 @@ export function ConnectFlow() {
   //         );
   //         // setStep("results");
   //       }
-  //     }, 1900); // 缩短为原来的一半以加快分析过程
+  //     }, 1900); // Halved duration to speed up the analysis flow
 
   //     return () => clearInterval(interval);
   //   }
@@ -827,12 +908,16 @@ export function ConnectFlow() {
       await new Promise((r) => setTimeout(r, interval));
       last = data;
     }
-    return { ...last, status: "timeout", error: "超过最大轮询等待时间" };
+    return {
+      ...last,
+      status: "timeout",
+      error: "Exceeded maximum polling wait time",
+    };
   };
   const handleConnectAPI = async () => {
     console.log("handleConnectAPI");
 
-    // 清除之前的错误信息
+    // Clear previous error states
     setConnectionError(null);
     setDataValidationError(null);
     setRunError(null);
@@ -840,13 +925,13 @@ export function ConnectFlow() {
     setStep("analyzing");
     setIsAnalyzing(false);
 
-    // 校验 connectionUrl 格式
+    // Validate connectionUrl format
     if (!connectionUrl || connectionUrl.trim() === "") {
       setConnectionError("Connection URL cannot be empty");
       return;
     }
 
-    // 校验 URL 格式
+    // Validate URL format
     // try {
     //   new URL(connectionUrl);
     // } catch (error) {
@@ -854,13 +939,13 @@ export function ConnectFlow() {
     //   return;
     // }
 
-    // 校验 access token 格式
+    // Validate access token format
     if (!accessToken || accessToken.trim() === "") {
       setConnectionError("access token cannot be empty");
       return;
     }
 
-    // 校验 access token 长度（通常至少8位）
+    // Enforce minimum access token length (typically ≥ 8)
     if (accessToken.length < 8) {
       setConnectionError("Access token must be at least 8 characters long");
       return;
@@ -870,23 +955,23 @@ export function ConnectFlow() {
       return;
     }
 
-    // 校验 API Key 长度（通常至少8位）
+    // Enforce minimum API key length (typically ≥ 8)
     if (apiKey.length < 8) {
       setConnectionError("API key must be at least 8 characters long");
       return;
     }
 
-    // 开始分析流程
+    // Begin the analysis flow
     setStep("analyzing");
     setAnalysisStep("connecting");
-    setProgress(0); // 初始化进度
+    setProgress(0); // Initialize progress
     setIsAnalyzing(true);
     console.log(aaaa, "--------------------------------");
     let connectionId = "";
     let runData = {};
     try {
       console.log("Step 0: Validating connection...");
-      setProgress(5); // 连接验证中，进度 5%
+      setProgress(5); // Connection validation at 5%
       const validateRes = await fetch("/api/validate-connection", {
         method: "POST",
         headers: {
@@ -910,10 +995,10 @@ export function ConnectFlow() {
           "Please check your API Key, Project ID or Access Token"
         );
         setDataValidationError(null);
-        setAnalysisStep("connecting"); // 重置到连接步骤，表示在连接阶段失败
+        setAnalysisStep("connecting"); // Reset to connecting step (failure stage)
         setStep("analyzing");
         setIsAnalyzing(false);
-        return; // 直接返回，不执行后续步骤
+        return; // Exit early, skip subsequent steps
       }
       const validateResData = await validateRes.json();
       console.log("Data validation successful:", validateResData);
@@ -922,13 +1007,12 @@ export function ConnectFlow() {
           "Please check your API Key, Project ID or Access Token"
         );
         setDataValidationError(null);
-        setAnalysisStep("connecting"); // 重置到连接步骤，表示在连接阶段失败
+        setAnalysisStep("connecting"); // Reset to connecting step (failure stage)
         setStep("analyzing");
         setIsAnalyzing(false);
-        return; // 直接返回，不执行后续步骤
+        return; // Exit early, skip subsequent steps
       }
-      // validate-connection 成功，继续后续步骤
-      // 连接成功，存入data_connections表
+      // After validate-connection succeeds, continue with persistence
       try {
         const dataConnectionsResponse = await fetch("/api/data-connections", {
           method: "POST",
@@ -951,22 +1035,21 @@ export function ConnectFlow() {
             dataConnectionsData.error || "Data connections failed"
           );
         }
-        // connectionId 是 data_connections 表中的 id 字段
-        // setConnectionId(dataConnectionsData.record?.id);
+        // connectionId corresponds to the id field in data_connections
         connectionId = dataConnectionsData.record?.id;
       } catch (e) {
         console.warn("save data_connections failed", e);
       }
 
-      // 第一步：Database Connection 已完成，进度 10%
+      // Step 1 complete: database connection at 10%
       setProgress(10);
 
-      // 第二步和第三步：执行数据验证接口
-      // UI第2步：Read Data Table Structure (reading-schema) - 进度 0-20%
-      // UI第3步：Data Availability Validation (validating-data) - 进度 20-40%
+      // Steps 2 & 3: run data validation APIs
+      // UI Step 2: Read Data Table Structure (reading-schema) - progress 0-20%
+      // UI Step 3: Data Availability Validation (validating-data) - progress 20-40%
       console.log("Step 2-3: Validating data...");
-      setAnalysisStep("reading-schema"); // UI第2步开始
-      setProgress(15); // 开始数据验证，进度 15%
+      setAnalysisStep("reading-schema"); // Start UI Step 2
+      setProgress(15); // Begin validation at 15%
       // const validateResponse = await fetch(
       //   "https://my-connector.onrender.com/review",
       //   {
@@ -1003,7 +1086,7 @@ export function ConnectFlow() {
           errorData.error ||
           `Data validation failed: ${validateResponse.status}`;
         setDataValidationError(errorMsg);
-        setAnalysisStep("validating-data"); // 显示在UI第3步
+        setAnalysisStep("validating-data"); // Surface UI Step 3
         setStep("analyzing");
         setIsAnalyzing(false);
         return;
@@ -1012,22 +1095,22 @@ export function ConnectFlow() {
       const validateData = await validateResponse.json();
       console.log("Data validation successful:", validateData);
 
-      // 数据验证进行到一半，切换到UI第3步
-      setAnalysisStep("validating-data"); // UI第3步
-      setProgress(30); // 数据验证进行中，进度 30%
+      // Midway through validation; transition to UI Step 3
+      setAnalysisStep("validating-data"); // UI Step 3
+      setProgress(30); // Validation at 30%
 
       if (validateData.validation_report.summary.status == "unusable") {
         setDataValidationError(
           validateData.validation_report.summary.note ||
             "Data validation failed"
         );
-        setAnalysisStep("validating-data"); // 显示在UI第3步
+        setAnalysisStep("validating-data"); // Keep UI Step 3 active
         setStep("analyzing");
         setIsAnalyzing(false);
         return;
       }
 
-      // 数据验证完成，进度到 40%
+      // Data validation finished, progress to 40%
       setProgress(40);
       runData = {
         user_id: user?.id || validateData.user_id,
@@ -1036,12 +1119,12 @@ export function ConnectFlow() {
         data_structure: validateData.data_structure,
       };
 
-      // 第四步：执行 pipeline/run 和轮询
+      // Step 4: execute pipeline/run and begin polling
       console.log("Step 4: Running pipeline...");
-      setAnalysisStep("sampling-data"); // UI第4步
-      setProgress(45); // 开始 pipeline/run，进度 45%
+      setAnalysisStep("sampling-data"); // UI Step 4
+      setProgress(45); // Start pipeline/run at 45%
 
-      // 连接方式一
+      // Connection approach 1
       // const connectResponse = await fetch("/api/connect", {
       //   method: "POST",
       //   headers: {
@@ -1049,7 +1132,7 @@ export function ConnectFlow() {
       //   },
       //   body: JSON.stringify({ url: connectionUrl, key: accessToken }),
       // });
-      // 连接方式二
+      // Connection approach 2
       // const connectResponse = await fetch(
       //   "https://my-connector.onrender.com/analyze",
       //   {
@@ -1081,7 +1164,7 @@ export function ConnectFlow() {
       //   "Database connection successful:",
       //   connectData.results.market_analysis
       // );
-      // 连接方式三
+      // Connection approach 3
       const connectResponse = await fetch(
         "https://business-insight.datail.ai/api/v1/pipeline/run",
         // "http://192.168.30.159:8900/api/v1/pipeline/run",
@@ -1106,7 +1189,7 @@ export function ConnectFlow() {
           errorMsg = errorText?.slice(0, 200) || errorMsg;
         }
         setRunError(errorMsg);
-        setAnalysisStep("sampling-data"); // 设置为 sampling-data 步骤，表示在该步骤失败
+        setAnalysisStep("sampling-data"); // Flag sampling-data step as failure point
         setStep("analyzing");
         setIsAnalyzing(false);
         return;
@@ -1115,27 +1198,26 @@ export function ConnectFlow() {
       const connectData = await connectResponse.json();
       console.log("Pipeline run successful, job_id:", connectData.job_id);
 
-      // 进入轮询阶段，根据进度更新 analysisStep
-      // 进度分配：轮询阶段占 40-80%，standal_sql 占 80-100%
+      // Enter polling phase; update analysisStep based on progress
+      // Progress allocation: polling consumes 40-80%, standal_sql uses 80-100%
       setJobStatus("waiting");
       const pollingResult = await pollJobProgress(
         connectData.job_id,
         (progress, status, data) => {
           if (progress !== null) {
-            // 根据进度自动更新 analysisStep，并将轮询进度映射到 40-80% 范围
-            // 轮询进度 0-100% 映射到 45-80% (sampling-data)
+            // Map polling progress (0-100) into 45-80 and keep analysisStep aligned
             const mappedProgress = 45 + Math.floor((progress / 100) * 35); // 45-80%
             setProgress(mappedProgress);
-            // 保持在 sampling-data 步骤（UI第4步）
+            // Remain within sampling-data (UI Step 4)
           }
           if (status) setJobStatus(status);
         },
-        10000, // 10秒轮询一次
-        6 // 最多轮询6分钟
+        10000, // Poll every 10 seconds
+        6 // Maximum polling window 6 minutes
       );
       if (pollingResult.status === "completed") {
         setJobStatus("done");
-        setProgress(80); // 轮询完成，进度到 80%
+        setProgress(80); // Polling complete, progress at 80%
         console.log("pollingResult:", pollingResult);
       } else {
         setJobStatus(pollingResult.status || "error");
@@ -1145,11 +1227,11 @@ export function ConnectFlow() {
         return;
       }
 
-      // 第五步：evaluating - 调用 standal_sql 接口
-      // 在调用 standal_sql 期间，进度从 80% 到 100%
+      // Step 5: evaluating - call standal_sql endpoint
+      // During standal_sql, progress spans 80% to 100%
       console.log("Step 5: Evaluating - calling standal_sql...");
-      setAnalysisStep("evaluating"); // UI第5步
-      setProgress(85); // 开始调用 standal_sql，进度到 85%
+      setAnalysisStep("evaluating"); // UI Step 5
+      setProgress(85); // Initiate standal_sql at 85%
       let standalJson: any = {};
       try {
         const run_results = pollingResult?.run_results;
@@ -1158,9 +1240,9 @@ export function ConnectFlow() {
         }
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 600_000); // 10分钟超时
+        const timeout = setTimeout(() => controller.abort(), 600_000); // 10 minute timeout
 
-        setProgress(90); // standal_sql 调用中，进度到 90%
+        setProgress(90); // standal_sql in progress, 90%
         const standalRes = await fetch(
           // "http://192.168.30.159:8900/api/v1/standal_sql",
           "https://business-insight.datail.ai/api/v1/standal_sql",
@@ -1196,12 +1278,12 @@ export function ConnectFlow() {
             segments: standalJson.run_results.run_result.segments,
           })
         );
-        setProgress(100); // standal_sql 完成，进度到 100%
-        // standal_sql 调用成功，继续后续步骤
+        setProgress(100); // standal_sql finished, progress 100%
+        // Success: continue to next steps
       } catch (e) {
-        console.log("standal_sql 调用失败", e);
+        console.log("standal_sql call failed", e);
         const errorMsg =
-          e instanceof Error ? e.message : "standal_sql 调用失败";
+          e instanceof Error ? e.message : "standal_sql request failed";
         setRunError(errorMsg);
         setAnalysisStep("evaluating");
         setStep("analyzing");
@@ -1209,11 +1291,11 @@ export function ConnectFlow() {
         return;
       }
 
-      // evaluating 步骤完成，标记为 complete
+      // Evaluating stage complete; mark as finished
       setAnalysisStep("complete");
       const segments = standalJson?.run_results?.run_result?.segments || [];
 
-      // 保存 run_result，确保包含 task_id
+      // Persist run_result ensuring task_id is present
       const runResultToSave = {
         ...standalJson?.run_results.run_result,
         task_id:
@@ -1223,7 +1305,7 @@ export function ConnectFlow() {
       };
       localStorage.setItem("run_result", JSON.stringify(runResultToSave));
 
-      // 同时保存 task_id 到单独的 localStorage 项，确保持久化
+      // Save task_id separately in localStorage for durability
       if (runResultToSave.task_id) {
         localStorage.setItem("originalTaskId", runResultToSave.task_id);
       }
@@ -1238,7 +1320,7 @@ export function ConnectFlow() {
         localStorage.setItem("marketsData", JSON.stringify(mapped));
       } catch {}
 
-      // 获取分析结果（此页面由 markets 渲染，不再使用本地演示数据）
+      // Populate analysis results (page rendered via markets; demo data deprecated)
       setAnalysisResults(testAnalysisData);
       setStep("results");
       setIsAnalyzing(false);
@@ -1257,30 +1339,30 @@ export function ConnectFlow() {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 
-      // 根据错误发生的位置直接设置错误类型
-      // 判断错误发生在哪个步骤
+      // Derive error type based on where the failure occurred
+      // Identify which step raised the failure
       if (
         analysisStep === "reading-schema" ||
         analysisStep === "validating-data"
       ) {
-        // 数据验证步骤失败
+        // Data validation failure
         setDataValidationError(errorMessage);
         setRunError(null);
       } else if (analysisStep === "sampling-data") {
-        // pipeline/run 步骤失败
+        // pipeline/run failure
         setRunError(errorMessage);
         setDataValidationError(null);
       } else if (analysisStep === "evaluating") {
-        // standal_sql 步骤失败
+        // standal_sql failure
         setRunError(errorMessage);
         setDataValidationError(null);
       } else {
-        // 其他错误
+        // Miscellaneous errors
         setRunError(errorMessage);
         setDataValidationError(null);
       }
 
-      // 停留在 analyzing step 显示错误状态
+      // Keep UI on analyzing step to display the error
       setStep("analyzing");
       setIsAnalyzing(false);
     }
@@ -1350,35 +1432,35 @@ export function ConnectFlow() {
   };
 
   const getStepStatus = (stepName: AnalysisStep): StepVisualStatus => {
-    // 接口执行顺序：connecting -> validating-data (UI第2、3步) -> pipeline/run (UI第4步) -> standal_sql (UI第5步)
-    // UI显示顺序：connecting -> reading-schema (第2步) -> validating-data (第3步) -> sampling-data (第4步) -> evaluating (第5步)
+    // API order: connecting -> validating-data (UI Steps 2 & 3) -> pipeline/run (UI Step 4) -> standal_sql (UI Step 5)
+    // UI order: connecting -> reading-schema (Step 2) -> validating-data (Step 3) -> sampling-data (Step 4) -> evaluating (Step 5)
     const steps: AnalysisStep[] = [
       "connecting",
-      "reading-schema", // UI显示第2步，执行 validating-data 接口
-      "validating-data", // UI显示第3步，继续执行 validating-data 接口
-      "sampling-data", // UI显示第4步，执行 pipeline/run 和轮询
-      "evaluating", // UI显示第5步，执行 standal_sql
+      "reading-schema", // UI Step 2 executing validating-data API
+      "validating-data", // UI Step 3 continuing validating-data API
+      "sampling-data", // UI Step 4 running pipeline/polling
+      "evaluating", // UI Step 5 executing standal_sql
       "complete",
     ];
     const currentIndex = steps.indexOf(analysisStep);
     const stepIndex = steps.indexOf(stepName);
 
-    // 如果有连接错误，根据步骤位置判断状态
+    // When connection errors exist, determine status by step position
     if (connectionError) {
       const connectingIndex = steps.indexOf("connecting");
       const readingSchemaIndex = steps.indexOf("reading-schema");
 
-      // 连接步骤失败，显示错误（由 UI 层处理）
+      // Connection step failed; surface the error (UI handles messaging)
       if (stepName === "connecting") {
         return "error";
       }
-      // 如果当前停留在 reading-schema 且有错误，说明在该步骤失败
+      // Error while parked on reading-schema indicates failure in that step
       if (stepName === "reading-schema" && analysisStep === "reading-schema") {
         return "error";
       }
-      // 连接失败后，后续步骤都应该是等待状态
+      // After connection failure, later steps should remain waiting
       if (stepIndex > connectingIndex) {
-        // 如果当前步骤是 reading-schema 且有错误，显示错误
+        // reading-schema with error means failure for that step
         if (
           stepIndex === readingSchemaIndex &&
           analysisStep === "reading-schema"
@@ -1387,77 +1469,77 @@ export function ConnectFlow() {
         }
         return "waiting";
       }
-      // 连接之前的步骤（如 validating-data）可能已完成或失败
+      // Steps before connecting (e.g., validating-data) may already be complete or failed
       if (stepIndex < connectingIndex) {
-        // 如果 validating-data 也有错误，则失败
+        // If validating-data also reports an error, mark as failure
         if (stepName === "validating-data" && dataValidationError) {
           return "error";
         }
-        // 否则可能已完成（如果已经通过了验证）
+        // Otherwise treat as completed when the index is behind current
         return currentIndex > stepIndex ? "completed" : "waiting";
       }
     }
 
-    // 如果有 runError（reading-schema 失败），后续步骤应该显示等待状态
+    // When runError exists (reading-schema failure), subsequent steps should wait
     if (runError) {
       if (stepName === "reading-schema") {
         return "error";
       }
-      // reading-schema 失败后，validating-data 及后续步骤都应该是等待状态
+      // After reading-schema failure, both validating-data and later steps wait
       const readingSchemaIndex = steps.indexOf("reading-schema");
       if (stepIndex > readingSchemaIndex) {
         return "waiting";
       }
     }
 
-    // 如果有数据验证错误，且当前步骤是 validating-data
+    // Highlight data validation errors when step is validating-data
     if (dataValidationError && stepName === "validating-data") {
       return "error";
     }
 
-    // 特殊处理：当 analysisStep 是 "connecting" 时，reading-schema 和 validating-data 应该显示等待状态
-    // 因为接口调用顺序是：validating-data -> reading-schema，但UI显示顺序是：reading-schema -> validating-data
+    // Special handling: when analysisStep is "connecting", both reading-schema and validating-data remain waiting
+    // API order is validating-data -> reading-schema, while UI order is reading-schema -> validating-data
     // if (analysisStep === "connecting") {
     //   if (stepName === "validating-data") {
-    //     // 如果连接正在进行中，数据验证可能正在进行或已完成
-    //     // 但为了安全起见，只有在连接完成后才标记为 completed
-    //     // 这里我们检查是否有连接错误，如果没有错误，说明验证可能正在进行
+    //     // If the connection is still running, validation might be active or done
+    //     // For safety, mark as completed only after connection finishes
+    //     // Check for connection errors; absence suggests validation is underway
     //     return "waiting";
     //   }
     //   if (stepName === "connecting") {
     //     return "in-progress";
     //   }
-    //   // 后续步骤都等待
+    //   // Subsequent steps remain waiting
     //   return "waiting";
     // }
 
-    // 正常流程：根据当前步骤位置判断
-    // 接口执行顺序：validating-data (UI第2、3步) -> pipeline/run (UI第4步) -> standal_sql (UI第5步)
-    // UI显示顺序：reading-schema (第2步) -> validating-data (第3步) -> sampling-data (第4步) -> evaluating (第5步)
+    // Normal flow: determine status based on position in step order
+    // API order: validating-data (UI Steps 2 & 3) -> pipeline/run (UI Step 4) -> standal_sql (UI Step 5)
+    // UI order: reading-schema (Step 2) -> validating-data (Step 3) -> sampling-data (Step 4) -> evaluating (Step 5)
 
-    // 如果当前步骤是 reading-schema，说明正在执行 validating-data 接口（UI第2步）
-    // 此时 reading-schema（UI第2步）应该显示进行中，validating-data（UI第3步）应该显示等待
+    // If analysisStep is reading-schema, the validating-data API (UI Step 2) is active
+    // reading-schema (UI Step 2) should be in-progress; validating-data (UI Step 3) should wait
     if (analysisStep === "reading-schema") {
       if (stepName === "reading-schema") {
-        return "in-progress"; // UI第2步，正在执行 validating-data 接口
+        return "in-progress"; // UI Step 2 executing validating-data
       }
       if (stepName === "validating-data") {
-        return "waiting"; // UI第3步，等待 validating-data 接口完成
+        return "waiting"; // UI Step 3 awaiting validating-data completion
       }
     }
 
-    // 如果当前步骤是 validating-data，说明正在执行 validating-data 接口（UI第3步）
-    // 此时 reading-schema（UI第2步）应该显示已完成，validating-data（UI第3步）应该显示进行中
+    // When the current step is validating-data, that API (UI Step 3) is executing
+    // reading-schema (UI Step 2) should appear complete and validating-data (UI Step 3) should be in-progress
     if (analysisStep === "validating-data") {
       if (stepName === "reading-schema") {
-        return "completed"; // UI第2步已完成
+        return "completed"; // UI Step 2 completed
       }
       if (stepName === "validating-data") {
-        return "in-progress"; // UI第3步，正在执行 validating-data 接口
+        return "in-progress"; // UI Step 3 executing validating-data
       }
     }
 
-    // 其他情况按正常流程判断
+    // All other cases fall back to the default progression
     if (stepIndex < currentIndex) return "completed";
     if (stepIndex === currentIndex) return "in-progress";
     return "waiting";
@@ -1735,7 +1817,7 @@ export function ConnectFlow() {
                 </div>
               </div>
 
-              {/* 测试用的 URL 和 API Key 提示 */}
+              {/* Test URL and API key hints */}
               {/* <div className="bg-green-50 border border-green-200 rounded-lg p-6 space-y-3">
                 <div className="flex items-start gap-3">
                   <Info className="size-5 text-green-600 mt-0.5 shrink-0" />
@@ -1756,7 +1838,7 @@ export function ConnectFlow() {
                           <strong>API Key:</strong> test-api-key-123456789
                         </div>
                         <div className="text-red-600 text-xs mt-1">
-                          ⚠️ 连接成功但数据真实性验证失败
+                          ⚠️ Connection succeeded but data validation failed
                         </div>
                       </div>
                       <div className="font-mono bg-green-100 p-2 rounded">
@@ -1819,7 +1901,7 @@ export function ConnectFlow() {
                   </div>
                 </div>
 
-                {/* 如果数据库连接失败，显示连接错误信息 */}
+                {/* Display connection error details when failure occurs */}
                 {connectionError && (
                   <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
                     <div className="flex items-start gap-3">
@@ -1912,8 +1994,8 @@ export function ConnectFlow() {
                     </div>
                   </div>
                 )}
-                {/* Read Data Table Structure (metadata) - Step 2 (UI显示顺序) */}
-                {/* 如果第一步失败，不显示第二步 */}
+                {/* Read Data Table Structure (metadata) - Step 2 in UI order */}
+                {/* Hide Step 2 when Step 1 fails */}
                 {!connectionError && (
                   <div className="flex items-start gap-4">
                     <div className="mt-1">
@@ -1937,7 +2019,7 @@ export function ConnectFlow() {
                   </div>
                 )}
 
-                {/* 如果第三步失败，显示错误信息 */}
+                {/* Surface error message when Step 3 fails */}
                 {runError && (
                   <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
                     <div className="flex items-start gap-3">
@@ -1968,15 +2050,23 @@ export function ConnectFlow() {
                   </div>
                 )}
 
-                {/* Data Availability Validation - Step 3 (UI显示顺序) */}
-                {/* 如果第一步失败，不显示第三步 */}
+                {/* Data Availability Validation - Step 3 in UI order */}
+                {/* Hide Step 3 when Step 1 fails */}
                 {!connectionError && (
                   <div className="flex items-start gap-4">
                     <div className="mt-1">
-                      <StepProgressIndicator
-                        step="validating-data"
-                        status={stepStatuses.validating}
-                      />
+                      {dataValidationError ? (
+                        <XCircle className="size-6 text-red-600" />
+                      ) : runError ? (
+                        // If reading-schema fails, keep validating-data in waiting state
+                        <Clock className="size-6 text-muted-foreground" />
+                      ) : getStepStatus("validating-data") === "completed" ? (
+                        <CheckCircle2 className="size-6 text-green-600" />
+                      ) : getStepStatus("validating-data") === "in-progress" ? (
+                        <Loader2 className="size-6 text-primary animate-spin" />
+                      ) : (
+                        <Clock className="size-6 text-muted-foreground" />
+                      )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -1998,7 +2088,7 @@ export function ConnectFlow() {
                 {/* Only show subsequent steps if both connection and data validation are successful */}
                 {!connectionError && !dataValidationError && (
                   <>
-                    {/* 如果数据真实性验证失败，显示错误信息和建议 */}
+                    {/* Display error messaging and guidance when data validation fails */}
                     {dataValidationError && (
                       <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
                         <div className="flex items-start gap-3">
@@ -2029,7 +2119,7 @@ export function ConnectFlow() {
                       </div>
                     )}
 
-                    {/* 如果第三步失败，不显示后续步骤 */}
+                    {/* Skip subsequent steps when Step 3 fails */}
                     {!runError && (
                       <>
                         <div className="flex items-start gap-4">
@@ -2083,8 +2173,8 @@ export function ConnectFlow() {
                               )} */}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              AI analyzes data value and recommends best
-                              Applicationpp templates
+                              AI analyzes data value and recommends best ChatApp
+                              templates
                             </p>
                           </div>
                         </div>
@@ -2113,14 +2203,18 @@ export function ConnectFlow() {
           </div>
         )}
 
-        {step === "results" && analysisResults.length > 0 && (
-          <div className="space-y-6">
-            <Card className="leading-3 border-muted border-none -mt-12">
-              <CardHeader></CardHeader>
-              <CardContent className="space-y-6">
-                <MarketExplorationPage marketsData={markets} />
-                {/* Debug info */}
-                {/* {process.env.NODE_ENV === "development" && (
+        {step === "results" &&
+          (analysisResults.length > 0 ||
+            marketsDataWithDefaults.length > 0) && (
+            <div className="space-y-6">
+              <Card className="leading-3 border-muted border-none -mt-12">
+                <CardHeader></CardHeader>
+                <CardContent className="space-y-6">
+                  <MarketExplorationPage
+                    marketsData={marketsDataWithDefaults}
+                  />
+                  {/* Debug info */}
+                  {/* {process.env.NODE_ENV === "development" && (
                   <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
                     <p>Markets data passed: {markets.length} items</p>
                     {markets.length > 0 && (
@@ -2130,10 +2224,10 @@ export function ConnectFlow() {
                     )}
                   </div>
                 )} */}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
       </main>
     </div>
   );

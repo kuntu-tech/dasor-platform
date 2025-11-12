@@ -23,11 +23,23 @@ function Avatar({
 
 function AvatarImage({
   className,
+  referrerPolicy,
+  crossOrigin,
   ...props
 }: React.ComponentProps<typeof AvatarPrimitive.Image>) {
+  const isGoogleAvatar =
+    typeof props.src === 'string' &&
+    props.src.includes('googleusercontent.com')
+
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"
+      referrerPolicy={
+        referrerPolicy ?? (isGoogleAvatar ? 'no-referrer' : undefined)
+      }
+      crossOrigin={
+        crossOrigin ?? (isGoogleAvatar ? 'anonymous' : undefined)
+      }
       className={cn('aspect-square size-full', className)}
       {...props}
     />
@@ -36,11 +48,13 @@ function AvatarImage({
 
 function AvatarFallback({
   className,
+  delayMs = 100,
   ...props
 }: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
   return (
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
+      delayMs={delayMs}
       className={cn(
         'bg-muted flex size-full items-center justify-center rounded-full',
         className,

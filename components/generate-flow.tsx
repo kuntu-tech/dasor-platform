@@ -68,7 +68,7 @@ export function GenerateFlow() {
   const [selectedProblems, setSelectedProblems] = useState<SelectedProblem[]>(
     []
   );
-  // 将 selectedProblems 转换为 QuestionItem 格式用于显示
+  // Convert selectedProblems into QuestionItem objects for rendering
   const getQuestionsFromProblems = (
     problems: SelectedProblem[]
   ): QuestionItem[] => {
@@ -87,7 +87,7 @@ export function GenerateFlow() {
   const { user } = useAuth();
   const [dbConnectionDataObj, setDbConnectionDataObj] = useState<any>({});
   const [dbConnectionReady, setDbConnectionReady] = useState(false);
-  // 防重复调用与首渲染仅触发一次
+  // Prevent duplicate calls and ensure first render triggers once
   const inFlightRef = useRef(false);
   const mountedCalledRef = useRef(false);
   const statusUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -97,7 +97,7 @@ export function GenerateFlow() {
     jobStateRef.current = jobState;
   }, [jobState]);
 
-  // 在客户端获取 dbConnectionData
+  // Fetch dbConnectionData on the client
   useEffect(() => {
     if (typeof window !== "undefined") {
       const dbConnectionData = localStorage.getItem("dbConnectionData");
@@ -114,7 +114,7 @@ export function GenerateFlow() {
     }
   }, []);
 
-  // 当 selectedProblems 变化时，更新 allQuestions
+  // Update allQuestions whenever selectedProblems changes
   useEffect(() => {
     if (selectedProblems.length > 0) {
       const questions = getQuestionsFromProblems(selectedProblems);
@@ -176,7 +176,10 @@ export function GenerateFlow() {
           }
         }
       } catch (err) {
-        console.warn("解析 run_result_publish 失败，使用默认 payload", err);
+        console.warn(
+          "Failed to parse run_result_publish, using default payload",
+          err
+        );
       }
 
       const response = await fetch(
@@ -325,7 +328,7 @@ export function GenerateFlow() {
         localStorage.setItem("currentAppId", appId);
       }
     } catch (error) {
-      console.warn("加载应用详情失败", error);
+      console.warn("Failed to load app details", error);
     }
   }, []);
 
@@ -356,7 +359,9 @@ export function GenerateFlow() {
         if (payload?.status === "failed") {
           setJobState("failed");
           setErrorMessage(
-            payload?.error || payload?.message || "生成失败，请重试"
+            payload?.error ||
+              payload?.message ||
+              "Generation failed, please try again"
           );
           return;
         }
@@ -365,7 +370,7 @@ export function GenerateFlow() {
           requestStatus(appId);
         }, POLL_INTERVAL_MS);
       } catch (error) {
-        console.log("查询任务状态失败", error);
+        console.log("Failed to query job status", error);
         if (
           jobStateRef.current !== "failed" &&
           jobStateRef.current !== "succeeded"
@@ -434,7 +439,7 @@ export function GenerateFlow() {
     setJobAppId(null);
     clearStatusTimer();
     updateQuestionStatuses(null);
-    // 提前声明供两个阶段复用的变量
+    // Declare variables reused across both phases
     let extractedQueries: any[] = [];
     const currentProblems =
       problemsOverride && problemsOverride.length > 0
@@ -455,19 +460,19 @@ export function GenerateFlow() {
         null;
     }
     try {
-      // 先调用业务元数据接口，获取 app_meta_info
+      // Call the metadata service first to retrieve app_meta_info
       let appMetaFromService: any | null = null;
       try {
         appMetaFromService = await fetchMetadataFromService();
       } catch (err) {
-        console.warn("获取应用元数据异常", err);
+        console.warn("Failed to fetch app metadata", err);
       }
 
       if (!appMetaFromService || typeof appMetaFromService !== "object") {
         appMetaFromService = {};
       }
 
-      // 从 metadata 中提取 name 和 description
+      // Extract name and description from the metadata response
       const chatMeta =
         appMetaFromService.chatAppMeta ||
         appMetaFromService.chatappmeta ||
@@ -486,7 +491,7 @@ export function GenerateFlow() {
           ? chatMeta.description.trim()
           : null) || "Batch generated app";
 
-      // 更新 chatMeta 以确保包含最新的 name 和 description
+      // Update chatMeta to ensure it contains the latest name and description
       chatMeta.name = appName;
       chatMeta.description = appDescription;
       appMetaFromService.chatAppMeta = chatMeta;
@@ -504,17 +509,21 @@ export function GenerateFlow() {
           }
         }
       } catch (err) {
-        console.warn("解析 run_result_publish 失败", err);
+        console.warn("Failed to parse run_result_publish", err);
       }
       const batchData = {
         queries: extractedQueries,
         anchorIndex: anchIndexNum,
         user_id: user?.id || "",
-        supabase_config: {
-          supabase_url: dbConnectionDataObj.connectionUrl,
-          supabase_key: dbConnectionDataObj.apiKey,
-          access_token: dbConnectionDataObj.accessToken,
-        },
+        // supabase_config: {
+        //   supabase_url: dbConnectionDataObj.connectionUrl,
+        //   supabase_key: dbConnectionDataObj.apiKey,
+        //   access_token: dbConnectionDataObj.accessToken,
+        // },
+        connection_id:
+          dbConnectionDataObj.connectionId ||
+          dbConnectionDataObj.connection_id ||
+          undefined,
         app: {
           name: appName,
           description: appDescription,

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,14 +83,14 @@ export default function DashboardPage() {
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const { user, session } = useAuth();
 
-  // 提取 generator_meta 中的 queries 并保存到 localStorage
+  // Extract queries from generator_meta and store them in localStorage
   const extractAndSaveQueries = (app: AppItem) => {
     try {
       if (
         app.generator_meta?.queries &&
         Array.isArray(app.generator_meta.queries)
       ) {
-        // 提取 queries 数组中的 query 字段
+        // Pick only the query field from each entry
         const selectedProblems = app.generator_meta.queries
           .map((q) => q.query)
           .filter((query) => query && query.trim().length > 0);
@@ -108,53 +108,123 @@ export default function DashboardPage() {
     }
   };
 
-  const getApps = async () => {
+  // Cache expiration (1 day)
+  const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 1 day
+
+  // Derive the cache key
+  const getCacheKey = useCallback(() => {
+    return `apps_cache_${user?.id || "anonymous"}`;
+  }, [user?.id]);
+
+  // Read cached data
+  const getCachedApps = useCallback((): AppItem[] | null => {
+    if (typeof window === "undefined") return null;
+
+    try {
+      const cacheKey = getCacheKey();
+      const cached = localStorage.getItem(cacheKey);
+      if (!cached) return null;
+
+      const { data, timestamp } = JSON.parse(cached);
+      const now = Date.now();
+
+      // Expiration check
+      if (now - timestamp > CACHE_EXPIRY) {
+        localStorage.removeItem(cacheKey);
+        return null;
+      }
+
+      return Array.isArray(data) ? data : null;
+    } catch (e) {
+      console.log("Failed to parse cached apps:", e);
+      return null;
+    }
+  }, [getCacheKey]);
+
+  // Write data into the cache
+  const setCachedApps = useCallback(
+    (data: AppItem[]) => {
+      if (typeof window === "undefined") return;
+
+      try {
+        const cacheKey = getCacheKey();
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            data,
+            timestamp: Date.now(),
+          })
+        );
+      } catch (e) {
+        console.log("Failed to cache apps:", e);
+      }
+    },
+    [getCacheKey]
+  );
+
+  // Clear cached entries
+  const clearAppsCache = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const cacheKey = getCacheKey();
+    localStorage.removeItem(cacheKey);
+  }, [getCacheKey]);
+
+  // Helper responsible for fetching data from the API
+  const fetchAppsFromAPI = useCallback(async () => {
     const queryParams = new URLSearchParams();
 
     if (user?.id) {
-      console.log(user);
       queryParams.append("user_id", user.id);
     }
 
-    // 添加时间戳防止缓存
     queryParams.append("_t", Date.now().toString());
 
     const response = await fetch(`/api/apps?${queryParams.toString()}`);
     const data = await response.json();
-    console.log(data);
-    setAppItems(Array.isArray(data.data) ? data.data : []);
+
+    if (data.data && Array.isArray(data.data)) {
+      setAppItems(data.data);
+      // Persist the response in cache
+      setCachedApps(data.data);
+    }
+
     return data;
-  };
+  }, [user?.id, setCachedApps]);
+
+  const getApps = useCallback(
+    async (useCache: boolean = true) => {
+      // Honor cache first when allowed
+      if (useCache) {
+        const cachedData = getCachedApps();
+        if (cachedData) {
+          // Display cached data immediately
+          setAppItems(cachedData);
+          // Refresh in the background without using cache
+          fetchAppsFromAPI().catch(console.log);
+          return { data: cachedData };
+        }
+      }
+
+      // When no cache is available, fetch directly
+      try {
+        return await fetchAppsFromAPI();
+      } catch (error) {
+        console.log("Failed to fetch apps:", error);
+        // Fall back to cache if the request fails
+        const cachedData = getCachedApps();
+        if (cachedData) {
+          setAppItems(cachedData);
+        }
+        throw error;
+      }
+    },
+    [getCachedApps, fetchAppsFromAPI]
+  );
   useEffect(() => {
     if (user) {
       getApps();
-
-      // 添加fake data用于展示Generating状态
-      const fakeGeneratingApp: AppItem = {
-        id: "fake-generating-app",
-        name: "E-commerce Analytics Dashboard",
-        description:
-          "Real-time analytics dashboard for e-commerce operations with user behavior tracking",
-        status: "generating",
-        features: 8,
-        createdAt: new Date().toISOString().split("T")[0],
-        updated_at: new Date().toISOString().split("T")[0],
-        published_at: "",
-        visits: 0,
-      };
-
-      // 延迟添加fake data，确保在真实数据加载后
-      // setTimeout(() => {
-      //   setAppItems(prev => {
-      //     // 检查是否已存在fake app，避免重复添加
-      //     if (!prev.find(app => app.id === "fake-generating-app")) {
-      //       return [...prev, fakeGeneratingApp];
-      //     }
-      //     return prev;
-      //   });
-      // }, 500);
     }
-  }, [user]);
+  }, [user, getApps]);
 
   // const initialApps: AppItem[] = [
   //   {
@@ -208,7 +278,7 @@ export default function DashboardPage() {
   const [appItems, setAppItems] = useState<AppItem[]>([]);
 
   const handleDelete = async (id: string) => {
-    // 确认删除
+    // Confirm deletion
     if (
       !confirm(
         "Are you sure you want to delete this app? This action cannot be undone."
@@ -220,7 +290,7 @@ export default function DashboardPage() {
     setDeletingId(id);
 
     try {
-      // 调用后端API删除应用
+      // Invoke backend API to delete the app
       const response = await fetch(`/api/apps/${id}`, {
         method: "DELETE",
         headers: {
@@ -236,12 +306,13 @@ export default function DashboardPage() {
         //throw new Error(errorData.error || "Failed to delete app");
       }
 
-      // 删除成功后重新获取数据，确保数据同步
-      await getApps();
+      // Clear cache and refetch to keep data consistent
+      clearAppsCache();
+      await getApps(false); // Force refresh without cache
 
-      console.log("应用删除成功");
+      console.log("App deleted successfully");
     } catch (error) {
-      console.log("删除应用失败:", error);
+      console.log("Failed to delete app:", error);
       alert(
         `Delete failed: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -253,20 +324,20 @@ export default function DashboardPage() {
   };
 
   const filteredApps = useMemo(() => {
-    // 确保 appItems 始终是数组
+    // Ensure appItems is always an array
     const items = Array.isArray(appItems) ? appItems : [];
     let filtered = items;
 
-    // 状态筛选
+    // Status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter((app) => app.status === statusFilter);
     }
 
-    // 搜索筛选 - 只筛选name字段
+    // Search filter - only match the name field
     const q = query.trim().toLowerCase();
     if (q) {
       filtered = filtered.filter((a) => {
-        // 只匹配name字段
+        // Match against the name field
         return a.name?.toLowerCase().includes(q);
       });
     }
@@ -295,7 +366,7 @@ export default function DashboardPage() {
           isOpen={isPricingOpen}
           onClose={() => setIsPricingOpen(false)}
         />
-        {/* 主标题区 */}
+        {/* Main headline section */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold">MyApps</h1>
@@ -347,7 +418,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 主体列表区 */}
+        {/* Main content list */}
         {view === "grid" ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

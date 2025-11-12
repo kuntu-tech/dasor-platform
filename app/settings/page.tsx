@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -36,7 +36,7 @@ const settingsMenu = [
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("account")
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const searchParams = useSearchParams()
   const [billingPortalUrl, setBillingPortalUrl] = useState<string | null>(null)
   const [billingPortalLoading, setBillingPortalLoading] = useState(false)
@@ -52,30 +52,191 @@ export default function SettingsPage() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState("")
+  const [username, setUsername] = useState("")
+  const [bio, setBio] = useState("")
+  const [useCustomUsername, setUseCustomUsername] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(false)
+
+  const getLatestAccessToken = useCallback(async (): Promise<string | null> => {
+    let accessToken = session?.access_token ?? null
+    console.log("[SettingsPage] getLatestAccessToken - initial", {
+      userId: user?.id,
+      sessionAccessToken: session?.access_token,
+    })
+    try {
+      const { data, error } = await supabase.auth.getSession()
+      if (error) {
+        console.warn("Failed to refresh Supabase session:", error)
+      }
+      if (data?.session?.access_token) {
+        accessToken = data.session.access_token
+      }
+      console.log("[SettingsPage] getLatestAccessToken - after supabase.auth.getSession", {
+        supabaseAccessToken: data?.session?.access_token,
+        resolvedAccessToken: accessToken,
+      })
+    } catch (error) {
+      console.warn("Unexpected error while fetching Supabase session:", error)
+    }
+    return accessToken
+  }, [session?.access_token, user?.id])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 获取用户头像
+  const avatarCacheKey = useMemo(() => {
+    if (typeof window === "undefined") return null
+    return user?.id ? `cached_avatar_${user.id}` : null
+  }, [user?.id])
+
+  const updateAvatar = useCallback(
+    (url: string | null) => {
+      setAvatarUrl(url)
+      if (typeof window === "undefined" || !avatarCacheKey) return
+      if (url) {
+        localStorage.setItem(avatarCacheKey, url)
+      } else {
+        localStorage.removeItem(avatarCacheKey)
+      }
+    },
+    [avatarCacheKey]
+  )
+
+  const deriveDefaultUsername = () => {
+    if (user?.email) {
+      return user.email
+    }
+    return ""
+  }
+
+  type UserProfileRow = {
+    name?: string | null
+    full_name?: string | null
+    username?: string | null
+    bio?: string | null
+    avatar_url?: string | null
+  }
+
+  // Fetch user profile data
   useEffect(() => {
-    const fetchUserAvatar = async () => {
-      if (user?.id) {
-        try {
-          const { data, error } = await supabase
-            .from("users")
-            .select("avatar_url")
-            .eq("id", user.id)
-            .single()
-          
-          if (!error && data?.avatar_url) {
-            setAvatarUrl(data.avatar_url)
-          }
-        } catch (error) {
-          console.log("获取用户头像失败:", error)
+    const fetchUserProfile = async () => {
+      console.log("[SettingsPage] fetchUserProfile - start", {
+        userId: user?.id,
+        sessionAccessToken: session?.access_token,
+      })
+      if (!user?.id) {
+        setDisplayName("")
+        setUsername("")
+        setBio("")
+        updateAvatar(null)
+        setUseCustomUsername(false)
+        console.log("[SettingsPage] fetchUserProfile - no user, reset state")
+        return
+      }
+
+      const metadataDisplayName =
+        (user.user_metadata?.full_name as string | undefined) ??
+        (user.user_metadata?.name as string | undefined) ??
+        user.email ??
+        ""
+      setDisplayName(metadataDisplayName)
+
+      const metadataUsername =
+        (user.user_metadata?.username as string | undefined) ??
+        deriveDefaultUsername()
+      setUsername(metadataUsername ?? "")
+      setUseCustomUsername(Boolean(user.user_metadata?.username))
+
+      const metadataBio =
+        (user.user_metadata?.bio as string | undefined) ?? ""
+      setBio(metadataBio)
+
+      const metadataAvatar =
+        (user.user_metadata?.avatar_url as string | undefined) ??
+        (user.user_metadata?.picture as string | undefined) ??
+        null
+      updateAvatar(metadataAvatar ?? null)
+
+      const accessToken = await getLatestAccessToken()
+      console.log("[SettingsPage] fetchUserProfile - resolved access token", {
+        accessTokenPresent: Boolean(accessToken),
+      })
+
+      if (!accessToken) {
+        console.log("[SettingsPage] fetchUserProfile - no access token, skip API fetch")
+        return
+      }
+
+      setProfileLoading(true)
+
+      try {
+        const response = await fetch("/api/users/self", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId: user.id }),
+          cache: "no-store",
+        })
+
+        if (!response.ok) {
+          console.warn("[SettingsPage] fetchUserProfile - /api/users/self failed", {
+            status: response.status,
+            statusText: response.statusText,
+          })
+          throw new Error(`Failed to fetch profile: ${response.status}`)
         }
+
+        const payload = (await response.json()) as {
+          data?: UserProfileRow | null
+        }
+        console.log("[SettingsPage] fetchUserProfile - API response", payload)
+
+        const profileData = payload?.data ?? null
+
+        const fallbackDisplayName =
+          profileData?.name ??
+          profileData?.full_name ??
+          (user.user_metadata?.full_name as string | undefined) ??
+          (user.user_metadata?.name as string | undefined) ??
+          user.email ??
+          ""
+
+        setDisplayName(fallbackDisplayName)
+
+        const fetchedUsername =
+          profileData?.username ??
+          (user.user_metadata?.username as string | undefined) ??
+          deriveDefaultUsername()
+        setUsername(fetchedUsername ?? "")
+        setUseCustomUsername(Boolean(profileData?.username || user.user_metadata?.username))
+
+        const fetchedBio =
+          profileData?.bio ?? (user.user_metadata?.bio as string | undefined) ?? ""
+        setBio(fetchedBio)
+
+        const fetchedAvatar =
+          profileData?.avatar_url ??
+          (user.user_metadata?.avatar_url as string | undefined) ??
+          (user.user_metadata?.picture as string | undefined) ??
+          null
+        updateAvatar(fetchedAvatar ?? null)
+      } catch (error) {
+        console.log("Failed to fetch user profile:", error)
+      } finally {
+        setProfileLoading(false)
       }
     }
-    
-    fetchUserAvatar()
-  }, [user?.id])
+
+    if (typeof window !== "undefined" && avatarCacheKey) {
+      const cachedUrl = localStorage.getItem(avatarCacheKey)
+      if (cachedUrl) {
+        setAvatarUrl(cachedUrl)
+      }
+    }
+
+    fetchUserProfile()
+  }, [user?.id, avatarCacheKey, updateAvatar, getLatestAccessToken])
 
   useEffect(() => {
     const payoutTab = searchParams?.get("payoutTab")?.toLowerCase()
@@ -84,10 +245,24 @@ export default function SettingsPage() {
     }
   }, [searchParams])
 
-  // 当切换到 billing 标签时，先检查支付记录，再决定是否加载 Customer Portal
+  useEffect(() => {
+    const handleAvatarUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ avatarUrl?: string | null }>).detail
+      if (detail && "avatarUrl" in detail) {
+        updateAvatar(detail.avatarUrl ?? null)
+      }
+    }
+
+    window.addEventListener("avatar-updated", handleAvatarUpdated)
+    return () => {
+      window.removeEventListener("avatar-updated", handleAvatarUpdated)
+    }
+  }, [updateAvatar])
+
+  // When switching to the billing tab, check payment history before loading the Customer Portal
   useEffect(() => {
     if (activeTab === "billing" && user?.id) {
-      // 如果还没有检查过支付记录，先检查
+      // If payment history has not been checked yet, fetch it first
       if (hasPaymentHistory === null && !checkingPaymentHistory) {
         setCheckingPaymentHistory(true)
         
@@ -98,7 +273,7 @@ export default function SettingsPage() {
               setHasPaymentHistory(data.hasPaymentHistory)
               setPaymentStatus(data.status || null)
               
-              // 如果有支付记录，才加载 Customer Portal
+              // Load the Customer Portal only when payment history exists
               if (data.status === "has_payment_history" && !billingPortalUrl && !billingPortalLoading) {
                 setBillingPortalLoading(true)
                 setBillingPortalError(null)
@@ -112,7 +287,7 @@ export default function SettingsPage() {
                     }
                   })
                   .catch((error) => {
-                console.log("Failed to load Customer Portal:", error)
+                    console.log("Failed to load Customer Portal:", error)
                     setBillingPortalError("Network error. Please try again later.")
                   })
                   .finally(() => {
@@ -120,13 +295,13 @@ export default function SettingsPage() {
                   })
               }
             } else {
-              // 检查失败，默认显示无支付记录
+              // On failure, default to no payment history
               setHasPaymentHistory(false)
               setPaymentStatus("no_payment_history")
             }
           })
           .catch((error) => {
-            console.log("检查支付记录失败:", error)
+            console.log("Failed to check payment history:", error)
             setHasPaymentHistory(false)
             setPaymentStatus("no_payment_history")
           })
@@ -134,7 +309,7 @@ export default function SettingsPage() {
             setCheckingPaymentHistory(false)
           })
       } else if (paymentStatus === "has_payment_history" && !billingPortalUrl && !billingPortalLoading) {
-        // 如果已经有支付记录，但还没有加载 Portal，则加载
+        // If payment history exists but the portal is not loaded yet, load it now
         setBillingPortalLoading(true)
         setBillingPortalError(null)
         
@@ -147,7 +322,7 @@ export default function SettingsPage() {
             }
           })
           .catch((error) => {
-            console.log("加载 Customer Portal 失败:", error)
+            console.log("Failed to load Customer Portal:", error)
             setBillingPortalError("Network error. Please try again later.")
           })
           .finally(() => {
@@ -157,28 +332,28 @@ export default function SettingsPage() {
     }
   }, [activeTab, user?.id, billingPortalUrl, billingPortalLoading, hasPaymentHistory, checkingPaymentHistory, paymentStatus])
 
-  // 处理文件上传
+  // Handle avatar file upload
   const handleFileUpload = async (file: File) => {
     if (!user?.id) {
       setUploadError("Please log in first")
       return
     }
 
-    // 验证文件类型
+    // Validate file type
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]
     if (!allowedTypes.includes(file.type)) {
       setUploadError("Unsupported file type. Supported: JPG, PNG, WebP, GIF")
       return
     }
 
-    // 验证文件大小 (5MB)
+    // Validate file size (5MB)
     const maxSize = 5 * 1024 * 1024
     if (file.size > maxSize) {
       setUploadError("File size exceeds limit (Max 5MB)")
       return
     }
 
-    // 创建预览
+    // Create preview image
     const preview = URL.createObjectURL(file)
     setPreviewUrl(preview)
     setUploadError(null)
@@ -202,22 +377,22 @@ export default function SettingsPage() {
         throw new Error(result.error || "Upload failed")
       }
 
-      // 更新头像URL（添加缓存破坏参数）
+      // Update avatar URL with cache-busting parameter
       const avatarUrlWithCache = `${result.url}?t=${Date.now()}`
       
-      // 预加载新图片，确保加载完成后再切换
+      // Preload the new image to ensure it is ready before switching
       const img = new Image()
       
-      // 设置加载完成和错误处理回调
+      // Register load and error handlers
       let imageLoaded = false
       
       img.onload = () => {
         if (!imageLoaded) {
           imageLoaded = true
-          // 图片加载成功后，更新状态并清除预览
-          setAvatarUrl(avatarUrlWithCache)
+          // After the image loads, update state and clear the preview
+          updateAvatar(avatarUrlWithCache)
           setPreviewUrl(null)
-          // 清理预览URL
+          // Revoke the preview URL
           if (preview) {
             URL.revokeObjectURL(preview)
           }
@@ -227,10 +402,10 @@ export default function SettingsPage() {
       img.onerror = () => {
         if (!imageLoaded) {
           imageLoaded = true
-          // 即使加载失败，也更新URL（可能是网络问题，但URL是正确的）
-          // 保持预览URL一段时间，避免显示fallback
-          setAvatarUrl(avatarUrlWithCache)
-          // 延迟清除预览，给用户更多时间看到预览图
+          // Even if loading fails, update the URL (network hiccup, URL is valid)
+          // Keep the preview for a moment to avoid flashing the fallback
+          updateAvatar(avatarUrlWithCache)
+          // Clear the preview after a short delay so users can see it briefly
           setTimeout(() => {
             setPreviewUrl(null)
             if (preview) {
@@ -240,16 +415,15 @@ export default function SettingsPage() {
         }
       }
       
-      // 设置图片源（这会触发加载）
+      // Set the image source which triggers loading
       img.src = avatarUrlWithCache
       
-      // 如果图片已经在缓存中（complete 为 true），onload 可能不会触发
-      // 所以需要检查 complete 状态
+      // If the image is cached (complete is true), onload might not fire, so check complete
       if (img.complete && img.naturalWidth > 0) {
-        // 图片已在缓存中且有效，立即触发切换
+        // Image already cached and valid, update immediately
         if (!imageLoaded) {
           imageLoaded = true
-          setAvatarUrl(avatarUrlWithCache)
+          updateAvatar(avatarUrlWithCache)
           setPreviewUrl(null)
           if (preview) {
             URL.revokeObjectURL(preview)
@@ -260,17 +434,17 @@ export default function SettingsPage() {
       setUploadProgress(100)
       setUploadSuccess("Avatar updated successfully")
 
-      // 触发自定义事件，通知其他组件更新头像
+      // Broadcast an avatar-updated event for other components to react
       window.dispatchEvent(new CustomEvent('avatar-updated', { 
         detail: { avatarUrl: avatarUrlWithCache } 
       }))
 
-      // 3秒后自动清除成功提示
+      // Auto-clear the success message after 3 seconds
       setTimeout(() => {
         setUploadSuccess(null)
       }, 3000)
     } catch (error) {
-      console.log("上传头像失败:", error)
+      console.log("Failed to upload avatar:", error)
       setUploadError(error instanceof Error ? error.message : "Upload failed")
       setPreviewUrl(null)
       if (preview) {
@@ -282,27 +456,25 @@ export default function SettingsPage() {
     }
   }
 
-  // 处理文件选择
+  // Handle file selection
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       handleFileUpload(file)
     }
-    // 重置input，允许重复选择同一文件
+    // Reset the input so the same file can be selected again
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
   }
 
+  // Get the avatar URL (prefer preview, then saved avatar). avatarUrl already has cache busting applied.
+  const displayAvatarUrl = previewUrl || avatarUrl || "/placeholder-user.jpg"
 
-  // 获取头像显示URL（优先使用预览，然后是已保存的头像）
-  // avatarUrl 已经包含了缓存破坏参数，直接使用即可
-  const displayAvatarUrl = previewUrl || avatarUrl
-
-  // 获取用户首字母（用于头像占位符）
+  // Derive initials for the avatar fallback
   const getInitials = () => {
-    if (user?.user_metadata?.full_name) {
-      return user.user_metadata.full_name.charAt(0).toUpperCase()
+    if (displayName) {
+      return displayName.charAt(0).toUpperCase()
     }
     if (user?.email) {
       return user.email.charAt(0).toUpperCase()
@@ -330,7 +502,7 @@ export default function SettingsPage() {
                 <AvatarImage 
                   src={displayAvatarUrl || undefined} 
                   alt="Avatar"
-                  key={displayAvatarUrl} // 添加key强制重新渲染，避免缓存问题
+                  key={displayAvatarUrl} // Force re-render to avoid caching issues
                 />
                 <AvatarFallback className="bg-orange-500 text-white text-2xl font-bold">
                   {getInitials()}
@@ -385,28 +557,35 @@ export default function SettingsPage() {
             <label className="text-sm font-medium">Display Name</label>
             <input 
               type="text" 
-              defaultValue="Gomberg Lambino"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter your display name"
+              disabled={profileLoading}
             />
           </div>
 
-          {/* Username */}
+          {/* Email */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Username</label>
+            <label className="text-sm font-medium">Email</label>
             <input 
               type="text" 
-              defaultValue="gomberglambino"
+              value={useCustomUsername ? username : deriveDefaultUsername()}
+              onChange={(event) => setUsername(event.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter your email"
+              disabled={!useCustomUsername || profileLoading}
             />
             <div className="flex items-center gap-2">
               <input 
                 type="checkbox" 
                 id="custom-username" 
-                defaultChecked
+                checked={useCustomUsername}
+                onChange={(event) => setUseCustomUsername(event.target.checked)}
                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
               />
               <label htmlFor="custom-username" className="text-sm text-gray-700">
-                Use custom username
+                Use custom email
               </label>
             </div>
           </div>
@@ -417,6 +596,9 @@ export default function SettingsPage() {
             <textarea 
               placeholder="Tell us about yourself"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
+              value={bio}
+              onChange={(event) => setBio(event.target.value)}
+              disabled={profileLoading}
             />
             <p className="text-sm text-muted-foreground">180 characters remaining</p>
           </div>
@@ -426,7 +608,7 @@ export default function SettingsPage() {
   )
 
   const renderBillingContent = () => {
-    // 如果未登录，显示提示
+    // Show prompt when user is not logged in
     if (!user?.id) {
       return (
         <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -437,7 +619,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 如果正在检查支付记录，显示加载状态
+    // Show loading state when payment history is being checked
     if (checkingPaymentHistory) {
       return (
         <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -449,7 +631,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 如果未绑定 Stripe 账户，显示提示
+    // Display message when the Stripe account is not linked
     if (paymentStatus === "no_vendor") {
       return (
         <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -478,7 +660,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 如果没有支付记录，显示提示
+    // Display message when no payment history exists
     if (paymentStatus === "no_payment_history") {
       return (
         <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -507,7 +689,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 如果正在加载，显示加载状态
+    // Show loading state while the portal is being fetched
     if (billingPortalLoading) {
       return (
         <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -519,7 +701,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 如果加载失败，显示错误信息
+    // Display error message when loading fails
     if (billingPortalError) {
       return (
         <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -540,7 +722,7 @@ export default function SettingsPage() {
                     }
                   })
                   .catch((error) => {
-                    console.log("加载 Customer Portal 失败:", error)
+                    console.log("Failed to load Customer Portal:", error)
                     setBillingPortalError("Network error. Please try again later.")
                   })
                   .finally(() => {
@@ -555,7 +737,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 如果有 URL，显示提示信息和新窗口打开按钮
+    // With a valid URL, show guidance and open-in-new-tab button
     // Note: Stripe Customer Portal does not support embedding inside an iframe (CSP limitation)
     if (billingPortalUrl) {
       return (
@@ -590,7 +772,7 @@ export default function SettingsPage() {
       )
     }
 
-    // 默认状态（不应该到达这里）
+    // Fallback state (should not be reached)
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <div className="text-center">

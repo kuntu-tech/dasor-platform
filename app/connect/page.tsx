@@ -6,60 +6,76 @@ import { Loader2 } from "lucide-react";
 
 import { ConnectFlow } from "@/components/connect-flow";
 import { useAuth } from "@/components/AuthProvider";
-import { fetchSubscriptionStatus } from "@/lib/subscription/client";
 
 export default function ConnectPage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const {
+    user,
+    loading,
+    subscriptionStatus,
+    subscriptionLoading,
+    refreshSubscriptionStatus,
+  } = useAuth();
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
 
+  // Handle user authentication and initial subscription validation
   useEffect(() => {
-    let cancelled = false;
+    if (loading) {
+      return;
+    }
 
-    const guard = async () => {
-      if (loading) {
-        return;
+    if (!user?.id) {
+      setChecking(false);
+      setAllowed(false);
+      router.replace("/?auth_required=1");
+      return;
+    }
+
+    // Use cached subscription status when available to avoid loading state
+    if (subscriptionStatus) {
+      setChecking(false);
+      if (subscriptionStatus.hasActiveSubscription) {
+        setAllowed(true);
+      } else {
+        setAllowed(false);
+        router.replace("/?subscription_required=1");
       }
+      return;
+    }
 
-      if (!user?.id) {
-        if (!cancelled) {
-          setChecking(false);
-          setAllowed(false);
-        }
-        router.replace("/?auth_required=1");
-        return;
-      }
+    // Only call the API when status is missing and not currently loading
+    // This is rare because subscription is typically checked on sign-in
+    if (!subscriptionLoading) {
+      refreshSubscriptionStatus().catch((error) => {
+        console.log("Subscription check failed:", error);
+        setChecking(false);
+        router.replace("/?subscription_required=1");
+      });
+    }
+  }, [
+    user?.id,
+    loading,
+    subscriptionStatus,
+    subscriptionLoading,
+    refreshSubscriptionStatus,
+    router,
+  ]);
 
-      try {
-        setChecking(true);
-        const status = await fetchSubscriptionStatus(user.id);
+  // React to subscription changes when status transitions from null to a value
+  useEffect(() => {
+    if (!user?.id || loading || !subscriptionStatus) {
+      return;
+    }
 
-        if (cancelled) return;
-
-        if (status?.hasActiveSubscription) {
-          setAllowed(true);
-        } else {
-          router.replace("/?subscription_required=1");
-        }
-      } catch (error) {
-        console.log("Subscription guard failed:", error);
-        if (!cancelled) {
-          router.replace("/?subscription_required=1");
-        }
-      } finally {
-        if (!cancelled) {
-          setChecking(false);
-        }
-      }
-    };
-
-    guard();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user, loading, router]);
+    setChecking(false);
+    if (subscriptionStatus.hasActiveSubscription) {
+      setAllowed(true);
+    } else {
+      setAllowed(false);
+      router.replace("/?subscription_required=1");
+    }
+  }, [subscriptionStatus, user?.id, loading, router]);
 
   if (!allowed) {
     if (checking) {

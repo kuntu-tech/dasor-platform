@@ -21,7 +21,7 @@ export async function GET(
 ) {
   const { appId } = await params;
   if (!appId) {
-    return NextResponse.json({ error: "缺少 appId" }, { status: 400 });
+    return NextResponse.json({ error: "Missing appId" }, { status: 400 });
   }
 
   const controller = new AbortController();
@@ -47,7 +47,7 @@ export async function GET(
     if (!response.ok) {
       return NextResponse.json(
         {
-          error: data?.error || "查询任务状态失败",
+          error: data?.error || "Failed to query job status",
           status: response.status,
           details: data,
         },
@@ -69,7 +69,7 @@ export async function GET(
       msg.includes("The user aborted a request");
     return NextResponse.json(
       {
-        error: isAbort ? "Request timeout" : "查询状态失败",
+        error: isAbort ? "Request timeout" : "Failed to query status",
         details: msg,
       },
       { status: isAbort ? 504 : 500 }

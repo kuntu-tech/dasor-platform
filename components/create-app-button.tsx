@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/AuthProvider";
-import { fetchSubscriptionStatus } from "@/lib/subscription/client";
 
 type NativeButtonProps = React.ComponentProps<"button"> & {
   successHref?: string;
@@ -22,8 +21,20 @@ export function CreateAppButton({
   ...rest
 }: NativeButtonProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const {
+    user,
+    subscriptionStatus,
+    subscriptionLoading,
+    refreshSubscriptionStatus,
+  } = useAuth();
   const [checking, setChecking] = useState(false);
+  const [currentSubscriptionStatus, setCurrentSubscriptionStatus] =
+    useState(subscriptionStatus);
+
+  // Synchronize subscription status
+  useEffect(() => {
+    setCurrentSubscriptionStatus(subscriptionStatus);
+  }, [subscriptionStatus]);
 
   const handleClick = async (event: MouseEvent<HTMLButtonElement>) => {
     if (typeof onClick === "function") {
@@ -43,9 +54,42 @@ export function CreateAppButton({
 
     try {
       setChecking(true);
-      const status = await fetchSubscriptionStatus(user.id);
 
-      if (status?.hasActiveSubscription) {
+      // Use cached subscription status when available
+      if (currentSubscriptionStatus) {
+        if (currentSubscriptionStatus.hasActiveSubscription) {
+          router.push(successHref);
+          return;
+        } else {
+          if (typeof onRequireSubscription === "function") {
+            onRequireSubscription();
+          } else {
+            alert("You need an active subscription to continue.");
+          }
+          return;
+        }
+      }
+
+      // Wait for subscription status to load when missing
+      if (subscriptionLoading) {
+        // Await up to 3 seconds for subscription status resolution
+        let waitCount = 0;
+        while (subscriptionLoading && waitCount < 30) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          waitCount++;
+        }
+      }
+
+      // Force refresh if status is still unavailable
+      if (!currentSubscriptionStatus && !subscriptionStatus) {
+        await refreshSubscriptionStatus();
+        // Allow time for React state updates and useEffect execution
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+
+      // Prioritize currentSubscriptionStatus because it auto-syncs via useEffect
+      const finalStatus = currentSubscriptionStatus || subscriptionStatus;
+      if (finalStatus?.hasActiveSubscription) {
         router.push(successHref);
         return;
       }

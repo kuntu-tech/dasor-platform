@@ -1,99 +1,109 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { X } from "lucide-react"
+import { useState, useEffect } from "react";
+import { X } from "lucide-react";
 
-import { useAuth } from "@/components/AuthProvider"
-import { getVendorStatus, createSubscription } from "@/portable-pages/lib/connectApi"
-import { ensureVendor } from "@/portable-pages/lib/vendorEnsure"
-import { PricingCard, type Plan } from "@/components/ui/pricing"
+import { useAuth } from "@/components/AuthProvider";
+import {
+  getVendorStatus,
+  createSubscription,
+} from "@/portable-pages/lib/connectApi";
+import { ensureVendor } from "@/portable-pages/lib/vendorEnsure";
+import { PricingCard, type Plan } from "@/components/ui/pricing";
 
 interface PricingModalProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export function PricingModal({ isOpen, onClose }: PricingModalProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const { user } = useAuth()
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const stringifyDetail = (detail: unknown): string | undefined => {
-    if (!detail) return undefined
-    if (typeof detail === "string") return detail
-    if (detail instanceof Error) return detail.message
+    if (!detail) return undefined;
+    if (typeof detail === "string") return detail;
+    if (detail instanceof Error) return detail.message;
     try {
-      const serialized = JSON.stringify(detail)
-      return serialized.length > 160 ? `${serialized.slice(0, 157)}...` : serialized
+      const serialized = JSON.stringify(detail);
+      return serialized.length > 160
+        ? `${serialized.slice(0, 157)}...`
+        : serialized;
     } catch {
-      return undefined
+      return undefined;
     }
-  }
+  };
 
   const formatErrorMessage = (message: string, detail?: unknown) => {
-    const detailText = stringifyDetail(detail)
-    return detailText ? `${message} (${detailText})` : message
-  }
+    const detailText = stringifyDetail(detail);
+    return detailText ? `${message} (${detailText})` : message;
+  };
 
   // Handle ESC key closure and reset error state when opening
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose()
+        onClose();
       }
-    }
+    };
 
     if (isOpen) {
-      document.addEventListener("keydown", handleEscape)
+      document.addEventListener("keydown", handleEscape);
       // Prevent background scrolling
-      document.body.style.overflow = "hidden"
+      document.body.style.overflow = "hidden";
       // Reset any previous error when the modal opens
-      setError(null)
+      setError(null);
     }
 
     return () => {
-      document.removeEventListener("keydown", handleEscape)
-      document.body.style.overflow = "unset"
-    }
-  }, [isOpen, onClose])
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, onClose]);
 
   // Handle subscription flow
   const handleSubscribe = async () => {
     if (!user?.id) {
-      setError("Please log in first")
-      return
+      setError("Please log in first");
+      return;
     }
 
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
     try {
-      let vendorId: number | undefined
+      let vendorId: number | undefined;
 
       try {
-        const vendorStatus = await getVendorStatus(user.id)
+        const vendorStatus = await getVendorStatus(user.id);
         if (vendorStatus.success && vendorStatus.data?.id) {
-          vendorId = vendorStatus.data.id
+          vendorId = vendorStatus.data.id;
         }
       } catch (statusError) {
-        console.log("Failed to fetch vendor status, will attempt auto provisioning:", statusError)
+        console.log(
+          "Failed to fetch vendor status, will attempt auto provisioning:",
+          statusError
+        );
       }
 
       if (!vendorId) {
-        const email = user.email
+        const email = user.email;
         if (!email) {
-          setError("We couldn't read your account email. Please sign out and sign back in before subscribing.")
-          setIsLoading(false)
-          return
+          setError(
+            "We couldn't read your account email. Please sign out and sign back in before subscribing."
+          );
+          setIsLoading(false);
+          return;
         }
 
         const ensureResponse = await ensureVendor({
           email,
           userId: user.id,
           redirectUri: baseUrl ? `${baseUrl}/oauth/callback` : undefined,
-        })
+        });
 
         if (!ensureResponse.success || !ensureResponse.data?.vendorId) {
           setError(
@@ -101,66 +111,75 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
               "We couldn't create or locate your vendor profile. Please try again or contact support.",
               ensureResponse.error ?? ensureResponse.details
             )
-          )
-          setIsLoading(false)
-          return
+          );
+          setIsLoading(false);
+          return;
         }
 
-        vendorId = ensureResponse.data.vendorId
+        vendorId = ensureResponse.data.vendorId;
       }
 
       if (!vendorId) {
-        setError("We couldn't determine your vendor profile after onboarding. Please refresh the page and try again.")
-        setIsLoading(false)
-        return
+        setError(
+          "We couldn't determine your vendor profile after onboarding. Please refresh the page and try again."
+        );
+        setIsLoading(false);
+        return;
       }
 
       const subscriptionResponse = await createSubscription(vendorId, {
         interval: "month",
         successUrl: `${baseUrl}/subscription/success`,
         cancelUrl: `${baseUrl}/subscription/cancel`,
-      })
+      });
 
       if (subscriptionResponse.success && subscriptionResponse.data) {
         const alreadyActive =
           subscriptionResponse.data.alreadySubscribed === true ||
-          subscriptionResponse.message?.toLowerCase().includes("already has an active subscription")
+          subscriptionResponse.message
+            ?.toLowerCase()
+            .includes("already has an active subscription");
 
         if (alreadyActive) {
-          setError("You already have an active subscription. If this is unexpected, please contact support.")
-          setIsLoading(false)
-          return
+          setError(
+            "You already have an active subscription. If this is unexpected, please contact support."
+          );
+          setIsLoading(false);
+          return;
         }
       }
 
-      if (!subscriptionResponse.success || !subscriptionResponse.data?.checkoutUrl) {
+      if (
+        !subscriptionResponse.success ||
+        !subscriptionResponse.data?.checkoutUrl
+      ) {
         const subscriptionDetail =
           subscriptionResponse.error ||
           subscriptionResponse.message ||
-          subscriptionResponse.data?.message
+          subscriptionResponse.data?.message;
 
         setError(
           formatErrorMessage(
             "Stripe did not return a checkout link. Please try again in a few minutes or contact support.",
             subscriptionDetail
           )
-        )
-        setIsLoading(false)
-        return
+        );
+        setIsLoading(false);
+        return;
       }
 
-      window.location.href = subscriptionResponse.data.checkoutUrl
+      window.location.href = subscriptionResponse.data.checkoutUrl;
     } catch (err) {
-      console.log("Subscription processing error:", err)
+      console.log("Subscription processing error:", err);
       setError(
         formatErrorMessage(
           "We couldn't start your subscription. Please refresh the page and try again.",
           err
         )
-      )
-      setIsLoading(false)
+      );
+      setIsLoading(false);
     }
-  }
+  };
 
   const plans = [
     {
@@ -181,15 +200,15 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
         loadingText: "Processing...",
         disabled: isLoading,
         onClick: () => {
-          handleSubscribe()
+          handleSubscribe();
         },
         variant: "default",
         className: "bg-white text-black hover:bg-white/90",
       },
     } satisfies Plan,
-  ]
+  ];
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
@@ -224,6 +243,5 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
         )}
       </div>
     </div>
-  )
+  );
 }
-

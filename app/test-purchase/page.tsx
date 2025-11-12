@@ -21,7 +21,7 @@ export default function TestPurchasePage() {
   const { user } = useAuth();
   const [app_userid, setApp_userid] = useState("");
   
-  // 生成默认的回调地址（基于当前域名）
+  // Generate default callback URLs based on the current origin
   const getDefaultSuccessUrl = () => {
     if (typeof window !== "undefined") {
       const baseUrl = window.location.origin;
@@ -55,18 +55,18 @@ export default function TestPurchasePage() {
   const [result, setResult] = useState<CreateAppPaymentResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // 当 app_userid 变化时，自动更新回调地址中的 app_userid 参数
+  // Update callback URLs whenever app_userid changes
   useEffect(() => {
     if (app_userid && typeof window !== "undefined") {
       const baseUrl = window.location.origin;
-      // 更新成功回调地址中的 app_userid
+      // Update the success callback with the new app_userid
       const newSuccessUrl = `${baseUrl}/purchase/success?session_id={CHECKOUT_SESSION_ID}&app_userid=${app_userid}`;
-      // 只有在当前地址是默认值或包含 {APP_USERID} 时才更新
+      // Only overwrite if the current URL is defaulted or contains {APP_USERID}
       if (!successUrl || successUrl.includes("{APP_USERID}") || successUrl.includes("app_userid=")) {
         setSuccessUrl(newSuccessUrl);
       }
       
-      // 更新取消回调地址中的 app_userid
+      // Update the cancel callback with the new app_userid
       const newCancelUrl = `${baseUrl}/purchase/cancel?app_userid=${app_userid}`;
       if (!cancelUrl || cancelUrl.includes("{APP_USERID}") || cancelUrl.includes("app_userid=")) {
         setCancelUrl(newCancelUrl);
@@ -86,7 +86,7 @@ export default function TestPurchasePage() {
     setResult(null);
 
     try {
-      // 构建请求参数，包含可选的回调地址
+      // Build the request payload including optional callback URLs
       const requestBody: {
         app_userid: string;
         successUrl?: string;
@@ -95,7 +95,7 @@ export default function TestPurchasePage() {
         app_userid: app_userid.trim(),
       };
 
-      // 如果传入了回调地址，添加到请求中
+      // Include callback URLs when provided
       if (successUrl.trim()) {
         requestBody.successUrl = successUrl.trim();
       }
@@ -111,7 +111,7 @@ export default function TestPurchasePage() {
         setError(response.error || "Failed to create payment link");
       }
     } catch (err) {
-      console.log("创建支付链接错误:", err);
+      console.log("Failed to create payment link:", err);
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
@@ -135,7 +135,7 @@ export default function TestPurchasePage() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* 标题 */}
+        {/* Heading */}
         <div>
           <h1 className="text-3xl font-bold mb-2">Test App Payment Function</h1>
           <p className="text-muted-foreground">
@@ -143,7 +143,7 @@ export default function TestPurchasePage() {
           </p>
         </div>
 
-        {/* 输入表单 */}
+        {/* Input form */}
         <Card>
           <CardHeader>
             <CardTitle>Input Parameters</CardTitle>
@@ -168,7 +168,7 @@ export default function TestPurchasePage() {
               </p>
             </div>
 
-            {/* 回调地址显示（自动填充，无需手动填写） */}
+            {/* Callback URLs auto-filled for convenience */}
             {successUrl && cancelUrl && (
               <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
                 <div className="flex items-center gap-2 mb-2">
@@ -225,7 +225,7 @@ export default function TestPurchasePage() {
           </CardContent>
         </Card>
 
-        {/* 错误提示 */}
+        {/* Error display */}
         {error && (
           <Alert variant="destructive">
             <XCircle className="h-4 w-4" />
@@ -234,7 +234,7 @@ export default function TestPurchasePage() {
           </Alert>
         )}
 
-        {/* 结果显示 */}
+        {/* Result section */}
         {result && (
           <Card>
             <CardHeader>
@@ -246,7 +246,7 @@ export default function TestPurchasePage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* 免费 App */}
+              {/* Free app */}
               {result.success && result.data?.type === "free" && (
                 <Alert>
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -257,7 +257,7 @@ export default function TestPurchasePage() {
                 </Alert>
               )}
 
-              {/* 付费 App */}
+              {/* Paid app */}
               {result.success && result.data?.type === "paid" && (
                 <div className="space-y-4">
                   <Alert>
@@ -328,7 +328,7 @@ export default function TestPurchasePage() {
                 </div>
               )}
 
-              {/* 完整的 JSON 响应 */}
+              {/* Full JSON response */}
               <div className="space-y-2">
                 <Label>Complete Response Data:</Label>
                 <pre className="p-4 bg-muted rounded-md overflow-auto text-xs">
@@ -339,7 +339,7 @@ export default function TestPurchasePage() {
           </Card>
         )}
 
-        {/* 使用说明 */}
+        {/* Usage notes */}
         <Card>
           <CardHeader>
             <CardTitle>Usage Instructions</CardTitle>
