@@ -18,8 +18,8 @@ interface Hero7Props {
 }
 
 const Hero7 = ({
-  heading = 'Generate ChatApps from Your dataset',
-  description = 'Connecting and analyzing your Supabase database by AI and instantly build your app.',
+  heading = 'Generate chatApps from your data',
+  description = 'Connecting and analyzing your Supabase database by AI and instantly build your app',
   button = {
     text: 'Connect Database to Start',
     url: '/connect',
@@ -43,13 +43,13 @@ const Hero7 = ({
             {heading}
           </h1>
           <p className="flex items-center justify-center gap-2 text-balance text-base text-muted-foreground md:text-lg">
-            <span>Connecting and analyzing your Datail</span>
+            <span>Importing and analyzing your </span>
             <img
               src="/supabase-logo.png"
               alt="Supabase logo"
               className="h-6 w-auto"
             />
-            <span>Supabase database by AI and instantly build your app.</span>
+            <span>Supabase database by AI and instantly build your app</span>
           </p>
         </div>
         {renderButton()}

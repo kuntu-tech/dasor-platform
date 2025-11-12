@@ -278,12 +278,12 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-background">
       <main className="px-6 py-8">
         <Hero7
-          heading="Generate ChatApps from Your dataset"
-          description="Connecting and analyzing your Datail Supabase database by AI and instantly build your app."
+          heading="Generate chatApps from your data"
+          description="Importing and analyzing your Supabase database by AI and instantly build your app"
           buttonComponent={
             <CreateAppButton
               onRequireSubscription={() => setIsPricingOpen(true)}
-              className="mt-10 inline-flex h-12 px-6 text-base rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+              className="mt-10 inline-flex h-12 px-6 text-base rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
             >
               Connect Database to Start
             </CreateAppButton>

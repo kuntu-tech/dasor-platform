@@ -7,7 +7,6 @@ import { Loader2 } from "lucide-react";
 import { ConnectFlow } from "@/components/connect-flow";
 import { useAuth } from "@/components/AuthProvider";
 import { fetchSubscriptionStatus } from "@/lib/subscription/client";
-import { triggerConfettiFireworks } from "@/components/ui/confetti-fireworks";
 
 export default function ConnectPage() {
   const router = useRouter();
@@ -61,27 +60,6 @@ export default function ConnectPage() {
       cancelled = true;
     };
   }, [user, loading, router]);
-
-  // 当页面加载完成且允许访问时，触发烟花特效
-  useEffect(() => {
-    if (!allowed || checking) return;
-
-    // 延迟一小段时间确保页面完全渲染后再触发烟花
-    let cleanup: (() => void) | undefined;
-    const timer = setTimeout(() => {
-      cleanup = triggerConfettiFireworks({
-        duration: 1000,
-        intervalDelay: 200,
-      });
-    }, 300);
-
-    return () => {
-      clearTimeout(timer);
-      if (cleanup) {
-        cleanup();
-      }
-    };
-  }, [allowed, checking]);
 
   if (!allowed) {
     if (checking) {
