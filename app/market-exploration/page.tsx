@@ -1,9 +1,30 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, RotateCcw, ChevronDown, ArrowRight } from "lucide-react";
+import {
+  Send,
+  RotateCcw,
+  ChevronDown,
+  ArrowRight,
+  X,
+  CheckCircle2,
+  Plus,
+  GitMerge,
+  BarChart3,
+  User,
+  TrendingUp,
+  Shield,
+  FileQuestion,
+  Trash2,
+  Edit,
+  Tag,
+} from "lucide-react";
 import { DetailModal } from "@/components/DetailModal";
 import { ValueQuestionsSection } from "@/components/ValueQuestionsSection";
+import { CommandPalette } from "@/components/CommandPalette";
+import { FloatingCommandButton } from "@/components/FloatingCommandButton";
+import { SegmentSelectionModal } from "@/components/SegmentSelectionModal";
+import { AnimatedDropdownMenu } from "@/components/ui/animated-dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 interface MarketSegment {
@@ -49,6 +70,28 @@ type RefreshType =
   | "edit-question"
   | "delete-question"
   | "switching-version";
+
+const COMMAND_LIST: Array<{ label: string; command: string }> = [
+  { label: "Correct domain", command: "domain" },
+  { label: "Add new segment manually", command: "add segment" },
+  { label: "Merge segments", command: "merge segments" },
+  { label: "Edit Market Size to", command: "edit d1" },
+  { label: "Edit Persona to", command: "edit d2" },
+  { label: "Adjust D3 Conversion Rhythm", command: "edit d3" },
+  { label: "Adjust D4 Competitive Moat", command: "edit d4" },
+  { label: "Add new Value Question", command: "add question" },
+  { label: "Delete Value Question", command: "delete question" },
+  { label: "Edit Value Question", command: "edit question" },
+  { label: "Rename segment", command: "change segment" },
+];
+
+const FALLBACK_SEGMENTS = [
+  "Luxury Fashion Sellers EU",
+  "SaaS Startups North America",
+  "Healthcare Providers APAC",
+  "E-commerce Brands US",
+  "Financial Services EMEA",
+];
 export default function MarketExplorationPage({
   marketsData,
 }: MarketExplorationPageProps) {
@@ -143,6 +186,9 @@ export default function MarketExplorationPage({
         }));
 
         setSegmentsData(mapped);
+        if (mapped.length > 0) {
+          setSelectedSegmentName(mapped[0]?.name || "");
+        }
         localStorage.setItem("marketsData", JSON.stringify(mapped));
       }
 
@@ -356,6 +402,74 @@ export default function MarketExplorationPage({
   >([]);
   const [versionMap, setVersionMap] = useState<Map<string, string>>(new Map()); // display -> runId 映射
   // task_id 只从 run_result 中读取，不保存状态，不更新
+  const [selectedSegmentName, setSelectedSegmentName] = useState("");
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isSegmentModalOpen, setIsSegmentModalOpen] = useState(false);
+  const [segmentModalMode, setSegmentModalMode] =
+    useState<"select" | "input">("select");
+  const [segmentModalCommand, setSegmentModalCommand] = useState("");
+  const [selectedCommand, setSelectedCommand] = useState("");
+  const [isSegmentDropdownOpen, setIsSegmentDropdownOpen] = useState(false);
+  const [segmentSearchQuery, setSegmentSearchQuery] = useState("");
+  const [isSendButtonHovered, setIsSendButtonHovered] = useState(false);
+
+  const commandIconMap = useMemo(() => {
+    return {
+      domain: <CheckCircle2 className="h-4 w-4" />,
+      "add segment": <Plus className="h-4 w-4" />,
+      "merge segments": <GitMerge className="h-4 w-4" />,
+      "edit d1": <BarChart3 className="h-4 w-4" />,
+      "edit d2": <User className="h-4 w-4" />,
+      "edit d3": <TrendingUp className="h-4 w-4" />,
+      "edit d4": <Shield className="h-4 w-4" />,
+      "add question": <FileQuestion className="h-4 w-4" />,
+      "delete question": <Trash2 className="h-4 w-4" />,
+      "edit question": <Edit className="h-4 w-4" />,
+      "change segment": <Tag className="h-4 w-4" />,
+    } as Record<string, React.ReactNode>;
+  }, []);
+
+  const getCommandLabel = useCallback(
+    (command: string) =>
+      COMMAND_LIST.find((item) => item.command === command)?.label || command,
+    []
+  );
+
+  const availableSegments = useMemo(() => {
+    if (segmentsData && segmentsData.length > 0) {
+      const dynamicSegments = segmentsData
+        .map((segment: any) => segment?.name || segment?.title)
+        .filter((name: string | undefined): name is string => !!name);
+      if (dynamicSegments.length > 0) {
+        return Array.from(new Set(dynamicSegments));
+      }
+    }
+    return FALLBACK_SEGMENTS;
+  }, [segmentsData]);
+
+  const filteredSegments = useMemo(() => {
+    const query = segmentSearchQuery.toLowerCase();
+    return availableSegments.filter((segment) =>
+      segment.toLowerCase().includes(query)
+    );
+  }, [availableSegments, segmentSearchQuery]);
+  const topSegments = useMemo(
+    () => filteredSegments.slice(0, 3),
+    [filteredSegments]
+  );
+  const hasMoreSegments = filteredSegments.length > 3;
+  const displayedSegmentName =
+    selectedSegmentName || availableSegments[0] || "";
+
+  useEffect(() => {
+    if (segmentsData && segmentsData.length > 0 && !selectedSegmentName) {
+      const firstName =
+        segmentsData[0]?.name || (segmentsData[0] as any)?.title || "";
+      if (firstName) {
+        setSelectedSegmentName(firstName);
+      }
+    }
+  }, [segmentsData, selectedSegmentName]);
 
   const pollJobProgress = useCallback(
     async (
@@ -401,6 +515,84 @@ export default function MarketExplorationPage({
       return { ...last, status: "timeout", error: "Polling timed out" };
     },
     []
+  );
+
+  const resetSegmentDropdown = useCallback(() => {
+    setIsSegmentDropdownOpen(false);
+    setSegmentSearchQuery("");
+  }, []);
+
+  const handleInputChange = (value: string) => {
+    setInputValue(value);
+    const lastAtIndex = value.lastIndexOf("@");
+    if (lastAtIndex !== -1) {
+      const textAfterAt = value.substring(lastAtIndex + 1);
+      if (lastAtIndex === value.length - 1 || !textAfterAt.includes(" ")) {
+        setSegmentSearchQuery(textAfterAt);
+        setIsSegmentDropdownOpen(true);
+      } else {
+        resetSegmentDropdown();
+      }
+    } else {
+      resetSegmentDropdown();
+    }
+  };
+
+  const handleSegmentSelect = (segment: string) => {
+    const cursorPosition = inputValue.lastIndexOf("@");
+    if (cursorPosition !== -1) {
+      const beforeAt = inputValue.substring(0, cursorPosition);
+      setInputValue(`${beforeAt}@${segment} `);
+    } else {
+      setInputValue((prev) => `${prev}@${segment} `);
+    }
+    resetSegmentDropdown();
+  };
+
+  const handleSpecialCommand = useCallback(
+    (command: "domain" | "add-segment") => {
+      if (command === "domain") {
+        setSelectedCommand("domain");
+        setInputValue("domain ");
+        setSegmentModalMode("select");
+        setSegmentModalCommand("clipboard");
+        setIsSegmentModalOpen(true);
+      } else if (command === "add-segment") {
+        setSelectedCommand("add segment");
+        setInputValue("add segment ");
+        setSegmentModalMode("input");
+        setSegmentModalCommand("new segment");
+        setIsSegmentModalOpen(true);
+      }
+    },
+    []
+  );
+
+  const handleCommandListSelect = useCallback(
+    (command: string) => {
+      if (command === "domain") {
+        handleSpecialCommand("domain");
+        return;
+      }
+      if (command === "add segment") {
+        handleSpecialCommand("add-segment");
+        return;
+      }
+      setSelectedCommand(command);
+      setInputValue("");
+      resetSegmentDropdown();
+    },
+    [handleSpecialCommand, resetSegmentDropdown]
+  );
+
+  const commandOptions = useMemo(
+    () =>
+      COMMAND_LIST.map((item) => ({
+        label: item.label,
+        Icon: commandIconMap[item.command],
+        onClick: () => handleCommandListSelect(item.command),
+      })),
+    [commandIconMap, handleCommandListSelect]
   );
 
   const runFullRegeneration = useCallback(async () => {
@@ -595,8 +787,18 @@ export default function MarketExplorationPage({
     return pollingResult;
   }, [pollJobProgress, user?.id]);
 
-  const handleSend = async () => {
-    if (!inputValue.trim()) return;
+  const executeSend = async (overrideCommand?: string) => {
+    const composedInput =
+      overrideCommand ??
+      (selectedCommand ? `${selectedCommand} ${inputValue}` : inputValue);
+    const finalCommand = composedInput.trim();
+
+    if (!finalCommand) {
+      return;
+    }
+
+    resetSegmentDropdown();
+    setIsCommandPaletteOpen(false);
 
     // 调用 feedback-mrf/process 接口
     try {
@@ -633,7 +835,6 @@ export default function MarketExplorationPage({
       const taskId = runResult?.task_id || "";
 
       if (!taskId) {
-        // alert("无法获取 task_id，请重新连接数据库");
         return;
       }
 
@@ -641,7 +842,7 @@ export default function MarketExplorationPage({
 
       // 准备请求参数
       const requestBody = {
-        feedback_text: inputValue.trim(),
+        feedback_text: finalCommand,
         base_run_id: baseRunId,
         policy: "standard",
         user_id: user?.id,
@@ -654,13 +855,11 @@ export default function MarketExplorationPage({
 
       setIsGenerating(true);
       setGenerationProgress(0);
-      // 生成开始时关闭版本下拉框
       setIsVersionDropdownOpen(false);
 
       // 第一步：调用 feedback-mrf/process 接口 (0% -> 30%)
       setGenerationProgress(10);
       const response = await fetch(
-        // "http://localhost:8000/api/v1/feedback-mrf/process",
         "https://business-insight.datail.ai/api/v1/feedback-mrf/process",
         {
           method: "POST",
@@ -673,9 +872,9 @@ export default function MarketExplorationPage({
 
       if (!response.ok) {
         const errorText = await response.text();
-        // throw new Error(`API call failed: ${response.status} - ${errorText}`);
         console.log("Clarify your prompt so the system can continue");
         alert("Clarify your prompt so the system can continue");
+        console.log("feedback-mrf/process error payload:", errorText);
       }
 
       setGenerationProgress(30); // feedback-mrf/process 完成，进度 30%
@@ -687,6 +886,7 @@ export default function MarketExplorationPage({
         alert("Clarify your prompt so the system can continue");
         setIsGenerating(false);
         setGenerationProgress(0);
+        setSelectedCommand("");
         return;
       }
 
@@ -703,7 +903,6 @@ export default function MarketExplorationPage({
         }
       }
 
-      // 检查返回结果中是否有 run_results
       if (!runResultsPayload) {
         console.warn(
           "No run_results available for standal_sql request",
@@ -712,18 +911,18 @@ export default function MarketExplorationPage({
         alert("Clarify your prompt so the system can continue");
         setIsGenerating(false);
         setGenerationProgress(0);
+        setSelectedCommand("");
         return;
       }
 
       // 第二步：调用 standal_sql 接口 (30% -> 70%)
       console.log("Calling standal_sql with run_results...");
-      setGenerationProgress((prev) => Math.max(prev, 40)); // 开始调用 standal_sql，进度 40%
+      setGenerationProgress((prev) => Math.max(prev, 40));
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 600_000); // 10分钟超时
+      const timeout = setTimeout(() => controller.abort(), 600_000);
 
       const standalRes = await fetch(
         "https://business-insight.datail.ai/api/v1/standal_sql",
-        // "http://192.168.30.159:8900/api/v1/standal_sql",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -733,7 +932,7 @@ export default function MarketExplorationPage({
       );
 
       clearTimeout(timeout);
-      setGenerationProgress(70); // standal_sql 调用完成，进度 70%
+      setGenerationProgress(70);
       const standalText = await standalRes.text();
       console.log("standal_sql response:", standalText);
 
@@ -766,11 +965,9 @@ export default function MarketExplorationPage({
           })
         );
 
-        // 更新 run_result（必须在调用 fetchVersions 之前更新）
         const updatedRunResult = standalJson.run_results.run_result;
         localStorage.setItem("run_result", JSON.stringify(updatedRunResult));
 
-        // 更新 segmentsData 以刷新页面
         setGenerationProgress(85);
         const segments = updatedRunResult.segments || [];
         const mapped = segments.map((seg: any) => ({
@@ -782,24 +979,22 @@ export default function MarketExplorationPage({
         }));
 
         setSegmentsData(mapped);
+        if (mapped.length > 0) {
+          setSelectedSegmentName(mapped[0]?.name || "");
+        }
         localStorage.setItem("marketsData", JSON.stringify(mapped));
 
-        // 第四步：刷新版本列表 (90% -> 100%)
         setGenerationProgress(90);
-        // 确保在 localStorage 更新后再调用，并添加延迟确保数据库写入完成
-        // 使用重试机制，确保能够获取到最新版本
         const refreshVersionsWithRetry = async (
           retries = 5,
           delay = 1000,
           initialDelay = 2000
         ) => {
-          // 记录刷新前的版本数量
           const previousVersionCount = versions.length;
           console.log(
             `Previous version count: ${previousVersionCount}, waiting ${initialDelay}ms for database write...`
           );
 
-          // 先等待初始延迟，给数据库足够时间写入
           await new Promise((resolve) => setTimeout(resolve, initialDelay));
 
           for (let i = 0; i < retries; i++) {
@@ -808,9 +1003,6 @@ export default function MarketExplorationPage({
                 `Refreshing versions (attempt ${i + 1}/${retries})...`
               );
 
-              // 调用 fetchVersions 获取最新版本列表
-              // 注意：这里不能直接调用 fetchVersions，因为它会触发 loadVersionData
-              // 我们需要手动获取版本列表并检查数量
               const taskId =
                 localStorage.getItem("originalTaskId") ||
                 JSON.parse(localStorage.getItem("run_result") || "{}")
@@ -836,31 +1028,27 @@ export default function MarketExplorationPage({
                 throw new Error(`HTTP ${response.status}`);
               }
 
-              const result = await response.json();
-              const runResults = result.data || [];
+              const refreshedResult = await response.json();
+              const runResults = refreshedResult.data || [];
               const currentVersionCount = runResults.length;
 
               console.log(
                 `Current version count: ${currentVersionCount}, previous: ${previousVersionCount}`
               );
 
-              // 检查版本数量是否增加（说明新版本已写入数据库）
               if (currentVersionCount > previousVersionCount) {
                 console.log(
                   `New version detected! Count increased from ${previousVersionCount} to ${currentVersionCount}`
                 );
-                // 版本数量增加了，调用完整的 fetchVersions 来更新 UI（需要加载数据）
                 await fetchVersions(true);
-                setGenerationProgress(100); // 所有操作完成，进度 100%
+                setGenerationProgress(100);
                 return;
               } else if (i < retries - 1) {
-                // 版本数量还没增加，继续等待并重试
                 console.log(
                   `Version count not increased yet, waiting ${delay}ms before retry...`
                 );
                 await new Promise((resolve) => setTimeout(resolve, delay));
               } else {
-                // 最后一次重试，即使版本数量没增加也更新（可能是数据库延迟）
                 console.log("Max retries reached, updating versions anyway...");
                 await fetchVersions(true);
                 setGenerationProgress(100);
@@ -871,10 +1059,8 @@ export default function MarketExplorationPage({
                 error
               );
               if (i < retries - 1) {
-                // 如果不是最后一次重试，等待后重试
                 await new Promise((resolve) => setTimeout(resolve, delay));
               } else {
-                // 最后一次重试失败，仍然完成进度
                 console.log("Failed to refresh versions after all retries");
                 setGenerationProgress(100);
               }
@@ -882,15 +1068,12 @@ export default function MarketExplorationPage({
           }
         };
 
-        // 立即开始刷新流程（内部会先等待初始延迟）
         refreshVersionsWithRetry();
       } else {
-        // 如果没有数据，直接完成
         setGenerationProgress(100);
       }
 
-      // 原有的刷新逻辑（保留用于 UI 更新）
-      const lowerInput = inputValue.toLowerCase();
+      const lowerInput = finalCommand.toLowerCase();
       const isVersionChange = lowerInput.includes("change segment");
       let detectedRefreshType: RefreshType = "none";
       if (lowerInput.includes("add segment")) {
@@ -922,7 +1105,6 @@ export default function MarketExplorationPage({
       }
       setRefreshType(detectedRefreshType);
 
-      // 延迟后重置状态
       setTimeout(() => {
         if (isVersionChange) {
           const currentVersionNumber = parseInt(
@@ -941,21 +1123,54 @@ export default function MarketExplorationPage({
           setTimeout(() => {
             setIsGenerating(false);
             setInputValue("");
+            setSelectedCommand("");
             setGenerationProgress(0);
             setRefreshType("none");
           }, 1000);
         } else {
           setIsGenerating(false);
           setInputValue("");
+          setSelectedCommand("");
           setGenerationProgress(0);
           setRefreshType("none");
           setRefreshKey((prev) => prev + 1);
         }
       }, 500);
     } catch (error) {
+      console.log("handleSend error:", error);
       setIsGenerating(false);
       setGenerationProgress(0);
+      setSelectedCommand("");
     }
+  };
+
+  const handleCommandSelect = (command: string) => {
+    setIsCommandPaletteOpen(false);
+    setSelectedCommand("");
+    setInputValue(command);
+    resetSegmentDropdown();
+    setTimeout(() => {
+      void executeSend(command);
+    }, 100);
+  };
+
+  const handleSegmentModalConfirm = (value: string) => {
+    const fullCommand =
+      segmentModalMode === "select"
+        ? `domain ${value}`
+        : `add segment ${value}`;
+    setIsSegmentModalOpen(false);
+    setSelectedCommand("");
+    setInputValue("");
+    resetSegmentDropdown();
+    setTimeout(() => {
+      void executeSend(fullCommand);
+    }, 50);
+  };
+
+  const handleSend = () => {
+    if (isGenerating || !selectedCommand) return;
+    void executeSend();
   };
   const handleGenerateApp = () => {
     console.log("Generating ChatApp");
@@ -967,12 +1182,27 @@ export default function MarketExplorationPage({
       e.preventDefault();
       handleSend();
     }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      if (isSegmentDropdownOpen) {
+        resetSegmentDropdown();
+        return;
+      }
+      if (selectedCommand) {
+        setSelectedCommand("");
+        setInputValue("");
+        return;
+      }
+      if (inputValue) {
+        setInputValue("");
+      }
+    }
   };
   return (
     <div className="w-full min-h-screen bg-white pb-32">
       <div className="max-w-7xl mx-auto p-8">
-        <div className="mb-8 flex items-center justify-between">
-          <h1 className="text-5xl font-bold text-gray-900">Business Insight</h1>
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-gray-900">Business Insight</h1>
           {/* Right side controls */}
           <div className="flex items-center gap-4">
             {/* Version Selector */}
@@ -1069,10 +1299,24 @@ export default function MarketExplorationPage({
             <button
               onClick={handleGenerateApp}
               disabled={isGenerating}
-              className="flex items-center gap-2 px-4 py-2 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white relative overflow-hidden"
             >
               <ArrowRight className="w-4 h-4" />
-              <span className="whitespace-nowrap">Generate</span>
+              <span className="whitespace-nowrap flex items-center gap-1">
+                Generate{" "}
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={displayedSegmentName}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="text-green-400 inline-block"
+                  >
+                    {displayedSegmentName}
+                  </motion.span>
+                </AnimatePresence>
+              </span>
             </button>
           </div>
         </div>
@@ -1106,42 +1350,153 @@ export default function MarketExplorationPage({
               refreshType={refreshType}
               refreshKey={refreshKey}
               segmentsData={segmentsData as any}
+              onSegmentChange={(name) =>
+                setSelectedSegmentName(name ? String(name) : "")
+              }
             />
           </motion.div>
         </AnimatePresence>
       </div>
+      <div className="hidden">
+        <FloatingCommandButton
+          onClick={() => setIsCommandPaletteOpen(true)}
+        />
+      </div>
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onCommandSelect={handleCommandSelect}
+        onSpecialCommand={handleSpecialCommand}
+      />
+      <SegmentSelectionModal
+        isOpen={isSegmentModalOpen}
+        onClose={() => setIsSegmentModalOpen(false)}
+        mode={segmentModalMode}
+        commandText={segmentModalCommand}
+        onConfirm={handleSegmentModalConfirm}
+        segments={availableSegments}
+      />
       {/* Bottom Input Box */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-6 pb-6 px-8 z-50">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white border border-gray-300 rounded-3xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden">
-            <div className="flex items-end gap-3 p-4">
-              {/* Text Input */}
-              <textarea
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={isGenerating}
-                placeholder="Any thoughts or suggestions?"
-                rows={1}
-                className="flex-1 resize-none bg-transparent border-none outline-none text-gray-900 placeholder-gray-400 text-base py-2 max-h-48 overflow-y-auto disabled:opacity-50"
-                style={{
-                  minHeight: "24px",
-                }}
-              />
-              {/* Send Button */}
-              <button
-                type="button"
-                onClick={handleSend}
-                disabled={!inputValue.trim() || isGenerating}
-                className={`flex-shrink-0 p-2 rounded-lg transition-all duration-200 ${
-                  inputValue.trim() && !isGenerating
-                    ? "text-black hover:bg-gray-100"
-                    : "text-gray-300 cursor-not-allowed"
-                }`}
-                aria-label="Send message"
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-6 pb-6 z-50">
+        <div className="max-w-7xl mx-auto px-8 relative">
+          <AnimatePresence>
+            {isSegmentDropdownOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.2 }}
+                className="absolute bottom-full mb-2 left-4 bg-white border border-gray-300 rounded-2xl shadow-xl overflow-hidden"
+                style={{ width: "auto", minWidth: "300px", maxWidth: "400px" }}
               >
-                <Send className="w-5 h-5 fill-current" />
-              </button>
+                <div className="p-2">
+                  <div className="mb-2">
+                    <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase">
+                      Quick Select
+                    </div>
+                    {topSegments.map((segment) => (
+                      <button
+                        key={segment}
+                        onClick={() => handleSegmentSelect(segment)}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-900 font-medium text-sm"
+                      >
+                        {segment}
+                      </button>
+                    ))}
+                  </div>
+                  {hasMoreSegments && (
+                    <div className="border-t border-gray-200 pt-2">
+                      <button
+                        onClick={() => {
+                          setIsSegmentDropdownOpen(false);
+                          setSegmentModalMode("select");
+                          setSegmentModalCommand("clipboard");
+                          setIsSegmentModalOpen(true);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600 font-medium text-sm flex items-center justify-between"
+                      >
+                        <span>View all segments</span>
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <div className="bg-white border border-gray-300 rounded-3xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-visible">
+            <div className="flex flex-col gap-3 p-4">
+              <div className="flex items-start gap-2">
+                <AnimatePresence>
+                  {selectedCommand && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium"
+                      style={{ marginTop: "10px" }}
+                    >
+                      <span>{getCommandLabel(selectedCommand)}</span>
+                      <button
+                        onClick={() => {
+                          setSelectedCommand("");
+                          setInputValue("");
+                        }}
+                        className="hover:bg-gray-200 rounded p-0.5 transition-colors"
+                        aria-label="Clear command"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <textarea
+                  value={inputValue}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={isGenerating}
+                  placeholder={
+                    selectedCommand
+                      ? "Type @ to select a segment..."
+                      : "More thoughts? Type @ to select a segment..."
+                  }
+                  rows={1}
+                  className="flex-1 resize-none bg-transparent border-none outline-none text-gray-900 placeholder-gray-400 text-base px-2 py-2 max-h-48 overflow-y-auto disabled:opacity-50"
+                  style={{ minHeight: "40px" }}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <AnimatedDropdownMenu options={commandOptions}>
+                  <span className="text-xl">➕</span>
+                </AnimatedDropdownMenu>
+                <div className="flex-1" />
+                <div
+                  className="relative flex-shrink-0"
+                  onMouseEnter={() => setIsSendButtonHovered(true)}
+                  onMouseLeave={() => setIsSendButtonHovered(false)}
+                >
+                  <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={isGenerating || !selectedCommand}
+                    className={`p-2 rounded-lg transition-all duration-200 ${
+                      !isGenerating && selectedCommand
+                        ? "text-black hover:bg-gray-100"
+                        : "text-gray-300 cursor-not-allowed"
+                    }`}
+                    aria-label="Send message"
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
+                  {!selectedCommand && isSendButtonHovered && !isGenerating && (
+                      <div className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50">
+                        Please select a command first
+                        <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                      </div>
+                    )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

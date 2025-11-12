@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { SparklesIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { QuestionAccordion } from "@/components/QuestionAccordion";
 import { AnalysisCard } from "@/components/AnalysisCard";
 import { CompactAnalysisCard } from "@/components/CompactAnalysisCard";
@@ -17,113 +17,113 @@ interface Segment {
   subtitle: string;
   questions: Question[];
 }
-// const segments: Segment[] = [
-//   {
-//     id: "luxury-fashion",
-//     name: "Luxury Fashion Sellers EU",
-//     subtitle: "B2C Online Retailers",
-//     questions: [
-//       {
-//         id: "q1",
-//         text: "What is the average customer lifetime value by acquisition channel?",
-//         tags: ["Optimize marketing spend", "Metric by dimension"],
-//         status: "success",
-//       },
-//       {
-//         id: "q2",
-//         text: "Which product categories have the highest return rates and why?",
-//         tags: ["Reduce operational costs", "Ranked list with reasons"],
-//         status: "warning",
-//       },
-//       {
-//         id: "q3",
-//         text: "How does weather patterns correlate with luxury fashion purchases?",
-//         tags: ["Improve demand forecasting", "Correlation analysis"],
-//         status: "error",
-//       },
-//       {
-//         id: "q4",
-//         text: "What percentage of VIP customers engage with personalized recommendations?",
-//         tags: ["Enhance personalization", "Percentage with trend"],
-//         status: "success",
-//       },
-//       {
-//         id: "q5",
-//         text: "How do customer preferences vary across EU regions?",
-//         tags: ["Regional customization", "Comparative analysis"],
-//         status: "info",
-//       },
-//       {
-//         id: "q6",
-//         text: "What is the optimal inventory level for seasonal collections?",
-//         tags: ["Inventory optimization", "Predictive analysis"],
-//         status: "success",
-//       },
-//       {
-//         id: "q7",
-//         text: "Which customer segments show the highest conversion rates for new arrivals?",
-//         tags: ["Segment analysis", "Conversion optimization"],
-//         status: "info",
-//       },
-//       {
-//         id: "q8",
-//         text: "How do shipping costs impact purchase decisions across different price points?",
-//         tags: ["Pricing strategy", "Cost analysis"],
-//         status: "warning",
-//       },
-//       {
-//         id: "q9",
-//         text: "What is the relationship between social media engagement and sales?",
-//         tags: ["Marketing effectiveness", "Social commerce"],
-//         status: "success",
-//       },
-//       {
-//         id: "q10",
-//         text: "Which loyalty program features drive the most repeat purchases?",
-//         tags: ["Customer retention", "Program optimization"],
-//         status: "info",
-//       },
-//     ],
-//   },
-//   {
-//     id: "saas-startups",
-//     name: "SaaS Startups North America",
-//     subtitle: "B2B Software Companies",
-//     questions: [
-//       {
-//         id: "q11",
-//         text: "What is the average time to first value for new customers?",
-//         tags: ["Improve onboarding", "Time metric"],
-//         status: "success",
-//       },
-//       {
-//         id: "q12",
-//         text: "Which features correlate most strongly with customer retention?",
-//         tags: ["Product development", "Feature analysis"],
-//         status: "warning",
-//       },
-//     ],
-//   },
-//   {
-//     id: "healthcare-providers",
-//     name: "Healthcare Providers APAC",
-//     subtitle: "Medical Services",
-//     questions: [
-//       {
-//         id: "q13",
-//         text: "What is the patient satisfaction score by service type?",
-//         tags: ["Quality improvement", "Satisfaction metrics"],
-//         status: "success",
-//       },
-//       {
-//         id: "q14",
-//         text: "How do appointment no-show rates vary by demographics?",
-//         tags: ["Operational efficiency", "Demographic analysis"],
-//         status: "info",
-//       },
-//     ],
-//   },
-// ];
+const DEFAULT_SEGMENTS: Segment[] = [
+  {
+    id: "luxury-fashion",
+    name: "Luxury Fashion Sellers EU",
+    subtitle: "B2C Online Retailers",
+    questions: [
+      {
+        id: "q1",
+        text: "What is the average customer lifetime value by acquisition channel?",
+        tags: ["Optimize marketing spend", "Metric by dimension"],
+        status: "success",
+      },
+      {
+        id: "q2",
+        text: "Which product categories have the highest return rates and why?",
+        tags: ["Reduce operational costs", "Ranked list with reasons"],
+        status: "warning",
+      },
+      {
+        id: "q3",
+        text: "How does weather patterns correlate with luxury fashion purchases?",
+        tags: ["Improve demand forecasting", "Correlation analysis"],
+        status: "error",
+      },
+      {
+        id: "q4",
+        text: "What percentage of VIP customers engage with personalized recommendations?",
+        tags: ["Enhance personalization", "Percentage with trend"],
+        status: "success",
+      },
+      {
+        id: "q5",
+        text: "How do customer preferences vary across EU regions?",
+        tags: ["Regional customization", "Comparative analysis"],
+        status: "info",
+      },
+      {
+        id: "q6",
+        text: "What is the optimal inventory level for seasonal collections?",
+        tags: ["Inventory optimization", "Predictive analysis"],
+        status: "success",
+      },
+      {
+        id: "q7",
+        text: "Which customer segments show the highest conversion rates for new arrivals?",
+        tags: ["Segment analysis", "Conversion optimization"],
+        status: "info",
+      },
+      {
+        id: "q8",
+        text: "How do shipping costs impact purchase decisions across different price points?",
+        tags: ["Pricing strategy", "Cost analysis"],
+        status: "warning",
+      },
+      {
+        id: "q9",
+        text: "What is the relationship between social media engagement and sales?",
+        tags: ["Marketing effectiveness", "Social commerce"],
+        status: "success",
+      },
+      {
+        id: "q10",
+        text: "Which loyalty program features drive the most repeat purchases?",
+        tags: ["Customer retention", "Program optimization"],
+        status: "info",
+      },
+    ],
+  },
+  {
+    id: "saas-startups",
+    name: "SaaS Startups North America",
+    subtitle: "B2B Software Companies",
+    questions: [
+      {
+        id: "q11",
+        text: "What is the average time to first value for new customers?",
+        tags: ["Improve onboarding", "Time metric"],
+        status: "success",
+      },
+      {
+        id: "q12",
+        text: "Which features correlate most strongly with customer retention?",
+        tags: ["Product development", "Feature analysis"],
+        status: "warning",
+      },
+    ],
+  },
+  {
+    id: "healthcare-providers",
+    name: "Healthcare Providers APAC",
+    subtitle: "Medical Services",
+    questions: [
+      {
+        id: "q13",
+        text: "What is the patient satisfaction score by service type?",
+        tags: ["Quality improvement", "Satisfaction metrics"],
+        status: "success",
+      },
+      {
+        id: "q14",
+        text: "How do appointment no-show rates vary by demographics?",
+        tags: ["Operational efficiency", "Demographic analysis"],
+        status: "info",
+      },
+    ],
+  },
+];
 interface AnalysisData {
   id: string;
   dimensionName: string;
@@ -137,6 +137,12 @@ interface AnalysisData {
     painPoints: string[];
     goals: string[];
   };
+  revenue_band?: string;
+  retention_signal?: string;
+  conversion_rate_est?: number;
+  moat_score?: number;
+  scalability_score?: number;
+  competitive_advantage?: string[];
   fullDetails: string;
 }
 const analysisData: AnalysisData[] = [
@@ -154,6 +160,19 @@ const analysisData: AnalysisData[] = [
     ],
     fullDetails:
       "Comprehensive market analysis shows exceptional opportunity. The total addressable market is expanding rapidly driven by digital transformation initiatives across Fortune 500 companies. Early adopter feedback indicates strong product-market fit with enterprise customers willing to pay premium pricing for comprehensive solutions.",
+  },
+  {
+    id: "D3",
+    dimensionName: "Conversion & Retention",
+    score: 7.9,
+    summary:
+      "Moderate to high conversion rates due to platform trust; retention supported by repeat bookings and positive reviews; revenue potential driven by premium listings.",
+    tags: ["Conversion", "Retention", "Revenue Growth"],
+    revenue_band: "每位房东年收入 $50K-$200K",
+    retention_signal: "中等",
+    conversion_rate_est: 0.16,
+    fullDetails:
+      "The platform demonstrates healthy conversion and retention metrics. A 16% conversion rate reflects strong platform trust, while repeat bookings indicate satisfied customers. Premium listings show significant revenue potential with annual earnings between $50K-$200K per host.",
   },
   {
     id: "D2",
@@ -179,23 +198,7 @@ const analysisData: AnalysisData[] = [
       ],
     },
     fullDetails:
-      "Target customers are technology-forward leaders in mid-market to enterprise organizations. They have clear mandates to modernize operations and significant budgets allocated for digital transformation. Our solution directly addresses their top 3 pain points with measurable ROI within 6 months.",
-  },
-  {
-    id: "D3",
-    dimensionName: "Competitive Advantage",
-    score: 7.8,
-    summary:
-      "Differentiated positioning with proprietary technology. Strong moat through network effects and integrations.",
-    tags: ["Proprietary Tech", "Network Effects", "Integration Ecosystem"],
-    supportingIndicators: [
-      "Patent-pending AI algorithms",
-      "50+ pre-built integrations",
-      "Exclusive partnerships with key platforms",
-      "First-mover advantage in emerging category",
-    ],
-    fullDetails:
-      "Our competitive advantage stems from three core pillars: proprietary AI technology that delivers 10x faster processing, an extensive integration ecosystem that creates switching costs, and strategic partnerships that provide exclusive market access. Competitors are 18-24 months behind in core technology capabilities.",
+      "Target customers are technology-forward leaders in mid-market to enterprise organizations. They have clear mandates to modernize operations and significant budgets allocated for digital transformation. Our solution directly addresses their top pain points with measurable ROI within 6 months.",
   },
   {
     id: "D4",
@@ -203,15 +206,16 @@ const analysisData: AnalysisData[] = [
     score: 8.5,
     summary:
       "Strong unit economics with LTV/CAC ratio of 5.2x. Multiple expansion opportunities through upsell and cross-sell.",
-    tags: ["High LTV", "Expansion Revenue", "Predictable"],
-    supportingIndicators: [
-      "Average ACV: $85K",
-      "Net Revenue Retention: 132%",
-      "Gross Margin: 78%",
-      "Payback Period: 11 months",
+    tags: ["Data Moat", "Platform Scale", "Network Effects"],
+    moat_score: 8.2,
+    scalability_score: 8.6,
+    competitive_advantage: [
+      "大量已验证的房东数据",
+      "稳健的评论生态系统",
+      "动态定价与可用性洞察",
     ],
     fullDetails:
-      "Financial modeling shows exceptional unit economics with strong margins and rapid payback. Current customers demonstrate 132% net revenue retention through natural expansion and upsell opportunities. The land-and-expand model allows for efficient customer acquisition with significant lifetime value growth. Three-year revenue projection shows path to $50M ARR with sustainable growth rates.",
+      "Our data infrastructure provides a significant competitive advantage through comprehensive data collection, advanced analytics, and real-time processing. The platform scales efficiently with growing data volumes while maintaining high performance and reliability.",
   },
 ];
 type RefreshType =
@@ -252,6 +256,7 @@ interface ValueQuestionsSectionProps {
   refreshType: RefreshType;
   refreshKey: number;
   segmentsData?: ExternalSegment[]; // 新增：外部传入的段数据（来自接口）
+  onSegmentChange?: (segmentName?: string) => void;
 }
 // Helper function to generate random question
 const generateRandomQuestion = (): string => {
@@ -383,18 +388,31 @@ export function ValueQuestionsSection({
   refreshType,
   refreshKey,
   segmentsData,
+  onSegmentChange,
 }: ValueQuestionsSectionProps) {
-  const [activeTab, setActiveTab] = useState(segmentsData?.[0]?.id || "");
-  const [isCompact, setIsCompact] = useState(false);
-  const [currentSegments, setCurrentSegments] = useState(
-    segmentsData?.[0]?.valueQuestions || ([] as any)
+  const [activeTab, setActiveTab] = useState(
+    segmentsData?.[0]?.id || DEFAULT_SEGMENTS[0]?.id || ""
   );
+  const [hasExpanded, setHasExpanded] = useState(false);
+  const [currentSegments, setCurrentSegments] = useState<Segment[]>([]);
   const [currentAnalysisData, setCurrentAnalysisData] = useState(analysisData);
 
   // 将外部 segmentsData 转换为内部所需结构
   useEffect(() => {
     console.log("segmentsData", segmentsData);
-    if (!segmentsData || segmentsData.length === 0) return;
+    if (!segmentsData || segmentsData.length === 0) {
+      setCurrentSegments(DEFAULT_SEGMENTS);
+      setCurrentAnalysisData(analysisData);
+      if (DEFAULT_SEGMENTS.length > 0) {
+        setActiveTab((prev) => {
+          if (prev && DEFAULT_SEGMENTS.some((segment) => segment.id === prev)) {
+            return prev;
+          }
+          return DEFAULT_SEGMENTS[0].id;
+        });
+      }
+      return;
+    }
 
     const mapStatus = (s?: string): Question["status"] => {
       if (!s) return "info";
@@ -426,50 +444,59 @@ export function ValueQuestionsSection({
         dimensionName: "Market Opportunity",
         score: a?.D1?.score ?? 0,
         summary: a?.D1?.summary ?? "",
-        tags: a?.D1?.supporting_indicators ?? [],
+        tags: a?.D1?.tags ?? [],
+        supportingIndicators: a?.D1?.supporting_indicators ?? [],
         fullDetails: a?.D1?.summary ?? "",
+      },
+      {
+        id: "D3",
+        dimensionName: "Conversion & Retention",
+        score: a?.D3?.score ?? 0,
+        summary: a?.D3?.summary ?? "",
+        tags: a?.D3?.tags ?? [],
+        revenue_band: a?.D3?.revenue_band,
+        retention_signal: a?.D3?.retention_signal,
+        conversion_rate_est: a?.D3?.conversion_rate_est,
+        fullDetails: a?.D3?.summary ?? "",
       },
       {
         id: "D2",
         dimensionName: "Customer Persona",
         score: a?.D2?.score ?? 0,
         summary: a?.D2?.summary ?? "",
-        tags: [],
+        tags: a?.D2?.tags ?? [],
         userPersona: a?.D2?.user_persona
           ? {
               role: a.D2.user_persona.role,
               companyType: a.D2.user_persona.company_type,
               painPoints: a.D2.user_persona.pain_points || [],
-              goals: [],
+              goals: a.D2.user_persona.goals || [],
             }
           : undefined,
         fullDetails: a?.D2?.summary ?? "",
       },
       {
-        id: "D3",
-        dimensionName: "Competitive Advantage",
-        score: a?.D3?.score ?? 0,
-        summary: a?.D3?.summary ?? "",
-        tags: [a?.D3?.revenue_band, a?.D3?.retention_signal].filter(Boolean),
-        fullDetails: a?.D3?.summary ?? "",
-      },
-      {
         id: "D4",
-        dimensionName: "Revenue Potential",
+        dimensionName: "Data Infrastructure",
         score: a?.D4?.score ?? 0,
         summary: a?.D4?.summary ?? "",
-        tags: a?.D4?.competitive_advantage || [],
+        tags: a?.D4?.tags ?? [],
+        competitive_advantage: a?.D4?.competitive_advantage || [],
+        moat_score: a?.D4?.moat_score,
+        scalability_score: a?.D4?.scalability_score,
         fullDetails: a?.D4?.summary ?? "",
       },
     ];
 
-    setCurrentSegments(
-      mappedSegments.length
-        ? mappedSegments
-        : segmentsData?.[0]?.valueQuestions || ([] as any)
-    );
+    const nextSegments = mappedSegments.length ? mappedSegments : DEFAULT_SEGMENTS;
+    setCurrentSegments(nextSegments);
     setCurrentAnalysisData(mappedAnalysis);
-    setActiveTab(mappedSegments[0]?.id || segmentsData?.[0]?.id || "");
+    setActiveTab((prev) => {
+      if (prev && nextSegments.some((segment) => segment.id === prev)) {
+        return prev;
+      }
+      return nextSegments[0]?.id || "";
+    });
   }, [segmentsData]);
 
   // 当切换 Tab 时，若外部数据提供了每个 segment 的 analysis，则同步更新下方分析面板
@@ -493,39 +520,46 @@ export function ValueQuestionsSection({
         dimensionName: "Market Opportunity",
         score: a?.D1?.score ?? 0,
         summary: a?.D1?.summary ?? "",
-        tags: a?.D1?.supporting_indicators ?? [],
+        tags: a?.D1?.tags ?? [],
+        supportingIndicators: a?.D1?.supporting_indicators ?? [],
         fullDetails: a?.D1?.summary ?? "",
+      },
+      {
+        id: "D3",
+        dimensionName: "Conversion & Retention",
+        score: a?.D3?.score ?? 0,
+        summary: a?.D3?.summary ?? "",
+        tags: a?.D3?.tags ?? [],
+        revenue_band: a?.D3?.revenue_band,
+        retention_signal: a?.D3?.retention_signal,
+        conversion_rate_est: a?.D3?.conversion_rate_est,
+        fullDetails: a?.D3?.summary ?? "",
       },
       {
         id: "D2",
         dimensionName: "Customer Persona",
         score: a?.D2?.score ?? 0,
         summary: a?.D2?.summary ?? "",
-        tags: [],
+        tags: a?.D2?.tags ?? [],
         userPersona: a?.D2?.user_persona
           ? {
               role: a.D2.user_persona.role,
               companyType: a.D2.user_persona.company_type,
               painPoints: a.D2.user_persona.pain_points || [],
-              goals: [],
+              goals: a.D2.user_persona.goals || [],
             }
           : undefined,
         fullDetails: a?.D2?.summary ?? "",
-      },
-      {
-        id: "D3",
-        dimensionName: "Competitive Advantage",
-        score: a?.D3?.score ?? 0,
-        summary: a?.D3?.summary ?? "",
-        tags: [a?.D3?.revenue_band, a?.D3?.retention_signal].filter(Boolean),
-        fullDetails: a?.D3?.summary ?? "",
       },
       {
         id: "D4",
         dimensionName: "Revenue Potential",
         score: a?.D4?.score ?? 0,
         summary: a?.D4?.summary ?? "",
-        tags: a?.D4?.competitive_advantage || [],
+        tags: a?.D4?.tags ?? [],
+        competitive_advantage: a?.D4?.competitive_advantage || [],
+        moat_score: a?.D4?.moat_score,
+        scalability_score: a?.D4?.scalability_score,
         fullDetails: a?.D4?.summary ?? "",
       },
     ];
@@ -706,6 +740,12 @@ export function ValueQuestionsSection({
   const activeSegment =
     currentSegments.find((s: Segment) => s.id === activeTab) ||
     currentSegments[0];
+
+  useEffect(() => {
+    if (onSegmentChange) {
+      onSegmentChange(activeSegment?.name);
+    }
+  }, [activeSegment?.id, activeSegment?.name, onSegmentChange]);
 
   // 持久化：仅存当前选中 Tab 的 valueQuestions
   useEffect(() => {
@@ -889,6 +929,23 @@ export function ValueQuestionsSection({
       refreshType === "edit-question" ||
       refreshType === "delete-question");
   const showSingleQuestionOverlay = isGenerating && refreshType === "question";
+  const activeIndex = currentSegments.findIndex(
+    (segment: Segment) => segment.id === activeTab
+  );
+  const resolvedActiveIndex =
+    currentSegments.length === 0
+      ? -1
+      : activeIndex === -1
+      ? 0
+      : activeIndex;
+
+  useEffect(() => {
+    if (!currentSegments.length) return;
+    const hasActive = currentSegments.some((segment) => segment.id === activeTab);
+    if (!hasActive) {
+      setActiveTab(currentSegments[0].id);
+    }
+  }, [currentSegments, activeTab]);
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden relative">
       {/* Full Page Generation Loading Overlay */}
@@ -939,10 +996,10 @@ export function ValueQuestionsSection({
                 }}
                 className="inline-block mb-6"
               >
-                <Sparkles
+                <SparklesIcon
                   className="w-16 h-16"
                   style={{
-                    color: "#000000",
+                    color: "#10B981",
                   }}
                 />
               </motion.div>
@@ -973,7 +1030,7 @@ export function ValueQuestionsSection({
                     }}
                     className="h-full rounded-full"
                     style={{
-                      backgroundColor: "#000000",
+                      backgroundColor: "#10B981",
                     }}
                   />
                 </div>
@@ -985,30 +1042,139 @@ export function ValueQuestionsSection({
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <div className="flex">
-          {currentSegments.map((segment: Segment) => (
+      {/* 3D Carousel-style Tabs */}
+      <div className="border-b border-gray-200 bg-gradient-to-b from-gray-50 to-white py-3 px-4 overflow-hidden relative">
+        <div
+          className="relative flex items-center justify-center"
+          style={{
+            perspective: "2000px",
+            perspectiveOrigin: "center center",
+            height: "60px",
+          }}
+        >
+          {resolvedActiveIndex > 0 && (
             <button
-              key={segment.id}
-              onClick={() => setActiveTab(segment.id)}
+              onClick={() => {
+                if (resolvedActiveIndex > 0) {
+                  setActiveTab(currentSegments[resolvedActiveIndex - 1].id);
+                }
+              }}
               disabled={isGenerating}
-              style={
-                activeTab === segment.id
-                  ? {
-                      backgroundColor: "#000000",
-                    }
-                  : {}
-              }
-              className={`flex-1 px-6 py-4 font-medium transition-all duration-300 ${
-                activeTab === segment.id
-                  ? "text-white text-2xl scale-105 shadow-lg"
-                  : "bg-white text-gray-600 hover:text-gray-900 text-sm hover:bg-gray-100"
-              } ${isGenerating ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`absolute left-8 z-30 p-1.5 rounded-full transition-all duration-200 ${
+                isGenerating
+                  ? "text-gray-300 cursor-not-allowed"
+                  : "text-gray-600 hover:scale-125"
+              }`}
+              aria-label="Previous segment"
+              style={{
+                top: "50%",
+                transform: "translateY(-50%)",
+              }}
             >
-              {(segment as any).name}
+              <ChevronLeftIcon className="w-5 h-5" />
             </button>
-          ))}
+          )}
+          {currentSegments.map((segment: Segment, index: number) => {
+            const isActive = activeTab === segment.id;
+            const distance = index - resolvedActiveIndex;
+            const translateX = distance * 350;
+            const translateZ = isActive ? 0 : -Math.abs(distance) * 150;
+            const rotateY = isActive ? 0 : distance * 25;
+            const scale = isActive
+              ? 1
+              : Math.max(0.6, 1 - Math.abs(distance) * 0.2);
+            const opacity = isActive
+              ? 1
+              : Math.max(0.3, 1 - Math.abs(distance) * 0.3);
+            const zIndex = isActive ? 20 : 10 - Math.abs(distance);
+            return (
+              <motion.button
+                key={segment.id}
+                onClick={() => setActiveTab(segment.id)}
+                disabled={isGenerating}
+                animate={{
+                  x: translateX,
+                  scale,
+                  opacity,
+                  rotateY,
+                  z: translateZ,
+                }}
+                transition={{
+                  duration: 0.35,
+                  ease: [0.4, 0, 0.2, 1],
+                }}
+                className={`absolute flex-shrink-0 px-6 py-1.5 rounded-2xl font-medium transition-all duration-600 ${
+                  isActive
+                    ? "bg-black text-white shadow-2xl"
+                    : "bg-white text-gray-600 hover:text-gray-900 shadow-lg"
+                } ${
+                  isGenerating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                }`}
+                style={{
+                  width: "480px",
+                  transformStyle: "preserve-3d",
+                  zIndex,
+                  boxShadow: isActive
+                    ? "0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(64, 64, 64, 0.2)"
+                    : "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+                }}
+              >
+                <div className="text-center">
+                  <div
+                    className={`font-bold transition-all duration-600 ${
+                      isActive ? "text-lg" : "text-xs"
+                    }`}
+                  >
+                    {(segment as any).name}
+                  </div>
+                </div>
+                {isActive && (
+                  <motion.div
+                    initial={{
+                      opacity: 0,
+                    }}
+                    animate={{
+                      opacity: 1,
+                    }}
+                    className="absolute inset-0 rounded-2xl"
+                    style={{
+                      background:
+                        "radial-gradient(circle at center, rgba(0, 0, 0, 0.3) 0%, transparent 70%)",
+                      filter: "blur(20px)",
+                      zIndex: -1,
+                      transform: "scaleY(2.5)",
+                    }}
+                  />
+                )}
+              </motion.button>
+            );
+          })}
+          {resolvedActiveIndex >= 0 &&
+            resolvedActiveIndex < currentSegments.length - 1 && (
+            <button
+              onClick={() => {
+                if (
+                  resolvedActiveIndex >= 0 &&
+                  resolvedActiveIndex < currentSegments.length - 1
+                ) {
+                  setActiveTab(currentSegments[resolvedActiveIndex + 1].id);
+                }
+              }}
+              disabled={isGenerating}
+              className={`absolute right-8 z-30 p-1.5 rounded-full transition-all duration-200 ${
+                isGenerating
+                  ? "text-gray-300 cursor-not-allowed"
+                  : "text-gray-600 hover:scale-125"
+              }`}
+              aria-label="Next segment"
+              style={{
+                top: "50%",
+                transform: "translateY(-50%)",
+              }}
+            >
+              <ChevronRightIcon className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
       {/* Content */}
@@ -1081,10 +1247,10 @@ export function ValueQuestionsSection({
                     }}
                     className="inline-block mb-4"
                   >
-                    <Sparkles
+                    <SparklesIcon
                       className="w-12 h-12"
                       style={{
-                        color: "#8F56BE",
+                        color: "#10B981",
                       }}
                     />
                   </motion.div>
@@ -1148,10 +1314,10 @@ export function ValueQuestionsSection({
                       }}
                       className="inline-block mb-4"
                     >
-                      <Sparkles
+                      <SparklesIcon
                         className="w-12 h-12"
                         style={{
-                          color: "#8F56BE",
+                          color: "#10B981",
                         }}
                       />
                     </motion.div>
@@ -1172,86 +1338,63 @@ export function ValueQuestionsSection({
               )}
             </AnimatePresence>
             {/* 4D Market Analysis Section */}
-            <div className="mb-8" onMouseEnter={() => setIsCompact(false)}>
-              <div>
-                <AnimatePresence mode="wait">
-                  {!isCompact && (
+            <div className="mb-8">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`analysis-grid-${hasExpanded}`}
+                  initial={{
+                    opacity: 0,
+                  }}
+                  animate={{
+                    opacity: 1,
+                  }}
+                  exit={{
+                    opacity: 0,
+                  }}
+                  transition={{
+                    duration: 0.3,
+                  }}
+                  onMouseEnter={() => setHasExpanded(true)}
+                  className={`grid gap-3 transition-all duration-300 ${
+                    hasExpanded ? "grid-cols-2" : "grid-cols-4"
+                  }`}
+                >
+                  {currentAnalysisData.map((analysis, index) => (
                     <motion.div
+                      key={`${analysis.id}-${refreshKey}`}
                       initial={{
                         opacity: 0,
+                        scale: 0.95,
                       }}
                       animate={{
                         opacity: 1,
-                      }}
-                      exit={{
-                        opacity: 0,
+                        scale: 1,
                       }}
                       transition={{
                         duration: 0.3,
+                        delay: index * 0.1,
                       }}
-                      className="grid grid-cols-2 gap-6"
                     >
-                      {currentAnalysisData.map((analysis, index) => (
-                        <motion.div
-                          key={`${analysis.id}-${refreshKey}`}
-                          initial={{
-                            opacity: 0,
-                            scale: 0.95,
-                          }}
-                          animate={{
-                            opacity: 1,
-                            scale: 1,
-                          }}
-                          transition={{
-                            duration: 0.3,
-                            delay: index * 0.1,
-                          }}
-                        >
-                          <AnalysisCard
-                            analysis={analysis}
-                            onClick={() => {}}
-                          />
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <AnimatePresence mode="wait">
-                  {isCompact && (
-                    <motion.div
-                      initial={{
-                        opacity: 0,
-                        height: 0,
-                      }}
-                      animate={{
-                        opacity: 1,
-                        height: "auto",
-                      }}
-                      exit={{
-                        opacity: 0,
-                        height: 0,
-                      }}
-                      transition={{
-                        duration: 0.3,
-                      }}
-                      className="grid grid-cols-4 gap-4"
-                    >
-                      {currentAnalysisData.map((analysis) => (
-                        <CompactAnalysisCard
-                          key={`${analysis.id}-${refreshKey}`}
+                      {hasExpanded ? (
+                        <AnalysisCard
                           analysis={analysis}
-                          onClick={() => {}}
+                          onClick={() => onAnalysisClick(analysis)}
                         />
-                      ))}
+                      ) : (
+                        <CompactAnalysisCard
+                          analysis={analysis}
+                          onClick={() => onAnalysisClick(analysis)}
+                        />
+                      )}
                     </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                  ))}
+                </motion.div>
+              </AnimatePresence>
             </div>
             {/* Value Questions Section */}
             <div
               className="pt-2 relative"
-              onMouseEnter={() => setIsCompact(true)}
+              onMouseEnter={() => setHasExpanded(true)}
             >
               <AnimatePresence>
                 {showQuestionListOverlay && (
@@ -1300,10 +1443,10 @@ export function ValueQuestionsSection({
                         }}
                         className="inline-block mb-4"
                       >
-                        <Sparkles
+                      <SparklesIcon
                           className="w-12 h-12"
                           style={{
-                            color: "#8F56BE",
+                          color: "#10B981",
                           }}
                         />
                       </motion.div>
@@ -1326,7 +1469,7 @@ export function ValueQuestionsSection({
               <h2 className="text-3xl font-semibold text-gray-900 mb-6">
                 Value Questions
               </h2>
-              <div className="space-y-1.5">
+              <div className="space-y-1 max-h-[900px] overflow-y-auto">
                 {activeSegment?.questions &&
                 activeSegment.questions.length > 0 ? (
                   activeSegment.questions.map(
@@ -1374,10 +1517,10 @@ export function ValueQuestionsSection({
                                 ease: "linear",
                               }}
                             >
-                              <Sparkles
+                              <SparklesIcon
                                 className="w-8 h-8"
                                 style={{
-                                  color: "#8F56BE",
+                                  color: "#10B981",
                                 }}
                               />
                             </motion.div>
