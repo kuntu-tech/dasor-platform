@@ -90,9 +90,9 @@ export const AnimatedDropdownMenu = ({
                     type: "spring",
                   }}
                   whileHover={{
-                    backgroundColor: "#f3f4f6",
+                    scale: 1.02,
                     transition: {
-                      duration: 0.4,
+                      duration: 0.2,
                       ease: "easeInOut",
                     },
                   }}

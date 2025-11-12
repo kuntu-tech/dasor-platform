@@ -8,6 +8,8 @@ interface SegmentSelectionModalProps {
   commandText: string;
   onConfirm: (value: string) => void;
   segments?: string[];
+  defaultSelectedSegment?: string;
+  onCancel?: () => void;
 }
 export function SegmentSelectionModal({
   isOpen,
@@ -15,7 +17,9 @@ export function SegmentSelectionModal({
   mode,
   commandText,
   onConfirm,
-  segments: segmentsProp
+  segments: segmentsProp,
+  defaultSelectedSegment,
+  onCancel
 }: SegmentSelectionModalProps) {
   const [inputValue, setInputValue] = useState('');
   const [selectedSegment, setSelectedSegment] = useState('');
@@ -23,17 +27,22 @@ export function SegmentSelectionModal({
   useEffect(() => {
     if (isOpen) {
       setInputValue('');
-      setSelectedSegment('');
+      setSelectedSegment(defaultSelectedSegment ?? '');
     }
-  }, [isOpen]);
-  const defaultSegments = ['Luxury Fashion Sellers EU', 'SaaS Startups North America', 'Healthcare Providers APAC', 'E-commerce Brands US', 'Financial Services EMEA'];
-  const segments = segmentsProp && segmentsProp.length > 0 ? segmentsProp : defaultSegments;
+  }, [isOpen, defaultSelectedSegment]);
+  const segments = Array.isArray(segmentsProp) ? segmentsProp : [];
   const handleConfirm = () => {
     if (mode === 'select' && selectedSegment) {
       onConfirm(selectedSegment);
     } else if (mode === 'input' && inputValue.trim()) {
       onConfirm(inputValue);
     }
+  };
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    }
+    onClose();
   };
   return <AnimatePresence>
       {isOpen && <>
@@ -75,17 +84,44 @@ export function SegmentSelectionModal({
               <p className="text-gray-600 mb-4">
                 {mode === 'select' ? 'Choose a segment to use for this command:' : 'Enter a name for the new segment:'}
               </p>
-              {mode === 'select' ? <div className="space-y-2 mb-6">
-                  {segments.map(segment => <button key={segment} onClick={() => setSelectedSegment(segment)} className={`w-full p-3 text-left rounded-lg transition-colors ${selectedSegment === segment ? 'bg-gray-100 border-2 border-gray-300' : 'hover:bg-gray-50 border border-gray-200'}`}>
-                      {segment}
-                    </button>)}
-                </div> : <input type="text" value={inputValue} onChange={e => setInputValue(e.target.value)} placeholder="Enter segment name" className="w-full p-3 border border-gray-300 rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500" autoFocus />}
+              {mode === 'select' ? (
+                <div className="space-y-2 mb-6">
+                  {segments.length > 0 ? (
+                    segments.map((segment) => (
+                      <button
+                        key={segment}
+                        onClick={() => setSelectedSegment(segment)}
+                        className={`w-full p-3 text-left rounded-lg transition-colors ${
+                          selectedSegment === segment
+                            ? 'bg-gray-100 border-2 border-gray-300'
+                            : 'hover:bg-gray-50 border border-gray-200'
+                        }`}
+                      >
+                        {segment}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-500">
+                      No segments available. Please load segments first.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Enter segment name"
+                  className="w-full p-3 border border-gray-300 rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+              )}
               <div className="flex justify-end gap-3">
-                <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                <button onClick={handleCancel} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
                   Cancel
                 </button>
-                <button onClick={handleConfirm} disabled={mode === 'select' && !selectedSegment || mode === 'input' && !inputValue.trim()} className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                  {commandText === 'clipboard' ? 'Use Domain' : 'Create Segment'}
+                <button onClick={handleConfirm} disabled={mode === 'select' ? !selectedSegment : !inputValue.trim()} className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  {commandText === 'clipboard' || commandText === 'correct segment' || commandText === 'edit d1' || commandText === 'edit d2' || commandText === 'edit d3' || commandText === 'edit d4' || commandText === 'add question' ? 'Use Segment' : 'Create Segment'}
                 </button>
               </div>
             </div>

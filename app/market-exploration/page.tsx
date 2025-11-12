@@ -24,6 +24,10 @@ import { ValueQuestionsSection } from "@/components/ValueQuestionsSection";
 import { CommandPalette } from "@/components/CommandPalette";
 import { FloatingCommandButton } from "@/components/FloatingCommandButton";
 import { SegmentSelectionModal } from "@/components/SegmentSelectionModal";
+import {
+  QuestionSelectionModal,
+  QuestionOption,
+} from "@/components/QuestionSelectionModal";
 import { AnimatedDropdownMenu } from "@/components/ui/animated-dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
@@ -71,27 +75,172 @@ type RefreshType =
   | "delete-question"
   | "switching-version";
 
-const COMMAND_LIST: Array<{ label: string; command: string }> = [
-  { label: "Correct domain", command: "domain" },
-  { label: "Add new segment manually", command: "add segment" },
-  { label: "Merge segments", command: "merge segments" },
-  { label: "Edit Market Size to", command: "edit d1" },
-  { label: "Edit Persona to", command: "edit d2" },
-  { label: "Adjust D3 Conversion Rhythm", command: "edit d3" },
-  { label: "Adjust D4 Competitive Moat", command: "edit d4" },
-  { label: "Add new Value Question", command: "add question" },
-  { label: "Delete Value Question", command: "delete question" },
-  { label: "Edit Value Question", command: "edit question" },
-  { label: "Rename segment", command: "change segment" },
+type CommandPayload = {
+  intent: string;
+  selector: string;
+  user_prompt: string;
+  new_name?: string;
+  target?: string;
+};
+
+type CommandItem = {
+  label: string;
+  command: CommandPayload;
+};
+
+type SegmentSelectionCommand =
+  | "correct segment"
+  | "edit d1"
+  | "edit d2"
+  | "edit d3"
+  | "edit d4"
+  | "add question"
+  | "delete question"
+  | "edit question"
+  | "rename segment";
+
+const SEGMENT_SELECTION_COMMANDS = new Set<SegmentSelectionCommand>([
+  "correct segment",
+  "edit d1",
+  "edit d2",
+  "edit d3",
+  "edit d4",
+  "add question",
+  "delete question",
+  "edit question",
+  "rename segment",
+]);
+
+const QUESTION_SELECTOR_COMMANDS = new Set<string>([
+  "delete question",
+  "edit question",
+]);
+
+const RENAME_SEGMENT_FLOW_COMMANDS = new Set<string>(["rename segment"]);
+
+const deriveCommandKey = (item: CommandItem): string | null => {
+  const normalized = item.label.toLowerCase();
+  if (
+    normalized.includes("corrent segment") ||
+    normalized.includes("correct segment")
+  )
+    return "correct segment";
+  if (normalized.includes("add new segment manually")) return "add segment";
+  if (normalized.includes("merge segments")) return "merge segments";
+  if (normalized.includes("market size")) return "edit d1";
+  if (normalized.includes("persona")) return "edit d2";
+  if (normalized.includes("conversion")) return "edit d3";
+  if (normalized.includes("competitive")) return "edit d4";
+  if (normalized.includes("add new value question")) return "add question";
+  if (normalized.includes("delete value question")) return "delete question";
+  if (normalized.includes("adjust value question")) return "edit question";
+  if (normalized.includes("rename segment")) return "rename segment";
+  return null;
+};
+
+const COMMAND_LIST: CommandItem[] = [
+  {
+    label: "Corrent segment",
+    command: {
+      intent: "segment_edit",
+      selector: "segments[segmentId=xxx]",
+      user_prompt: "",
+      target: "segments",
+    },
+  },
+  {
+    label: "Add new segment manually",
+    command: {
+      intent: "segment_add",
+      target: "segments",
+      selector: "segments",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Merge segments",
+    command: {
+      intent: "segment_merge",
+      target: "segments",
+      selector: "segments",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Edit Market Size to",
+    command: {
+      intent: "analysis_edit",
+      selector: "segments[segmentId=xxx].analysis.D1",
+      user_prompt: "",
+      target: "analysis",
+    },
+  },
+  {
+    label: "Edit Persona to",
+    command: {
+      intent: "analysis_edit",
+      target: "analysis",
+      selector: "",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Adjust D3 Conversion Rhythm",
+    command: {
+      intent: "analysis_edit",
+      target: "analysis",
+      selector: "segments[segmentId=xxx].analysis.D3",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Adjust D4 Competitive Moat",
+    command: {
+      intent: "analysis_edit",
+      target: "analysis",
+      selector: "segments[segmentId=xxx].analysis.D4",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Add new Value Question",
+    command: {
+      intent: "value_question_add",
+      target: "valueQuestions",
+      selector: "segments[segmentId=xxx].valueQuestions",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Delete Value Question",
+    command: {
+      intent: "value_question_remove",
+      target: "valueQuestions",
+      selector: "segments[segmentId=xxx].valueQuestions[questionId=xxx]",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Adjust Value Question",
+    command: {
+      intent: "value_question_edit",
+      target: "valueQuestions",
+      selector: "segments[segmentId=xxx].valueQuestions[questionId=xxx]",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Rename segment",
+    command: {
+      intent: "segment_rename",
+      target: "segments",
+      selector: "segments[segmentId=xxx]",
+      user_prompt: "",
+      new_name: "",
+    },
+  },
 ];
 
-const FALLBACK_SEGMENTS = [
-  "Luxury Fashion Sellers EU",
-  "SaaS Startups North America",
-  "Healthcare Providers APAC",
-  "E-commerce Brands US",
-  "Financial Services EMEA",
-];
 export default function MarketExplorationPage({
   marketsData,
 }: MarketExplorationPageProps) {
@@ -409,13 +558,26 @@ export default function MarketExplorationPage({
     useState<"select" | "input">("select");
   const [segmentModalCommand, setSegmentModalCommand] = useState("");
   const [selectedCommand, setSelectedCommand] = useState("");
+  const [selectedCommandPayload, setSelectedCommandPayload] =
+    useState<CommandPayload | null>(null);
+  const [selectedSegmentTag, setSelectedSegmentTag] = useState("");
   const [isSegmentDropdownOpen, setIsSegmentDropdownOpen] = useState(false);
   const [segmentSearchQuery, setSegmentSearchQuery] = useState("");
   const [isSendButtonHovered, setIsSendButtonHovered] = useState(false);
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [renameTargetSegmentName, setRenameTargetSegmentName] = useState("");
+  const [renameNewSegmentName, setRenameNewSegmentName] = useState("");
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+  const [questionModalCommand, setQuestionModalCommand] = useState("");
+  const [questionModalSegmentName, setQuestionModalSegmentName] = useState("");
+  const [questionModalSegmentId, setQuestionModalSegmentId] = useState("");
+  const [questionOptions, setQuestionOptions] = useState<QuestionOption[]>([]);
+  const [selectedQuestionOption, setSelectedQuestionOption] =
+    useState<QuestionOption | null>(null);
 
   const commandIconMap = useMemo(() => {
     return {
-      domain: <CheckCircle2 className="h-4 w-4" />,
+      "correct segment": <CheckCircle2 className="h-4 w-4" />,
       "add segment": <Plus className="h-4 w-4" />,
       "merge segments": <GitMerge className="h-4 w-4" />,
       "edit d1": <BarChart3 className="h-4 w-4" />,
@@ -425,26 +587,79 @@ export default function MarketExplorationPage({
       "add question": <FileQuestion className="h-4 w-4" />,
       "delete question": <Trash2 className="h-4 w-4" />,
       "edit question": <Edit className="h-4 w-4" />,
-      "change segment": <Tag className="h-4 w-4" />,
+      "rename segment": <Tag className="h-4 w-4" />,
     } as Record<string, React.ReactNode>;
   }, []);
 
-  const getCommandLabel = useCallback(
-    (command: string) =>
-      COMMAND_LIST.find((item) => item.command === command)?.label || command,
-    []
+  const buildQuestionOptions = useCallback(
+    (segmentId: string, segmentName?: string): QuestionOption[] => {
+      if (!Array.isArray(segmentsData) || segmentsData.length === 0) {
+        return [];
+      }
+
+      const target = segmentsData.find((seg: any) => {
+        const id =
+          seg?.segmentId || seg?.segment_id || seg?.id || seg?.name || seg?.title;
+        const name = seg?.name || seg?.title;
+        return (
+          (segmentId && id === segmentId) ||
+          (segmentName && name === segmentName) ||
+          false
+        );
+      });
+
+      const valueQuestions = Array.isArray(target?.valueQuestions)
+        ? target?.valueQuestions
+        : [];
+
+      return valueQuestions
+        .map((q: any, index: number): QuestionOption | null => {
+          const rawId =
+            q?.id ??
+            q?.questionId ??
+            q?.question_id ??
+            (q?.question ? `${segmentId || segmentName || "segment"}-${index}` : null);
+          const text = q?.question ?? q?.text ?? "";
+          if (!rawId || !text) return null;
+
+          const tags: string[] = [];
+          if (Array.isArray(q?.tags)) {
+            tags.push(
+              ...q.tags.filter(
+                (tag: unknown): tag is string =>
+                  typeof tag === "string" && tag.trim().length > 0
+              )
+            );
+          }
+          if (q?.intent) tags.push(String(q.intent));
+          if (q?.answerShape) tags.push(String(q.answerShape));
+
+          return {
+            id: String(rawId),
+            text: String(text),
+            tags,
+          } as QuestionOption;
+        })
+        .filter(
+          (item: QuestionOption | null): item is QuestionOption => item !== null
+        );
+    },
+    [segmentsData]
   );
 
+  const getCommandLabel = useCallback((command: string) => {
+    const matched = COMMAND_LIST.find(
+      (item) => deriveCommandKey(item) === command
+    );
+    return matched?.label || command;
+  }, []);
+
   const availableSegments = useMemo(() => {
-    if (segmentsData && segmentsData.length > 0) {
-      const dynamicSegments = segmentsData
-        .map((segment: any) => segment?.name || segment?.title)
-        .filter((name: string | undefined): name is string => !!name);
-      if (dynamicSegments.length > 0) {
-        return Array.from(new Set(dynamicSegments));
-      }
-    }
-    return FALLBACK_SEGMENTS;
+    if (!Array.isArray(segmentsData)) return [];
+    const dynamicSegments = segmentsData
+      .map((segment: any) => segment?.name || segment?.title)
+      .filter((name: string | undefined): name is string => !!name);
+    return Array.from(new Set(dynamicSegments));
   }, [segmentsData]);
 
   const filteredSegments = useMemo(() => {
@@ -460,6 +675,57 @@ export default function MarketExplorationPage({
   const hasMoreSegments = filteredSegments.length > 3;
   const displayedSegmentName =
     selectedSegmentName || availableSegments[0] || "";
+
+  const segmentIdMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (Array.isArray(segmentsData)) {
+      segmentsData.forEach((segment: any) => {
+        const name = segment?.name || segment?.title;
+        const rawId =
+          segment?.segmentId ||
+          segment?.segment_id ||
+          segment?.id ||
+          segment?.segment_id ||
+          "";
+        if (name && rawId) {
+          map.set(String(name), String(rawId));
+        }
+      });
+    }
+    return map;
+  }, [segmentsData]);
+
+  useEffect(() => {
+    if (!questionModalSegmentId && !questionModalSegmentName) {
+      return;
+    }
+    const options = buildQuestionOptions(
+      questionModalSegmentId,
+      questionModalSegmentName
+    );
+    setQuestionOptions(options);
+  }, [
+    buildQuestionOptions,
+    questionModalSegmentId,
+    questionModalSegmentName,
+  ]);
+
+  const sanitizeUserPrompt = useCallback((value: string) => {
+    return value
+      .split(/\s+/)
+      .filter((token) => token && !token.startsWith("@"))
+      .join(" ")
+      .trim();
+  }, []);
+
+  const resolveTargetFromSelector = useCallback((selector: string) => {
+    if (!selector) return selectedCommand || "general";
+    if (selector.includes(".analysis")) return "analysis";
+    if (selector.includes("valueQuestions")) return "valueQuestions";
+    if (selector.includes("domain")) return "domain";
+    if (selector.includes("segments")) return "segment";
+    return selectedCommand || "general";
+  }, [selectedCommand]);
 
   useEffect(() => {
     if (segmentsData && segmentsData.length > 0 && !selectedSegmentName) {
@@ -522,6 +788,43 @@ export default function MarketExplorationPage({
     setSegmentSearchQuery("");
   }, []);
 
+  const resetQuestionSelection = useCallback(() => {
+    setIsQuestionModalOpen(false);
+    setQuestionModalCommand("");
+    setQuestionModalSegmentName("");
+    setQuestionModalSegmentId("");
+    setQuestionOptions([]);
+    setSelectedQuestionOption(null);
+  }, []);
+
+  const clearSelectedSegment = useCallback(() => {
+    resetQuestionSelection();
+    setSelectedSegmentTag("");
+    setSelectedCommandPayload((prev) => {
+      if (!prev) return prev;
+      if (!SEGMENT_SELECTION_COMMANDS.has(selectedCommand as SegmentSelectionCommand)) return prev;
+
+      const templatePayload =
+        COMMAND_LIST.find(
+          (item) => deriveCommandKey(item) === selectedCommand
+        )?.command;
+
+      if (templatePayload) {
+        return { ...templatePayload };
+      }
+
+      const fallbackSelector = prev.selector
+        ? prev.selector.replace(/segmentId=[^\]\s]*/i, "segmentId=xxx")
+        : prev.selector;
+
+      return {
+        ...prev,
+        selector: fallbackSelector ?? "segments[segmentId=xxx]",
+      };
+    });
+    setInputValue((prev) => sanitizeUserPrompt(prev));
+  }, [resetQuestionSelection, selectedCommand, sanitizeUserPrompt]);
+
   const handleInputChange = (value: string) => {
     setInputValue(value);
     const lastAtIndex = value.lastIndexOf("@");
@@ -539,59 +842,98 @@ export default function MarketExplorationPage({
   };
 
   const handleSegmentSelect = (segment: string) => {
-    const cursorPosition = inputValue.lastIndexOf("@");
-    if (cursorPosition !== -1) {
-      const beforeAt = inputValue.substring(0, cursorPosition);
-      setInputValue(`${beforeAt}@${segment} `);
-    } else {
-      setInputValue((prev) => `${prev}@${segment} `);
-    }
+    setSelectedSegmentTag(segment);
+    setInputValue((prev) => {
+      const sanitized = sanitizeUserPrompt(prev);
+      return sanitized ? `${sanitized} ` : "";
+    });
     resetSegmentDropdown();
   };
 
   const handleSpecialCommand = useCallback(
-    (command: "domain" | "add-segment") => {
-      if (command === "domain") {
-        setSelectedCommand("domain");
-        setInputValue("domain ");
+    (command: SegmentSelectionCommand | "add-segment") => {
+      if (SEGMENT_SELECTION_COMMANDS.has(command as SegmentSelectionCommand)) {
+        const segmentCommand = COMMAND_LIST.find(
+          (item) => deriveCommandKey(item) === command
+        );
+        if (!segmentCommand) {
+          console.warn(
+            `[Command] ${command} configuration missing`
+          );
+          return;
+        }
+        resetQuestionSelection();
+        setSelectedCommand(command);
+        setSelectedCommandPayload({ ...segmentCommand.command });
+        setSelectedSegmentTag("");
+        setInputValue("");
+        if (command === "rename segment") {
+          setRenameTargetSegmentName("");
+          setRenameNewSegmentName("");
+        }
+        console.log("[Command Selected]", segmentCommand.command);
+        resetSegmentDropdown();
         setSegmentModalMode("select");
-        setSegmentModalCommand("clipboard");
+        setSegmentModalCommand(command);
         setIsSegmentModalOpen(true);
-      } else if (command === "add-segment") {
+        return;
+      }
+
+      if (command === "add-segment") {
+        const addSegmentCommand = COMMAND_LIST.find(
+          (item) => deriveCommandKey(item) === "add segment"
+        );
+        if (!addSegmentCommand) {
+          console.warn("[Command] Add segment command configuration missing");
+          return;
+        }
         setSelectedCommand("add segment");
-        setInputValue("add segment ");
-        setSegmentModalMode("input");
-        setSegmentModalCommand("new segment");
-        setIsSegmentModalOpen(true);
+        setSelectedCommandPayload(addSegmentCommand.command);
+        setSelectedSegmentTag("");
+        setInputValue("");
+        console.log("[Command Selected]", addSegmentCommand.command);
+        setSegmentModalMode("select");
+        setSegmentModalCommand("");
+        setIsSegmentModalOpen(false);
       }
     },
-    []
+    [resetQuestionSelection, resetSegmentDropdown]
   );
 
   const handleCommandListSelect = useCallback(
-    (command: string) => {
-      if (command === "domain") {
-        handleSpecialCommand("domain");
+    (commandItem: CommandItem) => {
+      const commandKey = deriveCommandKey(commandItem);
+      if (!commandKey) {
+        console.warn("[Command] Unsupported command mapping:", commandItem);
         return;
       }
-      if (command === "add segment") {
-        handleSpecialCommand("add-segment");
+      resetQuestionSelection();
+      if (SEGMENT_SELECTION_COMMANDS.has(commandKey as SegmentSelectionCommand)) {
+        handleSpecialCommand(commandKey as SegmentSelectionCommand);
         return;
       }
-      setSelectedCommand(command);
+      setSelectedCommand(commandKey);
+      setSelectedCommandPayload(commandItem.command);
+      if (commandKey !== "correct segment") {
+        setSelectedSegmentTag("");
+      }
+      console.log("[Command Selected]", commandItem.command);
       setInputValue("");
       resetSegmentDropdown();
     },
-    [handleSpecialCommand, resetSegmentDropdown]
+    [handleSpecialCommand, resetQuestionSelection, resetSegmentDropdown]
   );
 
   const commandOptions = useMemo(
     () =>
-      COMMAND_LIST.map((item) => ({
-        label: item.label,
-        Icon: commandIconMap[item.command],
-        onClick: () => handleCommandListSelect(item.command),
-      })),
+      COMMAND_LIST.map((item) => {
+        const key = deriveCommandKey(item);
+        return {
+          label: item.label,
+          Icon: key ? commandIconMap[key] : undefined,
+          onClick: () => handleCommandListSelect(item),
+        };
+      }),
     [commandIconMap, handleCommandListSelect]
   );
 
@@ -841,8 +1183,35 @@ export default function MarketExplorationPage({
       console.log("聊天生成：使用 task_id（从 run_result 读取）:", taskId);
 
       // 准备请求参数
+      const lowerCommand = finalCommand.toLowerCase();
+      let feedbackText:
+        | string
+        | { intent: string; selector: string; user_prompt: string } =
+        finalCommand;
+
+      if (lowerCommand.startsWith("correct segment")) {
+        let userPromptText = sanitizeUserPrompt(inputValue);
+        if (!userPromptText) {
+          userPromptText = finalCommand
+            .replace(/^correct segment\s*/i, "")
+            .trim();
+        }
+        const basePayload =
+          selectedCommand === "correct segment" && selectedCommandPayload
+            ? selectedCommandPayload
+            : {
+                intent: "segment_edit",
+                selector: "segments[segmentId=xxx]",
+                user_prompt: "",
+              };
+        feedbackText = {
+          ...basePayload,
+          user_prompt: userPromptText,
+        };
+      }
+
       const requestBody = {
-        feedback_text: finalCommand,
+        feedback_text: feedbackText,
         base_run_id: baseRunId,
         policy: "standard",
         user_id: user?.id,
@@ -887,6 +1256,8 @@ export default function MarketExplorationPage({
         setIsGenerating(false);
         setGenerationProgress(0);
         setSelectedCommand("");
+        setSelectedCommandPayload(null);
+        setSelectedSegmentTag("");
         return;
       }
 
@@ -912,6 +1283,8 @@ export default function MarketExplorationPage({
         setIsGenerating(false);
         setGenerationProgress(0);
         setSelectedCommand("");
+        setSelectedCommandPayload(null);
+        setSelectedSegmentTag("");
         return;
       }
 
@@ -1074,7 +1447,7 @@ export default function MarketExplorationPage({
       }
 
       const lowerInput = finalCommand.toLowerCase();
-      const isVersionChange = lowerInput.includes("change segment");
+      const isVersionChange = lowerInput.includes("rename segment");
       let detectedRefreshType: RefreshType = "none";
       if (lowerInput.includes("add segment")) {
         detectedRefreshType = "add-segment";
@@ -1094,8 +1467,8 @@ export default function MarketExplorationPage({
         detectedRefreshType = "delete-question";
       } else if (lowerInput.includes("edit question")) {
         detectedRefreshType = "edit-question";
-      } else if (lowerInput.includes("domain")) {
-        detectedRefreshType = "domain";
+      } else if (lowerInput.includes("correct segment")) {
+        detectedRefreshType = "segment";
       } else if (lowerInput.includes("segment")) {
         detectedRefreshType = "segment";
       } else if (lowerInput.includes("question list")) {
@@ -1124,6 +1497,8 @@ export default function MarketExplorationPage({
             setIsGenerating(false);
             setInputValue("");
             setSelectedCommand("");
+            setSelectedCommandPayload(null);
+            setSelectedSegmentTag("");
             setGenerationProgress(0);
             setRefreshType("none");
           }, 1000);
@@ -1131,6 +1506,8 @@ export default function MarketExplorationPage({
           setIsGenerating(false);
           setInputValue("");
           setSelectedCommand("");
+          setSelectedCommandPayload(null);
+          setSelectedSegmentTag("");
           setGenerationProgress(0);
           setRefreshType("none");
           setRefreshKey((prev) => prev + 1);
@@ -1141,13 +1518,45 @@ export default function MarketExplorationPage({
       setIsGenerating(false);
       setGenerationProgress(0);
       setSelectedCommand("");
+      setSelectedCommandPayload(null);
+      setSelectedSegmentTag("");
     }
   };
 
   const handleCommandSelect = (command: string) => {
     setIsCommandPaletteOpen(false);
+    const normalized = command.toLowerCase();
+    resetQuestionSelection();
+    const matched =
+      COMMAND_LIST.find((item) => deriveCommandKey(item) === normalized) ||
+      null;
+
+    if (matched) {
+      if (normalized === "add segment") {
+        handleSpecialCommand("add-segment");
+        return;
+      }
+      if (SEGMENT_SELECTION_COMMANDS.has(normalized as SegmentSelectionCommand)) {
+        handleSpecialCommand(normalized as SegmentSelectionCommand);
+        return;
+      }
+      setSelectedCommand(normalized);
+      setSelectedCommandPayload(matched.command);
+      setSelectedSegmentTag("");
+      setInputValue("");
+      console.log("[Command Selected]", matched.command);
+      resetSegmentDropdown();
+      setTimeout(() => {
+        void executeSend(command);
+      }, 100);
+      return;
+    }
+
     setSelectedCommand("");
+    setSelectedCommandPayload(null);
+    setSelectedSegmentTag("");
     setInputValue(command);
+    console.log("[Command Selected]", command);
     resetSegmentDropdown();
     setTimeout(() => {
       void executeSend(command);
@@ -1155,12 +1564,86 @@ export default function MarketExplorationPage({
   };
 
   const handleSegmentModalConfirm = (value: string) => {
-    const fullCommand =
-      segmentModalMode === "select"
-        ? `domain ${value}`
-        : `add segment ${value}`;
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) {
+      setIsSegmentModalOpen(false);
+      return;
+    }
+
+    if (segmentModalMode === "select") {
+      const segmentName = trimmedValue;
+      const segmentId =
+        segmentIdMap.get(segmentName) || segmentIdMap.get(value) || segmentName;
+
+      setSelectedSegmentName(segmentName);
+      setSelectedSegmentTag(segmentName);
+
+      const currentCommandKey = SEGMENT_SELECTION_COMMANDS.has(selectedCommand as SegmentSelectionCommand)
+        ? selectedCommand
+        : "correct segment";
+
+      const templatePayload =
+        selectedCommandPayload ??
+        COMMAND_LIST.find(
+          (item) => deriveCommandKey(item) === currentCommandKey
+        )?.command;
+
+      if (templatePayload) {
+        if (QUESTION_SELECTOR_COMMANDS.has(currentCommandKey)) {
+          resetQuestionSelection();
+        }
+        const updatedSelector = templatePayload.selector
+          ? templatePayload.selector.replace(
+              /segmentId=[^\]\s]*/i,
+              `segmentId=${segmentId}`
+            )
+          : templatePayload.selector;
+
+        const updatedPayload: CommandPayload = {
+          ...templatePayload,
+          selector: updatedSelector ?? `segments[segmentId=${segmentId}]`,
+        };
+
+        setSelectedCommand(currentCommandKey);
+        setSelectedCommandPayload(updatedPayload);
+        console.log("[Command Segment Selected]", {
+          command: currentCommandKey,
+          segmentName,
+          segmentId,
+          payload: updatedPayload,
+        });
+
+        if (RENAME_SEGMENT_FLOW_COMMANDS.has(currentCommandKey)) {
+          setRenameTargetSegmentName(segmentName);
+          setRenameNewSegmentName(segmentName);
+          setTimeout(() => {
+            setIsRenameModalOpen(true);
+          }, 50);
+        } else if (QUESTION_SELECTOR_COMMANDS.has(currentCommandKey)) {
+          setQuestionModalCommand(currentCommandKey);
+          setQuestionModalSegmentName(segmentName);
+          setQuestionModalSegmentId(segmentId);
+          const options = buildQuestionOptions(segmentId, segmentName);
+          setQuestionOptions(options);
+          setIsQuestionModalOpen(true);
+        }
+      } else {
+        console.warn(
+          `[Command Segment Selected] Missing template payload for ${currentCommandKey}`
+        );
+      }
+
+      resetSegmentDropdown();
+      setIsSegmentModalOpen(false);
+      return;
+    }
+
+    const fullCommand = `add segment ${trimmedValue}`;
     setIsSegmentModalOpen(false);
     setSelectedCommand("");
+    setSelectedCommandPayload(null);
+    setSelectedSegmentTag("");
     setInputValue("");
     resetSegmentDropdown();
     setTimeout(() => {
@@ -1168,9 +1651,295 @@ export default function MarketExplorationPage({
     }, 50);
   };
 
-  const handleSend = () => {
-    if (isGenerating || !selectedCommand) return;
-    void executeSend();
+  const handleSegmentModalCancel = () => {
+    resetQuestionSelection();
+    setSelectedCommand("");
+    setSelectedCommandPayload(null);
+    setSelectedSegmentTag("");
+    setRenameTargetSegmentName("");
+    setRenameNewSegmentName("");
+    setInputValue("");
+    setIsSegmentModalOpen(false);
+  };
+
+  const handleRenameModalConfirm = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    setIsRenameModalOpen(false);
+
+    const basePayload =
+      selectedCommandPayload ??
+      COMMAND_LIST.find(
+        (item) => deriveCommandKey(item) === "rename segment"
+      )?.command;
+
+    const updatedPayload = basePayload
+      ? { ...basePayload, new_name: trimmed }
+      : {
+          intent: "segment_rename",
+          selector: "segments[segmentId=xxx]",
+          user_prompt: "",
+          new_name: trimmed,
+          target: "segments",
+        };
+
+    setRenameNewSegmentName(trimmed);
+    setSelectedCommandPayload(updatedPayload);
+    setInputValue(trimmed);
+
+    const payload = {
+      intent: updatedPayload.intent,
+      selector: updatedPayload.selector,
+      new_name: trimmed,
+      target: updatedPayload.target,
+      segment: renameTargetSegmentName || selectedSegmentTag,
+    };
+
+    console.log("[Rename Segment Preview]", payload);
+  };
+
+  const handleRenameModalCancel = () => {
+    setIsRenameModalOpen(false);
+    setSelectedCommand("");
+    setSelectedCommandPayload(null);
+    setSelectedSegmentTag("");
+    setRenameTargetSegmentName("");
+    setRenameNewSegmentName("");
+    setInputValue("");
+  };
+
+  const handleQuestionModalConfirm = useCallback(
+    (question: QuestionOption) => {
+      setSelectedQuestionOption(question);
+      setIsQuestionModalOpen(false);
+      setSelectedCommandPayload((prev) => {
+        if (!prev) return prev;
+        const selectorWithFallback =
+          prev.selector && /valueQuestions/.test(prev.selector)
+            ? prev.selector
+            : `segments[segmentId=${
+                questionModalSegmentId || "xxx"
+              }].valueQuestions[questionId=${question.id}]`;
+        const updatedSelector = selectorWithFallback.replace(
+          /questionId=[^\]\s]*/i,
+          `questionId=${question.id}`
+        );
+        return {
+          ...prev,
+          selector: updatedSelector,
+          user_prompt: question.text || prev.user_prompt,
+        };
+      });
+    },
+    [questionModalSegmentId]
+  );
+
+  const handleQuestionModalCancel = useCallback(() => {
+    resetQuestionSelection();
+    if (QUESTION_SELECTOR_COMMANDS.has(selectedCommand)) {
+      setSelectedCommand("");
+      setSelectedCommandPayload(null);
+      setSelectedSegmentTag("");
+    }
+  }, [resetQuestionSelection, selectedCommand]);
+
+  const openQuestionModal = useCallback(() => {
+    if (!QUESTION_SELECTOR_COMMANDS.has(selectedCommand)) {
+      return;
+    }
+    if (!questionModalSegmentId && !questionModalSegmentName && !selectedSegmentTag) {
+      return;
+    }
+    const commandKey = selectedCommand || "delete question";
+    setQuestionModalCommand(commandKey);
+    setIsQuestionModalOpen(true);
+  }, [
+    questionModalSegmentId,
+    questionModalSegmentName,
+    selectedCommand,
+    selectedSegmentTag,
+  ]);
+
+  const clearSelectedQuestion = useCallback(() => {
+    if (!QUESTION_SELECTOR_COMMANDS.has(selectedCommand)) {
+      setSelectedQuestionOption(null);
+      return;
+    }
+    setSelectedQuestionOption(null);
+    setSelectedCommandPayload((prev) => {
+      if (!prev) return prev;
+      const withPlaceholder = prev.selector
+        ? prev.selector.replace(/questionId=[^\]\s]*/i, "questionId=xxx")
+        : prev.selector;
+      return {
+        ...prev,
+        selector:
+          withPlaceholder ??
+          (questionModalSegmentId
+            ? `segments[segmentId=${questionModalSegmentId}].valueQuestions[questionId=xxx]`
+            : prev.selector),
+      };
+    });
+    const commandKey = selectedCommand || "delete question";
+    setQuestionModalCommand(commandKey);
+    setIsQuestionModalOpen(true);
+  }, [questionModalSegmentId, selectedCommand]);
+
+  const handleSend = async () => {
+    if (isGenerating) return;
+    if (!selectedCommandPayload) {
+      console.warn(
+        "[Command Submit Blocked] Missing command payload for:",
+        selectedCommand
+      );
+      console.log("[Command Submit Blocked] Input value:", inputValue);
+      return;
+    }
+    if (
+      QUESTION_SELECTOR_COMMANDS.has(selectedCommand) &&
+      (!selectedQuestionOption ||
+        selectedCommandPayload.selector?.includes("questionId=xxx"))
+    ) {
+      if (!isQuestionModalOpen) {
+        openQuestionModal();
+      }
+      return;
+    }
+
+    const userPromptText = sanitizeUserPrompt(inputValue);
+    const updatedPayload: CommandPayload = {
+      ...selectedCommandPayload,
+      user_prompt: userPromptText,
+    };
+
+    if (selectedCommand === "rename segment" && userPromptText) {
+      updatedPayload.new_name = userPromptText;
+    }
+
+    setSelectedCommandPayload(updatedPayload);
+    const requestBody = (() => {
+      if (typeof window === "undefined") {
+        return null;
+      }
+
+      const runResultStr = localStorage.getItem("run_result");
+      let runResult: any = null;
+      let baseRunId =
+        versionMap.get(selectedVersion) ||
+        selectedVersion ||
+        "";
+      let taskId = "";
+      let storedUserId = "";
+
+      if (runResultStr) {
+        try {
+          runResult = JSON.parse(runResultStr);
+          if (!baseRunId) {
+            baseRunId = runResult?.run_id || "r_1";
+          }
+          taskId = runResult?.task_id || "";
+          storedUserId = runResult?.user_id || "";
+        } catch (error) {
+          console.warn("Failed to parse run_result for request body:", error);
+        }
+      }
+
+      if (!baseRunId) {
+        baseRunId = "r_1";
+      }
+
+      const userId = user?.id || storedUserId || "";
+
+      const changeEntry: Record<string, any> = {
+        intent: updatedPayload.intent,
+        target:
+          updatedPayload.target ??
+          resolveTargetFromSelector(updatedPayload.selector || ""),
+        selector: updatedPayload.selector,
+        prompt: updatedPayload.user_prompt,
+        policy: {
+          propagation: "standard",
+          strict_scope: true,
+          downgrade_shapes: true,
+        },
+      };
+      if (updatedPayload.new_name) {
+        changeEntry.new_name = updatedPayload.new_name;
+      }
+
+      return {
+        feedback_text: updatedPayload.user_prompt,
+        base_run_id: baseRunId,
+        user_id: userId,
+        task_id: taskId,
+        changeset: [changeEntry],
+      };
+    })();
+
+    console.log("[Command Submit] Selected command:", {
+      key: selectedCommand,
+      payload: updatedPayload,
+    });
+
+    if (!requestBody) {
+      console.warn("[Command Submit] Request body unavailable");
+      return;
+    }
+
+    console.log("[Command Submit] Sending changeset:", requestBody);
+
+    try {
+      setIsGenerating(true);
+      setGenerationProgress(10);
+
+      const response = await fetch(
+        "https://business-insight.datail.ai/api/v1/user-feedback/changeset",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      const text = await response.text();
+      let json: any = null;
+      try {
+        json = text ? JSON.parse(text) : {};
+      } catch (error) {
+        console.warn("[Command Submit] Failed to parse response JSON", text);
+      }
+
+      if (!response.ok) {
+        console.error("[Command Submit] API error", response.status, text);
+        alert(
+          json?.message ||
+            "Failed to submit feedback. Please review your instruction."
+        );
+        setIsGenerating(false);
+        setGenerationProgress(0);
+        return;
+      }
+
+      console.log("[Command Submit] Response:", json ?? text);
+      setGenerationProgress(100);
+
+      setSelectedCommand("");
+      setSelectedCommandPayload(null);
+      setSelectedSegmentTag("");
+      setRenameTargetSegmentName("");
+      setRenameNewSegmentName("");
+      setInputValue("");
+      resetQuestionSelection();
+    } catch (error) {
+      console.error("[Command Submit] Request failed", error);
+      alert("Request failed. Please try again later.");
+    } finally {
+      setIsGenerating(false);
+      setGenerationProgress(0);
+    }
   };
   const handleGenerateApp = () => {
     console.log("Generating ChatApp");
@@ -1190,6 +1959,8 @@ export default function MarketExplorationPage({
       }
       if (selectedCommand) {
         setSelectedCommand("");
+        setSelectedCommandPayload(null);
+        setSelectedSegmentTag("");
         setInputValue("");
         return;
       }
@@ -1258,28 +2029,17 @@ export default function MarketExplorationPage({
                           console.log("Version switch clicked:", {
                             display: version.display,
                             runId: version.runId,
-                            currentVersion: selectedVersion,
                           });
 
-                          // 先关闭下拉框，防止重复点击
+                          setSelectedVersion(version.display);
                           setIsVersionDropdownOpen(false);
+                          setIsGenerating(true);
+                          setGenerationProgress(0);
 
-                          // 切换版本时加载对应的数据
-                          // loadVersionData 内部会再次检查 isGenerating 状态
-                          try {
-                            await loadVersionData(version.runId);
-                            // 只有在成功加载后才更新选中版本
-                            setSelectedVersion(version.display);
-                          } catch (error) {
-                            console.log("Failed to load version data:", error);
-                            // 如果加载失败，恢复原来的选中版本
-                          }
+                          await loadVersionData(version.runId);
                         }}
-                        disabled={isGenerating}
-                        className={`w-full px-4 py-2 text-left text-sm first:rounded-t-lg last:rounded-b-lg transition-colors ${
-                          isGenerating
-                            ? "opacity-50 cursor-not-allowed"
-                            : version.display === selectedVersion
+                        className={`w-full text-left px-4 py-2 text-sm ${
+                          selectedVersion === version.display
                             ? "bg-gray-100 font-medium text-gray-900 hover:bg-gray-100"
                             : "text-gray-700 hover:bg-gray-50"
                         }`}
@@ -1375,7 +2135,90 @@ export default function MarketExplorationPage({
         commandText={segmentModalCommand}
         onConfirm={handleSegmentModalConfirm}
         segments={availableSegments}
+        defaultSelectedSegment={
+          renameTargetSegmentName || selectedSegmentName || displayedSegmentName
+        }
+        onCancel={handleSegmentModalCancel}
       />
+      <QuestionSelectionModal
+        isOpen={isQuestionModalOpen}
+        onClose={handleQuestionModalCancel}
+        onCancel={handleQuestionModalCancel}
+        onConfirm={handleQuestionModalConfirm}
+        questions={questionOptions}
+        segmentName={
+          questionModalSegmentName || selectedSegmentTag || questionModalSegmentId
+        }
+        commandText={questionModalCommand || selectedCommand}
+        defaultSelectedQuestionId={selectedQuestionOption?.id}
+      />
+      <AnimatePresence>
+        {isRenameModalOpen && (
+          <motion.div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    Rename Segment
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Selected: {renameTargetSegmentName || selectedSegmentTag}
+                  </p>
+                </div>
+                <button
+                  onClick={handleRenameModalCancel}
+                  className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  aria-label="Close rename modal"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <label className="block text-sm font-medium text-gray-700">
+                  New segment name
+                </label>
+                <input
+                  type="text"
+                  value={renameNewSegmentName}
+                  onChange={(e) => setRenameNewSegmentName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  placeholder="Enter new segment name"
+                  autoFocus
+                />
+              </div>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={handleRenameModalCancel}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleRenameModalConfirm(renameNewSegmentName)}
+                  disabled={!renameNewSegmentName.trim()}
+                  className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                    renameNewSegmentName.trim()
+                      ? "bg-black text-white hover:bg-gray-900"
+                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  Rename
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Bottom Input Box */}
       <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-6 pb-6 z-50">
         <div className="max-w-7xl mx-auto px-8 relative">
@@ -1441,10 +2284,56 @@ export default function MarketExplorationPage({
                       <button
                         onClick={() => {
                           setSelectedCommand("");
+                          setSelectedCommandPayload(null);
+                          setSelectedSegmentTag("");
                           setInputValue("");
                         }}
                         className="hover:bg-gray-200 rounded p-0.5 transition-colors"
                         aria-label="Clear command"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <AnimatePresence>
+                  {selectedSegmentTag && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium"
+                      style={{ marginTop: "10px" }}
+                    >
+                      <span>{selectedSegmentTag}</span>
+                      <button
+                        onClick={clearSelectedSegment}
+                        className="hover:bg-emerald-100 rounded p-0.5 transition-colors"
+                        aria-label="Clear selected segment"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <AnimatePresence>
+                  {selectedQuestionOption && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium"
+                      style={{ marginTop: "10px" }}
+                    >
+                      <span className="max-w-[220px] truncate">
+                        {selectedQuestionOption.text}
+                      </span>
+                      <button
+                        onClick={clearSelectedQuestion}
+                        className="hover:bg-blue-100 rounded p-0.5 transition-colors"
+                        aria-label="Change selected question"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -1490,23 +2379,17 @@ export default function MarketExplorationPage({
                     <Send className="w-5 h-5" />
                   </button>
                   {!selectedCommand && isSendButtonHovered && !isGenerating && (
-                      <div className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50">
-                        Please select a command first
-                        <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                      </div>
-                    )}
+                    <div className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50">
+                      Please select a command first
+                      <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      {selectedAnalysis && (
-        <DetailModal
-          analysis={selectedAnalysis}
-          onClose={() => setSelectedAnalysis(null)}
-        />
-      )}
     </div>
   );
 }

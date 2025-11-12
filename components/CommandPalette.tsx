@@ -5,7 +5,7 @@ interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
   onCommandSelect: (command: string) => void;
-  onSpecialCommand?: (command: 'domain' | 'add-segment') => void;
+  onSpecialCommand?: (command: 'correct segment' | 'add-segment') => void;
 }
 export function CommandPalette({
   isOpen,
@@ -16,10 +16,10 @@ export function CommandPalette({
   const [searchValue, setSearchValue] = useState('');
   const suggestions = [{
     icon: 'https://img.icons8.com/fluency/48/check.png',
-    title: 'Correct domain',
-    subtitle: 'Update domain settings',
+    title: 'Corrent segment',
+    subtitle: 'Update segment settings',
     action: 'Command',
-    command: 'domain',
+    command: 'correct segment',
     isSpecial: true
   }, {
     icon: 'https://img.icons8.com/fluency/48/add.png',
@@ -92,8 +92,8 @@ export function CommandPalette({
   }];
   const handleCommandClick = (command: string, isSpecial?: boolean) => {
     if (isSpecial && onSpecialCommand) {
-      if (command === 'domain') {
-        onSpecialCommand('domain');
+      if (command === 'correct segment') {
+        onSpecialCommand('correct segment');
       } else if (command === 'add segment') {
         onSpecialCommand('add-segment');
       }
