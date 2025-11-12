@@ -922,6 +922,9 @@ export function PublishFlow() {
                       </p>
                     </div>
                   </div>
+                  <p className="text-sm text-muted-foreground">
+                    {monetizationEligibility.freeReason}
+                  </p>
                   {!vendorStatusLoading &&
                     monetizationEligibility.subscriptionReason &&
                     monetizationEligibility.freeReason !==
@@ -953,41 +956,47 @@ export function PublishFlow() {
             </div>
 
             {monetization === "subscription" && (
-              <div className="space-y-2">
-                <Label htmlFor="price">Subscription Price (Monthly)</Label>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">$</span>
-                  <Input
-                    id="price"
-                    type="number"
-                    placeholder="9.9"
-                    className="flex-1"
-                    value={paymentPrice}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      // 允许空字符串，这样用户可以删除所有内容
-                      if (value === "") {
-                        setPaymentPrice("");
-                      } else {
-                        // 只允许数字和小数点
-                        const numValue = value.replace(/[^0-9.]/g, "");
-                        setPaymentPrice(numValue);
-                      }
-                    }}
-                    onBlur={(e) => {
-                      // 失去焦点时，如果为空或无效，设置为 "0"
-                      const value = e.target.value;
-                      if (
-                        value === "" ||
-                        isNaN(Number(value)) ||
-                        Number(value) < 0
-                      ) {
-                        setPaymentPrice("0");
-                      }
-                    }}
-                  />
+              <>
+                <p className="text-sm text-destructive">
+                  You&apos;ll need to set &quot;Authentication -&gt; OAuth&quot;
+                  on ChatGPT in order to receive payments.
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="price">Subscription Price (Monthly)</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">$</span>
+                    <Input
+                      id="price"
+                      type="number"
+                      placeholder="9.9"
+                      className="flex-1"
+                      value={paymentPrice}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // 允许空字符串，这样用户可以删除所有内容
+                        if (value === "") {
+                          setPaymentPrice("");
+                        } else {
+                          // 只允许数字和小数点
+                          const numValue = value.replace(/[^0-9.]/g, "");
+                          setPaymentPrice(numValue);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // 失去焦点时，如果为空或无效，设置为 "0"
+                        const value = e.target.value;
+                        if (
+                          value === "" ||
+                          isNaN(Number(value)) ||
+                          Number(value) < 0
+                        ) {
+                          setPaymentPrice("0");
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             <Button

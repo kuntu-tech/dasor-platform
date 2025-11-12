@@ -429,11 +429,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(nextSession.user);
         setLoading(false);
 
-        // 登录成功后打印用户信息并检查是否为新用户
-        printUserInfo(nextSession.user, "登录成功");
-        await checkAndSaveNewUser(nextSession.user, "登录成功");
+        // After successful login, print user info and check if new user
+        printUserInfo(nextSession.user, "Sign In Success");
+        await checkAndSaveNewUser(nextSession.user, "Sign In Success");
         processedUsers.add(nextSession.user.id);
-        // 自动检查订阅状态
+        // Automatically check subscription status
         checkSubscriptionStatus(nextSession.user.id).catch(console.error);
         return;
       }
@@ -452,9 +452,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           signOutVerifyTimerRef.current = null;
         }
 
-        // 清理处理状态，允许下次登录时重新处理
+        // Clear processed state, allow reprocessing on next login
         processedUsers.clear();
-        // 清除订阅状态
+        // Clear subscription status
         setSubscriptionStatus(null);
         const currentUserId = latestUserIdRef.current;
         if (currentUserId) {
@@ -463,7 +463,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const verifySignOut = async (attempt = 0) => {
           if (syncGuardRef.current === "signing-out") {
-            console.log("检测到显式登出流程进行中，跳过延迟校验清理");
+            console.log(
+              "Explicit sign out flow detected, skipping delayed verification cleanup"
+            );
             setIsVerifyingSignOut(false);
             return;
           }
@@ -473,7 +475,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } = await supabase.auth.getSession();
 
           if (latestSession?.user) {
-            console.log("✅ 检测到会话仍然有效，恢复用户状态");
+            console.log(
+              "✅ Session still valid detected, restoring user state"
+            );
             setSession(latestSession);
             setUser(latestSession.user);
             processedUsers.add(latestSession.user.id);
@@ -481,13 +485,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             syncGuardRef.current = "idle";
             signOutVerifyTimerRef.current = null;
             setIsVerifyingSignOut(false);
-            // 恢复订阅状态检查
+            // Restore subscription status check
             checkSubscriptionStatus(latestSession.user.id).catch(console.error);
             return;
           }
 
           if (attempt < 3) {
-            console.log(`第 ${attempt + 1} 次延迟校验无效，重试中...`);
+            console.log(
+              `Attempt ${attempt + 1} delayed verification invalid, retrying...`
+            );
             signOutVerifyTimerRef.current = window.setTimeout(
               () => verifySignOut(attempt + 1),
               700
@@ -495,7 +501,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
-          console.log("🧹 三次校验后仍无会话，执行本地清理");
+          console.log(
+            "🧹 After 3 verifications still no session, performing local cleanup"
+          );
           performLocalSignOut();
           syncGuardRef.current = "idle";
           signOutVerifyTimerRef.current = null;
@@ -520,7 +528,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const syncSessionFromStorage = async () => {
       if (syncGuardRef.current !== "idle") {
         console.log(
-          `跨标签同步：当前状态为 ${syncGuardRef.current}，暂不执行同步`
+          `Cross-tab sync: Current state is ${syncGuardRef.current}, skipping sync`
         );
         return;
       }
@@ -533,7 +541,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } = await supabase.auth.getSession();
 
         if (error) {
-          console.warn("跨标签同步 Supabase 会话失败:", error);
+          console.warn("Cross-tab sync Supabase session failed:", error);
           return;
         }
 
@@ -543,11 +551,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setLoading(false);
           processedUsers.add(latestSession.user.id);
         } else {
-          console.log("跨标签同步：检测到会话已清除，执行本地登出逻辑");
+          console.log(
+            "Cross-tab sync: Session cleared detected, performing local sign out"
+          );
           performLocalSignOut();
         }
       } catch (error) {
-        console.warn("跨标签同步 Supabase 会话异常:", error);
+        console.warn("Cross-tab sync Supabase session exception:", error);
       } finally {
         if (syncGuardRef.current === "syncing") {
           syncGuardRef.current = "idle";
@@ -559,7 +569,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!event.key) return;
       const authStorageKey = resolveAuthStorageKey();
       if (event.key === authStorageKey) {
-        console.log("检测到 Supabase 认证存储变化，尝试解析存储值");
+        console.log(
+          "Supabase auth storage change detected, attempting to parse storage value"
+        );
         if (event.newValue) {
           try {
             const parsed = JSON.parse(event.newValue);
@@ -573,18 +585,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               return;
             }
             console.log(
-              "存储同步：currentSession 为空，触发 getSession 兜底检查"
+              "Storage sync: currentSession is empty, triggering getSession fallback check"
             );
           } catch (error) {
             console.warn(
-              "解析 Supabase 认证存储失败，回退到 getSession",
+              "Failed to parse Supabase auth storage, falling back to getSession",
               error
             );
           }
           void syncSessionFromStorage();
         } else {
           console.log(
-            "存储同步：检测到认证信息被移除，触发 getSession 验证会话状态"
+            "Storage sync: Auth info removal detected, triggering getSession to verify session state"
           );
           void syncSessionFromStorage();
         }
@@ -595,7 +607,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         (latestUserIdRef.current &&
           event.key === `cached_avatar_${latestUserIdRef.current}`)
       ) {
-        console.log("检测到缓存键被移除，执行同步更新", event.key);
+        console.log(
+          "Cache key removal detected, performing sync update",
+          event.key
+        );
       }
     };
 
@@ -615,7 +630,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      console.log("🚫 页面卸载中，暂停跨标签同步清理逻辑");
+      console.log("🚫 Page unloading, pausing cross-tab sync cleanup logic");
       syncGuardRef.current = "signing-out";
       setTimeout(() => {
         if (syncGuardRef.current === "signing-out") {
@@ -630,21 +645,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // 当用户变化时，检查订阅状态
+  // Check subscription status when user changes
   useEffect(() => {
     if (user?.id && !subscriptionStatus) {
-      // 如果用户存在但没有订阅状态，检查订阅状态
+      // If user exists but no subscription status, check subscription status
       checkSubscriptionStatus(user.id).catch(console.error);
     } else if (!user) {
-      // 如果用户不存在，清除订阅状态
+      // If user doesn't exist, clear subscription status
       setSubscriptionStatus(null);
     }
   }, [user?.id, subscriptionStatus, checkSubscriptionStatus]);
 
   const signInWithGoogle = async () => {
     setLoading(true);
-    console.log("🚀 开始Google登录流程...");
-    console.log(`📍 重定向URL: ${window.location.origin}/auth/callback`);
+    console.log("🚀 Starting Google sign in flow...");
+    console.log(`📍 Redirect URL: ${window.location.origin}/auth/callback`);
 
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -654,13 +669,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       });
       if (error) {
-        console.log("❌ Google登录错误:", error);
+        console.log("❌ Google sign in error:", error);
         throw error;
       }
 
-      console.log("✅ OAuth请求发送成功，等待重定向...");
+      console.log(
+        "✅ OAuth request sent successfully, waiting for redirect..."
+      );
     } catch (error) {
-      console.log("❌ Google登录失败:", error);
+      console.log("❌ Google sign in failed:", error);
     } finally {
       setLoading(false);
     }
@@ -668,7 +685,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithEmail = async (email: string, password: string) => {
     setLoading(true);
-    console.log("🔐 开始邮箱登录流程...");
+    console.log("🔐 Starting email sign in flow...");
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -677,26 +694,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        console.log("❌ 邮箱登录错误:", error);
+        console.log("❌ Email sign in error:", error);
         setLoading(false);
         throw error;
       }
 
-      console.log("✅ 邮箱登录成功:", data);
+      console.log("✅ Email sign in successful:", data);
 
-      // 登录成功后立即更新状态，确保状态同步
-      // onAuthStateChange 会稍后触发，但为了确保及时响应，我们立即更新状态
-      // 业务逻辑（如 checkAndSaveNewUser）由 onAuthStateChange 统一处理
+      // Immediately update state after successful login to ensure state sync
+      // onAuthStateChange will trigger later, but we update state immediately for timely response
+      // Business logic (like checkAndSaveNewUser) is handled uniformly by onAuthStateChange
       if (data.session) {
         setSession(data.session);
         setUser(data.session.user);
         setLoading(false);
-        // 注意：checkAndSaveNewUser 会在 onAuthStateChange 中调用，避免重复处理
+        // Note: checkAndSaveNewUser will be called in onAuthStateChange to avoid duplicate processing
       } else {
         setLoading(false);
       }
     } catch (error) {
-      console.log("❌ 邮箱登录失败:", error);
+      console.log("❌ Email sign in failed:", error);
       setLoading(false);
       throw error;
     }
@@ -708,7 +725,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fullName?: string
   ) => {
     setLoading(true);
-    console.log("📝 开始邮箱注册流程...");
+    console.log("📝 Starting email sign up flow...");
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -722,17 +739,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        console.log("❌ 邮箱注册错误:", error);
+        console.log("❌ Email sign up error:", error);
         throw error;
       }
 
-      console.log("✅ 邮箱注册成功:", data);
+      console.log("✅ Email sign up successful:", data);
 
       if (data.user && !data.session) {
-        console.log("📧 请检查邮箱验证链接");
+        console.log("📧 Please check your email for verification link");
       }
     } catch (error) {
-      console.log("❌ 邮箱注册失败:", error);
+      console.log("❌ Email sign up failed:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -740,23 +757,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    console.log("🚪 开始登出流程...");
+    console.log("🚪 Starting sign out flow...");
     setLoading(true);
 
     const currentUserId = user?.id;
     syncGuardRef.current = "signing-out";
     setIsVerifyingSignOut(false);
 
-    // 立即更新本地状态，避免界面长时间停留在受保护页面
+    // Immediately update local state to avoid staying on protected pages for too long
     setSession(null);
     setUser(null);
     clearLocalAuthArtifacts(currentUserId);
 
-    // 清除订阅状态缓存
+    // Clear subscription status cache
     if (currentUserId) {
       clearSubscriptionCache(currentUserId);
     }
-    // 清除订阅状态
+    // Clear subscription status
     setSubscriptionStatus(null);
 
     const loadingFallbackTimer = setTimeout(() => {
@@ -774,12 +791,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           scope: "local",
         });
         if (localError) {
-          console.warn("⚠️ 清理本地 Supabase 会话失败:", localError);
+          console.warn(
+            "⚠️ Failed to clear local Supabase session:",
+            localError
+          );
         } else {
-          console.log("🧹 本地 Supabase 会话已清理");
+          console.log("🧹 Local Supabase session cleared");
         }
       } catch (localError) {
-        console.warn("⚠️ 清理本地 Supabase 会话异常:", localError);
+        console.warn(
+          "⚠️ Exception clearing local Supabase session:",
+          localError
+        );
       }
     };
 
@@ -791,7 +814,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         supabase.auth.signOut({ scope: "global" }),
         new Promise<"timeout">((resolve) => {
           timeoutId = setTimeout(() => {
-            console.warn("⚠️ Supabase signOut 超时，继续本地登出流程");
+            console.warn(
+              "⚠️ Supabase signOut timeout, continuing local sign out flow"
+            );
             resolve("timeout");
           }, SIGN_OUT_REQUEST_TIMEOUT);
         }),
@@ -803,11 +828,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (result !== "timeout") {
         if (result.error) {
-          console.log("❌ 登出错误:", result.error);
+          console.log("❌ Sign out error:", result.error);
           signOutError = result.error;
         }
 
-        console.log("✅ 登出成功");
+        console.log("✅ Sign out successful");
       } else {
         didTimeout = true;
         console.info(
@@ -815,7 +840,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
       }
     } catch (error) {
-      console.log("❌ 登出失败:", error);
+      console.log("❌ Sign out failed:", error);
       signOutError = error;
     } finally {
       clearTimeout(loadingFallbackTimer);
@@ -825,14 +850,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await clearLocalSession();
       if (signOutError) {
         console.warn(
-          "登出过程中出现异常，已完成本地清理，可忽略：",
+          "Exception occurred during sign out, local cleanup completed, can be ignored:",
           signOutError
         );
       }
       if (didTimeout) {
         supabase.auth
           .signOut({ scope: "global" })
-          .catch((err) => console.warn("超时后再次尝试全局登出失败", err));
+          .catch((err) =>
+            console.warn("Failed to retry global sign out after timeout", err)
+          );
       }
       if ((didTimeout || signOutError) && typeof window !== "undefined") {
         window.location.replace("/auth/login");
