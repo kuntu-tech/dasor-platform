@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { CircleProgress } from "@/components/ui/circle-progress";
 import aaaa from "@/formatted_analysis_result.json";
 type Step = "connect" | "analyzing" | "results";
 type AnalysisStep =
@@ -42,6 +43,16 @@ type AnalysisStep =
   | "sampling-data"
   | "evaluating"
   | "complete";
+type StepVisualStatus = "waiting" | "in-progress" | "completed" | "error";
+const STEP_PROGRESS_RANGES: Record<AnalysisStep, { start: number; end: number }> =
+  {
+    connecting: { start: 0, end: 10 },
+    "reading-schema": { start: 10, end: 30 },
+    "validating-data": { start: 30, end: 40 },
+    "sampling-data": { start: 40, end: 85 },
+    evaluating: { start: 85, end: 100 },
+    complete: { start: 100, end: 100 },
+  };
 import { useAuth } from "./AuthProvider";
 type AnalysisResultItem = {
   id: string;
@@ -1420,7 +1431,7 @@ export function ConnectFlow() {
     });
   };
 
-  const getStepStatus = (stepName: AnalysisStep) => {
+  const getStepStatus = (stepName: AnalysisStep): StepVisualStatus => {
     // API order: connecting -> validating-data (UI Steps 2 & 3) -> pipeline/run (UI Step 4) -> standal_sql (UI Step 5)
     // UI order: connecting -> reading-schema (Step 2) -> validating-data (Step 3) -> sampling-data (Step 4) -> evaluating (Step 5)
     const steps: AnalysisStep[] = [
@@ -1534,6 +1545,81 @@ export function ConnectFlow() {
     return "waiting";
   };
 
+  const getStepProgressPercentage = (stepName: AnalysisStep) => {
+    if (stepName === "complete") {
+      return progress >= 100 ? 100 : 0;
+    }
+    const range = STEP_PROGRESS_RANGES[stepName];
+    if (!range) {
+      return 0;
+    }
+    if (progress <= range.start) {
+      return 0;
+    }
+    if (progress >= range.end) {
+      return 100;
+    }
+    const span = Math.max(range.end - range.start, 1);
+    return Math.round(((progress - range.start) / span) * 100);
+  };
+
+  const StepProgressIndicator = ({
+    step,
+    status,
+  }: {
+    step: AnalysisStep;
+    status: StepVisualStatus;
+  }) => {
+    let value = getStepProgressPercentage(step);
+
+    if (status === "completed") {
+      value = 100;
+    } else if (status === "waiting") {
+      value = 0;
+    } else if (status === "in-progress" && value === 0) {
+      value = 1;
+    } else if (status === "error" && value === 0 && progress > 0) {
+      value = 1;
+    }
+
+    value = Math.max(0, Math.min(100, value));
+
+    const isCompleted = status === "completed" && value === 100;
+
+    return (
+      <div className="relative flex h-9 w-9 items-center justify-center">
+        {status === "in-progress" ? (
+          <div className="relative">
+            <div className="animate-spin">
+              <CircleProgress
+                value={25}
+                maxValue={100}
+                size={36}
+                strokeWidth={2}
+                getColor={() => "stroke-primary"}
+                disableAnimation={true}
+                className="text-primary"
+              />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xs font-semibold text-primary">
+                {value}%
+              </span>
+            </div>
+          </div>
+        ) : isCompleted ? (
+          <CheckCircle2 className="size-9 text-green-500" />
+        ) : (
+          <div className="relative flex h-9 w-9 items-center justify-center">
+            <span className="text-xs font-semibold text-muted-foreground">
+              {value}%
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const getMarketValueColor = (value: string) => {
     // This function is no longer directly used as marketValue is now text, but kept for potential future use
     if (value.startsWith("High Value"))
@@ -1556,6 +1642,20 @@ export function ConnectFlow() {
     acc[result.userProfile].push(result);
     return acc;
   }, {} as Record<string, AnalysisResultItem[]>);
+
+  const stepStatuses = {
+    connecting: getStepStatus("connecting"),
+    reading: getStepStatus("reading-schema"),
+    validating: getStepStatus("validating-data"),
+    sampling:
+      connectionError || dataValidationError
+        ? ("error" as StepVisualStatus)
+        : getStepStatus("sampling-data"),
+    evaluating:
+      connectionError || dataValidationError
+        ? ("error" as StepVisualStatus)
+        : getStepStatus("evaluating"),
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -1688,7 +1788,7 @@ export function ConnectFlow() {
                     Analyzing...
                   </>
                 ) : (
-                  "Connect and Analyse"
+                  "Import and Analyse"
                 )}
               </Button>
 
@@ -1778,15 +1878,10 @@ export function ConnectFlow() {
                 {/* Database Connection */}
                 <div className="flex items-start gap-4">
                   <div className="mt-1">
-                    {connectionError ? (
-                      <XCircle className="size-6 text-red-600" />
-                    ) : getStepStatus("connecting") === "completed" ? (
-                      <CheckCircle2 className="size-6 text-green-600" />
-                    ) : getStepStatus("connecting") === "in-progress" ? (
-                      <Loader2 className="size-6 text-primary animate-spin" />
-                    ) : (
-                      <Clock className="size-6 text-muted-foreground" />
-                    )}
+                    <StepProgressIndicator
+                      step="connecting"
+                      status={stepStatuses.connecting}
+                    />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -1904,15 +1999,10 @@ export function ConnectFlow() {
                 {!connectionError && (
                   <div className="flex items-start gap-4">
                     <div className="mt-1">
-                      {runError ? (
-                        <XCircle className="size-6 text-red-600" />
-                      ) : getStepStatus("reading-schema") === "completed" ? (
-                        <CheckCircle2 className="size-6 text-green-600" />
-                      ) : getStepStatus("reading-schema") === "in-progress" ? (
-                        <Loader2 className="size-6 text-primary animate-spin" />
-                      ) : (
-                        <Clock className="size-6 text-muted-foreground" />
-                      )}
+                      <StepProgressIndicator
+                        step="reading-schema"
+                        status={stepStatuses.reading}
+                      />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -2034,17 +2124,10 @@ export function ConnectFlow() {
                       <>
                         <div className="flex items-start gap-4">
                           <div className="mt-1">
-                            {connectionError || dataValidationError ? (
-                              <XCircle className="size-6 text-red-600" />
-                            ) : getStepStatus("sampling-data") ===
-                              "completed" ? (
-                              <CheckCircle2 className="size-6 text-green-600" />
-                            ) : getStepStatus("sampling-data") ===
-                              "in-progress" ? (
-                              <Loader2 className="size-6 text-primary animate-spin" />
-                            ) : (
-                              <Clock className="size-6 text-muted-foreground" />
-                            )}
+                            <StepProgressIndicator
+                              step="sampling-data"
+                              status={stepStatuses.sampling}
+                            />
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
@@ -2061,16 +2144,10 @@ export function ConnectFlow() {
 
                         <div className="flex items-start gap-4">
                           <div className="mt-1">
-                            {connectionError || dataValidationError ? (
-                              <XCircle className="size-6 text-red-600" />
-                            ) : getStepStatus("evaluating") === "completed" ? (
-                              <CheckCircle2 className="size-6 text-green-600" />
-                            ) : getStepStatus("evaluating") ===
-                              "in-progress" ? (
-                              <Loader2 className="size-6 text-primary animate-spin" />
-                            ) : (
-                              <Clock className="size-6 text-muted-foreground" />
-                            )}
+                            <StepProgressIndicator
+                              step="evaluating"
+                              status={stepStatuses.evaluating}
+                            />
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">

@@ -30,6 +30,8 @@ import {
   DollarSign,
   ShoppingCart,
   Trash2,
+  Eye,
+  LayoutDashboard,
 } from "lucide-react";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -644,10 +646,6 @@ export function PreviewEditor() {
     }
   };
 
-  const selectedFeature = currentApp?.features.find(
-    (f) => f.id === selectedFeatureId
-  );
-
   const handleSaveSubmit = () => {
     if (!saveFormData.name.trim()) {
       alert("Please enter a name for your app");
@@ -667,6 +665,10 @@ export function PreviewEditor() {
     router.push("/save-success");
   };
 
+  const selectedFeature = currentApp?.features.find(
+    (f) => f.id === selectedFeatureId
+  );
+
   const renderPreview = () => {
     if (isPreviewUpdating) {
       return (
@@ -679,9 +681,6 @@ export function PreviewEditor() {
       );
     }
 
-    const selectedFeature = currentApp?.features.find(
-      (f) => f.id === selectedFeatureId
-    );
     const currentDesign = selectedFeature
       ? featureDesigns[selectedFeature.id]
       : "product-list";
@@ -1017,141 +1016,129 @@ export function PreviewEditor() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      <div className="flex-1 flex overflow-hidden">
-        <ResizablePanelGroup
-          direction="horizontal"
-          onLayout={(sizes) => {
-            setPanelLayout(sizes);
-            try {
-              localStorage.setItem("previewSplitLayout", JSON.stringify(sizes));
-            } catch {}
-            if (rightPanelRef.current) {
-              const rect = rightPanelRef.current.getBoundingClientRect();
-              setRightPanelLeft(rect.left);
-            }
-          }}
-          className="w-full h-full"
-        >
-          <ResizablePanel
-            defaultSize={(panelLayout && panelLayout[0]) || 24}
-            minSize={16}
-            maxSize={40}
-            className="flex flex-col"
-            style={{ backgroundColor: "#F2F2F7" }}
+    <div className="relative min-h-screen w-full flex bg-white">
+      <div className="shape-1"></div>
+      <div className="shape-2"></div>
+      <div className="h-screen flex flex-col w-full">
+        <div className="flex-1 flex overflow-hidden">
+          <ResizablePanelGroup
+            direction="horizontal"
+            onLayout={(sizes) => {
+              setPanelLayout(sizes);
+              try {
+                localStorage.setItem("previewSplitLayout", JSON.stringify(sizes));
+              } catch {}
+              if (rightPanelRef.current) {
+                const rect = rightPanelRef.current.getBoundingClientRect();
+                setRightPanelLeft(rect.left);
+              }
+            }}
+            className="w-full h-full"
           >
-            <div className="px-4 py-3 flex items-center justify-between">
-              <h2 className="font-medium text-lg" style={{ color: "#8E8E93" }}>
-                Valued questions
-              </h2>
-            </div>
-            <div className="flex-1 overflow-y-auto pt-0 px-3 pb-3">
-              {currentApp.features.map((feature) => {
-                const isSelected = feature.id === selectedFeatureId;
+            <ResizablePanel
+              defaultSize={(panelLayout && panelLayout[0]) || 24}
+              minSize={16}
+              maxSize={40}
+              className="flex flex-col glass-effect"
+            >
+              <div className="h-20 flex items-center justify-center border-b border-gray-200/30">
+                <div className="flex items-center gap-2">
+                  <LayoutDashboard className="w-8 h-8 text-indigo-500" />
+                  <span className="text-xl font-bold text-gray-800">
+                    Valued questions
+                  </span>
+                </div>
+              </div>
+              <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
+                {currentApp.features.map((feature) => {
+                  const isSelected = feature.id === selectedFeatureId;
 
-                return (
-                  <div key={feature.id} className="relative">
-                    <button
-                      onClick={() => {
-                        // Auto-fill the input with predefined question text
-                        const questionText = getQuestionText(feature.name);
-                        setSearchMessage(questionText);
+                  return (
+                    <div key={feature.id} className="relative">
+                      <button
+                        onClick={() => {
+                          setSelectedFeatureId(feature.id);
+                          // Auto-fill the input with predefined question text
+                          const questionText = getQuestionText(feature.name);
+                          setSearchMessage(questionText);
 
-                        // Focus the input after auto-filling
-                        setTimeout(() => {
-                          const input = document.querySelector(
-                            'input[placeholder="Search webpage"]'
-                          ) as HTMLInputElement;
-                          if (input) {
-                            input.focus();
-                            input.select(); // Select the text so user can easily edit it
-                          }
-                        }, 100);
-                      }}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setContextMenuFeatureId(feature.id);
-                      }}
-                      className="w-full text-left p-3 rounded-md mb-2 transition-all duration-200 hover:bg-blue-50/50"
-                      style={{
-                        backgroundColor: "transparent",
-                        color: "#8E8E93",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.color = "#007AFF";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.color = "#8E8E93";
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        {/* Business opportunity coin icon */}
-                        <div className="flex-shrink-0 w-4 h-4">
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 16 16"
-                            fill="currentColor"
-                          >
-                            <circle
-                              cx="8"
-                              cy="8"
-                              r="6"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1"
-                            />
-                            <path d="M4 6h8v4H4V6zm2 1v2h4V7H6z" />
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div
-                            className="font-normal text-sm truncate leading-relaxed"
-                            style={{
-                              fontFamily:
-                                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-                              letterSpacing: "-0.01em",
+                          // Focus the input after auto-filling
+                          setTimeout(() => {
+                            const input = document.querySelector(
+                              'input[placeholder="Search webpage"]'
+                            ) as HTMLInputElement;
+                            if (input) {
+                              input.focus();
+                              input.select(); // Select the text so user can easily edit it
+                            }
+                          }, 100);
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setContextMenuFeatureId(feature.id);
+                        }}
+                        className={`nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 w-full text-left ${
+                          isSelected
+                            ? "active bg-white/90 text-gray-900 shadow-md"
+                            : "text-gray-600 hover:bg-white/50"
+                        }`}
+                      >
+                        <Eye className="w-5 h-5 flex-shrink-0" />
+                        <span className="text-sm font-medium truncate">
+                          {feature.name}
+                        </span>
+                      </button>
+
+                      <Popover
+                        open={contextMenuFeatureId === feature.id}
+                        onOpenChange={(open) =>
+                          !open && setContextMenuFeatureId(null)
+                        }
+                      >
+                        <PopoverTrigger asChild>
+                          <div className="absolute inset-0 pointer-events-none" />
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-48 p-2"
+                          side="right"
+                          align="start"
+                        >
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              handleDeleteFeature(feature.id);
+                              setContextMenuFeatureId(null);
                             }}
                           >
-                            {feature.name}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-
-                    <Popover
-                      open={contextMenuFeatureId === feature.id}
-                      onOpenChange={(open) =>
-                        !open && setContextMenuFeatureId(null)
-                      }
-                    >
-                      <PopoverTrigger asChild>
-                        <div className="absolute inset-0 pointer-events-none" />
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-48 p-2"
-                        side="right"
-                        align="start"
-                      >
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => {
-                            handleDeleteFeature(feature.id);
-                            setContextMenuFeatureId(null);
-                          }}
-                        >
-                          <Trash2 className="size-4 mr-2" />
-                          Delete Feature
-                        </Button>
-                      </PopoverContent>
-                    </Popover>
+                            <Trash2 className="size-4 mr-2" />
+                            Delete Feature
+                          </Button>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  );
+                })}
+              </nav>
+              <div className="p-4 border-t border-gray-200/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center border-2 border-indigo-300">
+                    <span className="text-white font-semibold text-sm">
+                      {currentApp.name.charAt(0).toUpperCase()}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
-          </ResizablePanel>
+                  <div>
+                    <p className="font-semibold text-sm text-gray-800">
+                      {currentApp.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {currentApp.features.length} questions
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </ResizablePanel>
           <ResizableHandle
             withHandle
             className="bg-transparent after:bg-transparent hover:after:bg-transparent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 opacity-0"
@@ -1163,7 +1150,7 @@ export function PreviewEditor() {
           >
             <div
               ref={rightPanelRef}
-              className="h-full bg-muted/30 overflow-y-auto relative leading-[0rem] px-0.5 pt-0"
+              className="h-full bg-white overflow-y-auto relative leading-[0rem] px-0.5 pt-0"
               style={{
                 height: `calc(100vh - ${
                   inputBarHeight + INPUT_BAR_BOTTOM_OFFSET
@@ -1171,46 +1158,79 @@ export function PreviewEditor() {
                 width: "calc(100% - 20px)",
               }}
             >
-              <div
-                className="max-w-4xl mx-auto"
-                style={{
-                  paddingBottom: inputBarHeight + INPUT_BAR_BOTTOM_OFFSET + 16,
-                }}
-              >
-                {searchHistory.length > 0 && (
-                  <div className="mb-6 space-y-4">
-                    {searchHistory.map((msg, i) => (
-                      <div key={i}>{renderCard(msg)}</div>
-                    ))}
-                    {isSearchProcessing && (
-                      <div className="flex justify-start">
-                        <Card className="p-4 shadow-sm border">
-                          <div className="flex items-center gap-3">
-                            <Loader2 className="size-4 animate-spin text-primary" />
-                            <span className="text-sm text-muted-foreground">
-                              Analyzing data...
-                            </span>
-                          </div>
-                        </Card>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {searchHistory.length === 0 && (
-                  <div className="relative pb-12 flex items-center justify-center min-h-[400px]">
-                    <div className="text-center text-muted-foreground">
-                      <div className="size-16 rounded-full bg-muted/50 flex items-center justify-center mb-4 mx-auto">
-                        <Sparkles className="size-8" />
-                      </div>
-                      <h3 className="text-lg font-semibold mb-2"></h3>
-                      <p className="text-sm">
-                        Select a question on the left to view the answer.
-                      </p>
+              <main className="flex-grow p-8">
+                <div
+                  className="max-w-4xl mx-auto"
+                  style={{
+                    paddingBottom: inputBarHeight + INPUT_BAR_BOTTOM_OFFSET + 16,
+                  }}
+                >
+                  {searchHistory.length > 0 && (
+                    <div className="mb-6 space-y-4">
+                      {searchHistory.map((msg, i) => (
+                        <div key={i}>{renderCard(msg)}</div>
+                      ))}
+                      {isSearchProcessing && (
+                        <div className="flex justify-start">
+                          <Card className="p-4 shadow-sm border">
+                            <div className="flex items-center gap-3">
+                              <Loader2 className="size-4 animate-spin text-primary" />
+                              <span className="text-sm text-muted-foreground">
+                                Analyzing data...
+                              </span>
+                            </div>
+                          </Card>
+                        </div>
+                      )}
                     </div>
+                  )}
+
+                  {searchHistory.length === 0 && (
+                    <div className="relative pb-12 flex items-center justify-center min-h-[400px]">
+                      <div className="text-center text-muted-foreground">
+                        <div className="size-16 rounded-full bg-muted/50 flex items-center justify-center mb-4 mx-auto">
+                          <Sparkles className="size-8" />
+                        </div>
+                        <h3 className="text-lg font-semibold mb-2"></h3>
+                        <p className="text-sm">
+                          Select a question on the left to view the answer.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </main>
+
+              {/* Bottom right question description box */}
+              {selectedFeatureId && selectedFeature && (
+                <div className="fixed bottom-24 right-8 max-w-md z-40">
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-200/50 p-4 backdrop-blur-sm">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h3 className="text-sm font-semibold text-gray-700">
+                        Question Description
+                      </h3>
+                      <button className="text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 15l7-7 7 7"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      {selectedFeature.name}
+                    </p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <div
                 className="fixed bottom-2 right-0 px-8 z-50"

@@ -18,6 +18,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CheckCircle2, Copy, Check, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/AuthProvider";
+import { triggerConfettiFireworks } from "@/components/ui/confetti-fireworks";
 import {
   getVendorStatus,
   type VendorStatusResponse,
@@ -241,6 +242,10 @@ export function PublishFlow() {
         if (appData) {
           setAppDataFromDb(appData);
           applyMetadataDefaults(appData);
+          // 如果应用已发布，自动显示成功页面
+          if (appData.status === "published") {
+            setIsPublished(true);
+          }
         }
       })
       .catch((err) => {
@@ -457,6 +462,26 @@ export function PublishFlow() {
       alert(message);
     }
   };
+
+  useEffect(() => {
+    if (!isPublished) return;
+
+    // 延迟一小段时间确保页面完全渲染后再触发烟花
+    let cleanup: (() => void) | undefined;
+    const timer = setTimeout(() => {
+      cleanup = triggerConfettiFireworks({
+        duration: 1000,
+        intervalDelay: 200,
+      });
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, [isPublished]);
 
   const handleContinueToGenerate = async () => {
     if (!appId || !user?.id) {
