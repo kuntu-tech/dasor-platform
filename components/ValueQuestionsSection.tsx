@@ -833,6 +833,7 @@ export function ValueQuestionsSection({
         return {
           query: q.question || q.text || "",
           sql: q.sql || "",
+          sample_data: q.sample_data || []
         };
       });
 
