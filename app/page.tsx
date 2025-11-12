@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -74,6 +74,7 @@ type AppItem = {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"list" | "grid">("list");
   const [statusFilter, setStatusFilter] = useState<
@@ -82,6 +83,27 @@ export default function DashboardPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const { user, session } = useAuth();
+
+  // Handle subscription_required parameter - only show popup once per session
+  useEffect(() => {
+    const subscriptionRequired = searchParams.get("subscription_required");
+    if (subscriptionRequired === "1" && user?.id) {
+      const subscriptionCheckedKey = `subscription_popup_shown_${user.id}`;
+      const hasShownPopup =
+        sessionStorage.getItem(subscriptionCheckedKey) === "true";
+
+      if (!hasShownPopup) {
+        // Show popup only if not shown in this session
+        setIsPricingOpen(true);
+        sessionStorage.setItem(subscriptionCheckedKey, "true");
+        // Remove parameter from URL to prevent popup on refresh
+        router.replace("/", { scroll: false });
+      } else {
+        // If already shown, just remove parameter from URL
+        router.replace("/", { scroll: false });
+      }
+    }
+  }, [searchParams, user?.id, router]);
 
   // Extract queries from generator_meta and store them in localStorage
   const extractAndSaveQueries = (app: AppItem) => {
