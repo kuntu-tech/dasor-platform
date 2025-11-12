@@ -1844,7 +1844,7 @@ Access Tokens"</span>
                     Analyzing...
                   </>
                 ) : (
-                  "Connect and Analyse"
+                  "Import and Analyse"
                 )}
               </Button>
 
