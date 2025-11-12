@@ -26,6 +26,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
       "/purchase/success",
       "/purchase/cancel",
       "/oauth/callback",
+      "/subscription/cancel",
+      "/subscription/success",
     ]);
 
     if (publicExact.has(pathname)) return true;
