@@ -199,7 +199,7 @@ export default function DashboardPage() {
           // Display cached data immediately
           setAppItems(cachedData);
           // Refresh in the background without using cache
-          fetchAppsFromAPI().catch(console.error);
+          fetchAppsFromAPI().catch(console.log);
           return { data: cachedData };
         }
       }
@@ -208,7 +208,7 @@ export default function DashboardPage() {
       try {
         return await fetchAppsFromAPI();
       } catch (error) {
-        console.error("Failed to fetch apps:", error);
+        console.log("Failed to fetch apps:", error);
         // Fall back to cache if the request fails
         const cachedData = getCachedApps();
         if (cachedData) {

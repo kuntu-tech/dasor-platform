@@ -55,7 +55,7 @@ export default function LoginPage() {
         description: "Please wait while we log you in.",
       });
     } catch (err: any) {
-      console.error("Login failed:", err);
+      console.log("Login failed:", err);
       toast({
         title: "Login failed",
         description: err.message || "Please check your email and password.",

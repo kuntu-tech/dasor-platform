@@ -460,7 +460,7 @@ export function PublishFlow() {
 
   const handleContinueToGenerate = async () => {
     if (!appId || !user?.id) {
-      console.error("Missing appId or user id");
+      console.log("Missing appId or user id");
       return;
     }
 
@@ -477,7 +477,7 @@ export function PublishFlow() {
       const connectionId = app.connection_id;
 
       // if (!connectionId) {
-      //   console.error("App does not have connection_id");
+      //   console.log("App does not have connection_id");
       //   alert(
       //     "App does not have a connection. Please connect a database first."
       //   );
@@ -587,7 +587,7 @@ export function PublishFlow() {
 
       // If still empty, raise an error
       // if (!runResult) {
-      //   console.error(
+      //   console.log(
       //     `No run_result found for task_id=${taskId}, user_id=${user.id}`
       //   );
       //   throw new Error(
@@ -633,7 +633,7 @@ export function PublishFlow() {
       // Navigate to the connect page
       router.push("/connect");
     } catch (error) {
-      console.error("Failed to continue to generate:", error);
+      console.log("Failed to continue to generate:", error);
       alert("Failed to load data. Please try again.");
     }
   };
