@@ -29,6 +29,7 @@ interface QuestionItem {
 }
 
 type BatchJobStatus = {
+  jobId?: string;
   appId?: string;
   status?: "pending" | "generating" | "succeeded" | "failed";
   currentQueryIndex?: number | null;
@@ -36,6 +37,11 @@ type BatchJobStatus = {
   currentToolName?: string | null;
   currentToolIndex?: number | null;
   totalToolsInCurrentQuery?: number | null;
+  completedToolsInCurrentQuery?: number | null;
+  totalTools?: number | null;
+  totalToolsCompleted?: number | null;
+  activeToolNames?: string[] | null;
+  lastCompletedToolName?: string | null;
   message?: string | null;
   error?: string | null;
   startedAt?: string | null;
@@ -341,23 +347,26 @@ export function GenerateFlow() {
         const response = await fetch(`/api/generate-batch/${appId}/status`, {
           cache: "no-store",
         });
-        const payload = await response.json();
+        const payload: BatchJobStatus = await response.json();
         if (!response.ok) {
           throw new Error(payload?.error || `HTTP ${response.status}`);
         }
 
+        // 更新状态,包含所有文档中定义的字段
         setBatchStatus(payload);
         updateQuestionStatuses(payload);
 
+        // 根据文档: 当 status 变为 succeeded 或 failed 时停止轮询
         if (payload?.status === "succeeded") {
           setJobState("succeeded");
-          await hydrateAppRecord(appId);
-          router.push(`/preview?id=${appId}`);
+          await hydrateAppRecord(payload.appId || appId);
+          router.push(`/preview?id=${payload.appId || appId}`);
           return;
         }
 
         if (payload?.status === "failed") {
           setJobState("failed");
+          // 根据文档: 失败时查看 error 字段
           setErrorMessage(
             payload?.error ||
               payload?.message ||
@@ -366,15 +375,19 @@ export function GenerateFlow() {
           return;
         }
 
+        // 根据文档: 建议 2-5 秒查询一次 (当前使用 4000ms,符合建议)
+        // 继续轮询直到状态变为 succeeded 或 failed
         statusUpdateIntervalRef.current = setTimeout(() => {
           requestStatus(appId);
         }, POLL_INTERVAL_MS);
       } catch (error) {
         console.log("Failed to query job status", error);
+        // 仅在任务未完成时继续轮询
         if (
           jobStateRef.current !== "failed" &&
           jobStateRef.current !== "succeeded"
         ) {
+          // 错误时也继续轮询,避免网络临时问题导致状态丢失
           statusUpdateIntervalRef.current = setTimeout(() => {
             requestStatus(appId);
           }, POLL_INTERVAL_MS);
@@ -386,6 +399,7 @@ export function GenerateFlow() {
       clearStatusTimer,
       hydrateAppRecord,
       updateQuestionStatuses,
+      router,
     ]
   );
 
@@ -555,20 +569,36 @@ export function GenerateFlow() {
         throw new Error("Batch generation service did not return appId");
       }
 
+      // 根据文档: 保留所有返回的字段,确保完整的状态信息
       const initialStatus: BatchJobStatus = {
+        jobId: data?.jobId,
         appId: nextAppId,
         status: (data?.status as BatchJobStatus["status"]) || "pending",
         currentQueryIndex:
           typeof data?.currentQueryIndex === "number"
             ? data.currentQueryIndex
-            : 1,
+            : typeof data?.currentQueryIndex === "undefined"
+            ? 1
+            : null,
         totalQueries:
           typeof data?.totalQueries === "number"
             ? data.totalQueries
             : extractedQueries.length,
+        currentToolName: data?.currentToolName ?? null,
+        currentToolIndex: data?.currentToolIndex ?? null,
+        totalToolsInCurrentQuery: data?.totalToolsInCurrentQuery ?? null,
+        completedToolsInCurrentQuery: data?.completedToolsInCurrentQuery ?? null,
+        totalTools: data?.totalTools ?? null,
+        totalToolsCompleted: data?.totalToolsCompleted ?? null,
+        activeToolNames: data?.activeToolNames ?? null,
+        lastCompletedToolName: data?.lastCompletedToolName ?? null,
         message:
           data?.message ||
           "Batch generation task submitted, please check the progress later",
+        error: data?.error ?? null,
+        startedAt: data?.startedAt ?? null,
+        completedAt: data?.completedAt ?? null,
+        lastUpdatedAt: data?.lastUpdatedAt ?? null,
       };
 
       setBatchStatus(initialStatus);
