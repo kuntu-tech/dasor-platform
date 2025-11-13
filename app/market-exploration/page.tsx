@@ -2396,10 +2396,10 @@ export default function MarketExplorationPage({
               setSelectedSegmentName(mapped[0]?.name || "");
             }
             
-            // After standal_sql execution completes, update version list and switch to latest version
+            // After standal_sql execution completes, switch to latest version
+            // switchToLatestVersion already calls /api/run-results internally, no need to call fetchVersions separately
             try {
-              await fetchVersions(false); // Update version list first
-              await switchToLatestVersion(); // Switch to latest version
+              await switchToLatestVersion(); // Switch to latest version (this will fetch version list and load data)
               console.log("[Command Submit] Version list updated after standal_sql");
             } catch (error) {
               console.warn("[Command Submit] Failed to update version list after standal_sql:", error);
