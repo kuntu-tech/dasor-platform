@@ -93,15 +93,15 @@ export default function LoginPage() {
           {/* Main Content */}
           <div className="space-y-10">
             {/* Title */}
-            <div className="text-center">
+            <div className="text-left">
               <h1 className="text-2xl font-semibold text-gray-900">
-                Log in to your account
+                Welcome to Datail
               </h1>
             </div>
 
             <div className="space-y-4">
               {/* Email */}
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <Label
                   htmlFor="email"
                   className="text-sm font-medium text-gray-700"
@@ -229,16 +229,20 @@ export default function LoginPage() {
       {/* Right Side - Background Image */}
       <div className="w-1/2 relative">
         <Image
-          src="/jimeng222.png"
+          src="/blackwhitelight.png"
           alt="Login background"
           fill
           className="object-cover"
           priority
         />
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center px-6">
           <div className="text-center">
-            <h1 className="text-5xl font-extrabold text-white mb-4 tracking-tight">
-              Data to ChatAPP, <span className="text-blue-500">Fast!</span>
+            <h1
+              className="text-3xl md:text-4xl font-semibold italic leading-tight text-black animate-glow-wave"
+            >
+              Data to ChatAPP
+              <br />
+              <span className="text-[1.1em]">Fast!</span>
             </h1>
           </div>
         </div>
