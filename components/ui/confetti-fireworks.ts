@@ -28,7 +28,7 @@ export function triggerConfettiFireworks({
   const randomInRange = (min: number, max: number) =>
     Math.random() * (max - min) + min;
 
-  // 初始爆发效果 - 从多个位置同时发射
+  // Initial burst effect - fire from multiple positions simultaneously
   const initialBurst = () => {
     const count = 200;
     const defaults = {
@@ -39,7 +39,7 @@ export function triggerConfettiFireworks({
       zIndex: 9999,
     };
 
-    // 从屏幕中央和两侧发射
+    // Fire from screen center and sides
     confetti({
       ...defaults,
       origin: { x: 0.5, y: 0.5 },
@@ -57,7 +57,7 @@ export function triggerConfettiFireworks({
     });
   };
 
-  // 立即触发初始爆发
+  // Immediately trigger initial burst
   initialBurst();
 
   const interval = window.setInterval(() => {
@@ -82,7 +82,7 @@ export function triggerConfettiFireworks({
       origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
       colors: ["#FF6B6B", "#4ECDC4", "#FFD700", "#45B7D1"],
     });
-    // 从中央也发射
+    // Also fire from center
     confetti({
       ...baseDefaults,
       particleCount: Math.floor(particleCount * 0.5),
