@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { XIcon, Search } from "lucide-react";
+import { XIcon, Search, Check } from "lucide-react";
 
 export interface QuestionOption {
   id: string;
@@ -11,7 +11,7 @@ export interface QuestionOption {
 interface QuestionSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (question: QuestionOption) => void;
+  onConfirm: (question: QuestionOption | QuestionOption[]) => void;
   commandText?: string;
   questions?: QuestionOption[];
   segmentName?: string;
@@ -29,15 +29,21 @@ export function QuestionSelectionModal({
   defaultSelectedQuestionId,
   onCancel,
 }: QuestionSelectionModalProps) {
+  const isMultiSelect = commandText === "delete question";
   const [selectedQuestionId, setSelectedQuestionId] = useState<string>("");
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedQuestionId(defaultSelectedQuestionId ?? "");
+      if (isMultiSelect) {
+        setSelectedQuestionIds([]);
+      } else {
+        setSelectedQuestionId(defaultSelectedQuestionId ?? "");
+      }
       setSearch("");
     }
-  }, [isOpen, defaultSelectedQuestionId]);
+  }, [isOpen, defaultSelectedQuestionId, isMultiSelect]);
 
   const filteredQuestions = useMemo(() => {
     if (!search.trim()) {
@@ -53,12 +59,29 @@ export function QuestionSelectionModal({
     });
   }, [questions, search]);
 
+  const toggleQuestionSelection = (questionId: string) => {
+    if (selectedQuestionIds.includes(questionId)) {
+      setSelectedQuestionIds(selectedQuestionIds.filter((id) => id !== questionId));
+    } else {
+      setSelectedQuestionIds([...selectedQuestionIds, questionId]);
+    }
+  };
+
   const handleConfirm = () => {
-    const selected = filteredQuestions.find(
-      (question) => question.id === selectedQuestionId
-    );
-    if (selected) {
-      onConfirm(selected);
+    if (isMultiSelect) {
+      const selected = filteredQuestions.filter((question) =>
+        selectedQuestionIds.includes(question.id)
+      );
+      if (selected.length > 0) {
+        onConfirm(selected);
+      }
+    } else {
+      const selected = filteredQuestions.find(
+        (question) => question.id === selectedQuestionId
+      );
+      if (selected) {
+        onConfirm(selected);
+      }
     }
   };
 
@@ -92,8 +115,9 @@ export function QuestionSelectionModal({
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-6">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Select a question to{" "}
-                  {commandText === "edit question" ? "edit" : "delete"}
+                  {isMultiSelect
+                    ? `Select questions to delete (${selectedQuestionIds.length} selected)`
+                    : `Select a question to ${commandText === "edit question" ? "edit" : "delete"}`}
                 </h2>
                 {segmentName && (
                   <p className="text-sm text-gray-500 mt-1">
@@ -124,11 +148,17 @@ export function QuestionSelectionModal({
                 {hasQuestions ? (
                   <div className="space-y-2">
                     {filteredQuestions.map((question) => {
-                      const isActive = question.id === selectedQuestionId;
+                      const isActive = isMultiSelect
+                        ? selectedQuestionIds.includes(question.id)
+                        : question.id === selectedQuestionId;
                       return (
                         <button
                           key={question.id}
-                          onClick={() => setSelectedQuestionId(question.id)}
+                          onClick={() =>
+                            isMultiSelect
+                              ? toggleQuestionSelection(question.id)
+                              : setSelectedQuestionId(question.id)
+                          }
                           className={`w-full rounded-2xl border px-4 py-3 text-left transition-colors cursor-pointer ${
                             isActive
                               ? "border-gray-900 bg-gray-900/5"
@@ -136,11 +166,26 @@ export function QuestionSelectionModal({
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
-                            <span className="text-base font-medium text-gray-900">
-                              {question.text}
-                            </span>
-                            {isActive && (
-                              <span className="rounded-full bg-gray-900 px-2 py-0.5 text-xs font-semibold text-white">
+                            <div className="flex items-start gap-3 flex-1">
+                              {isMultiSelect && (
+                                <div
+                                  className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center ${
+                                    isActive
+                                      ? "bg-gray-900 border-gray-900"
+                                      : "border-gray-300"
+                                  }`}
+                                >
+                                  {isActive && (
+                                    <Check className="w-3 h-3 text-white" />
+                                  )}
+                                </div>
+                              )}
+                              <span className="text-base font-medium text-gray-900 flex-1">
+                                {question.text}
+                              </span>
+                            </div>
+                            {!isMultiSelect && isActive && (
+                              <span className="rounded-full bg-gray-900 px-2 py-0.5 text-xs font-semibold text-white flex-shrink-0">
                                 Selected
                               </span>
                             )}
@@ -190,10 +235,18 @@ export function QuestionSelectionModal({
                 </button>
                 <button
                   onClick={handleConfirm}
-                  disabled={!selectedQuestionId}
+                  disabled={
+                    isMultiSelect
+                      ? selectedQuestionIds.length === 0
+                      : !selectedQuestionId
+                  }
                   className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-900 cursor-pointer disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
                 >
-                  {commandText === "edit question" ? "Choose Question" : "Confirm Delete"}
+                  {isMultiSelect
+                    ? `Delete ${selectedQuestionIds.length} Question${selectedQuestionIds.length > 1 ? "s" : ""}`
+                    : commandText === "edit question"
+                    ? "Choose Question"
+                    : "Confirm Delete"}
                 </button>
               </div>
             </div>
