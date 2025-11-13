@@ -805,7 +805,7 @@ const ClaudeChatInput: React.FC<ChatInputProps> = ({
                   : "Attach files"
               }
             >
-              <Plus className="h-5 w-5" />
+              <span className="text-lg font-semibold">@</span>
             </Button>
             <Button
               size="icon"

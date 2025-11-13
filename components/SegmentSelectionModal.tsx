@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XIcon, Check } from 'lucide-react';
+import { ListBox, ListBoxItem } from '@/components/ui/listbox';
 interface SegmentSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -120,8 +121,8 @@ export function SegmentSelectionModal({
             onClick={(e) => e.stopPropagation()}
             className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl z-[120] overflow-hidden flex flex-col max-h-[80vh]">
             {/* Header */}
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-              <h2 className="text-xl font-semibold text-gray-900">
+            <div className="px-6 pt-4 pb-2 flex items-center justify-between flex-shrink-0">
+              <h2 className="text-lg font-semibold text-gray-900">
                 {mode === 'multiSelect' 
                   ? (isDeleteCommand ? 'Select Segments to Delete' : 'Select Segments to Merge')
                   : mode === 'select' 
@@ -142,14 +143,14 @@ export function SegmentSelectionModal({
               </button>
             </div>
             {/* Content */}
-            <div className="px-6 py-4 flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="px-6 pb-4 flex flex-col flex-1 min-h-0 overflow-hidden">
               <p className="text-gray-600 mb-4 flex-shrink-0 text-sm">
                 {mode === 'multiSelect' 
                   ? (isDeleteCommand 
                       ? `Select segments to delete (${selectedSegments.length} selected, at least 1 must remain):`
                       : `Select multiple segments to merge (${selectedSegments.length} selected):`)
                   : mode === 'select' 
-                  ? 'Choose a segment to use for this command:' 
+                  ? '' 
                   : 'Enter a name for the new segment:'}
               </p>
               {mode === 'multiSelect' ? (
@@ -163,8 +164,8 @@ export function SegmentSelectionModal({
                           onClick={() => toggleSegmentSelection(segment)}
                           className={`w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 cursor-pointer ${
                             isSelected
-                              ? 'bg-gray-100 border-2 border-gray-300'
-                              : 'hover:bg-gray-50 border border-gray-200'
+                              ? 'bg-gray-100 border-2 border-gray-300 border-b-2'
+                              : 'hover:bg-gray-50 border-b border-gray-200'
                           }`}
                         >
                           <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center ${
@@ -185,22 +186,33 @@ export function SegmentSelectionModal({
                   )}
                 </div>
               ) : mode === 'select' ? (
-                <div className="space-y-2 flex-1 overflow-y-auto pr-2 min-h-0 max-h-[50vh]">
+                <div className="flex-1 overflow-hidden min-h-0 max-h-[50vh]">
                   {segments.length > 0 ? (
-                    segments.map((segment) => (
-                      <button
-                        key={segment}
-                        onClick={() => setSelectedSegment(segment)}
-                        className={`w-full p-3 text-left rounded-lg transition-colors cursor-pointer ${
-                          selectedSegment === segment
-                            ? 'bg-gray-100 border-2 border-gray-300'
-                            : 'hover:bg-gray-50 border border-gray-200'
-                        }`}
-                        title={segment}
+                    <div className="overflow-hidden rounded-lg border border-input">
+                      <ListBox
+                        className="space-y-1 bg-background p-1 text-sm shadow-sm shadow-black/5 transition-shadow max-h-[50vh]"
+                        aria-label="Select segment"
+                        selectionMode="single"
+                        selectedKeys={selectedSegment ? new Set([selectedSegment]) : new Set()}
+                        onSelectionChange={(keys: Set<string> | 'all') => {
+                          if (keys === 'all') return;
+                          const selectedKey = Array.from(keys)[0] as string | undefined;
+                          setSelectedSegment(selectedKey || '');
+                        }}
                       >
-                        <span className="block truncate">{segment}</span>
-                      </button>
-                    ))
+                        {segments.map((segment) => (
+                          <ListBoxItem
+                            key={segment}
+                            id={segment}
+                            className="cursor-pointer border-b border-gray-200 last:border-b-0"
+                          >
+                            <span className="block truncate" title={segment}>
+                              {segment}
+                            </span>
+                          </ListBoxItem>
+                        ))}
+                      </ListBox>
+                    </div>
                   ) : (
                     <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-500">
                       No segments available. Please load segments first.
@@ -217,7 +229,7 @@ export function SegmentSelectionModal({
                   autoFocus
                 />
               )}
-              <div className="flex justify-end gap-3 flex-shrink-0 mt-4 pt-4 border-t border-gray-200">
+              <div className="flex justify-end gap-3 flex-shrink-0 mt-4 pt-4">
                 <button 
                   onClick={handleCancel} 
                   type="button"

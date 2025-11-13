@@ -2886,7 +2886,7 @@ export default function MarketExplorationPage({
               </div>
               <div className="flex items-center gap-3">
                 <AnimatedDropdownMenu options={commandOptions}>
-                  <span className="text-xl">➕</span>
+                  <span className="text-xl cursor-pointer hover:bg-gray-100 rounded-lg px-2 py-1 transition-all duration-200 text-gray-700 hover:text-gray-900 flex items-center justify-center">@</span>
                 </AnimatedDropdownMenu>
                 <div className="flex-1" />
                 <div
@@ -2908,9 +2908,9 @@ export default function MarketExplorationPage({
                     <Send className="w-5 h-5" />
                   </button>
                   {!selectedCommand && isSendButtonHovered && !isGenerating && (
-                    <div className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50">
-                      Please select a command first
-                      <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                    <div className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-gray-400 text-white text-xs rounded-lg whitespace-nowrap z-50">
+                      Select a command
+                      <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-600"></div>
                     </div>
                   )}
                 </div>
