@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { warmupSupabase } from "@/lib/supabase-warmup";
 
-const CONNECT_API_BASE = process.env.NEXT_PUBLIC_CONNECT_API_BASE?.replace(/\/$/, "") || "https://test-payment-1j3d.onrender.com";
+const CONNECT_API_BASE = process.env.NEXT_PUBLIC_CONNECT_API_BASE?.replace(/\/$/, "") || "https://unfrequentable-sceptical-vince.ngrok-free.dev";
 
 export async function GET(request: NextRequest) {
   try {
+    // Warm up Supabase connection early to prevent cold start timeout
+    // This helps ensure subsequent Supabase calls in the OAuth flow are fast
+    warmupSupabase().catch(() => {
+      // Ignore warmup errors, continue with request
+    });
+
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
     const state = searchParams.get("state");
