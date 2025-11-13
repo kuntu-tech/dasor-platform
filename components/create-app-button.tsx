@@ -6,6 +6,7 @@ import type { MouseEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/AuthProvider";
+import type { SubscriptionCheckResponse } from "@/lib/subscription/client";
 
 type NativeButtonProps = React.ComponentProps<"button"> & {
   successHref?: string;
@@ -29,7 +30,7 @@ export function CreateAppButton({
   } = useAuth();
   const [checking, setChecking] = useState(false);
   const [currentSubscriptionStatus, setCurrentSubscriptionStatus] =
-    useState(subscriptionStatus);
+    useState<SubscriptionCheckResponse | null>(subscriptionStatus);
 
   // Synchronize subscription status
   useEffect(() => {
@@ -57,32 +58,35 @@ export function CreateAppButton({
 
       // Check if subscription has already been checked in this session
       const subscriptionCheckedKey = `subscription_checked_${user.id}`;
-      const subscriptionPopupKey = `subscription_popup_shown_${user.id}`;
       const hasCheckedInSession =
         typeof window !== "undefined" &&
         sessionStorage.getItem(subscriptionCheckedKey) === "true";
-      const hasShownPopup =
-        typeof window !== "undefined" &&
-        sessionStorage.getItem(subscriptionPopupKey) === "true";
 
-      // Use cached subscription status when available
-      if (currentSubscriptionStatus) {
-        if (currentSubscriptionStatus.hasActiveSubscription) {
+      // Wait for subscription status to load if it's currently loading
+      // This ensures we have the latest status before making decisions
+      if (subscriptionLoading) {
+        let waitCount = 0;
+        while (subscriptionLoading && waitCount < 30) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          waitCount++;
+        }
+        // Re-sync status after waiting
+        const latestStatus = subscriptionStatus;
+        if (latestStatus) {
+          setCurrentSubscriptionStatus(latestStatus);
+        }
+      }
+
+      // Use cached subscription status when available (check both current and subscriptionStatus)
+      const statusToCheck = currentSubscriptionStatus || subscriptionStatus;
+      if (statusToCheck) {
+        if (statusToCheck.hasActiveSubscription) {
           router.push(successHref);
           return;
         } else {
-          // If popup already shown, don't show again
-          if (hasShownPopup) {
-            // User already knows they need subscription, just prevent action
-            return;
-          }
-          // Show popup only if not shown before
+          // No active subscription - show popup every time button is clicked
           if (typeof onRequireSubscription === "function") {
             onRequireSubscription();
-            // Mark popup as shown
-            if (typeof window !== "undefined") {
-              sessionStorage.setItem(subscriptionPopupKey, "true");
-            }
           } else {
             alert("You need an active subscription to continue.");
           }
@@ -93,59 +97,14 @@ export function CreateAppButton({
       // If subscription was already checked in this session, use cached status from AuthProvider
       // Don't make another API call
       if (hasCheckedInSession) {
-        // Wait for subscription status to load if it's currently loading
-        if (subscriptionLoading) {
-          let waitCount = 0;
-          while (subscriptionLoading && waitCount < 30) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            waitCount++;
-          }
-          // Re-check status after waiting
-          const updatedStatus = currentSubscriptionStatus || subscriptionStatus;
-          if (updatedStatus?.hasActiveSubscription) {
-            router.push(successHref);
-            return;
-          }
+        // Status should be available from cache, but if not, show popup
+        // This should not happen if cache is working correctly
+        if (typeof onRequireSubscription === "function") {
+          onRequireSubscription();
+        } else {
+          alert("Unable to verify your subscription. Please try again later.");
         }
-
-        // Use the status from AuthProvider (should be cached)
-        const finalStatus = currentSubscriptionStatus || subscriptionStatus;
-        if (finalStatus?.hasActiveSubscription) {
-          router.push(successHref);
-          return;
-        } else if (finalStatus) {
-          // Status exists but no active subscription
-          // If popup already shown, don't show again
-          if (hasShownPopup) {
-            return;
-          }
-          // Show popup only if not shown before
-          if (typeof onRequireSubscription === "function") {
-            onRequireSubscription();
-            if (typeof window !== "undefined") {
-              sessionStorage.setItem(subscriptionPopupKey, "true");
-            }
-          } else {
-            alert("You need an active subscription to continue.");
-          }
-          return;
-        }
-        // If status is still null after waiting and already checked, don't make another API call
-        // Just prevent action (user should already know they need subscription)
-        if (!finalStatus) {
-          // Status not available but already checked - don't show popup again
-          if (hasShownPopup) {
-            return;
-          }
-          // If popup not shown yet, show it once
-          if (typeof onRequireSubscription === "function") {
-            onRequireSubscription();
-            if (typeof window !== "undefined") {
-              sessionStorage.setItem(subscriptionPopupKey, "true");
-            }
-          }
-          return;
-        }
+        return;
       }
 
       // Wait for subscription status to load when missing (only if not checked in session)
@@ -167,45 +126,44 @@ export function CreateAppButton({
         await refreshSubscriptionStatus();
         // Allow time for React state updates and useEffect execution
         await new Promise((resolve) => setTimeout(resolve, 300));
+        // Re-sync status after refresh
+        const refreshedStatus = subscriptionStatus;
+        if (refreshedStatus) {
+          setCurrentSubscriptionStatus(refreshedStatus);
+        }
       }
 
+      // Final check after all loading and refreshing
       // Prioritize currentSubscriptionStatus because it auto-syncs via useEffect
-      const finalStatus = currentSubscriptionStatus || subscriptionStatus;
-      if (finalStatus?.hasActiveSubscription) {
-        router.push(successHref);
-        return;
+      const finalStatus = (currentSubscriptionStatus ||
+        subscriptionStatus) as SubscriptionCheckResponse | null;
+      if (finalStatus) {
+        if (finalStatus.hasActiveSubscription) {
+          router.push(successHref);
+          return;
+        } else {
+          // No active subscription - show popup every time button is clicked
+          if (typeof onRequireSubscription === "function") {
+            onRequireSubscription();
+          } else {
+            alert("You need an active subscription to continue.");
+          }
+          return;
+        }
       }
 
-      // If popup already shown, don't show again
-      if (hasShownPopup) {
-        // User already knows they need subscription, just prevent action
-        return;
-      }
-
-      // Show popup only if not shown before
+      // If status is still null after all attempts, show popup
       if (typeof onRequireSubscription === "function") {
         onRequireSubscription();
-        // Mark popup as shown
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem(subscriptionPopupKey, "true");
-        }
       } else {
-        alert("You need an active subscription to continue.");
+        alert("Unable to verify your subscription. Please try again later.");
       }
     } catch (error) {
       console.log("Subscription check failed:", error);
-      const subscriptionPopupKey = `subscription_popup_shown_${user.id}`;
-      const hasShownPopup =
-        typeof window !== "undefined" &&
-        sessionStorage.getItem(subscriptionPopupKey) === "true";
-
-      // If popup already shown, don't show again
-      if (!hasShownPopup && typeof onRequireSubscription === "function") {
+      // Show popup every time on error
+      if (typeof onRequireSubscription === "function") {
         onRequireSubscription();
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem(subscriptionPopupKey, "true");
-        }
-      } else if (!hasShownPopup) {
+      } else {
         alert("Unable to verify your subscription. Please try again later.");
       }
     } finally {
