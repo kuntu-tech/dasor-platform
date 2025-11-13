@@ -369,7 +369,7 @@ export default function MarketExplorationPage({
     }
   };
 
-  // 切换到最新版本的辅助函数
+  // Helper function to switch to the latest version
   const switchToLatestVersion = async () => {
     try {
       const runResultStr = localStorage.getItem("run_result");
@@ -395,7 +395,7 @@ export default function MarketExplorationPage({
           const result = await response.json();
           const runResults = result.data || [];
           if (runResults.length > 0) {
-            // 按 run_id 降序排列（最新的在前）
+            // Sort by run_id in descending order (newest first)
             runResults.sort((a: any, b: any) => {
               const numA = parseInt(a.run_id?.match(/r_(\d+)/)?.[1] || "0");
               const numB = parseInt(b.run_id?.match(/r_(\d+)/)?.[1] || "0");
@@ -407,7 +407,7 @@ export default function MarketExplorationPage({
             const number = match ? match[1] : "";
             const latestVersionDisplay = number ? `v${number}` : latestRunId;
             
-            // 切换到最新版本并加载数据
+            // Switch to the latest version and load data
             setSelectedVersion(latestVersionDisplay);
             await loadVersionData(latestRunId);
             console.log("[Switch Version] Switched to latest version:", latestVersionDisplay);
@@ -421,7 +421,7 @@ export default function MarketExplorationPage({
     return false;
   };
 
-  // 获取版本列表的函数
+  // Function to fetch version list
   const fetchVersions = async (shouldLoadData = true) => {
     if (!user?.id) {
       console.warn("No user ID, cannot fetch versions");
@@ -602,8 +602,8 @@ export default function MarketExplorationPage({
   const [versions, setVersions] = useState<
     Array<{ display: string; runId: string }>
   >([]);
-  const [versionMap, setVersionMap] = useState<Map<string, string>>(new Map()); // display -> runId 映射
-  // task_id 只从 run_result 中读取，不保存状态，不更新
+  const [versionMap, setVersionMap] = useState<Map<string, string>>(new Map()); // display -> runId mapping
+  // task_id is only read from run_result, not saved in state, not updated
   const [selectedSegmentName, setSelectedSegmentName] = useState("");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isSegmentModalOpen, setIsSegmentModalOpen] = useState(false);
@@ -1260,7 +1260,7 @@ export default function MarketExplorationPage({
         taskId
       );
 
-      // 准备请求参数
+      // Prepare request parameters
       const lowerCommand = finalCommand.toLowerCase();
       let feedbackText:
         | string
@@ -1676,9 +1676,9 @@ export default function MarketExplorationPage({
           payload: updatedPayload,
         });
         
-        // 关闭弹窗，但不自动发送，等待用户点击提交按钮
+        // Close modal but don't auto-send, wait for user to click submit button
         setIsSegmentModalOpen(false);
-        setInputValue(""); // 清空输入框
+        setInputValue(""); // Clear input field
         resetSegmentDropdown();
       } else {
         console.warn(
@@ -2054,32 +2054,32 @@ export default function MarketExplorationPage({
       console.log("[Command Submit] Response:", json ?? text);
       setGenerationProgress(50);
 
-      // delete-question 和 rename segment 命令不需要调用 standal_sql
+      // delete-question and rename segment commands don't need to call standal_sql
       const shouldSkipStandalSql = selectedCommand === "delete question" || selectedCommand === "rename segment";
 
-      // changeset执行完成后，更新版本列表
-      // 如果不需要执行standal_sql，立即更新版本列表并切换版本
-      // 如果需要执行standal_sql，不调用run-results获取版本数据，等standal_sql完成后再调用
+      // After changeset execution completes, update version list
+      // If standal_sql is not needed, immediately update version list and switch version
+      // If standal_sql is needed, don't call run-results to get version data, wait until standal_sql completes
       if (shouldSkipStandalSql) {
         try {
-          await fetchVersions(false); // 更新版本列表
-          await switchToLatestVersion(); // 切换到最新版本
+          await fetchVersions(false); // Update version list
+          await switchToLatestVersion(); // Switch to latest version
           console.log("[Command Submit] Version list updated and switched after changeset (no standal_sql)");
         } catch (error) {
           console.warn("[Command Submit] Failed to update version list:", error);
-          // 版本列表更新失败不影响主流程，只记录警告
+          // Version list update failure doesn't affect main flow, only log warning
         }
       } else {
-        // 需要执行standal_sql的命令，不调用run-results，等standal_sql完成后再调用
+        // Commands that need standal_sql, don't call run-results, wait until standal_sql completes
         console.log("[Command Submit] Changeset completed, will update version list after standal_sql");
       }
       
-      // changeset接口执行完成后，调用standal_sql接口（某些命令除外）
+      // After changeset API execution completes, call standal_sql API (except for certain commands)
       let runResultsPayload = json?.run_results;
       
-      // 只有需要调用 standal_sql 的命令才构建 runResultsPayload
+      // Only build runResultsPayload for commands that need to call standal_sql
       if (!shouldSkipStandalSql) {
-        // 从localStorage获取基础信息，用于补充run_results
+        // Get basic info from localStorage to supplement run_results
         const runResultStr = localStorage.getItem("run_result");
         let runResult: any = null;
         if (runResultStr) {
@@ -2096,10 +2096,10 @@ export default function MarketExplorationPage({
         const baseRunId = requestBody?.base_run_id || runResult?.run_id || "r_1";
         const runId = runResult?.run_id || baseRunId;
         
-        // 如果没有从changeset响应中获取到run_results，或者run_results不完整，从localStorage构建
+        // If run_results not obtained from changeset response or incomplete, build from localStorage
         if (!runResultsPayload || !runResultsPayload.run_result) {
           if (runResult) {
-            // 构建完整的run_results对象
+            // Build complete run_results object
             runResultsPayload = {
               user_id: runResultsPayload?.user_id || userId,
               connection_id: runResultsPayload?.connection_id || connectionId,
@@ -2112,7 +2112,7 @@ export default function MarketExplorationPage({
             };
           }
         } else {
-          // 如果changeset返回了run_results，但缺少必要字段，补充这些字段
+          // If changeset returned run_results but missing required fields, supplement them
           if (!runResultsPayload.user_id) runResultsPayload.user_id = userId;
           if (!runResultsPayload.connection_id) runResultsPayload.connection_id = connectionId;
           if (!runResultsPayload.task_id) runResultsPayload.task_id = taskId;
@@ -2122,14 +2122,14 @@ export default function MarketExplorationPage({
         }
       }
 
-      // 只有非 delete-question 和 rename segment 命令才调用 standal_sql
+      // Only non delete-question and rename segment commands call standal_sql
       if (runResultsPayload && !shouldSkipStandalSql) {
         console.log("[Command Submit] Calling standal_sql with run_results...");
         setGenerationProgress(60);
         
         try {
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 600_000); // 10分钟超时
+          const timeout = setTimeout(() => controller.abort(), 600_000); // 10 minute timeout
 
           const standalRes = await fetch(
             "https://business-insight.datail.ai/api/v1/standal_sql",
@@ -2164,7 +2164,7 @@ export default function MarketExplorationPage({
 
           console.log("[Command Submit] standal_sql completed successfully:", standalJson);
 
-          // 处理standal_sql返回的数据
+          // Process data returned from standal_sql
           if (standalJson?.run_results?.run_result) {
             localStorage.setItem(
               "standalJson",
@@ -2177,7 +2177,7 @@ export default function MarketExplorationPage({
             const updatedRunResult = standalJson.run_results.run_result;
             localStorage.setItem("run_result", JSON.stringify(updatedRunResult));
 
-            // 更新segments数据
+            // Update segments data
             const segments = updatedRunResult.segments || [];
             const mapped = segments.map((seg: any) => ({
               id: seg.segmentId || seg.id || seg.name,
@@ -2189,10 +2189,10 @@ export default function MarketExplorationPage({
 
             setSegmentsData(mapped);
             
-            // standal_sql执行完成后，更新版本列表并切换到最新版本
+            // After standal_sql execution completes, update version list and switch to latest version
             try {
-              await fetchVersions(false); // 先更新版本列表
-              await switchToLatestVersion(); // 切换到最新版本
+              await fetchVersions(false); // Update version list first
+              await switchToLatestVersion(); // Switch to latest version
               console.log("[Command Submit] Version list updated after standal_sql");
             } catch (error) {
               console.warn("[Command Submit] Failed to update version list after standal_sql:", error);
@@ -2200,7 +2200,7 @@ export default function MarketExplorationPage({
           }
         } catch (standalError) {
           console.error("[Command Submit] standal_sql request failed", standalError);
-          // standal_sql失败不影响changeset的成功，只记录错误
+          // standal_sql failure doesn't affect changeset success, only log error
         }
       } else if (!shouldSkipStandalSql) {
         console.warn("[Command Submit] No run_results available for standal_sql");

@@ -75,7 +75,7 @@ interface ValueQuestionsSectionProps {
   generationProgress: number;
   refreshType: RefreshType;
   refreshKey: number;
-  segmentsData?: ExternalSegment[]; // 新增：外部传入的段数据（来自接口）
+  segmentsData?: ExternalSegment[]; // New: External segment data (from API)
   onSegmentChange?: (segmentName?: string) => void;
 }
 
@@ -336,7 +336,7 @@ export function ValueQuestionsSection({
     }
   }, [activeSegment?.id, activeSegment?.name, onSegmentChange]);
 
-  // 持久化：仅存当前选中 Tab 的 valueQuestions
+  // Persist: Only store valueQuestions for the currently selected Tab
   useEffect(() => {
     console.log("activeSegment", activeSegment);
     console.log("activeTab", activeTab);

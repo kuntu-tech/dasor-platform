@@ -732,7 +732,7 @@ export function PreviewEditor() {
                 </div>
               </div>
               <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
-                {/* 调试信息 */}
+                {/* Debug info */}
                 {selectedProblems.length === 0 && (
                   <div className="p-4 text-center text-gray-500">
                     <p>No questions found in localStorage</p>
