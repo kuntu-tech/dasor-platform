@@ -40,7 +40,6 @@ const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
 
   return (
     <div>
-      <h2 className="mb-2 text-3xl font-semibold">Payout Account</h2>
       <div className="max-w-2xl">
         <div className="rounded-xl border border-border bg-card p-8">
           <h3 className="mb-6 text-lg font-semibold">Account Details</h3>

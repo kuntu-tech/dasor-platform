@@ -8,6 +8,30 @@ const supabaseAnonKey =
 const supabaseServiceKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY || "your-service-role-key";
 
+// Custom fetch with increased timeout for VPN/proxy scenarios
+// Default timeout is usually 10 seconds, we increase it to 30 seconds
+const createFetchWithTimeout = (timeoutMs: number = 30000) => {
+  return async (url: string, options?: RequestInit) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === "AbortError") {
+        throw new Error(`Request timeout after ${timeoutMs}ms`);
+      }
+      throw error;
+    }
+  };
+};
+
 // Singleton pattern to avoid creating multiple client instances
 let supabaseInstance: SupabaseClient | null = null;
 let supabaseAdminInstance: SupabaseClient | null = null;
@@ -22,6 +46,10 @@ export const supabase = (() => {
         // @ts-expect-error broadcastChannel is supported at runtime but not typed yet
         broadcastChannel: "supabase-auth",
       },
+      global: {
+        // Use custom fetch with increased timeout for VPN/proxy scenarios
+        fetch: createFetchWithTimeout(30000),
+      },
     });
   }
   return supabaseInstance;
@@ -33,6 +61,10 @@ const createSupabaseAdminClient = () => {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
+      },
+      global: {
+        // Use custom fetch with increased timeout for VPN/proxy scenarios
+        fetch: createFetchWithTimeout(30000),
       },
     });
   }

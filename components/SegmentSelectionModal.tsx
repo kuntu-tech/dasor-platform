@@ -44,11 +44,26 @@ export function SegmentSelectionModal({
     }
   };
   
+  const isDeleteCommand = commandText === 'delete segments';
+  const totalSegments = segments.length;
+  const canConfirmDelete = isDeleteCommand && selectedSegments.length >= 1 && selectedSegments.length < totalSegments;
+  const canConfirmMerge = !isDeleteCommand && selectedSegments.length >= 2;
+  
   const handleConfirm = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     e?.preventDefault();
-    if (mode === 'multiSelect' && selectedSegments.length >= 2) {
-      onConfirm(selectedSegments);
+    if (mode === 'multiSelect') {
+      if (isDeleteCommand) {
+        // For delete: must select at least 1, and must leave at least 1
+        if (selectedSegments.length >= 1 && selectedSegments.length < totalSegments) {
+          onConfirm(selectedSegments);
+        }
+      } else {
+        // For merge: need at least 2
+        if (selectedSegments.length >= 2) {
+          onConfirm(selectedSegments);
+        }
+      }
     } else if (mode === 'select' && selectedSegment) {
       onConfirm(selectedSegment);
     } else if (mode === 'input' && inputValue.trim()) {
@@ -107,7 +122,11 @@ export function SegmentSelectionModal({
             {/* Header */}
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
               <h2 className="text-xl font-semibold text-gray-900">
-                {mode === 'multiSelect' ? 'Select Segments to Merge' : mode === 'select' ? 'Select Segment' : 'Add New Segment'}
+                {mode === 'multiSelect' 
+                  ? (isDeleteCommand ? 'Select Segments to Delete' : 'Select Segments to Merge')
+                  : mode === 'select' 
+                  ? 'Select Segment' 
+                  : 'Add New Segment'}
               </h2>
               <button 
                 onClick={(e) => {
@@ -126,7 +145,9 @@ export function SegmentSelectionModal({
             <div className="px-6 py-4 flex flex-col flex-1 min-h-0 overflow-hidden">
               <p className="text-gray-600 mb-4 flex-shrink-0 text-sm">
                 {mode === 'multiSelect' 
-                  ? `Select multiple segments to merge (${selectedSegments.length} selected):`
+                  ? (isDeleteCommand 
+                      ? `Select segments to delete (${selectedSegments.length} selected, at least 1 must remain):`
+                      : `Select multiple segments to merge (${selectedSegments.length} selected):`)
                   : mode === 'select' 
                   ? 'Choose a segment to use for this command:' 
                   : 'Enter a name for the new segment:'}
@@ -209,7 +230,7 @@ export function SegmentSelectionModal({
                   type="button"
                   disabled={
                     mode === 'multiSelect' 
-                      ? selectedSegments.length < 2 
+                      ? (isDeleteCommand ? !canConfirmDelete : !canConfirmMerge)
                       : mode === 'select' 
                       ? !selectedSegment 
                       : !inputValue.trim()
@@ -217,7 +238,9 @@ export function SegmentSelectionModal({
                   className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {mode === 'multiSelect' 
-                    ? `Merge ${selectedSegments.length} Segments`
+                    ? (isDeleteCommand 
+                        ? `Delete ${selectedSegments.length} Segment${selectedSegments.length > 1 ? 's' : ''}`
+                        : `Merge ${selectedSegments.length} Segments`)
                     : commandText === 'clipboard' || commandText === 'correct segment' || commandText === 'edit d1' || commandText === 'edit d2' || commandText === 'edit d3' || commandText === 'edit d4' || commandText === 'add question' 
                     ? 'Use' 
                     : 'Use'}

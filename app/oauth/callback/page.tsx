@@ -3,18 +3,110 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function OAuthCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { session: authSession, loading: authLoading } = useAuth();
   const [status, setStatus] = useState<"loading" | "success" | "error" | "no-payment">("loading");
   const [message, setMessage] = useState("");
   const hasProcessed = useRef(false);
   const abortControllers = useRef<{ payment?: AbortController; callback?: AbortController }>({});
+  const warmupDone = useRef(false);
+  const warmupPromiseRef = useRef<Promise<void> | null>(null);
+
+  // Immediate warmup when page loads to prevent cold start timeout
+  // Wait for AuthProvider to finish initializing first (especially important in incognito mode)
+  useEffect(() => {
+    if (warmupDone.current) return;
+    
+    // Wait for AuthProvider to finish loading before starting warmup
+    if (authLoading) {
+      console.log("⏳ [OAuth Callback] Waiting for AuthProvider to initialize...");
+      return;
+    }
+    
+    warmupDone.current = true;
+    
+    const warmupSupabase = async () => {
+      try {
+        console.log("🔥 [OAuth Callback] Immediate Supabase warmup...");
+        const startTime = Date.now();
+        
+        // Use session from AuthProvider if available, otherwise try to get it
+        let session = authSession;
+        
+        if (!session) {
+          console.log("📡 [OAuth Callback] No session from AuthProvider, fetching...");
+          // Try to get session with longer timeout for warmup (15 seconds)
+          // This establishes the connection to Supabase API
+          const warmupSessionPromise = supabase.auth.getSession();
+          const warmupTimeoutPromise = new Promise<{ data: { session: null }; error: null }>((resolve) =>
+            setTimeout(() => resolve({ data: { session: null }, error: null }), 15000)
+          );
+          
+          const sessionResult = await Promise.race([warmupSessionPromise, warmupTimeoutPromise]) as any;
+          session = sessionResult?.data?.session;
+        }
+        
+        const elapsed = Date.now() - startTime;
+        
+        console.log(`📊 [OAuth Callback] Warmup session check completed in ${elapsed}ms`, {
+          hasSession: !!session,
+          hasAccessToken: !!session?.access_token,
+          fromAuthProvider: !!authSession
+        });
+        
+        if (session?.access_token) {
+          // Warm up the backend API as well
+          const backendStartTime = Date.now();
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000);
+          
+          try {
+            await fetch("/api/users/self", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+                "Content-Type": "application/json",
+              },
+              signal: controller.signal,
+              body: JSON.stringify({}),
+            });
+            const backendElapsed = Date.now() - backendStartTime;
+            console.log(`✅ [OAuth Callback] Backend warmed up in ${backendElapsed}ms`);
+          } catch (warmupError: any) {
+            if (warmupError.name !== "AbortError") {
+              console.log("⚠️ [OAuth Callback] Backend warmup error (non-critical):", warmupError.message);
+            }
+          } finally {
+            clearTimeout(timeoutId);
+          }
+        } else {
+          console.log("⚠️ [OAuth Callback] No session for warmup (will retry in main flow)");
+        }
+        
+        console.log("✅ [OAuth Callback] Warmup completed");
+      } catch (error: any) {
+        console.log("⚠️ [OAuth Callback] Warmup error (non-critical):", error.message);
+      }
+    };
+    
+    // Store the promise so main flow can wait for it
+    warmupPromiseRef.current = warmupSupabase();
+  }, [authLoading, authSession]);
 
   useEffect(() => {
     // Prevent duplicate execution
     if (hasProcessed.current) {
+      return;
+    }
+
+    // Wait for AuthProvider to finish initializing before processing OAuth callback
+    // This is critical in incognito mode where session initialization takes longer
+    if (authLoading) {
+      console.log("⏳ [OAuth Callback] Waiting for AuthProvider to finish loading...");
       return;
     }
 
@@ -67,21 +159,91 @@ export default function OAuthCallbackPage() {
 
         // Stripe callback path (when both code and state are provided)
         if (code && state) {
+          console.log("🔐 Starting OAuth callback processing...", { code: code.substring(0, 10) + "...", state });
           try {
-            // Ensure the user has a payment history
-            const { data: { session } } = await supabase.auth.getSession();
+            // Wait for warmup to complete (or timeout after 3 seconds)
+            // This ensures Supabase connection is established before we start
+            if (warmupPromiseRef.current) {
+              console.log("⏳ Waiting for warmup to complete...");
+              try {
+                await Promise.race([
+                  warmupPromiseRef.current,
+                  new Promise(resolve => setTimeout(resolve, 3000)) // Max wait 3 seconds
+                ]);
+                console.log("✅ Warmup wait completed");
+              } catch (warmupWaitError) {
+                console.log("⚠️ Warmup wait error (continuing anyway):", warmupWaitError);
+              }
+            }
+            
+            // Use session from AuthProvider first (most reliable)
+            // If not available, try to get it directly from Supabase
+            let session = authSession;
+            
+            if (!session) {
+              console.log("⚠️ [OAuth Callback] No session from AuthProvider, fetching directly...");
+              // Retry getSession up to 3 times with exponential backoff to handle cold start
+              let sessionResult: { data: { session: any } | null; error: any } | null = null;
+              let retryCount = 0;
+              const maxRetries = 3;
+              
+              while (retryCount < maxRetries && !sessionResult?.data?.session) {
+                try {
+                  console.log(`👤 Checking user session... (attempt ${retryCount + 1}/${maxRetries})`);
+                  const sessionStartTime = Date.now();
+                  // Increased timeout to 25 seconds per attempt to handle cold start
+                  sessionResult = await Promise.race([
+                    supabase.auth.getSession(),
+                    new Promise<{ data: { session: null }; error: Error }>((_, reject) =>
+                      setTimeout(() => reject(new Error("Session check timeout")), 25000)
+                    ),
+                  ]) as any;
+                  const sessionElapsed = Date.now() - sessionStartTime;
+                  console.log(`📊 Session check completed in ${sessionElapsed}ms`);
+                  
+                  console.log("📋 Session result:", { 
+                    hasSession: !!sessionResult?.data?.session,
+                    hasUser: !!sessionResult?.data?.session?.user?.id,
+                    error: sessionResult?.error?.message 
+                  });
+                  
+                  if (sessionResult?.data?.session?.user?.id) {
+                    session = sessionResult.data.session;
+                    break;
+                  }
+                } catch (sessionError: any) {
+                  console.log(`⚠️ Session check attempt ${retryCount + 1} failed:`, sessionError.message);
+                  if (retryCount < maxRetries - 1) {
+                    // Longer delay between retries to allow Supabase to warm up
+                    const delay = Math.min(2000 * Math.pow(2, retryCount), 8000);
+                    console.log(`⏳ Retrying in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                  }
+                }
+                retryCount++;
+              }
+              
+              if (!session && sessionResult?.data?.session) {
+                session = sessionResult.data.session;
+              }
+            }
+            
             if (!session?.user?.id) {
+              console.error("❌ User not authenticated after retries");
               setStatus("error");
-              setMessage("User not authenticated");
+              setMessage("User not authenticated. Please try logging in again.");
               return;
             }
+            console.log("✅ User authenticated:", session.user.id, "(from AuthProvider:", !!authSession, ")");
 
             // Query payment history for the current user
+            console.log("💳 Checking payment history...");
             const paymentController = new AbortController();
             abortControllers.current.payment = paymentController;
             const paymentTimeout = window.setTimeout(() => {
+              console.warn("⏱️ Payment history check timeout");
               paymentController.abort();
-            }, 8000);
+            }, 15000); // Increased timeout to 15 seconds
 
             let checkResponse: Response | null = null;
 
@@ -116,13 +278,17 @@ export default function OAuthCallbackPage() {
 
             // Continue the OAuth flow via local proxy when payment history exists
             const callbackUrl = `/api/proxy-oauth-callback?code=${code}&state=${state}`;
-            console.log("Calling OAuth callback:", callbackUrl);
+            const startTime = Date.now();
+            console.log("📡 Calling OAuth callback:", callbackUrl, "at", new Date().toISOString());
             
             const callbackController = new AbortController();
             abortControllers.current.callback = callbackController;
+            // Increased timeout to 35 seconds to account for service initialization
             const callbackTimeout = window.setTimeout(() => {
+              const elapsed = Date.now() - startTime;
+              console.warn("⏱️ OAuth callback timeout after", elapsed, "ms");
               callbackController.abort();
-            }, 12000);
+            }, 35000);
 
             let response: Response;
             try {
@@ -133,6 +299,17 @@ export default function OAuthCallbackPage() {
                 },
                 signal: callbackController.signal,
               });
+              const elapsed = Date.now() - startTime;
+              console.log("✅ OAuth callback response received after", elapsed, "ms");
+            } catch (fetchError: any) {
+              window.clearTimeout(callbackTimeout);
+              abortControllers.current.callback = undefined;
+              if (fetchError.name === "AbortError") {
+                const elapsed = Date.now() - startTime;
+                console.error("❌ OAuth callback fetch timeout after", elapsed, "ms");
+                throw new Error("Authorization timed out. The service may be starting up. Please try again.");
+              }
+              throw fetchError;
             } finally {
               window.clearTimeout(callbackTimeout);
               abortControllers.current.callback = undefined;
@@ -144,6 +321,16 @@ export default function OAuthCallbackPage() {
             if (!response.ok) {
               const text = await response.text();
               console.log("Error response:", text);
+              // Handle timeout specifically
+              if (response.status === 504) {
+                let errorData: any = { error: "Request timeout" };
+                try {
+                  errorData = JSON.parse(text);
+                } catch {
+                  // Use default error message if JSON parsing fails
+                }
+                throw new Error(errorData.error || "Service timeout - please try again");
+              }
               throw new Error(`HTTP error! status: ${response.status}`);
             }
 
@@ -213,7 +400,7 @@ export default function OAuthCallbackPage() {
       abortControllers.current.callback?.abort();
       abortControllers.current = {};
     };
-  }, [searchParams, router]);
+  }, [searchParams, router, authLoading, authSession]);
 
   useEffect(() => {
     if (status !== "loading") return;

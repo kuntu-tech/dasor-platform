@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { warmupSupabase } from "@/lib/supabase-warmup";
 
 export async function GET(request: NextRequest) {
   try {
+    // Warm up Supabase connection early to prevent cold start timeout
+    warmupSupabase().catch(() => {
+      // Ignore warmup errors, continue with request
+    });
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
 
