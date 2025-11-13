@@ -46,7 +46,7 @@ const PaymentAccount = () => {
     <div>
       {currentStep !== "connected" ? (
         <>
-          <h2 className="mb-2 text-3xl font-semibold">Set Up Your Payout Account</h2>
+          <h1 className="text-2xl font-bold mb-2">Set Up Your Payout Account</h1>
           <p className="mb-8 text-sm text-red-500">❗️Connect your Stripe account for receive payment from your users</p>
           {currentStep === "selection" && <PathSelection onSelect={handleSelection} />}
 

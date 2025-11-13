@@ -619,7 +619,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Show prompt when the user is not signed in
     if (!user?.id) {
       return (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <p className="text-muted-foreground">Please log in to view billing information</p>
           </div>
@@ -630,7 +630,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Display loading state while checking payment history
     if (checkingPaymentHistory) {
       return (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Checking payment history...</p>
@@ -642,7 +642,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Prompt when Stripe account is not linked
     if (paymentStatus === "no_vendor") {
       return (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center py-12">
           <div className="text-center max-w-md px-6">
             <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <svg
@@ -671,7 +671,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Prompt when no payment history exists
     if (paymentStatus === "no_payment_history") {
       return (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center py-12">
           <div className="text-center max-w-md px-6">
             <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <svg
@@ -700,7 +700,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Render loading state while data is fetching
     if (billingPortalLoading) {
       return (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading billing portal...</p>
@@ -712,7 +712,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Show error message on load failure
     if (billingPortalError) {
       return (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <p className="text-red-600 mb-4">{billingPortalError}</p>
             <Button
@@ -749,7 +749,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Note: Stripe Customer Portal does not support embedding inside an iframe (CSP limitation)
     if (billingPortalUrl) {
       return (
-        <div className="h-full w-full flex flex-col items-center justify-center p-8 space-y-6">
+        <div className="w-full flex flex-col items-center justify-center py-12 space-y-6">
           <div className="text-center max-w-md">
             <div className="mb-4">
               <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
@@ -782,7 +782,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
 
     // Default state (should be unreachable)
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <p className="text-muted-foreground">Loading...</p>
         </div>
@@ -838,9 +838,16 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
 
         {/* Main content area */}
         <div className="flex-1 overflow-y-auto">
-          <div className={activeTab === "billing" ? "h-full" : "p-8"}>
+          <div className="p-8">
             {activeTab === "account" && renderAccountContent()}
-            {activeTab === "billing" && renderBillingContent()}
+            {activeTab === "billing" && (
+              <div className="space-y-6">
+                <div>
+                  <h1 className="text-2xl font-bold">Billing</h1>
+                </div>
+                {renderBillingContent()}
+              </div>
+            )}
             {activeTab === "payout" && <PaymentAccount />}
           </div>
         </div>
