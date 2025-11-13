@@ -29,6 +29,7 @@ interface QuestionItem {
 }
 
 type BatchJobStatus = {
+  jobId?: string;
   appId?: string;
   status?: "pending" | "generating" | "succeeded" | "failed";
   currentQueryIndex?: number | null;
@@ -36,6 +37,11 @@ type BatchJobStatus = {
   currentToolName?: string | null;
   currentToolIndex?: number | null;
   totalToolsInCurrentQuery?: number | null;
+  completedToolsInCurrentQuery?: number | null;
+  totalTools?: number | null;
+  totalToolsCompleted?: number | null;
+  activeToolNames?: string[] | null;
+  lastCompletedToolName?: string | null;
   message?: string | null;
   error?: string | null;
   startedAt?: string | null;
@@ -68,7 +74,7 @@ export function GenerateFlow() {
   const [selectedProblems, setSelectedProblems] = useState<SelectedProblem[]>(
     []
   );
-  // 将 selectedProblems 转换为 QuestionItem 格式用于显示
+  // Convert selectedProblems into QuestionItem objects for rendering
   const getQuestionsFromProblems = (
     problems: SelectedProblem[]
   ): QuestionItem[] => {
@@ -87,7 +93,7 @@ export function GenerateFlow() {
   const { user } = useAuth();
   const [dbConnectionDataObj, setDbConnectionDataObj] = useState<any>({});
   const [dbConnectionReady, setDbConnectionReady] = useState(false);
-  // 防重复调用与首渲染仅触发一次
+  // Prevent duplicate calls and ensure first render triggers once
   const inFlightRef = useRef(false);
   const mountedCalledRef = useRef(false);
   const statusUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -97,7 +103,7 @@ export function GenerateFlow() {
     jobStateRef.current = jobState;
   }, [jobState]);
 
-  // 在客户端获取 dbConnectionData
+  // Fetch dbConnectionData on the client
   useEffect(() => {
     if (typeof window !== "undefined") {
       const dbConnectionData = localStorage.getItem("dbConnectionData");
@@ -114,7 +120,7 @@ export function GenerateFlow() {
     }
   }, []);
 
-  // 当 selectedProblems 变化时，更新 allQuestions
+  // Update allQuestions whenever selectedProblems changes
   useEffect(() => {
     if (selectedProblems.length > 0) {
       const questions = getQuestionsFromProblems(selectedProblems);
@@ -176,7 +182,10 @@ export function GenerateFlow() {
           }
         }
       } catch (err) {
-        console.warn("Failed to parse run_result_publish, using default payload", err);
+        console.warn(
+          "Failed to parse run_result_publish, using default payload",
+          err
+        );
       }
 
       const response = await fetch(
@@ -338,38 +347,47 @@ export function GenerateFlow() {
         const response = await fetch(`/api/generate-batch/${appId}/status`, {
           cache: "no-store",
         });
-        const payload = await response.json();
+        const payload: BatchJobStatus = await response.json();
         if (!response.ok) {
           throw new Error(payload?.error || `HTTP ${response.status}`);
         }
 
+        // 更新状态,包含所有文档中定义的字段
         setBatchStatus(payload);
         updateQuestionStatuses(payload);
 
+        // 根据文档: 当 status 变为 succeeded 或 failed 时停止轮询
         if (payload?.status === "succeeded") {
           setJobState("succeeded");
-          await hydrateAppRecord(appId);
-          router.push(`/preview?id=${appId}`);
+          await hydrateAppRecord(payload.appId || appId);
+          router.push(`/preview?id=${payload.appId || appId}`);
           return;
         }
 
         if (payload?.status === "failed") {
-        setJobState("failed");
-        setErrorMessage(
-          payload?.error || payload?.message || "Generation failed, please try again"
-        );
+          setJobState("failed");
+          // 根据文档: 失败时查看 error 字段
+          setErrorMessage(
+            payload?.error ||
+              payload?.message ||
+              "Generation failed, please try again"
+          );
           return;
         }
 
+        // 根据文档: 建议 2-5 秒查询一次 (当前使用 4000ms,符合建议)
+        // 继续轮询直到状态变为 succeeded 或 failed
         statusUpdateIntervalRef.current = setTimeout(() => {
           requestStatus(appId);
         }, POLL_INTERVAL_MS);
       } catch (error) {
         console.log("Failed to query job status", error);
+        // 仅在任务未完成时继续轮询
         if (
           jobStateRef.current !== "failed" &&
           jobStateRef.current !== "succeeded"
         ) {
+          // 错误时也继续轮询,避免网络临时问题导致状态丢失
           statusUpdateIntervalRef.current = setTimeout(() => {
             requestStatus(appId);
           }, POLL_INTERVAL_MS);
@@ -381,6 +399,7 @@ export function GenerateFlow() {
       clearStatusTimer,
       hydrateAppRecord,
       updateQuestionStatuses,
+      router,
     ]
   );
 
@@ -434,7 +453,7 @@ export function GenerateFlow() {
     setJobAppId(null);
     clearStatusTimer();
     updateQuestionStatuses(null);
-    // 提前声明供两个阶段复用的变量
+    // Declare variables reused across both phases
     let extractedQueries: any[] = [];
     const currentProblems =
       problemsOverride && problemsOverride.length > 0
@@ -455,7 +474,7 @@ export function GenerateFlow() {
         null;
     }
     try {
-      // 先调用业务元数据接口，获取 app_meta_info
+      // Call the metadata service first to retrieve app_meta_info
       let appMetaFromService: any | null = null;
       try {
         appMetaFromService = await fetchMetadataFromService();
@@ -467,7 +486,7 @@ export function GenerateFlow() {
         appMetaFromService = {};
       }
 
-      // 从 metadata 中提取 name 和 description
+      // Extract name and description from the metadata response
       const chatMeta =
         appMetaFromService.chatAppMeta ||
         appMetaFromService.chatappmeta ||
@@ -486,7 +505,7 @@ export function GenerateFlow() {
           ? chatMeta.description.trim()
           : null) || "Batch generated app";
 
-      // 更新 chatMeta 以确保包含最新的 name 和 description
+      // Update chatMeta to ensure it contains the latest name and description
       chatMeta.name = appName;
       chatMeta.description = appDescription;
       appMetaFromService.chatAppMeta = chatMeta;
@@ -510,11 +529,15 @@ export function GenerateFlow() {
         queries: extractedQueries,
         anchorIndex: anchIndexNum,
         user_id: user?.id || "",
-        supabase_config: {
-          supabase_url: dbConnectionDataObj.connectionUrl,
-          supabase_key: dbConnectionDataObj.apiKey,
-          access_token: dbConnectionDataObj.accessToken,
-        },
+        // supabase_config: {
+        //   supabase_url: dbConnectionDataObj.connectionUrl,
+        //   supabase_key: dbConnectionDataObj.apiKey,
+        //   access_token: dbConnectionDataObj.accessToken,
+        // },
+        connection_id:
+          dbConnectionDataObj.connectionId ||
+          dbConnectionDataObj.connection_id ||
+          undefined,
         app: {
           name: appName,
           description: appDescription,
@@ -546,20 +569,36 @@ export function GenerateFlow() {
         throw new Error("Batch generation service did not return appId");
       }
 
+      // 根据文档: 保留所有返回的字段,确保完整的状态信息
       const initialStatus: BatchJobStatus = {
+        jobId: data?.jobId,
         appId: nextAppId,
         status: (data?.status as BatchJobStatus["status"]) || "pending",
         currentQueryIndex:
           typeof data?.currentQueryIndex === "number"
             ? data.currentQueryIndex
-            : 1,
+            : typeof data?.currentQueryIndex === "undefined"
+            ? 1
+            : null,
         totalQueries:
           typeof data?.totalQueries === "number"
             ? data.totalQueries
             : extractedQueries.length,
+        currentToolName: data?.currentToolName ?? null,
+        currentToolIndex: data?.currentToolIndex ?? null,
+        totalToolsInCurrentQuery: data?.totalToolsInCurrentQuery ?? null,
+        completedToolsInCurrentQuery: data?.completedToolsInCurrentQuery ?? null,
+        totalTools: data?.totalTools ?? null,
+        totalToolsCompleted: data?.totalToolsCompleted ?? null,
+        activeToolNames: data?.activeToolNames ?? null,
+        lastCompletedToolName: data?.lastCompletedToolName ?? null,
         message:
           data?.message ||
           "Batch generation task submitted, please check the progress later",
+        error: data?.error ?? null,
+        startedAt: data?.startedAt ?? null,
+        completedAt: data?.completedAt ?? null,
+        lastUpdatedAt: data?.lastUpdatedAt ?? null,
       };
 
       setBatchStatus(initialStatus);
@@ -684,7 +723,7 @@ export function GenerateFlow() {
             ) : isSucceeded ? (
               <CheckCircle2 className="size-12 text-green-600 mb-6" />
             ) : (
-              <Loader2 className="size-12 text-blue-600 animate-spin mb-6" />
+              <Loader2 className="size-12 text-gray-600 animate-spin mb-6" />
             )}
 
             <CardDescription className="text-center max-w-md mb-8">
@@ -747,67 +786,67 @@ export function GenerateFlow() {
                   )} */}
                 </div>
               )}
+            </div>
 
-              <div className="mt-8 w-full">
-                <h2 className="text-lg font-medium text-muted-foreground mb-3">
-                  Selected Features:
-                </h2>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {allQuestions.length === 0 ? (
-                    <div className="text-center text-muted-foreground py-8">
-                      <p>
-                        No features selected. Please go back and select
-                        features.
-                      </p>
-                    </div>
-                  ) : (
-                    allQuestions.map((question, index) => {
-                      const statusConfig = {
-                        pending: {
-                          icon: Clock,
-                          color: "text-muted-foreground",
-                          label: "",
-                          bgColor: "bg-gray-50",
-                        },
-                        generating: {
-                          icon: Loader2,
-                          color: "text-blue-600",
-                          label: "Generating",
-                          bgColor: "bg-blue-50",
-                        },
-                        done: {
-                          icon: CheckCircle2,
-                          color: "text-green-600",
-                          label: "",
-                          bgColor: "bg-green-50",
-                        },
-                      };
+            <div className="mt-8 w-full max-w-2xl">
+              <h2 className="text-lg font-medium text-muted-foreground mb-3">
+                Selected Features:
+              </h2>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {allQuestions.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    <p>
+                      No features selected. Please go back and select
+                      features.
+                    </p>
+                  </div>
+                ) : (
+                  allQuestions.map((question, index) => {
+                    const statusConfig = {
+                      pending: {
+                        icon: Clock,
+                        color: "text-gray-600",
+                        label: "",
+                        bgColor: "bg-gray-100",
+                      },
+                      generating: {
+                        icon: Loader2,
+                        color: "text-gray-700",
+                        label: "Generating",
+                        bgColor: "bg-gray-200",
+                      },
+                      done: {
+                        icon: CheckCircle2,
+                        color: "text-green-600",
+                        label: "",
+                        bgColor: "bg-green-50",
+                      },
+                    };
 
-                      const config = statusConfig[question.status];
-                      const Icon = config.icon;
+                    const config = statusConfig[question.status];
+                    const Icon = config.icon;
 
-                      return (
-                        <div
-                          key={question.id}
-                          className={`flex items-center gap-3 text-sm p-3 rounded-lg transition-colors ${config.bgColor}`}
-                        >
-                          {question.status === "generating" && isProcessing ? (
-                            <Icon
-                              className={`size-5 ${config.color} shrink-0 animate-spin`}
-                            />
-                          ) : (
-                            <Icon
-                              className={`size-5 ${config.color} shrink-0`}
-                            />
-                          )}
-                          <span className="text-foreground flex-1">
-                            {index + 1}. {question.text}
-                          </span>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+                    return (
+                      <div
+                        key={question.id}
+                        className={`flex items-center gap-3 text-sm p-3 rounded-lg transition-colors ${config.bgColor}`}
+                      >
+                        {question.status === "generating" && isProcessing ? (
+                          <Icon
+                            className={`size-5 ${config.color} shrink-0 animate-spin`}
+                          />
+                        ) : (
+                          <Icon
+                            className={`size-5 ${config.color} shrink-0`}
+                          />
+                        )}
+                        <span className="text-foreground flex-1">
+                          {index + 1}. {question.text}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
             <Button

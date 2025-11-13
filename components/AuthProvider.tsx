@@ -7,6 +7,7 @@ import {
   useState,
   useCallback,
   useRef,
+  type ReactNode,
 } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
@@ -89,7 +90,6 @@ function resolveAuthStorageKey() {
 }
 
 const SIGN_OUT_REQUEST_TIMEOUT = 4000;
-const SIGN_OUT_LOADING_FALLBACK = 3000;
 
 function clearLocalAuthArtifacts(userId?: string) {
   if (typeof window === "undefined") return;
@@ -153,13 +153,12 @@ async function checkAndSaveNewUser(user: User, context = "unknown") {
   }
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVerifyingSignOut, setIsVerifyingSignOut] = useState(false);
 
-  // --- Subscription state ---
   const [subscriptionStatus, setSubscriptionStatus] =
     useState<SubscriptionCheckResponse | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
@@ -202,7 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const cached = getCachedSubscription(id);
         if (cached) {
           setSubscriptionStatus(cached);
-          void checkSubscriptionStatus(id, false).catch(console.error);
+          void checkSubscriptionStatus(id, false).catch(console.log);
           return cached;
         }
       }
@@ -213,7 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCachedSubscription(id, status);
         return status;
       } catch (e) {
-        console.error("Failed to fetch subscription:", e);
+        console.log("Failed to fetch subscription:", e);
         const cached = getCachedSubscription(id);
         if (cached) setSubscriptionStatus(cached);
         throw e;
@@ -229,7 +228,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await checkSubscriptionStatus(user.id, false);
   }, [user?.id, checkSubscriptionStatus]);
 
-  // --- Auth core logic ---
   const latestUserIdRef = useRef<string | undefined>(undefined);
   const syncGuardRef = useRef<"idle" | "syncing" | "signing-out">("idle");
   const signOutVerifyTimerRef = useRef<number | null>(null);
@@ -274,6 +272,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        console.log("🔄 Initial auth state loaded:", { session });
         if (session?.user) {
           printUserInfo(session.user, "Initial");
           await checkAndSaveNewUser(session.user, "Initial");
@@ -282,43 +281,115 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         console.log("Error initializing session:", e);
         setLoading(false);
+        console.log("🔄 Initial auth state loaded:", { session: null });
       }
     };
 
-    getInitialSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, nextSession) => {
-        if (event === "SIGNED_IN" && nextSession?.user) {
-          setUser(nextSession.user);
-          setSession(nextSession);
-          printUserInfo(nextSession.user, "Signed In");
-          await checkAndSaveNewUser(nextSession.user, "Signed In");
-          void checkSubscriptionStatus(nextSession.user.id);
-          return;
-        }
-
-        if (event === "SIGNED_OUT") {
-          processedUsers.clear();
-          setSubscriptionStatus(null);
-          const id = latestUserIdRef.current;
-          if (id) clearSubscriptionCache(id);
-          setUser(null);
-          setSession(null);
-        }
+    const performLocalSignOut = () => {
+      if (syncGuardRef.current !== "idle") {
+        console.log("Skipping redundant sign-out cleanup");
+        return;
       }
-    );
+      processedUsers.clear();
+      clearLocalAuthArtifacts(latestUserIdRef.current);
+      setSession(null);
+      setUser(null);
+      setLoading(false);
+    };
 
-    return () => listener.subscription.unsubscribe();
-  }, [checkSubscriptionStatus, clearSubscriptionCache]);
+    let loadingFinished = false;
+    const timeoutId = setTimeout(() => {
+      if (!loadingFinished) {
+        console.warn("Session fetch timeout, forcing loading to false");
+        setLoading(false);
+      }
+    }, 10000);
+
+    getInitialSession().then(() => {
+      loadingFinished = true;
+      clearTimeout(timeoutId);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
+      console.log("Auth state changed:", event, nextSession);
+
+      if (event === "SIGNED_IN" && nextSession?.user) {
+        if (signOutVerifyTimerRef.current) {
+          clearTimeout(signOutVerifyTimerRef.current);
+          signOutVerifyTimerRef.current = null;
+        }
+
+        setSession(nextSession);
+        setUser(nextSession.user);
+        setLoading(false);
+
+        printUserInfo(nextSession.user, "Sign In Success");
+        await checkAndSaveNewUser(nextSession.user, "Sign In Success");
+        processedUsers.add(nextSession.user.id);
+        checkSubscriptionStatus(nextSession.user.id).catch(console.log);
+        return;
+      }
+
+      if (event === "TOKEN_REFRESHED" && nextSession?.user) {
+        setSession(nextSession);
+        setUser(nextSession.user);
+        setLoading(false);
+        processedUsers.add(nextSession.user.id);
+        return;
+      }
+
+      if (event === "SIGNED_OUT") {
+        processedUsers.clear();
+        setSubscriptionStatus(null);
+        const currentUserId = latestUserIdRef.current;
+        if (currentUserId) {
+          clearSubscriptionCache(currentUserId);
+          // Clear subscription check session flags
+          if (typeof window !== "undefined") {
+            sessionStorage.removeItem(`subscription_checked_${currentUserId}`);
+            sessionStorage.removeItem(
+              `subscription_popup_shown_${currentUserId}`
+            );
+          }
+        }
+        performLocalSignOut();
+        syncGuardRef.current = "idle";
+        setIsVerifyingSignOut(false);
+        return;
+      }
+
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+      setLoading(false);
+      if (nextSession?.user) processedUsers.add(nextSession.user.id);
+    });
+
+    window.addEventListener("storage", (e) => {
+      const authKey = resolveAuthStorageKey();
+      if (e.key === authKey) getInitialSession();
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+      if (signOutVerifyTimerRef.current)
+        clearTimeout(signOutVerifyTimerRef.current);
+      setIsVerifyingSignOut(false);
+    };
+  }, []);
 
   const signInWithGoogle = async () => {
     setLoading(true);
     try {
-      await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: `${window.location.origin}/auth/callback` },
       });
+      if (error) throw error;
+    } catch (error) {
+      console.log("❌ Google sign in failed:", error);
     } finally {
       setLoading(false);
     }
@@ -335,6 +406,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.session) {
         setSession(data.session);
         setUser(data.session.user);
+        await checkAndSaveNewUser(data.session.user, "Fallback Email SignIn");
       }
     } finally {
       setLoading(false);
@@ -361,26 +433,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setLoading(true);
     const id = user?.id;
+    processedUsers.clear();
     syncGuardRef.current = "signing-out";
     setIsVerifyingSignOut(false);
-    setUser(null);
     setSession(null);
+    setUser(null);
     clearLocalAuthArtifacts(id);
-    if (id) clearSubscriptionCache(id);
+    if (id) {
+      clearSubscriptionCache(id);
+      // Clear subscription check session flags
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem(`subscription_checked_${id}`);
+        sessionStorage.removeItem(`subscription_popup_shown_${id}`);
+      }
+    }
     setSubscriptionStatus(null);
 
     try {
       await Promise.race([
         supabase.auth.signOut({ scope: "global" }),
-        new Promise((r) =>
-          setTimeout(r, SIGN_OUT_REQUEST_TIMEOUT, "timeout")
-        ),
+        new Promise((r) => setTimeout(r, SIGN_OUT_REQUEST_TIMEOUT, "timeout")),
       ]);
     } catch (e) {
       console.warn("Sign out failed:", e);
     } finally {
       setLoading(false);
       syncGuardRef.current = "idle";
+      setIsVerifyingSignOut(false);
     }
   };
 
@@ -403,7 +482,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context)
-    throw new Error("useAuth must be used within an AuthProvider");
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 }

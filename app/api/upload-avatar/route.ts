@@ -7,7 +7,7 @@ const BUCKET_NAME = "avatars";
 
 export async function POST(request: NextRequest) {
   try {
-    // 获取用户ID（从请求头或body中获取）
+    // Retrieve user ID from form payload
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const userId = formData.get("userId") as string | null;
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 验证文件类型
+    // Validate file type
     if (!ALLOWED_FILE_TYPES.includes(file.type)) {
       return NextResponse.json(
         { error: `Unsupported file type. Supported types: ${ALLOWED_FILE_TYPES.join(", ")}` },
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 验证文件大小
+    // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: `File size exceeds limit (Max 5MB)` },
@@ -42,23 +42,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 获取用户当前头像URL（用于删除旧文件）
+    // Fetch current avatar URL so we can delete any previous file
     const { data: currentUser } = await supabaseAdmin
       .from("users")
       .select("avatar_url")
       .eq("id", userId)
       .single();
 
-    // 生成唯一文件名
+    // Generate unique file name
     const timestamp = Date.now();
     const fileExtension = file.name.split(".").pop() || "jpg";
     const fileName = `${userId}/${timestamp}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
 
-    // 将文件转换为 ArrayBuffer
+    // Convert file to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 上传文件到 Supabase Storage
+    // Upload file to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from(BUCKET_NAME)
       .upload(fileName, buffer, {
@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
       });
 
     if (uploadError) {
-      console.log("上传文件错误:", uploadError);
+      console.log("Avatar upload error:", uploadError);
       
-      // 检查是否是 bucket 不存在
+      // Detect missing bucket scenarios
       if (uploadError.message?.includes("Bucket not found") || uploadError.message?.includes("not found")) {
         return NextResponse.json(
           { 
@@ -86,22 +86,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 获取公共URL
+    // Generate public URL
     const { data: urlData } = supabaseAdmin.storage
       .from(BUCKET_NAME)
       .getPublicUrl(fileName);
 
     const publicUrl = urlData.publicUrl;
 
-    // 更新数据库中的 avatar_url
+    // Update avatar_url in database
     const { error: updateError } = await supabaseAdmin
       .from("users")
       .update({ avatar_url: publicUrl })
       .eq("id", userId);
 
     if (updateError) {
-      console.log("更新用户头像URL错误:", updateError);
-      // 如果更新失败，尝试删除刚上传的文件
+      console.log("Failed to update user avatar URL:", updateError);
+      // Delete the newly uploaded file if database update fails
       await supabaseAdmin.storage.from(BUCKET_NAME).remove([fileName]);
       return NextResponse.json(
         { error: "Failed to update user avatar", details: updateError.message },
@@ -109,35 +109,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 删除旧头像文件（如果存在且不是默认头像）
+    // Remove previous avatar file when applicable
     if (currentUser?.avatar_url) {
       try {
-        // 从URL中提取文件路径
+        // Extract file path from URL
         const oldUrl = currentUser.avatar_url;
-        // 检查是否是 Supabase Storage 的URL
-        // 支持多种 URL 格式：
+        // Confirm URL belongs to Supabase Storage; supports formats like:
         // 1. https://xxx.supabase.co/storage/v1/object/public/avatars/...
         // 2. https://xxx.supabase.co/storage/v1/object/sign/avatars/...
         if (oldUrl.includes(`/${BUCKET_NAME}/`)) {
-          // 提取文件路径（包含 userId 目录）
+          // Extract file path including userId directory
           const urlParts = oldUrl.split(`/${BUCKET_NAME}/`);
           if (urlParts.length > 1) {
-            // 移除可能的查询参数（如签名参数）
+            // Strip query parameters (e.g., signed URLs)
             const oldFilePath = urlParts[1].split('?')[0];
-            // 确保旧文件路径与新文件路径不同
+            // Ensure old file path differs from the new one
             if (oldFilePath && oldFilePath !== fileName) {
               try {
                 await supabaseAdmin.storage.from(BUCKET_NAME).remove([oldFilePath]);
-                console.log(`已删除旧头像文件: ${oldFilePath}`);
+                console.log(`Deleted previous avatar file: ${oldFilePath}`);
               } catch (deleteErr) {
-                console.warn(`删除旧头像文件失败 (${oldFilePath}):`, deleteErr);
+                console.warn(`Failed to delete previous avatar file (${oldFilePath}):`, deleteErr);
               }
             }
           }
         }
       } catch (deleteError) {
-        // 删除旧文件失败不影响主流程，只记录错误
-        console.warn("删除旧头像文件失败:", deleteError);
+        // Non-fatal: log the failure
+        console.warn("Failed to remove previous avatar file:", deleteError);
       }
     }
 
@@ -147,7 +146,7 @@ export async function POST(request: NextRequest) {
       message: "Avatar uploaded successfully",
     });
   } catch (error) {
-    console.log("API错误:", error);
+    console.log("API error:", error);
     return NextResponse.json(
       { error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }

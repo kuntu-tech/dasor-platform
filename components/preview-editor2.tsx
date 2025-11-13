@@ -30,6 +30,8 @@ import {
   DollarSign,
   ShoppingCart,
   Trash2,
+  Eye,
+  LayoutDashboard,
 } from "lucide-react";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -105,18 +107,31 @@ export function PreviewEditor() {
   // Predefined question texts for each feature
   const getQuestionText = (featureName: string) => {
     const questionMap: Record<string, string> = {
-      "Product Catalog and Inventory Display": "请显示产品目录和库存情况",
-      "User Feedback Collection and Analysis": "请分析用户反馈数据",
-      "A/B Testing Results Analysis": "请展示A/B测试结果分析",
-      "Target User Segmentation": "请进行目标用户分群分析",
-      "User Journey Visualization": "请展示用户旅程可视化",
-      "User Churn Early Warning System": "请分析用户流失预警情况",
-      "Feature Usage Statistics": "请显示功能使用统计数据",
-      "Competitor Feature Comparison Analysis": "请进行竞品功能对比分析",
-      "Product Roadmap Priority Ranking": "请展示产品路线图优先级排序",
-      "New Feature Adoption Rate Prediction": "请预测新功能采用率",
+      "Product Catalog and Inventory Display":
+        "Please show the product catalog and inventory status.",
+      "User Feedback Collection and Analysis":
+        "Please analyze the user feedback data.",
+      "A/B Testing Results Analysis":
+        "Please present the A/B testing results analysis.",
+      "Target User Segmentation":
+        "Please perform target user segmentation analysis.",
+      "User Journey Visualization":
+        "Please provide a user journey visualization.",
+      "User Churn Early Warning System":
+        "Please analyze the user churn early warning indicators.",
+      "Feature Usage Statistics":
+        "Please display the feature usage statistics.",
+      "Competitor Feature Comparison Analysis":
+        "Please conduct a competitive feature comparison analysis.",
+      "Product Roadmap Priority Ranking":
+        "Please show the product roadmap priority ranking.",
+      "New Feature Adoption Rate Prediction":
+        "Please forecast the adoption rate of new features.",
     };
-    return questionMap[featureName] || `请提供关于${featureName}的信息`;
+    return (
+      questionMap[featureName] ||
+      `Please provide information about ${featureName}.`
+    );
   };
 
   // Render different types of cards
@@ -145,52 +160,60 @@ export function PreviewEditor() {
         switch (chartType) {
           case "sales-trend":
             return {
-              title: "销售趋势图",
+              title: "Sales Trend Chart",
               value: "¥128,450 (+12.5%)",
               icon: TrendingUp,
             };
           case "ab-test":
             return {
-              title: "A/B测试结果",
-              value: "转化率提升15%",
+              title: "A/B Test Results",
+              value: "Conversion rate increased by 15%",
               icon: TrendingUp,
             };
           case "user-segments":
-            return { title: "用户分群图", value: "3个主要群体", icon: Users };
+            return {
+              title: "User Segmentation Chart",
+              value: "3 major segments",
+              icon: Users,
+            };
           case "inventory-status":
             return {
-              title: "库存状态图",
-              value: "357个SKU",
+              title: "Inventory Status Chart",
+              value: "357 SKUs",
               icon: ShoppingCart,
             };
           case "feedback-analysis":
             return {
-              title: "反馈分析图",
-              value: "满意度4.2分",
+              title: "Feedback Analysis Chart",
+              value: "Satisfaction score 4.2",
               icon: TrendingUp,
             };
           case "user-journey":
-            return { title: "用户旅程图", value: "5个关键节点", icon: Users };
+            return {
+              title: "User Journey Diagram",
+              value: "5 key stages",
+              icon: Users,
+            };
           case "campaign-performance":
             return {
-              title: "活动效果图",
-              value: "销量增长23%",
+              title: "Campaign Performance Chart",
+              value: "Sales increased by 23%",
               icon: TrendingUp,
             };
           case "recommendation-performance":
             return {
-              title: "推荐效果图",
-              value: "准确率提升18%",
+              title: "Recommendation Performance Chart",
+              value: "Accuracy improved by 18%",
               icon: TrendingUp,
             };
           case "price-comparison":
             return {
-              title: "价格对比图",
-              value: "竞争优势明显",
+              title: "Price Comparison Chart",
+              value: "Clear competitive advantage",
               icon: TrendingUp,
             };
           default:
-            return { title: "数据分析图", value: "分析完成", icon: TrendingUp };
+            return { title: "Data Analysis Chart", value: "Analysis complete", icon: TrendingUp };
         }
       };
 
@@ -204,7 +227,7 @@ export function PreviewEditor() {
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <span className="text-sm font-medium text-muted-foreground">
-                  数据图表
+                  Data Chart
                 </span>
               </div>
               <div className="h-48 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg flex items-center justify-center border-2 border-dashed border-blue-200">
@@ -229,49 +252,61 @@ export function PreviewEditor() {
       const getImageInfo = (imageType: string) => {
         switch (imageType) {
           case "user-segmentation":
-            return { title: "用户分群图", value: "3个主要群体", icon: Users };
+            return {
+              title: "User Segmentation Chart",
+              value: "3 major segments",
+              icon: Users,
+            };
           case "user-journey":
-            return { title: "用户旅程图", value: "5个关键节点", icon: Users };
+            return {
+              title: "User Journey Diagram",
+              value: "5 key stages",
+              icon: Users,
+            };
           case "sales-analysis":
-            return { title: "销售分析图", value: "¥128,450", icon: TrendingUp };
+            return {
+              title: "Sales Analysis Chart",
+              value: "¥128,450",
+              icon: TrendingUp,
+            };
           case "product-catalog":
             return {
-              title: "产品目录图",
-              value: "357个SKU",
+              title: "Product Catalog Chart",
+              value: "357 SKUs",
               icon: ShoppingCart,
             };
           case "feedback-visualization":
             return {
-              title: "反馈可视化",
-              value: "满意度4.2分",
+              title: "Feedback Visualization",
+              value: "Satisfaction score 4.2",
               icon: TrendingUp,
             };
           case "ab-test-results":
             return {
-              title: "A/B测试图",
-              value: "转化率提升15%",
+              title: "A/B Test Chart",
+              value: "Conversion rate increased by 15%",
               icon: TrendingUp,
             };
           case "promotional-analysis":
             return {
-              title: "促销分析图",
-              value: "销量增长23%",
+              title: "Campaign Analysis Chart",
+              value: "Sales increased by 23%",
               icon: TrendingUp,
             };
           case "recommendation-engine":
             return {
-              title: "推荐引擎图",
-              value: "准确率提升18%",
+              title: "Recommendation Engine Chart",
+              value: "Accuracy improved by 18%",
               icon: TrendingUp,
             };
           case "competitive-pricing":
             return {
-              title: "价格对比图",
-              value: "竞争优势明显",
+              title: "Price Comparison Chart",
+              value: "Clear competitive advantage",
               icon: TrendingUp,
             };
           default:
-            return { title: "数据可视化", value: "分析完成", icon: Users };
+            return { title: "Data Visualization", value: "Analysis complete", icon: Users };
         }
       };
 
@@ -285,7 +320,7 @@ export function PreviewEditor() {
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <span className="text-sm font-medium text-muted-foreground">
-                  可视化图表
+                  Visualization Chart
                 </span>
               </div>
               <div className="h-48 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg flex items-center justify-center border-2 border-dashed border-green-200">
@@ -314,7 +349,7 @@ export function PreviewEditor() {
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
               <span className="text-sm font-medium text-muted-foreground">
-                分析报告
+                Analysis Report
               </span>
             </div>
             <div className="prose prose-sm max-w-none">
@@ -337,7 +372,7 @@ export function PreviewEditor() {
         if (app.features && app.features.length > 0) {
           setSelectedFeatureId(app.features[0].id);
 
-          // 为每个功能分配预览设计
+          // Assign preview designs to each feature
           const designs: PreviewDesign[] = [
             "product-list",
             "metrics-dashboard",
@@ -347,7 +382,7 @@ export function PreviewEditor() {
           const newFeatureDesigns: Record<string, PreviewDesign> = {};
 
           app.features.forEach((feature: Feature) => {
-            // 为特定功能分配指定样式
+            // Apply specific layouts for certain features
             if (feature.name.includes("Product Recommendation")) {
               newFeatureDesigns[feature.id] = "pie-chart";
             } else if (
@@ -357,7 +392,7 @@ export function PreviewEditor() {
             } else if (feature.name.includes("Price Competitiveness")) {
               newFeatureDesigns[feature.id] = "simple-text";
             } else {
-              // 其他功能随机分配
+              // Randomly assign layouts for remaining features
               const randomDesign =
                 designs[Math.floor(Math.random() * designs.length)];
               newFeatureDesigns[feature.id] = randomDesign;
@@ -404,17 +439,20 @@ export function PreviewEditor() {
 
     // Generate context-aware response with random card type
     const generateResponse = (question: string) => {
-      // 定义所有可能的卡片类型
       const cardTypes = ["text", "chart", "image"] as const;
 
-      // 随机选择一个卡片类型
       const randomType =
         cardTypes[Math.floor(Math.random() * cardTypes.length)];
 
-      // 根据问题类型生成内容，但随机分配展示形式
-      if (question.includes("功能使用统计")) {
+      const normalizedQuestion = question.toLowerCase();
+
+      if (
+        normalizedQuestion.includes("feature usage") ||
+        normalizedQuestion.includes("usage statistics")
+      ) {
         return {
-          content: "销售趋势分析显示持续增长，转化率需要关注优化。",
+          content:
+            "Sales trend analysis shows continuous growth; focus on conversion rate optimization.",
           type: randomType,
           data:
             randomType === "chart"
@@ -423,9 +461,13 @@ export function PreviewEditor() {
               ? { imageType: "sales-analysis" }
               : undefined,
         };
-      } else if (question.includes("用户分群")) {
+      } else if (
+        normalizedQuestion.includes("user segmentation") ||
+        normalizedQuestion.includes("audience segment")
+      ) {
         return {
-          content: "用户分群分析完成，识别出3个主要用户群体。",
+          content:
+            "User segmentation analysis completed, identifying three primary audience groups.",
           type: randomType,
           data:
             randomType === "chart"
@@ -434,11 +476,14 @@ export function PreviewEditor() {
               ? { imageType: "user-segmentation" }
               : undefined,
         };
-      } else if (question.includes("产品目录和库存")) {
+      } else if (
+        normalizedQuestion.includes("product catalog") ||
+        normalizedQuestion.includes("inventory")
+      ) {
         const textContent =
-          "**产品目录统计**\n• 电子产品类：156个SKU\n• 服装类：89个SKU\n• 食品类：67个SKU\n• 家居用品：45个SKU\n\n**库存状态**\n• 正常库存：89%\n• 库存不足：8%\n• 缺货：3%\n\n需要查看具体的产品详情吗？";
+          "**Product Catalog Summary**\n- Electronics: 156 SKUs\n- Apparel: 89 SKUs\n- Food: 67 SKUs\n- Home Goods: 45 SKUs\n\n**Inventory Status**\n- Healthy stock: 89%\n- Low stock: 8%\n- Out of stock: 3%\n\nWould you like to review specific product details?";
         const shortContent =
-          "产品目录和库存分析完成，共357个SKU，库存健康度良好。";
+          "Product catalog and inventory review completed: 357 SKUs with healthy stock levels.";
 
         return {
           content: randomType === "text" ? textContent : shortContent,
@@ -450,11 +495,14 @@ export function PreviewEditor() {
               ? { imageType: "product-catalog" }
               : undefined,
         };
-      } else if (question.includes("用户反馈")) {
+      } else if (
+        normalizedQuestion.includes("user feedback") ||
+        normalizedQuestion.includes("customer feedback")
+      ) {
         const textContent =
-          "**反馈统计**\n• 本月收到反馈：1,247条\n• 满意度评分：4.2/5.0\n• 响应时间：平均2.3小时\n\n**主要反馈类型**\n• 产品质量：35%\n• 配送服务：28%\n• 客服体验：20%\n• 网站功能：17%\n\n**改进建议**\n• 优化配送时效\n• 增强产品描述\n• 改进搜索功能";
+          "**Feedback Summary**\n- Feedback received this month: 1,247 items\n- Satisfaction score: 4.2 / 5.0\n- Average response time: 2.3 hours\n\n**Primary Themes**\n- Product quality: 35%\n- Delivery service: 28%\n- Customer support: 20%\n- Website functionality: 17%\n\n**Recommended Actions**\n- Improve delivery turnaround\n- Enrich product descriptions\n- Enhance search capabilities";
         const shortContent =
-          "用户反馈分析完成，满意度4.2分，主要关注产品质量和配送服务。";
+          "User feedback analysis completed: satisfaction score 4.2, with key attention on product quality and delivery service.";
 
         return {
           content: randomType === "text" ? textContent : shortContent,
@@ -466,9 +514,13 @@ export function PreviewEditor() {
               ? { imageType: "feedback-visualization" }
               : undefined,
         };
-      } else if (question.includes("A/B测试")) {
+      } else if (
+        normalizedQuestion.includes("a/b test") ||
+        normalizedQuestion.includes("ab test")
+      ) {
         return {
-          content: "A/B测试结果分析完成，新版本转化率提升15%。",
+          content:
+            "A/B testing results show the new variant improved conversion rate by 15%.",
           type: randomType,
           data:
             randomType === "chart"
@@ -477,9 +529,13 @@ export function PreviewEditor() {
               ? { imageType: "ab-test-results" }
               : undefined,
         };
-      } else if (question.includes("用户旅程")) {
+      } else if (
+        normalizedQuestion.includes("user journey") ||
+        normalizedQuestion.includes("customer journey")
+      ) {
         return {
-          content: "用户旅程可视化分析显示关键转化节点。",
+          content:
+            "User journey visualization highlights the critical conversion touchpoints.",
           type: randomType,
           data:
             randomType === "chart"
@@ -488,9 +544,13 @@ export function PreviewEditor() {
               ? { imageType: "user-journey" }
               : undefined,
         };
-      } else if (question.includes("促销活动")) {
+      } else if (
+        normalizedQuestion.includes("campaign") ||
+        normalizedQuestion.includes("promotion")
+      ) {
         return {
-          content: "促销活动效果分析完成，活动期间销量增长23%。",
+          content:
+            "Promotional campaign analysis completed: sales increased by 23% during the campaign.",
           type: randomType,
           data:
             randomType === "chart"
@@ -499,9 +559,13 @@ export function PreviewEditor() {
               ? { imageType: "promotional-analysis" }
               : undefined,
         };
-      } else if (question.includes("产品推荐")) {
+      } else if (
+        normalizedQuestion.includes("product recommendation") ||
+        normalizedQuestion.includes("recommendation engine")
+      ) {
         return {
-          content: "产品推荐引擎分析完成，推荐准确率提升18%。",
+          content:
+            "Product recommendation engine analysis shows accuracy improved by 18%.",
           type: randomType,
           data:
             randomType === "chart"
@@ -510,9 +574,13 @@ export function PreviewEditor() {
               ? { imageType: "recommendation-engine" }
               : undefined,
         };
-      } else if (question.includes("价格竞争力")) {
+      } else if (
+        normalizedQuestion.includes("price competitiveness") ||
+        normalizedQuestion.includes("pricing advantage")
+      ) {
         return {
-          content: "价格竞争力分析完成，与竞品相比价格优势明显。",
+          content:
+            "Price competitiveness analysis confirms a clear advantage over competitors.",
           type: randomType,
           data:
             randomType === "chart"
@@ -524,7 +592,7 @@ export function PreviewEditor() {
       } else {
         return {
           content:
-            "好的，我已经为您分析了相关数据。根据您的问题，我提供了相应的分析结果。如果您需要更详细的信息或有其他问题，请随时告诉我。",
+            "The requested data has been analyzed. Let me know if you need deeper insights or additional questions explored.",
           type: randomType,
           data:
             randomType === "chart"
@@ -578,10 +646,6 @@ export function PreviewEditor() {
     }
   };
 
-  const selectedFeature = currentApp?.features.find(
-    (f) => f.id === selectedFeatureId
-  );
-
   const handleSaveSubmit = () => {
     if (!saveFormData.name.trim()) {
       alert("Please enter a name for your app");
@@ -601,6 +665,10 @@ export function PreviewEditor() {
     router.push("/save-success");
   };
 
+  const selectedFeature = currentApp?.features.find(
+    (f) => f.id === selectedFeatureId
+  );
+
   const renderPreview = () => {
     if (isPreviewUpdating) {
       return (
@@ -613,9 +681,6 @@ export function PreviewEditor() {
       );
     }
 
-    const selectedFeature = currentApp?.features.find(
-      (f) => f.id === selectedFeatureId
-    );
     const currentDesign = selectedFeature
       ? featureDesigns[selectedFeature.id]
       : "product-list";
@@ -702,21 +767,23 @@ export function PreviewEditor() {
               <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-8">
                 <div className="text-6xl mb-4">📊</div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                  数据分析洞察
+                  Data Analysis Insights
                 </h2>
                 <p className="text-lg text-gray-600 leading-relaxed">
-                  基于您的数据，我们发现了重要的业务趋势和增长机会。通过智能分析，我们为您提供了可操作的洞察，帮助您做出更明智的决策。
+                  Based on your data, we identified meaningful business trends and
+                  growth opportunities. These insights translate into actionable
+                  guidance to support confident decision-making.
                 </p>
               </div>
 
               <div className="mt-8 grid grid-cols-2 gap-4">
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-green-800">+23%</div>
-                  <div className="text-sm text-green-600">本月增长</div>
+                  <div className="text-sm text-green-600">Growth this month</div>
                 </div>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-blue-800">98%</div>
-                  <div className="text-sm text-blue-600">准确率</div>
+                  <div className="text-sm text-blue-600">Accuracy</div>
                 </div>
               </div>
             </div>
@@ -736,11 +803,9 @@ export function PreviewEditor() {
           </div>
 
           <div className="grid grid-cols-2 gap-8">
-            {/* 饼状图区域 */}
             <div className="space-y-6">
-              <h3 className="text-lg font-semibold">数据分布分析</h3>
+              <h3 className="text-lg font-semibold">Data Distribution Analysis</h3>
               <div className="relative w-64 h-64 mx-auto">
-                {/* 模拟饼状图 */}
                 <div className="relative w-full h-full">
                   <div
                     className="absolute inset-0 rounded-full border-8 border-blue-500"
@@ -770,38 +835,37 @@ export function PreviewEditor() {
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
                       <div className="text-2xl font-bold">100%</div>
-                      <div className="text-sm text-muted-foreground">总计</div>
+                      <div className="text-sm text-muted-foreground">Total</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* 图例和数据 */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">详细数据</h3>
+              <h3 className="text-lg font-semibold">Detailed Data</h3>
               <div className="space-y-3">
                 {[
                   {
-                    label: "产品A",
+                    label: "Product A",
                     value: 35,
                     color: "bg-blue-500",
                     percentage: "35%",
                   },
                   {
-                    label: "产品B",
+                    label: "Product B",
                     value: 28,
                     color: "bg-green-500",
                     percentage: "28%",
                   },
                   {
-                    label: "产品C",
+                    label: "Product C",
                     value: 22,
                     color: "bg-yellow-500",
                     percentage: "22%",
                   },
                   {
-                    label: "产品D",
+                    label: "Product D",
                     value: 15,
                     color: "bg-red-500",
                     percentage: "15%",
@@ -819,7 +883,7 @@ export function PreviewEditor() {
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="text-sm text-muted-foreground">
-                        {item.value} 项
+                        {item.value} items
                       </span>
                       <span className="font-semibold">{item.percentage}</span>
                     </div>
@@ -829,8 +893,8 @@ export function PreviewEditor() {
 
               <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="text-sm text-blue-800">
-                  <strong>关键洞察：</strong>{" "}
-                  产品A占据最大市场份额，建议重点关注其增长策略。
+                  <strong>Key Insight:</strong> Product A holds the largest market
+                  share; prioritize growth strategies for this segment.
                 </div>
               </div>
             </div>
@@ -952,141 +1016,129 @@ export function PreviewEditor() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      <div className="flex-1 flex overflow-hidden">
-        <ResizablePanelGroup
-          direction="horizontal"
-          onLayout={(sizes) => {
-            setPanelLayout(sizes);
-            try {
-              localStorage.setItem("previewSplitLayout", JSON.stringify(sizes));
-            } catch {}
-            if (rightPanelRef.current) {
-              const rect = rightPanelRef.current.getBoundingClientRect();
-              setRightPanelLeft(rect.left);
-            }
-          }}
-          className="w-full h-full"
-        >
-          <ResizablePanel
-            defaultSize={(panelLayout && panelLayout[0]) || 24}
-            minSize={16}
-            maxSize={40}
-            className="flex flex-col"
-            style={{ backgroundColor: "#F2F2F7" }}
+    <div className="relative min-h-screen w-full flex bg-white">
+      <div className="shape-1"></div>
+      <div className="shape-2"></div>
+      <div className="h-screen flex flex-col w-full">
+        <div className="flex-1 flex overflow-hidden">
+          <ResizablePanelGroup
+            direction="horizontal"
+            onLayout={(sizes) => {
+              setPanelLayout(sizes);
+              try {
+                localStorage.setItem("previewSplitLayout", JSON.stringify(sizes));
+              } catch {}
+              if (rightPanelRef.current) {
+                const rect = rightPanelRef.current.getBoundingClientRect();
+                setRightPanelLeft(rect.left);
+              }
+            }}
+            className="w-full h-full"
           >
-            <div className="px-4 py-3 flex items-center justify-between">
-              <h2 className="font-medium text-lg" style={{ color: "#8E8E93" }}>
-                Valued questions
-              </h2>
-            </div>
-            <div className="flex-1 overflow-y-auto pt-0 px-3 pb-3">
-              {currentApp.features.map((feature) => {
-                const isSelected = feature.id === selectedFeatureId;
+            <ResizablePanel
+              defaultSize={(panelLayout && panelLayout[0]) || 24}
+              minSize={16}
+              maxSize={40}
+              className="flex flex-col glass-effect"
+            >
+              <div className="h-20 flex items-center justify-center border-b border-gray-200/30">
+                <div className="flex items-center gap-2">
+                  <LayoutDashboard className="w-8 h-8 text-indigo-500" />
+                  <span className="text-xl font-bold text-gray-800">
+                    Valued questions
+                  </span>
+                </div>
+              </div>
+              <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
+                {currentApp.features.map((feature) => {
+                  const isSelected = feature.id === selectedFeatureId;
 
-                return (
-                  <div key={feature.id} className="relative">
-                    <button
-                      onClick={() => {
-                        // Auto-fill the input with predefined question text
-                        const questionText = getQuestionText(feature.name);
-                        setSearchMessage(questionText);
+                  return (
+                    <div key={feature.id} className="relative">
+                      <button
+                        onClick={() => {
+                          setSelectedFeatureId(feature.id);
+                          // Auto-fill the input with predefined question text
+                          const questionText = getQuestionText(feature.name);
+                          setSearchMessage(questionText);
 
-                        // Focus the input after auto-filling
-                        setTimeout(() => {
-                          const input = document.querySelector(
-                            'input[placeholder="Search webpage"]'
-                          ) as HTMLInputElement;
-                          if (input) {
-                            input.focus();
-                            input.select(); // Select the text so user can easily edit it
-                          }
-                        }, 100);
-                      }}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setContextMenuFeatureId(feature.id);
-                      }}
-                      className="w-full text-left p-3 rounded-md mb-2 transition-all duration-200 hover:bg-blue-50/50"
-                      style={{
-                        backgroundColor: "transparent",
-                        color: "#8E8E93",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.color = "#007AFF";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.color = "#8E8E93";
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        {/* Business opportunity coin icon */}
-                        <div className="flex-shrink-0 w-4 h-4">
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 16 16"
-                            fill="currentColor"
-                          >
-                            <circle
-                              cx="8"
-                              cy="8"
-                              r="6"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1"
-                            />
-                            <path d="M4 6h8v4H4V6zm2 1v2h4V7H6z" />
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div
-                            className="font-normal text-sm truncate leading-relaxed"
-                            style={{
-                              fontFamily:
-                                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-                              letterSpacing: "-0.01em",
+                          // Focus the input after auto-filling
+                          setTimeout(() => {
+                            const input = document.querySelector(
+                              'input[placeholder="Search webpage"]'
+                            ) as HTMLInputElement;
+                            if (input) {
+                              input.focus();
+                              input.select(); // Select the text so user can easily edit it
+                            }
+                          }, 100);
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setContextMenuFeatureId(feature.id);
+                        }}
+                        className={`nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 w-full text-left ${
+                          isSelected
+                            ? "active bg-white/90 text-gray-900 shadow-md"
+                            : "text-gray-600 hover:bg-white/50"
+                        }`}
+                      >
+                        <Eye className="w-5 h-5 flex-shrink-0" />
+                        <span className="text-sm font-medium truncate">
+                          {feature.name}
+                        </span>
+                      </button>
+
+                      <Popover
+                        open={contextMenuFeatureId === feature.id}
+                        onOpenChange={(open) =>
+                          !open && setContextMenuFeatureId(null)
+                        }
+                      >
+                        <PopoverTrigger asChild>
+                          <div className="absolute inset-0 pointer-events-none" />
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-48 p-2"
+                          side="right"
+                          align="start"
+                        >
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              handleDeleteFeature(feature.id);
+                              setContextMenuFeatureId(null);
                             }}
                           >
-                            {feature.name}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-
-                    <Popover
-                      open={contextMenuFeatureId === feature.id}
-                      onOpenChange={(open) =>
-                        !open && setContextMenuFeatureId(null)
-                      }
-                    >
-                      <PopoverTrigger asChild>
-                        <div className="absolute inset-0 pointer-events-none" />
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-48 p-2"
-                        side="right"
-                        align="start"
-                      >
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => {
-                            handleDeleteFeature(feature.id);
-                            setContextMenuFeatureId(null);
-                          }}
-                        >
-                          <Trash2 className="size-4 mr-2" />
-                          Delete Feature
-                        </Button>
-                      </PopoverContent>
-                    </Popover>
+                            <Trash2 className="size-4 mr-2" />
+                            Delete Feature
+                          </Button>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  );
+                })}
+              </nav>
+              <div className="p-4 border-t border-gray-200/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center border-2 border-indigo-300">
+                    <span className="text-white font-semibold text-sm">
+                      {currentApp.name.charAt(0).toUpperCase()}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
-          </ResizablePanel>
+                  <div>
+                    <p className="font-semibold text-sm text-gray-800">
+                      {currentApp.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {currentApp.features.length} questions
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </ResizablePanel>
           <ResizableHandle
             withHandle
             className="bg-transparent after:bg-transparent hover:after:bg-transparent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 opacity-0"
@@ -1098,7 +1150,7 @@ export function PreviewEditor() {
           >
             <div
               ref={rightPanelRef}
-              className="h-full bg-muted/30 overflow-y-auto relative leading-[0rem] px-0.5 pt-0"
+              className="h-full bg-white overflow-y-auto relative leading-[0rem] px-0.5 pt-0"
               style={{
                 height: `calc(100vh - ${
                   inputBarHeight + INPUT_BAR_BOTTOM_OFFSET
@@ -1106,44 +1158,79 @@ export function PreviewEditor() {
                 width: "calc(100% - 20px)",
               }}
             >
-              <div
-                className="max-w-4xl mx-auto"
-                style={{
-                  paddingBottom: inputBarHeight + INPUT_BAR_BOTTOM_OFFSET + 16,
-                }}
-              >
-                {searchHistory.length > 0 && (
-                  <div className="mb-6 space-y-4">
-                    {searchHistory.map((msg, i) => (
-                      <div key={i}>{renderCard(msg)}</div>
-                    ))}
-                    {isSearchProcessing && (
-                      <div className="flex justify-start">
-                        <Card className="p-4 shadow-sm border">
-                          <div className="flex items-center gap-3">
-                            <Loader2 className="size-4 animate-spin text-primary" />
-                            <span className="text-sm text-muted-foreground">
-                              正在分析数据...
-                            </span>
-                          </div>
-                        </Card>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {searchHistory.length === 0 && (
-                  <div className="relative pb-12 flex items-center justify-center min-h-[400px]">
-                    <div className="text-center text-muted-foreground">
-                      <div className="size-16 rounded-full bg-muted/50 flex items-center justify-center mb-4 mx-auto">
-                        <Sparkles className="size-8" />
-                      </div>
-                      <h3 className="text-lg font-semibold mb-2"></h3>
-                      <p className="text-sm">点击左侧感兴趣的问题查看答案</p>
+              <main className="flex-grow p-8">
+                <div
+                  className="max-w-4xl mx-auto"
+                  style={{
+                    paddingBottom: inputBarHeight + INPUT_BAR_BOTTOM_OFFSET + 16,
+                  }}
+                >
+                  {searchHistory.length > 0 && (
+                    <div className="mb-6 space-y-4">
+                      {searchHistory.map((msg, i) => (
+                        <div key={i}>{renderCard(msg)}</div>
+                      ))}
+                      {isSearchProcessing && (
+                        <div className="flex justify-start">
+                          <Card className="p-4 shadow-sm border">
+                            <div className="flex items-center gap-3">
+                              <Loader2 className="size-4 animate-spin text-primary" />
+                              <span className="text-sm text-muted-foreground">
+                                Analyzing data...
+                              </span>
+                            </div>
+                          </Card>
+                        </div>
+                      )}
                     </div>
+                  )}
+
+                  {searchHistory.length === 0 && (
+                    <div className="relative pb-12 flex items-center justify-center min-h-[400px]">
+                      <div className="text-center text-muted-foreground">
+                        <div className="size-16 rounded-full bg-muted/50 flex items-center justify-center mb-4 mx-auto">
+                          <Sparkles className="size-8" />
+                        </div>
+                        <h3 className="text-lg font-semibold mb-2"></h3>
+                        <p className="text-sm">
+                          Select a question on the left to view the answer.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </main>
+
+              {/* Bottom right question description box */}
+              {selectedFeatureId && selectedFeature && (
+                <div className="fixed bottom-24 right-8 max-w-md z-40">
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-200/50 p-4 backdrop-blur-sm">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h3 className="text-sm font-semibold text-gray-700">
+                        Question Description
+                      </h3>
+                      <button className="text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 15l7-7 7 7"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      {selectedFeature.name}
+                    </p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <div
                 className="fixed bottom-2 right-0 px-8 z-50"

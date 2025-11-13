@@ -18,7 +18,7 @@ export async function POST(
       );
     }
 
-    // 服务端发起请求，绕过浏览器 CORS 限制
+    // Forward request server-side to bypass browser CORS restrictions
     const targetUrl = `${CONNECT_API_BASE}/api/subscriptions/${vendorId}`;
     console.log("Proxy subscription request to:", targetUrl);
     console.log("Request body:", body);
@@ -60,7 +60,7 @@ export async function POST(
       );
     }
 
-    // 检查返回的数据是否为空
+    // Ensure response payload is not empty
     if (!data || Object.keys(data).length === 0) {
       console.log("Empty response from backend");
       return NextResponse.json(

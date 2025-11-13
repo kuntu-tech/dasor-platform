@@ -13,6 +13,7 @@ type BatchPayload = {
     supabase_url?: string;
     supabase_key?: string;
   };
+  connection_id?: string;
   queries?: unknown[];
   anchorIndex?: unknown;
   app?: {
@@ -31,10 +32,9 @@ const requiredFieldError = (payload: BatchPayload): string | null => {
     return "user_id is required";
   }
   if (
-    !payload.supabase_config?.supabase_url ||
-    !payload.supabase_config?.supabase_key
+    !payload.connection_id
   ) {
-    return "supabase_config must contain supabase_url and supabase_key";
+    return "connection_id is required";
   }
   if (!Array.isArray(payload.queries) || payload.queries.length === 0) {
     return "queries array cannot be empty";
@@ -58,7 +58,7 @@ const withAuthHeaders = (): Record<string, string> => {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as BatchPayload;
-    console.log("收到批量生成任务:", body?.user_id);
+    console.log("Received batch generation task:", body?.user_id);
 
     const validationError = requiredFieldError(body);
     if (validationError) {
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!response.ok) {
-      console.log("外部批量任务调用失败:", response.status, parsed);
+      console.log("External batch service call failed:", response.status, parsed);
       return NextResponse.json(
         {
           error: parsed?.error || "Generate batch service call failed",
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       { status: response.status }
     );
   } catch (error) {
-    console.log("批量生成接口错误:", error);
+    console.log("Batch generation API error:", error);
     const msg = error instanceof Error ? error.message : String(error);
     const isAbort =
       msg.toLowerCase().includes("aborted") ||

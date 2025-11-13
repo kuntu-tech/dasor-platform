@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,6 +45,7 @@ import { Trash2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { PricingModal } from "@/components/pricing-modal";
 import { CreateAppButton } from "@/components/create-app-button";
+import { Hero7 } from "@/components/ui/modern-hero";
 type AppItem = {
   id: string;
   name: string;
@@ -73,6 +74,7 @@ type AppItem = {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"list" | "grid">("list");
   const [statusFilter, setStatusFilter] = useState<
@@ -82,14 +84,35 @@ export default function DashboardPage() {
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const { user, session } = useAuth();
 
-  // 提取 generator_meta 中的 queries 并保存到 localStorage
+  // Handle subscription_required parameter - only show popup once per session
+  useEffect(() => {
+    const subscriptionRequired = searchParams.get("subscription_required");
+    if (subscriptionRequired === "1" && user?.id) {
+      const subscriptionCheckedKey = `subscription_popup_shown_${user.id}`;
+      const hasShownPopup =
+        sessionStorage.getItem(subscriptionCheckedKey) === "true";
+
+      if (!hasShownPopup) {
+        // Show popup only if not shown in this session
+        setIsPricingOpen(true);
+        sessionStorage.setItem(subscriptionCheckedKey, "true");
+        // Remove parameter from URL to prevent popup on refresh
+        router.replace("/", { scroll: false });
+      } else {
+        // If already shown, just remove parameter from URL
+        router.replace("/", { scroll: false });
+      }
+    }
+  }, [searchParams, user?.id, router]);
+
+  // Extract queries from generator_meta and store them in localStorage
   const extractAndSaveQueries = (app: AppItem) => {
     try {
       if (
         app.generator_meta?.queries &&
         Array.isArray(app.generator_meta.queries)
       ) {
-        // 提取 queries 数组中的 query 字段
+        // Pick only the query field from each entry
         const selectedProblems = app.generator_meta.queries
           .map((q) => q.query)
           .filter((query) => query && query.trim().length > 0);
@@ -107,15 +130,15 @@ export default function DashboardPage() {
     }
   };
 
-  // 缓存过期时间（1天）
-  const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 1天
+  // Cache expiration (1 day)
+  const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 1 day
 
-  // 获取缓存键
+  // Derive the cache key
   const getCacheKey = useCallback(() => {
     return `apps_cache_${user?.id || "anonymous"}`;
   }, [user?.id]);
 
-  // 从缓存获取数据
+  // Read cached data
   const getCachedApps = useCallback((): AppItem[] | null => {
     if (typeof window === "undefined") return null;
 
@@ -127,7 +150,7 @@ export default function DashboardPage() {
       const { data, timestamp } = JSON.parse(cached);
       const now = Date.now();
 
-      // 检查是否过期
+      // Expiration check
       if (now - timestamp > CACHE_EXPIRY) {
         localStorage.removeItem(cacheKey);
         return null;
@@ -140,7 +163,7 @@ export default function DashboardPage() {
     }
   }, [getCacheKey]);
 
-  // 保存数据到缓存
+  // Write data into the cache
   const setCachedApps = useCallback(
     (data: AppItem[]) => {
       if (typeof window === "undefined") return;
@@ -161,14 +184,14 @@ export default function DashboardPage() {
     [getCacheKey]
   );
 
-  // 清除缓存
+  // Clear cached entries
   const clearAppsCache = useCallback(() => {
     if (typeof window === "undefined") return;
     const cacheKey = getCacheKey();
     localStorage.removeItem(cacheKey);
   }, [getCacheKey]);
 
-  // 内部函数用于实际获取数据
+  // Helper responsible for fetching data from the API
   const fetchAppsFromAPI = useCallback(async () => {
     const queryParams = new URLSearchParams();
 
@@ -183,7 +206,7 @@ export default function DashboardPage() {
 
     if (data.data && Array.isArray(data.data)) {
       setAppItems(data.data);
-      // 保存到缓存
+      // Persist the response in cache
       setCachedApps(data.data);
     }
 
@@ -192,24 +215,24 @@ export default function DashboardPage() {
 
   const getApps = useCallback(
     async (useCache: boolean = true) => {
-      // 如果使用缓存，先检查缓存
+      // Honor cache first when allowed
       if (useCache) {
         const cachedData = getCachedApps();
         if (cachedData) {
-          // 先显示缓存数据
+          // Display cached data immediately
           setAppItems(cachedData);
-          // 然后在后台刷新（不使用缓存）
-          fetchAppsFromAPI().catch(console.error);
+          // Refresh in the background without using cache
+          fetchAppsFromAPI().catch(console.log);
           return { data: cachedData };
         }
       }
 
-      // 没有缓存或强制刷新，直接获取数据
+      // When no cache is available, fetch directly
       try {
         return await fetchAppsFromAPI();
       } catch (error) {
-        console.error("Failed to fetch apps:", error);
-        // 如果请求失败，尝试使用缓存
+        console.log("Failed to fetch apps:", error);
+        // Fall back to cache if the request fails
         const cachedData = getCachedApps();
         if (cachedData) {
           setAppItems(cachedData);
@@ -277,7 +300,7 @@ export default function DashboardPage() {
   const [appItems, setAppItems] = useState<AppItem[]>([]);
 
   const handleDelete = async (id: string) => {
-    // 确认删除
+    // Confirm deletion
     if (
       !confirm(
         "Are you sure you want to delete this app? This action cannot be undone."
@@ -289,7 +312,7 @@ export default function DashboardPage() {
     setDeletingId(id);
 
     try {
-      // 调用后端API删除应用
+      // Invoke backend API to delete the app
       const response = await fetch(`/api/apps/${id}`, {
         method: "DELETE",
         headers: {
@@ -305,13 +328,13 @@ export default function DashboardPage() {
         //throw new Error(errorData.error || "Failed to delete app");
       }
 
-      // 清除缓存并重新获取数据，确保数据同步
+      // Clear cache and refetch to keep data consistent
       clearAppsCache();
-      await getApps(false); // 强制刷新，不使用缓存
+      await getApps(false); // Force refresh without cache
 
-      console.log("应用删除成功");
+      console.log("App deleted successfully");
     } catch (error) {
-      console.log("删除应用失败:", error);
+      console.log("Failed to delete app:", error);
       alert(
         `Delete failed: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -323,20 +346,20 @@ export default function DashboardPage() {
   };
 
   const filteredApps = useMemo(() => {
-    // 确保 appItems 始终是数组
+    // Ensure appItems is always an array
     const items = Array.isArray(appItems) ? appItems : [];
     let filtered = items;
 
-    // 状态筛选
+    // Status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter((app) => app.status === statusFilter);
     }
 
-    // 搜索筛选 - 只筛选name字段
+    // Search filter - only match the name field
     const q = query.trim().toLowerCase();
     if (q) {
       filtered = filtered.filter((a) => {
-        // 只匹配name字段
+        // Match against the name field
         return a.name?.toLowerCase().includes(q);
       });
     }
@@ -347,24 +370,25 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       <main className="px-6 py-8">
-        {/* Hero Section */}
-        <section className="py-16 md:py-24 mb-12 flex items-center justify-center bg-black">
-          <div className="flex flex-col items-center justify-center space-y-4">
+        <Hero7
+          heading="Generate chatApps from your data"
+          description="Importing and analyzing your Supabase database by AI and instantly build your app"
+          buttonComponent={
             <CreateAppButton
               onRequireSubscription={() => setIsPricingOpen(true)}
-              className="h-12 px-6 text-base rounded-lg bg-transparent text-white hover:bg-white hover:text-black hover:backdrop-blur-sm hover:border-transparent border border-transparent transition-all duration-300"
+              className="mt-10 inline-flex h-12 px-6 text-base rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
             >
-              <Plus className="size-5 mr-2" /> Create Your App
+              Connect Database to Start
             </CreateAppButton>
-          </div>
-        </section>
+          }
+        />
 
         {/* Pricing Modal */}
         <PricingModal
           isOpen={isPricingOpen}
           onClose={() => setIsPricingOpen(false)}
         />
-        {/* 主标题区 */}
+        {/* Main headline section */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold">MyApps</h1>
@@ -416,7 +440,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 主体列表区 */}
+        {/* Main content list */}
         {view === "grid" ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

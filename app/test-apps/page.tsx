@@ -22,7 +22,7 @@ export default function TestAppsPage() {
   const { apps, loading, error, fetchApps, createApp, updateApp, deleteApp } =
     useApps();
 
-  // 表单状态
+  // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingApp, setEditingApp] = useState<App | null>(null);
   const [formData, setFormData] = useState({
@@ -33,19 +33,19 @@ export default function TestAppsPage() {
     is_public: false,
   });
 
-  // 搜索和过滤状态
+  // Search and filter state
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
-  // 加载应用列表
+  // Fetch apps list whenever user changes
   useEffect(() => {
     if (user) {
       fetchApps({ user_id: user.id });
     }
   }, [user]);
 
-  // 处理表单提交
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -66,7 +66,7 @@ export default function TestAppsPage() {
         await createApp(appData);
       }
 
-      // 重置表单
+      // Reset form
       setFormData({
         name: "",
         description: "",
@@ -76,11 +76,11 @@ export default function TestAppsPage() {
       });
       setShowForm(false);
     } catch (err) {
-      console.log("操作失败:", err);
+      console.log("Operation failed:", err);
     }
   };
 
-  // 处理编辑
+  // Handle edit action
   const handleEdit = (app: App) => {
     setEditingApp(app);
     setFormData({
@@ -93,18 +93,18 @@ export default function TestAppsPage() {
     setShowForm(true);
   };
 
-  // 处理删除
+  // Handle delete action
   const handleDelete = async (id: string) => {
-    if (confirm("确定要删除这个应用吗？")) {
+    if (confirm("Are you sure you want to delete this app?")) {
       try {
         await deleteApp(id);
       } catch (err) {
-        console.log("删除失败:", err);
+        console.log("Failed to delete app:", err);
       }
     }
   };
 
-  // 处理搜索
+  // Execute search with current filters
   const handleSearch = () => {
     fetchApps({
       search: searchTerm,
@@ -118,8 +118,12 @@ export default function TestAppsPage() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">请先登录</h1>
-          <p className="text-gray-600">此页面需要登录后才能访问</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            Please sign in
+          </h1>
+          <p className="text-gray-600">
+            This page requires an authenticated session
+          </p>
         </div>
       </div>
     );
@@ -129,7 +133,9 @@ export default function TestAppsPage() {
     <div className="min-h-screen bg-white p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">应用管理测试</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            App Management Test
+          </h1>
           <Button
             onClick={() => {
               setEditingApp(null);
@@ -145,69 +151,71 @@ export default function TestAppsPage() {
             className="bg-black hover:bg-gray-900"
           >
             <Plus className="w-4 h-4 mr-2" />
-            创建应用
+            Create App
           </Button>
         </div>
 
-        {/* 搜索和过滤 */}
+        {/* Search & filter */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>搜索和过滤</CardTitle>
+            <CardTitle>Search & Filter</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <Label htmlFor="search">搜索</Label>
+                <Label htmlFor="search">Search</Label>
                 <Input
                   id="search"
-                  placeholder="搜索应用名称或描述"
+                  placeholder="Search by app name or description"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               <div>
-                <Label htmlFor="category">分类</Label>
+                <Label htmlFor="category">Category</Label>
                 <Input
                   id="category"
-                  placeholder="分类"
+                  placeholder="Category"
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
                 />
               </div>
               <div>
-                <Label htmlFor="status">状态</Label>
+                <Label htmlFor="status">Status</Label>
                 <select
                   id="status"
                   className="w-full p-2 border border-gray-300 rounded-md"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
-                  <option value="">全部</option>
-                  <option value="draft">草稿</option>
-                  <option value="published">已发布</option>
-                  <option value="archived">已归档</option>
+                  <option value="">All</option>
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="archived">Archived</option>
                 </select>
               </div>
               <div className="flex items-end">
                 <Button onClick={handleSearch} className="w-full">
-                  搜索
+                  Search
                 </Button>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* 创建/编辑表单 */}
+        {/* Create / edit form */}
         {showForm && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle>{editingApp ? "编辑应用" : "创建应用"}</CardTitle>
+              <CardTitle>
+                {editingApp ? "Edit App" : "Create App"}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="name">应用名称 *</Label>
+                    <Label htmlFor="name">App Name *</Label>
                     <Input
                       id="name"
                       value={formData.name}
@@ -218,7 +226,7 @@ export default function TestAppsPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="category">分类</Label>
+                    <Label htmlFor="category">Category</Label>
                     <Input
                       id="category"
                       value={formData.category}
@@ -229,7 +237,7 @@ export default function TestAppsPage() {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="description">描述</Label>
+                  <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
@@ -240,14 +248,14 @@ export default function TestAppsPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="tags">标签（用逗号分隔）</Label>
+                  <Label htmlFor="tags">Tags (comma separated)</Label>
                   <Input
                     id="tags"
                     value={formData.tags}
                     onChange={(e) =>
                       setFormData({ ...formData, tags: e.target.value })
                     }
-                    placeholder="AI, 工具, 生产力"
+                    placeholder="AI, tools, productivity"
                   />
                 </div>
                 <div className="flex items-center space-x-2">
@@ -259,18 +267,18 @@ export default function TestAppsPage() {
                       setFormData({ ...formData, is_public: e.target.checked })
                     }
                   />
-                  <Label htmlFor="is_public">公开应用</Label>
+                  <Label htmlFor="is_public">Public App</Label>
                 </div>
                 <div className="flex space-x-2">
                   <Button type="submit" disabled={loading}>
-                    {editingApp ? "更新" : "创建"}
+                    {editingApp ? "Update" : "Create"}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setShowForm(false)}
                   >
-                    取消
+                    Cancel
                   </Button>
                 </div>
               </form>
@@ -278,22 +286,22 @@ export default function TestAppsPage() {
           </Card>
         )}
 
-        {/* 错误信息 */}
+        {/* Error message */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <p className="text-red-600">{error}</p>
           </div>
         )}
 
-        {/* 应用列表 */}
+        {/* App list */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
             <div className="col-span-full text-center py-8 text-gray-600">
-              加载中...
+              Loading...
             </div>
           ) : apps.length === 0 ? (
             <div className="col-span-full text-center py-8 text-gray-600">
-              暂无应用
+              No apps available
             </div>
           ) : (
             apps.map((app) => (
@@ -303,7 +311,7 @@ export default function TestAppsPage() {
                     <div>
                       <CardTitle className="text-lg">{app.name}</CardTitle>
                       <CardDescription className="mt-1">
-                        {app.description || "暂无描述"}
+                        {app.description || "No description available"}
                       </CardDescription>
                     </div>
                     <div className="flex space-x-1">
@@ -334,26 +342,26 @@ export default function TestAppsPage() {
                         }
                       >
                         {app.status === "draft"
-                          ? "草稿"
+                          ? "Draft"
                           : app.status === "published"
-                          ? "已发布"
-                          : "已归档"}
+                          ? "Published"
+                          : "Archived"}
                       </Badge>
-                      {app.is_public && <Badge variant="outline">公开</Badge>}
+                      {app.is_public && <Badge variant="outline">Public</Badge>}
                     </div>
                     {app.category && (
                       <p className="text-sm text-gray-600">
-                        分类: {app.category}
+                        Category: {app.category}
                       </p>
                     )}
                     {app.connection_id && (
                       <div className="text-sm">
                         <p className="text-gray-600">
-                          数据连接: {app.connection_id}
+                          Data Connection: {app.connection_id}
                         </p>
                         {app.data_connections?.connection_info && (
                           <div className="mt-1 p-2 bg-gray-50 rounded text-xs">
-                            <p className="font-medium">连接信息:</p>
+                            <p className="font-medium">Connection Info:</p>
                             <pre className="text-gray-600 whitespace-pre-wrap">
                               {JSON.stringify(
                                 app.data_connections.connection_info,

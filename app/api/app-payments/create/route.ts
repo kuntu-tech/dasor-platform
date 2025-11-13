@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { app_userid, successUrl, cancelUrl } = body;
 
-    // 验证必填字段
+    // Validate required fields
     if (!app_userid) {
       return NextResponse.json(
         { success: false, error: "app_userid is a required field" },
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 通过 app_userid 查询 app_users 表获取 app_id
+    // Use app_userid to look up app_id from app_users table
     const { data: appUser, error: appUserError } = await supabaseAdmin
       .from("app_users")
       .select("id, app_id")
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 构建请求体，只传入 app_userid（后端会通过 app_userid 查询获取所需信息）
+    // Build request body with app_userid (backend resolves remaining data)
     const requestBody: {
       app_userid: string;
       successUrl?: string;
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       app_userid,
     };
 
-    // 如果传入了回调地址，添加到请求体中
+    // Include callback URLs when provided
     if (successUrl) {
       requestBody.successUrl = successUrl;
     }
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       requestBody.cancelUrl = cancelUrl;
     }
 
-    // 服务端发起请求，绕过浏览器 CORS 限制
+    // Forward via server to avoid browser CORS restrictions
     const targetUrl = `${CONNECT_API_BASE}/api/app-payments/create`;
     console.log("Proxy app-payment request to:", targetUrl);
     console.log("Request body:", requestBody);
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 如果外部 API 返回错误状态码，也返回错误信息
+    // Propagate external API error payloads
     if (!response.ok) {
       console.log("External API error:", response.status, data);
       return NextResponse.json(
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 检查返回的数据是否为空
+    // Guard against empty responses
     if (!data || Object.keys(data).length === 0) {
       console.log("Empty response from backend");
       return NextResponse.json(

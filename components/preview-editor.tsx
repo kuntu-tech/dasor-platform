@@ -28,6 +28,8 @@ import {
   DollarSign,
   ShoppingCart,
   Trash2,
+  Eye,
+  LayoutDashboard,
 } from "lucide-react";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -109,11 +111,11 @@ export function PreviewEditor() {
     return questionMap[featureName] || `Please provide information about ${featureName}`;
   };
 
-  // 向iframe发送消息的函数
+  // Helper to post messages to the iframe
   const sendMessageToIframe = (message: string) => {
     if (iframeRef.current?.contentWindow) {
       try {
-        // 使用MCP Chat Embed API发送消息
+        // Send the payload via the MCP Chat Embed API
         iframeRef.current.contentWindow.postMessage(
           {
             type: "mcp-chat:setInput",
@@ -128,14 +130,14 @@ export function PreviewEditor() {
     }
   };
 
-  // 简化：不再需要处理 currentApp.features，只使用 selectedProblems
+  // Simplified: rely solely on selectedProblems instead of currentApp.features
   useEffect(() => {
     const stored = localStorage.getItem("currentApp");
     if (stored) {
       try {
         const app = JSON.parse(stored);
         setCurrentApp(app);
-        // 不再处理 features，因为现在使用 selectedProblems
+        // Skip feature handling since selectedProblems is the source of truth
       } catch (e) {
         console.log("Failed to parse current app", e);
       }
@@ -245,7 +247,7 @@ export function PreviewEditor() {
     };
   }, [appId, resolveMcpParam]);
 
-  // 从 localStorage 读取 selectedProblems
+  // Load selectedProblems from localStorage
   useEffect(() => {
     const stored = localStorage.getItem("selectedProblems");
     console.log("localStorage selectedProblems:", stored);
@@ -345,7 +347,7 @@ export function PreviewEditor() {
       );
     }
 
-    const currentDesign = "product-list"; // 简化设计，因为现在只有问题文本
+    const currentDesign = "product-list"; // Simplified layout since only question text is rendered
 
     if (currentDesign === "product-list") {
       return (
@@ -463,11 +465,11 @@ export function PreviewEditor() {
           </div>
 
           <div className="grid grid-cols-2 gap-8">
-            {/* 饼状图区域 */}
+            {/* Pie chart area */}
             <div className="space-y-6">
               <h3 className="text-lg font-semibold">Data Distribution Analysis</h3>
               <div className="relative w-64 h-64 mx-auto">
-                {/* 模拟饼状图 */}
+                {/* Mock pie chart visualization */}
                 <div className="relative w-full h-full">
                   <div
                     className="absolute inset-0 rounded-full border-8 border-blue-500"
@@ -504,7 +506,7 @@ export function PreviewEditor() {
               </div>
             </div>
 
-            {/* 图例和数据 */}
+            {/* Legend and data */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Detailed Data</h3>
               <div className="space-y-3">
@@ -679,119 +681,85 @@ export function PreviewEditor() {
   }
 
   return (
-    <div
-      className="h-screen flex flex-col bg-background overflow-hidden"
-      style={{
-        height: "92vh",
-        overflow: "hidden",
-        position: "fixed",
-        top: "80px",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        width: "100vw",
-      }}
-    >
-      <div className="flex-1 flex overflow-hidden">
-        <ResizablePanelGroup
-          direction="horizontal"
-          onLayout={(sizes) => {
-            setPanelLayout(sizes);
-            try {
-              localStorage.setItem("previewSplitLayout", JSON.stringify(sizes));
-            } catch {}
-            if (rightPanelRef.current) {
-              const rect = rightPanelRef.current.getBoundingClientRect();
-              setRightPanelLeft(rect.left);
-            }
-          }}
-          className="w-full h-full"
-        >
-          <ResizablePanel
-            defaultSize={(panelLayout && panelLayout[0]) || 24}
-            minSize={16}
-            maxSize={40}
-            className="flex flex-col"
-            style={{ backgroundColor: "#F2F2F7" }}
+    <div className="relative min-h-screen w-full flex bg-white">
+      <div className="shape-1"></div>
+      <div className="shape-2"></div>
+      <div
+        className="h-screen flex flex-col bg-background overflow-hidden w-full"
+        style={{
+          height: "92vh",
+          overflow: "hidden",
+          position: "fixed",
+          top: "80px",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: "100vw",
+        }}
+      >
+        <div className="flex-1 flex overflow-hidden">
+          <ResizablePanelGroup
+            direction="horizontal"
+            onLayout={(sizes) => {
+              setPanelLayout(sizes);
+              try {
+                localStorage.setItem("previewSplitLayout", JSON.stringify(sizes));
+              } catch {}
+              if (rightPanelRef.current) {
+                const rect = rightPanelRef.current.getBoundingClientRect();
+                setRightPanelLeft(rect.left);
+              }
+            }}
+            className="w-full h-full"
           >
-            <div className="px-4 py-3 flex items-center justify-between">
-              <h2 className="font-medium text-lg" style={{ color: "#8E8E93" }}>
-                Valued questions ({selectedProblems.length})
-              </h2>
-            </div>
-            <div className="flex-1 overflow-y-auto pt-0 px-3 pb-3">
-              {/* 调试信息 */}
-              {selectedProblems.length === 0 && (
-                <div className="p-4 text-center text-gray-500">
-                  <p>No questions found in localStorage</p>
-                  <p className="text-sm">Check console for debug info</p>
+            <ResizablePanel
+              defaultSize={(panelLayout && panelLayout[0]) || 24}
+              minSize={16}
+              maxSize={40}
+              className="flex flex-col glass-effect"
+            >
+              <div className="h-20 flex items-center justify-center border-b border-gray-200/30">
+                <div className="flex items-center gap-2">
+                  <LayoutDashboard className="w-8 h-8 text-indigo-500" />
+                  <span className="text-xl font-bold text-gray-800">
+                    Valued questions ({selectedProblems.length})
+                  </span>
                 </div>
-              )}
-              {selectedProblems.map((problem, index) => {
-                const isSelected = problem === selectedFeatureId;
+              </div>
+              <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
+                {/* 调试信息 */}
+                {selectedProblems.length === 0 && (
+                  <div className="p-4 text-center text-gray-500">
+                    <p>No questions found in localStorage</p>
+                    <p className="text-sm">Check console for debug info</p>
+                  </div>
+                )}
+                {selectedProblems.map((problem, index) => {
+                  const isSelected = problem === selectedFeatureId;
 
-                return (
-                  <div key={`${problem}-${index}`} className="relative">
-                    <button
-                      onClick={() => {
-                        setSelectedFeatureId(problem);
-                        // 发送问题文本到iframe
-                        sendMessageToIframe(problem);
-                      }}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setContextMenuFeatureId(problem);
-                      }}
-                      className="w-full text-left p-3 rounded-md mb-2 transition-all duration-200 hover:bg-blue-50/50"
-                      style={{
-                        backgroundColor: isSelected ? "#007AFF" : "transparent",
-                        color: isSelected ? "#FFFFFF" : "#8E8E93",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.color = "#007AFF";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.color = "#8E8E93";
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        {/* Business opportunity coin icon */}
-                        <div className="flex-shrink-0 w-4 h-4">
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 16 16"
-                            fill="currentColor"
-                          >
-                            <circle
-                              cx="8"
-                              cy="8"
-                              r="6"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1"
-                            />
-                            <path d="M4 6h8v4H4V6zm2 1v2h4V7H6z" />
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div
-                            className="font-normal text-sm truncate leading-relaxed"
-                            style={{
-                              fontFamily:
-                                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-                              letterSpacing: "-0.01em",
-                            }}
-                          >
-                            {problem}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
+                  return (
+                    <div key={`${problem}-${index}`} className="relative">
+                      <button
+                        onClick={() => {
+                          setSelectedFeatureId(problem);
+                          // Send the question text to the iframe
+                          sendMessageToIframe(problem);
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setContextMenuFeatureId(problem);
+                        }}
+                        className={`nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 w-full text-left ${
+                          isSelected
+                            ? "active bg-white/90 text-gray-900 shadow-md"
+                            : "text-gray-600 hover:bg-white/50"
+                        }`}
+                      >
+                        <Eye className="w-5 h-5 flex-shrink-0" />
+                        <span className="text-sm font-medium truncate">
+                          {problem}
+                        </span>
+                      </button>
 
                     <Popover
                       open={contextMenuFeatureId === problem}
@@ -812,7 +780,7 @@ export function PreviewEditor() {
                           size="sm"
                           className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => {
-                            // 从 selectedProblems 中移除这个问题
+                            // Remove the question from selectedProblems
                             const updatedProblems = selectedProblems.filter(
                               (p) => p !== problem
                             );
@@ -823,7 +791,7 @@ export function PreviewEditor() {
                             );
                             setContextMenuFeatureId(null);
 
-                            // 如果删除的是当前选中的问题，选择下一个
+                            // If the removed item was selected, move selection to the next
                             if (problem === selectedFeatureId) {
                               setSelectedFeatureId(updatedProblems[0] || "");
                             }
@@ -837,8 +805,8 @@ export function PreviewEditor() {
                   </div>
                 );
               })}
-            </div>
-          </ResizablePanel>
+              </nav>
+            </ResizablePanel>
           <ResizableHandle
             withHandle
             className="bg-transparent after:bg-transparent hover:after:bg-transparent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 opacity-0"
@@ -868,60 +836,61 @@ export function PreviewEditor() {
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
-      </div>
+        </div>
 
-      {/* Save Dialog */}
-      <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Save Your App</DialogTitle>
-            <DialogDescription>
-              Please provide a name and description for your app before saving.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="app-name" className="text-sm font-medium">
-                App Name
-              </label>
-              <Input
-                id="app-name"
-                placeholder="Enter your app name"
-                value={saveFormData.name}
-                onChange={(e) =>
-                  setSaveFormData((prev) => ({ ...prev, name: e.target.value }))
-                }
-              />
+        {/* Save Dialog */}
+        <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Save Your App</DialogTitle>
+              <DialogDescription>
+                Please provide a name and description for your app before saving.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="app-name" className="text-sm font-medium">
+                  App Name
+                </label>
+                <Input
+                  id="app-name"
+                  placeholder="Enter your app name"
+                  value={saveFormData.name}
+                  onChange={(e) =>
+                    setSaveFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="app-description" className="text-sm font-medium">
+                  Description
+                </label>
+                <Textarea
+                  id="app-description"
+                  placeholder="Enter a description for your app"
+                  value={saveFormData.description}
+                  onChange={(e) =>
+                    setSaveFormData((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                  rows={3}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <label htmlFor="app-description" className="text-sm font-medium">
-                Description
-              </label>
-              <Textarea
-                id="app-description"
-                placeholder="Enter a description for your app"
-                value={saveFormData.description}
-                onChange={(e) =>
-                  setSaveFormData((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsSaveDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleSaveSubmit}>Save App</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsSaveDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveSubmit}>Save App</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }

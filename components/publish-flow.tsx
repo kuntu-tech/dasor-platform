@@ -18,6 +18,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CheckCircle2, Copy, Check, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/AuthProvider";
+import { triggerConfettiFireworks } from "@/components/ui/confetti-fireworks";
 import {
   getVendorStatus,
   type VendorStatusResponse,
@@ -173,7 +174,7 @@ export function PublishFlow() {
       }
       return payload?.data || null;
     } catch (err) {
-      console.warn("从数据库加载应用数据失败:", err);
+      console.warn("Failed to load app data from database:", err);
       return null;
     }
   }, [appId]);
@@ -182,7 +183,7 @@ export function PublishFlow() {
     (appData: any) => {
       if (!appData || metadataApplied) return;
 
-      // 从数据库的 app_meta_info 中提取数据
+      // Extract data from app_meta_info stored in the database
       const appMetaInfo = appData?.app_meta_info;
       if (appMetaInfo && typeof appMetaInfo === "object") {
         const chatMeta =
@@ -209,7 +210,7 @@ export function PublishFlow() {
         }
       }
 
-      // 如果 app_meta_info 中没有，则使用数据库中的 name 和 description
+      // Fallback to database name and description when app_meta_info is missing
       setAppName((prev) => {
         if (prev) return prev;
         if (typeof appData?.name === "string" && appData.name.trim()) {
@@ -241,11 +242,15 @@ export function PublishFlow() {
         if (appData) {
           setAppDataFromDb(appData);
           applyMetadataDefaults(appData);
+          // 如果应用已发布，自动显示成功页面
+          if (appData.status === "published") {
+            setIsPublished(true);
+          }
         }
       })
       .catch((err) => {
         if ((err as Error).name === "AbortError") return;
-        console.warn("加载应用数据失败:", err);
+        console.warn("Failed to load app data:", err);
       });
 
     return () => controller.abort();
@@ -391,7 +396,7 @@ export function PublishFlow() {
       return;
     }
     try {
-      // 从数据库读取的 app_meta_info，如果没有则使用空对象
+      // app_meta_info retrieved from the database; default to empty object when absent
       let appMetaInfo: any = {};
       if (
         appDataFromDb?.app_meta_info &&
@@ -400,7 +405,7 @@ export function PublishFlow() {
         appMetaInfo = { ...appDataFromDb.app_meta_info };
       }
 
-      // 更新 chatMeta 中的 name 和 description
+      // Update chatMeta name and description fields
       const chatMeta =
         appMetaInfo.chatAppMeta ||
         appMetaInfo.chatappmeta ||
@@ -428,7 +433,7 @@ export function PublishFlow() {
           build_status: "success",
           deployment_status: "success",
           published_at: new Date().toISOString(),
-          // 不显式传 connection_id，后端将为当前用户选择最近的激活连接
+          // Omit connection_id so the backend selects the most recent active connection
           app_meta_info: appMetaInfo,
         }),
       });
@@ -437,7 +442,7 @@ export function PublishFlow() {
 
       if (!response.ok) {
         if (response.status === 409) {
-          // 重名错误，显示特定提示
+          // Surface duplicate-name errors with specific messaging
           alert(
             data.error || "App name already exists. Please use a different name"
           );
@@ -446,10 +451,10 @@ export function PublishFlow() {
         throw new Error(data.error || "Save failed");
       }
 
-      console.log("应用保存成功:", data);
+      console.log("Application saved successfully:", data);
       setIsPublished(true);
     } catch (error) {
-      console.log("应用保存失败:", error);
+      console.log("Application save failed:", error);
       const message =
         error instanceof Error && error.message
           ? error.message
@@ -458,14 +463,34 @@ export function PublishFlow() {
     }
   };
 
+  useEffect(() => {
+    if (!isPublished) return;
+
+    // 延迟一小段时间确保页面完全渲染后再触发烟花
+    let cleanup: (() => void) | undefined;
+    const timer = setTimeout(() => {
+      cleanup = triggerConfettiFireworks({
+        duration: 1000,
+        intervalDelay: 200,
+      });
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, [isPublished]);
+
   const handleContinueToGenerate = async () => {
     if (!appId || !user?.id) {
-      console.error("Missing appId or user id");
+      console.log("Missing appId or user id");
       return;
     }
 
     try {
-      // 获取 app 数据
+      // Fetch app data
       const response = await fetch(`/api/apps/${appId}`, { cache: "no-store" });
       const payload = await response.json();
 
@@ -477,17 +502,17 @@ export function PublishFlow() {
       const connectionId = app.connection_id;
 
       // if (!connectionId) {
-      //   console.error("App does not have connection_id");
+      //   console.log("App does not have connection_id");
       //   alert(
       //     "App does not have a connection. Please connect a database first."
       //   );
       //   return;
       // }
 
-      // 从 app 的 generator_meta 或 app_meta_info 中获取 task_id
+      // Retrieve task_id from generator_meta or app_meta_info
       let taskId = "";
 
-      // 尝试从 app_meta_info 中获取
+      // Attempt to read from app_meta_info
       if (app.app_meta_info && typeof app.app_meta_info === "object") {
         taskId = app.app_meta_info.task_id;
         // if (runResult && runResult.task_id) {
@@ -495,7 +520,7 @@ export function PublishFlow() {
         // }
       }
 
-      // 如果 app 中没有 task_id，尝试从 localStorage 读取
+      // If no task_id exists on the app, try reading from localStorage
       // if (!taskId) {
       //   const runResultStr = localStorage.getItem("run_result");
       //   if (runResultStr) {
@@ -515,11 +540,11 @@ export function PublishFlow() {
         return;
       }
 
-      // 通过 task_id、run_id=r_1、user_id 获取 run_result 数据
+      // Fetch run_result data by task_id, run_id=r_1, and user_id
       let runId = "r_1";
       let runResult = null;
 
-      // 首先尝试获取 run_id=r_1 的数据
+      // First try run_id=r_1
       console.log(
         `Attempting to fetch run_result for run_id=${runId}, task_id=${taskId}, user_id=${user.id}`
       );
@@ -536,13 +561,13 @@ export function PublishFlow() {
         const runResultData = await runResultResponse.json();
         console.log("API response for r_1:", runResultData);
 
-        // API 返回的数据结构是 { success: true, data: run_result }
+        // API returns data as { success: true, data: run_result }
         if (runResultData.data && runResultData.data !== null) {
           runResult = runResultData.data;
         }
       }
 
-      // 如果 r_1 不存在，尝试获取最新的 run_id
+      // If r_1 is missing, fallback to the latest run_id
       if (!runResult) {
         console.log(
           `run_id=r_1 not found, attempting to fetch latest run_result for task_id=${taskId}`
@@ -561,11 +586,11 @@ export function PublishFlow() {
           console.log("Available run_ids:", runResultsData);
 
           if (runResultsData.data && runResultsData.data.length > 0) {
-            // 获取最新的 run_id（按创建时间排序，第一个是最新的）
+            // Retrieve the latest run_id (sorted by creation time, first is newest)
             const latestRunId = runResultsData.data[0].run_id;
             console.log(`Using latest run_id: ${latestRunId} instead of r_1`);
 
-            // 使用最新的 run_id 获取数据
+            // Use the latest run_id to query data
             runResultResponse = await fetch(
               `/api/run-result/${latestRunId}?user_id=${user.id}&task_id=${taskId}`,
               {
@@ -585,9 +610,9 @@ export function PublishFlow() {
         }
       }
 
-      // 如果仍然没有数据，抛出错误
+      // If still empty, raise an error
       // if (!runResult) {
-      //   console.error(
+      //   console.log(
       //     `No run_result found for task_id=${taskId}, user_id=${user.id}`
       //   );
       //   throw new Error(
@@ -595,16 +620,16 @@ export function PublishFlow() {
       //   );
       // }
 
-      // 保存到 localStorage
+      // Persist to localStorage
       localStorage.setItem("run_result", JSON.stringify(runResult));
 
-      // 提取 segments 数据
+      // Extract segments data
       if (runResult.segments) {
         localStorage.setItem("marketsData", JSON.stringify(runResult.segments));
       }
 
-      // 如果有 standalJson，也保存（standalJson 通常不在 run_result 中，需要从其他地方获取）
-      // 尝试从 localStorage 读取已有的 standalJson
+      // Save standalJson when available (it usually comes from elsewhere, not run_result)
+      // Try to read standalJson from localStorage when present
       const existingStandalJson = localStorage.getItem("standalJson");
       if (!existingStandalJson && runResult.standalJson) {
         localStorage.setItem(
@@ -613,11 +638,11 @@ export function PublishFlow() {
         );
       }
 
-      // 保存 connection 数据（如果需要）
+      // Persist connection data when required
       const dbConnectionDataStr = localStorage.getItem("dbConnectionData");
       if (!dbConnectionDataStr) {
-        // 如果没有 connection 数据，尝试从 app 的 connection_id 获取
-        // 这里可以保存 connectionId 以便后续使用
+        // If missing, attempt to load using the app's connection_id
+        // Store connectionId for future usage
         const dbConnectionData = {
           connectionId: connectionId,
         };
@@ -627,13 +652,13 @@ export function PublishFlow() {
         );
       }
 
-      // 设置标志，告诉 ConnectFlow 直接跳转到 results 步骤
+      // Flag ConnectFlow to jump directly to the results step
       localStorage.setItem("skipToBusinessInsight", "true");
 
-      // 跳转到 connect 页面
+      // Navigate to the connect page
       router.push("/connect");
     } catch (error) {
-      console.error("Failed to continue to generate:", error);
+      console.log("Failed to continue to generate:", error);
       alert("Failed to load data. Please try again.");
     }
   };
@@ -922,6 +947,9 @@ export function PublishFlow() {
                       </p>
                     </div>
                   </div>
+                  <p className="text-sm text-muted-foreground">
+                    {monetizationEligibility.freeReason}
+                  </p>
                   {!vendorStatusLoading &&
                     monetizationEligibility.subscriptionReason &&
                     monetizationEligibility.freeReason !==
@@ -953,41 +981,47 @@ export function PublishFlow() {
             </div>
 
             {monetization === "subscription" && (
-              <div className="space-y-2">
-                <Label htmlFor="price">Subscription Price (Monthly)</Label>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">$</span>
-                  <Input
-                    id="price"
-                    type="number"
-                    placeholder="9.9"
-                    className="flex-1"
-                    value={paymentPrice}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      // 允许空字符串，这样用户可以删除所有内容
-                      if (value === "") {
-                        setPaymentPrice("");
-                      } else {
-                        // 只允许数字和小数点
-                        const numValue = value.replace(/[^0-9.]/g, "");
-                        setPaymentPrice(numValue);
-                      }
-                    }}
-                    onBlur={(e) => {
-                      // 失去焦点时，如果为空或无效，设置为 "0"
-                      const value = e.target.value;
-                      if (
-                        value === "" ||
-                        isNaN(Number(value)) ||
-                        Number(value) < 0
-                      ) {
-                        setPaymentPrice("0");
-                      }
-                    }}
-                  />
+              <>
+                <p className="text-sm text-destructive">
+                  You&apos;ll need to set &quot;Authentication -&gt; OAuth&quot;
+                  on ChatGPT in order to receive payments.
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="price">Subscription Price (Monthly)</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">$</span>
+                    <Input
+                      id="price"
+                      type="number"
+                      placeholder="9.9"
+                      className="flex-1"
+                      value={paymentPrice}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // 允许空字符串，这样用户可以删除所有内容
+                        if (value === "") {
+                          setPaymentPrice("");
+                        } else {
+                          // 只允许数字和小数点
+                          const numValue = value.replace(/[^0-9.]/g, "");
+                          setPaymentPrice(numValue);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // 失去焦点时，如果为空或无效，设置为 "0"
+                        const value = e.target.value;
+                        if (
+                          value === "" ||
+                          isNaN(Number(value)) ||
+                          Number(value) < 0
+                        ) {
+                          setPaymentPrice("0");
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             <Button

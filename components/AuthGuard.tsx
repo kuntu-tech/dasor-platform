@@ -36,7 +36,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     return publicPrefixes.some((prefix) => pathname.startsWith(prefix));
   }, [pathname]);
 
-  // 🚦 主守卫逻辑
+  // 🚦 Primary guard logic
   useEffect(() => {
     if (isPublicPath || loading || isVerifyingSignOut) return;
 
@@ -68,10 +68,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
         }
       };
 
-      // ✅ 第一次延迟验证
+      // ✅ Initial delayed verification
       verifyTimer = setTimeout(verifyAndRedirect, 800);
 
-      // ✅ 硬超时兜底：防止永远卡住
+      // ✅ Hard timeout fallback to avoid indefinite waiting
       hardRedirectTimer = setTimeout(() => {
         if (!cancelled) {
           console.warn(
@@ -89,25 +89,25 @@ export function AuthGuard({ children }: AuthGuardProps) {
     };
   }, [user, loading, isVerifyingSignOut, isPublicPath, router]);
 
-  // ✅ 二次检测逻辑：如果用户恢复但之前 UI 卡死，自动刷新
+  // ✅ Secondary check: auto-refresh if user recovers but UI was stuck
   useEffect(() => {
     if (!loading && user) {
       console.log("✅ AuthGuard detected session recovery, refreshing page");
-      router.refresh(); // 重新渲染受保护内容
+      router.refresh(); // Re-render protected content
     }
   }, [user, loading, router]);
 
-  // ✅ 登录后留在 login 页，自动跳首页
+  // ✅ Redirect to homepage if user remains on login after sign-in
   useEffect(() => {
     if (!loading && user && pathname === "/auth/login") {
       router.replace("/");
     }
   }, [loading, user, pathname, router]);
 
-  // ✅ 公共路径直接渲染
+  // ✅ Allow public routes to render directly
   if (isPublicPath) return <>{children}</>;
 
-  // ✅ Loading 或验证中状态
+  // ✅ Loading or verification-in-progress state
   if (loading || isVerifyingSignOut) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -119,7 +119,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // ✅ 无用户时显示等待（仍可能恢复中）
+  // ✅ Show waiting state when user is absent (recovery may occur)
   if (!user) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -131,6 +131,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // ✅ 一切正常
+  // ✅ Everything looks good
   return <>{children}</>;
 }

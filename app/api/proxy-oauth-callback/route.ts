@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing code or state" }, { status: 400 });
     }
 
-    // 服务端发起请求，绕过浏览器限制
+    // Forward request server-side to bypass browser restrictions
     const targetUrl = `${CONNECT_API_BASE}/api/oauth/callback?code=${code}&state=${state}`;
     console.log("Proxy forwarding to:", targetUrl);
     console.log("Proxy headers:", {

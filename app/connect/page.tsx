@@ -19,7 +19,7 @@ export default function ConnectPage() {
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
 
-  // 处理用户认证和初始订阅检查
+  // Handle user authentication and initial subscription validation
   useEffect(() => {
     if (loading) {
       return;
@@ -32,26 +32,52 @@ export default function ConnectPage() {
       return;
     }
 
-    // 如果订阅状态已缓存，直接使用（不显示 loading，立即允许访问）
+    // Check if subscription has already been validated in this session
+    const subscriptionCheckedKey = `subscription_checked_${user.id}`;
+    const hasCheckedInSession =
+      sessionStorage.getItem(subscriptionCheckedKey) === "true";
+
+    // Use cached subscription status when available
     if (subscriptionStatus) {
       setChecking(false);
       if (subscriptionStatus.hasActiveSubscription) {
         setAllowed(true);
+        // Mark as checked in session
+        sessionStorage.setItem(subscriptionCheckedKey, "true");
       } else {
         setAllowed(false);
-        router.replace("/?subscription_required=1");
+        // Only redirect if not already checked in this session
+        if (!hasCheckedInSession) {
+          sessionStorage.setItem(subscriptionCheckedKey, "true");
+          router.replace("/?subscription_required=1");
+        }
       }
       return;
     }
 
-    // 如果订阅状态不存在且不在加载中，才需要调用 API
-    // 这种情况应该很少见，因为登录时已经检查过了
+    // Only check subscription on first visit (not on refresh)
+    // If subscription was already checked in this session, allow access
+    if (hasCheckedInSession) {
+      setChecking(false);
+      setAllowed(true);
+      return;
+    }
+
+    // Only call the API when status is missing, not loading, and not checked in session
+    // This ensures we only check once per login session
     if (!subscriptionLoading) {
-      refreshSubscriptionStatus().catch((error) => {
-        console.log("Subscription check failed:", error);
-        setChecking(false);
-        router.replace("/?subscription_required=1");
-      });
+      refreshSubscriptionStatus()
+        .then(() => {
+          // Mark as checked after successful check
+          sessionStorage.setItem(subscriptionCheckedKey, "true");
+        })
+        .catch((error) => {
+          console.log("Subscription check failed:", error);
+          setChecking(false);
+          // Mark as checked even on error to prevent repeated checks
+          sessionStorage.setItem(subscriptionCheckedKey, "true");
+          router.replace("/?subscription_required=1");
+        });
     }
   }, [
     user?.id,
@@ -62,18 +88,33 @@ export default function ConnectPage() {
     router,
   ]);
 
-  // 处理订阅状态变化（当订阅状态从 null 变为有值时）
+  // React to subscription changes when status transitions from null to a value
   useEffect(() => {
     if (!user?.id || loading || !subscriptionStatus) {
       return;
     }
 
+    // Check if subscription has already been validated in this session
+    const subscriptionCheckedKey = `subscription_checked_${user.id}`;
+    const hasCheckedInSession =
+      sessionStorage.getItem(subscriptionCheckedKey) === "true";
+
     setChecking(false);
     if (subscriptionStatus.hasActiveSubscription) {
       setAllowed(true);
+      // Mark as checked in session
+      sessionStorage.setItem(subscriptionCheckedKey, "true");
     } else {
       setAllowed(false);
-      router.replace("/?subscription_required=1");
+      // Only redirect with parameter if not already checked in this session
+      // This prevents repeated popup on page refresh
+      if (!hasCheckedInSession) {
+        sessionStorage.setItem(subscriptionCheckedKey, "true");
+        router.replace("/?subscription_required=1");
+      } else {
+        // If already checked, redirect to home without parameter to avoid popup
+        router.replace("/");
+      }
     }
   }, [subscriptionStatus, user?.id, loading, router]);
 

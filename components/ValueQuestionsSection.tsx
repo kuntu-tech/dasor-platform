@@ -278,7 +278,7 @@ export function ValueQuestionsSection({
     }
   );
 
-  // 将外部 segmentsData 转换为内部所需结构
+  // Transform external segmentsData into the required internal shape
   useEffect(() => {
     console.log("segmentsData", segmentsData);
     const mappedSegments = transformSegments(segmentsData);
@@ -297,7 +297,7 @@ export function ValueQuestionsSection({
     });
   }, [segmentsData]);
 
-  // 当切换 Tab 时，若外部数据提供了每个 segment 的 analysis，则同步更新下方分析面板
+  // Sync the analysis panel when switching tabs if external data contains per-segment analysis
   useEffect(() => {
     if (!segmentsData || segmentsData.length === 0 || !activeTab) {
       setCurrentAnalysisData([]);
@@ -342,7 +342,7 @@ export function ValueQuestionsSection({
     console.log("activeTab", activeTab);
     console.log("currentSegments", currentSegments);
 
-    // 根据 activeTab 过滤 run_result 中的 segments，只保留匹配的 segment
+    // Filter run_result segments using activeTab and keep the matching one
     if (activeTab && typeof window !== "undefined") {
       try {
         const runResultStr = localStorage.getItem("run_result");
@@ -350,11 +350,11 @@ export function ValueQuestionsSection({
           const runResult = JSON.parse(runResultStr);
 
           if (runResult.segments && Array.isArray(runResult.segments)) {
-            // 根据 activeTab 匹配 segmentId
-            // activeTab 可能是 segmentId（如 "seg_01"）或者映射后的 id
-            // 需要找到对应的 segmentId
+            // Resolve the matching segmentId from activeTab
+            // activeTab may be a segmentId (e.g. "seg_01") or a derived id
+            // Determine the appropriate segmentId
             const matchedSegment = runResult.segments.find((seg: any) => {
-              // 尝试多种匹配方式
+              // Try multiple matching approaches
               const segId = seg.segmentId || seg.id;
               const segName = seg.name;
               return (
@@ -368,34 +368,34 @@ export function ValueQuestionsSection({
               );
             });
 
-            // 如果找到了匹配的 segment，只保留这一个
+            // If a matching segment is found, keep only that entry
             if (matchedSegment) {
               const filteredRunResult = {
                 ...runResult,
                 segments: [matchedSegment],
               };
 
-              // 更新 localStorage 中的 run_result
+              // Persist the filtered run_result to localStorage
               localStorage.setItem(
                 "run_result_publish",
                 JSON.stringify(filteredRunResult)
               );
               console.log(
-                "已过滤 run_result，只保留 segmentId:",
+                "Filtered run_result, retained segmentId:",
                 matchedSegment.segmentId || matchedSegment.id
               );
             } else {
               console.warn(
-                "未找到匹配的 segment，activeTab:",
+                "No matching segment for activeTab:",
                 activeTab,
-                "可用 segments:",
+                "Available segments:",
                 runResult.segments.map((s: any) => s.segmentId || s.id)
               );
             }
           }
         }
       } catch (e) {
-        console.log("过滤 run_result 时出错:", e);
+        console.log("Error filtering run_result:", e);
       }
     }
 
@@ -407,19 +407,19 @@ export function ValueQuestionsSection({
     } catch {}
   }, [activeTab, activeSegment, currentSegments]);
 
-  // 根据 activeTab 筛选 standalJson 中 segments 对应 segmentId 的数据，提取 valueQuestions 的 question 和 sql
+  // Filter standalJson segments by activeTab and extract valueQuestions (question/sql)
   useEffect(() => {
     if (!activeTab) return;
     const standalJsonStr = localStorage.getItem("standalJson");
     let standalJson: any = null;
     try {
-      // 从 localStorage 获取 standalJson
+      // Read standalJson from localStorage
       let segments: any[] = [];
       if (typeof window !== "undefined") {
         if (standalJsonStr) {
           try {
             standalJson = JSON.parse(standalJsonStr);
-            // 支持多种数据结构
+            // Support flexible data structures
             if (standalJson.segments && Array.isArray(standalJson.segments)) {
               segments = standalJson.segments;
             } else if (
@@ -439,12 +439,11 @@ export function ValueQuestionsSection({
         return;
       }
 
-      // 在 segments 中查找对应 activeTab 的 segment
-      // activeTab 可能是 segmentId、id 或 name
+      // Locate the segment matching activeTab (segmentId, id, or name)
       const matchedSegment = segments.find((seg: any) => {
         const segId = seg.segmentId || seg.id;
         const segName = seg.name;
-        // 检查是否匹配 activeTab（可能是 id、segmentId 或 name）
+        // Check whether this segment matches activeTab (id, segmentId, or name)
         return (
           segId === activeTab ||
           segName === activeTab ||
@@ -458,17 +457,18 @@ export function ValueQuestionsSection({
         return;
       }
 
-      // 提取 valueQuestions 中的 question 和 sql，格式化为指定格式
+      // Extract question/sql pairs in the expected format
       const questionsWithSql = matchedSegment.valueQuestions.map((q: any) => {
         return {
           query: q.question || q.text || "",
           sql: q.sql || "",
+          sample_data: q.sample_data || []
         };
       });
 
       console.log("Extracted questions with SQL:", questionsWithSql);
 
-      // 存储到 localStorage
+      // Save to localStorage
       if (typeof window !== "undefined") {
         try {
           const resolvedAnchorIndex =

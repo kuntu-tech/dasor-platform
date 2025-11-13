@@ -25,7 +25,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
   const refreshUrl = returnUrl;
   const redirectUri = useMemo(() => `${window.location.origin}/oauth/callback`, []);
 
-  // OAuth 授权流程
+  // OAuth authorization flow
   const handleOAuthConnect = async () => {
     if (!loginEmail) {
       console.log(user,'user')
@@ -34,7 +34,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
     }
     try {
       setLoading(true);
-      // 保存当前页面路径，以便 OAuth 回调后返回
+      // Preserve current path so OAuth callback can redirect back
       if (typeof window !== "undefined") {
         sessionStorage.setItem("oauth_return_path", window.location.pathname);
       }
@@ -47,7 +47,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
         alert(resp.error || "Failed to start OAuth");
         return;
       }
-      // 跳转到 Stripe 授权页面
+      // Redirect to Stripe OAuth page
       window.location.href = resp.data!.authUrl;
     } catch (err) {
       console.log("OAuth start error:", err);
@@ -57,7 +57,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
     }
   };
 
-  // 黑色按钮：直接开户，无需输入，但始终传真实邮箱和users.id
+  // Black button: auto onboarding, always sends real email and users.id
   const handleStartOnboarding = async () => {
     if (!loginEmail) {
       alert("Login required: missing email");
@@ -82,7 +82,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
     }
   };
 
-  // 手动输入账户 ID 关联（使用 OAuth link API）
+  // Manually link by entering Account ID (uses OAuth link API)
   const handleAccountIdConnect = async () => {
     if (!accountId.trim()) {
       setErrors((prev) => ({ ...prev, accountId: "Please enter your Stripe Account ID" }));
@@ -108,7 +108,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
     }
   };
 
-  // 灰色按钮：用已有Stripe Account ID绑定，始终传真实邮箱和users.id（使用 bind API）
+  // Gray button: bind existing Stripe Account ID, still sends real email and users.id (bind API)
   const handleBindWithAccountId = async () => {
     if (!accountId.trim()) {
       setErrors((prev) => ({ ...prev, accountId: "Please enter your Stripe Account ID" }));
@@ -134,7 +134,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
 
   return (
     <div>
-      {/* 黑色按钮自动开户/引导注册 */}
+      {/* Black button for automatic onboarding / registration */}
       <div className="max-w-2xl rounded-xl border border-border bg-card p-8">
         <Button onClick={handleOAuthConnect} className="w-full gap-2 bg-black text-white" size="lg" disabled={loading}>
           Connect with Stripe (OAuth)
@@ -150,7 +150,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
           </div>
         </div>
 
-        {/* 账号ID方式 */}
+        {/* Account ID entry option */}
         <div className="space-y-3">
           <Input
             value={accountId}

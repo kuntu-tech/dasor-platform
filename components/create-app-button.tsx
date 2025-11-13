@@ -31,7 +31,7 @@ export function CreateAppButton({
   const [currentSubscriptionStatus, setCurrentSubscriptionStatus] =
     useState(subscriptionStatus);
 
-  // 同步订阅状态
+  // Synchronize subscription status
   useEffect(() => {
     setCurrentSubscriptionStatus(subscriptionStatus);
   }, [subscriptionStatus]);
@@ -55,14 +55,34 @@ export function CreateAppButton({
     try {
       setChecking(true);
 
-      // 如果订阅状态已缓存，直接使用
+      // Check if subscription has already been checked in this session
+      const subscriptionCheckedKey = `subscription_checked_${user.id}`;
+      const subscriptionPopupKey = `subscription_popup_shown_${user.id}`;
+      const hasCheckedInSession =
+        typeof window !== "undefined" &&
+        sessionStorage.getItem(subscriptionCheckedKey) === "true";
+      const hasShownPopup =
+        typeof window !== "undefined" &&
+        sessionStorage.getItem(subscriptionPopupKey) === "true";
+
+      // Use cached subscription status when available
       if (currentSubscriptionStatus) {
         if (currentSubscriptionStatus.hasActiveSubscription) {
           router.push(successHref);
           return;
         } else {
+          // If popup already shown, don't show again
+          if (hasShownPopup) {
+            // User already knows they need subscription, just prevent action
+            return;
+          }
+          // Show popup only if not shown before
           if (typeof onRequireSubscription === "function") {
             onRequireSubscription();
+            // Mark popup as shown
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem(subscriptionPopupKey, "true");
+            }
           } else {
             alert("You need an active subscription to continue.");
           }
@@ -70,9 +90,67 @@ export function CreateAppButton({
         }
       }
 
-      // 如果订阅状态未加载，等待加载完成
-      if (subscriptionLoading) {
-        // 等待订阅状态加载完成（最多等待3秒）
+      // If subscription was already checked in this session, use cached status from AuthProvider
+      // Don't make another API call
+      if (hasCheckedInSession) {
+        // Wait for subscription status to load if it's currently loading
+        if (subscriptionLoading) {
+          let waitCount = 0;
+          while (subscriptionLoading && waitCount < 30) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            waitCount++;
+          }
+          // Re-check status after waiting
+          const updatedStatus = currentSubscriptionStatus || subscriptionStatus;
+          if (updatedStatus?.hasActiveSubscription) {
+            router.push(successHref);
+            return;
+          }
+        }
+
+        // Use the status from AuthProvider (should be cached)
+        const finalStatus = currentSubscriptionStatus || subscriptionStatus;
+        if (finalStatus?.hasActiveSubscription) {
+          router.push(successHref);
+          return;
+        } else if (finalStatus) {
+          // Status exists but no active subscription
+          // If popup already shown, don't show again
+          if (hasShownPopup) {
+            return;
+          }
+          // Show popup only if not shown before
+          if (typeof onRequireSubscription === "function") {
+            onRequireSubscription();
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem(subscriptionPopupKey, "true");
+            }
+          } else {
+            alert("You need an active subscription to continue.");
+          }
+          return;
+        }
+        // If status is still null after waiting and already checked, don't make another API call
+        // Just prevent action (user should already know they need subscription)
+        if (!finalStatus) {
+          // Status not available but already checked - don't show popup again
+          if (hasShownPopup) {
+            return;
+          }
+          // If popup not shown yet, show it once
+          if (typeof onRequireSubscription === "function") {
+            onRequireSubscription();
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem(subscriptionPopupKey, "true");
+            }
+          }
+          return;
+        }
+      }
+
+      // Wait for subscription status to load when missing (only if not checked in session)
+      if (!hasCheckedInSession && subscriptionLoading) {
+        // Await up to 3 seconds for subscription status resolution
         let waitCount = 0;
         while (subscriptionLoading && waitCount < 30) {
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -80,30 +158,54 @@ export function CreateAppButton({
         }
       }
 
-      // 如果还是没有订阅状态，强制刷新
-      if (!currentSubscriptionStatus && !subscriptionStatus) {
+      // Only call API if status is still unavailable and not checked in session
+      if (
+        !hasCheckedInSession &&
+        !currentSubscriptionStatus &&
+        !subscriptionStatus
+      ) {
         await refreshSubscriptionStatus();
-        // 等待状态更新（给React状态更新和useEffect执行时间）
+        // Allow time for React state updates and useEffect execution
         await new Promise((resolve) => setTimeout(resolve, 300));
       }
 
-      // 使用最新的订阅状态（优先使用currentSubscriptionStatus，因为它会通过useEffect自动同步）
+      // Prioritize currentSubscriptionStatus because it auto-syncs via useEffect
       const finalStatus = currentSubscriptionStatus || subscriptionStatus;
       if (finalStatus?.hasActiveSubscription) {
         router.push(successHref);
         return;
       }
 
+      // If popup already shown, don't show again
+      if (hasShownPopup) {
+        // User already knows they need subscription, just prevent action
+        return;
+      }
+
+      // Show popup only if not shown before
       if (typeof onRequireSubscription === "function") {
         onRequireSubscription();
+        // Mark popup as shown
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(subscriptionPopupKey, "true");
+        }
       } else {
         alert("You need an active subscription to continue.");
       }
     } catch (error) {
       console.log("Subscription check failed:", error);
-      if (typeof onRequireSubscription === "function") {
+      const subscriptionPopupKey = `subscription_popup_shown_${user.id}`;
+      const hasShownPopup =
+        typeof window !== "undefined" &&
+        sessionStorage.getItem(subscriptionPopupKey) === "true";
+
+      // If popup already shown, don't show again
+      if (!hasShownPopup && typeof onRequireSubscription === "function") {
         onRequireSubscription();
-      } else {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(subscriptionPopupKey, "true");
+        }
+      } else if (!hasShownPopup) {
         alert("Unable to verify your subscription. Please try again later.");
       }
     } finally {

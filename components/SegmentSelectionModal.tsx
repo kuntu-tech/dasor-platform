@@ -44,8 +44,10 @@ export function SegmentSelectionModal({
     }
   };
   
-  const handleConfirm = () => {
-    if (mode === 'multiSelect' && selectedSegments.length > 0) {
+  const handleConfirm = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    e?.preventDefault();
+    if (mode === 'multiSelect' && selectedSegments.length >= 2) {
       onConfirm(selectedSegments);
     } else if (mode === 'select' && selectedSegment) {
       onConfirm(selectedSegment);
@@ -53,38 +55,55 @@ export function SegmentSelectionModal({
       onConfirm(inputValue);
     }
   };
-  const handleCancel = () => {
+  const handleCancel = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    e?.preventDefault();
     if (onCancel) {
       onCancel();
     }
     onClose();
   };
   return <AnimatePresence>
-      {isOpen && <>
+      {isOpen && (
+        <>
           {/* Backdrop */}
-          <motion.div initial={{
-        opacity: 0
-      }} animate={{
-        opacity: 1
-      }} exit={{
-        opacity: 0
-      }} onClick={onClose} className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50" />
+          <motion.div 
+            key="backdrop"
+            initial={{
+              opacity: 0
+            }} 
+            animate={{
+              opacity: 1
+            }} 
+            exit={{
+              opacity: 0
+            }} 
+            onClick={onClose} 
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50" 
+          />
           {/* Modal */}
-          <motion.div initial={{
-        opacity: 0,
-        scale: 0.95,
-        y: 20
-      }} animate={{
-        opacity: 1,
-        scale: 1,
-        y: 0
-      }} exit={{
-        opacity: 0,
-        scale: 0.95,
-        y: 20
-      }} transition={{
-        duration: 0.2
-      }} className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[80vh]">
+          <motion.div 
+            key="modal"
+            initial={{
+              opacity: 0,
+              scale: 0.95,
+              y: 20
+            }} 
+            animate={{
+              opacity: 1,
+              scale: 1,
+              y: 0
+            }} 
+            exit={{
+              opacity: 0,
+              scale: 0.95,
+              y: 20
+            }} 
+            transition={{
+              duration: 0.2
+            }} 
+            onClick={(e) => e.stopPropagation()}
+            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[80vh]">
             {/* Header */}
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
               <h2 className="text-xl font-semibold text-gray-900">
@@ -173,6 +192,7 @@ export function SegmentSelectionModal({
                 </button>
                 <button 
                   onClick={handleConfirm} 
+                  type="button"
                   disabled={
                     mode === 'multiSelect' 
                       ? selectedSegments.length < 2 
@@ -191,6 +211,7 @@ export function SegmentSelectionModal({
               </div>
             </div>
           </motion.div>
-        </>}
+        </>
+      )}
     </AnimatePresence>;
 }
