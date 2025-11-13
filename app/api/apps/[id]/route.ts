@@ -176,7 +176,7 @@ async function handleUpdate(
     // 获取当前 app 信息，用于后续检查
     const { data: currentApp, error: fetchError } = await supabaseAdmin
       .from("apps")
-      .select("id, user_id, name, mcp_server_ids")
+      .select("id, user_id, name, mcp_server_ids, app_web_link")
       .eq("id", appId)
       .maybeSingle();
 
@@ -240,6 +240,7 @@ async function handleUpdate(
       "published_at",
       "app_meta_info",
       "mcp_server_ids",
+      "app_web_link",
     ];
 
     const payload: Record<string, any> = {};
@@ -263,6 +264,18 @@ async function handleUpdate(
         }
       } catch (e) {
         console.warn("Failed to parse app_meta_info", e);
+      }
+    }
+
+    // 如果更新了 name，自动生成并存储域名到 app_web_link
+    // 只有当用户没有明确提供 app_web_link 时才自动生成
+    if (!body.app_web_link) {
+      const finalName = payload.name || currentApp.name;
+      if (finalName && typeof finalName === "string") {
+        const appName = finalName.trim();
+        if (appName) {
+          payload.app_web_link = `https://${appName}.datail.ai`;
+        }
       }
     }
 

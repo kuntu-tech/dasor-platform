@@ -133,6 +133,7 @@ export function PublishFlow() {
   const [isPublished, setIsPublished] = useState(false);
   const [featureCount, setFeatureCount] = useState(0);
   const [currentAppUrl, setCurrentAppUrl] = useState("");
+  const [appWebLink, setAppWebLink] = useState("");
   const [appDataFromDb, setAppDataFromDb] = useState<any | null>(null);
   const [metadataFromService, setMetadataFromService] = useState<any | null>(
     null
@@ -228,6 +229,11 @@ export function PublishFlow() {
         }
         return prev;
       });
+
+      // Load app_web_link from database
+      if (appData?.app_web_link && typeof appData.app_web_link === "string") {
+        setAppWebLink(appData.app_web_link);
+      }
 
       setMetadataApplied(true);
     },
@@ -452,6 +458,10 @@ export function PublishFlow() {
       }
 
       console.log("Application saved successfully:", data);
+      // 从返回的数据中获取 app_web_link
+      if (data?.data?.app_web_link) {
+        setAppWebLink(data.data.app_web_link);
+      }
       setIsPublished(true);
     } catch (error) {
       console.log("Application save failed:", error);
@@ -835,6 +845,57 @@ export function PublishFlow() {
                     </div>
                   </div>
                 </div>
+
+                {/* Web Site */}
+                {appWebLink && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">
+                      Web Site
+                    </Label>
+                    <div className="flex items-start gap-2">
+                      <Input
+                        value={appWebLink}
+                        readOnly
+                        className="flex-1 bg-gray-50"
+                      />
+                      <div className="flex flex-col items-center gap-1 min-w-[44px]">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleCopy(appWebLink ?? "", "website")}
+                          className="flex items-center gap-1"
+                        >
+                          {copyFeedback?.item === "website" ? (
+                            copyFeedback.status === "success" ? (
+                              <Check className="size-4 text-emerald-600" />
+                            ) : (
+                              <AlertCircle className="size-4 text-destructive" />
+                            )
+                          ) : (
+                            <Copy className="size-4" />
+                          )}
+                          <span className="sr-only">Copy web site</span>
+                        </Button>
+                        <span
+                          aria-live="polite"
+                          className={`text-xs font-medium transition-opacity duration-150 h-4 flex items-center ${
+                            copyFeedback?.item === "website"
+                              ? copyFeedback.status === "success"
+                                ? "text-emerald-600 opacity-100"
+                                : "text-destructive opacity-100"
+                              : "opacity-0 text-transparent"
+                          }`}
+                        >
+                          {copyFeedback?.item === "website"
+                            ? copyFeedback.status === "success"
+                              ? "Copied!"
+                              : "Copy failed"
+                            : "\u00A0"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3">
