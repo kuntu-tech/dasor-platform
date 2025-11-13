@@ -10,7 +10,7 @@ export default function TestAuthPage() {
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">正在加载...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     );
@@ -20,29 +20,30 @@ export default function TestAuthPage() {
     <div className="min-h-screen bg-white p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">
-          认证状态测试页面
+          Authentication Status Test Page
         </h1>
 
         <div className="bg-gray-50 rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">认证状态</h2>
+          <h2 className="text-xl font-semibold mb-4">Authentication Status</h2>
           <div className="space-y-2">
             <p>
-              <strong>登录状态:</strong> {user ? "已登录" : "未登录"}
+              <strong>Signed-in Status:</strong> {user ? "Signed In" : "Signed Out"}
             </p>
             <p>
-              <strong>用户邮箱:</strong> {user?.email || "无"}
+              <strong>User Email:</strong> {user?.email || "N/A"}
             </p>
             <p>
-              <strong>用户名:</strong> {user?.user_metadata?.full_name || "无"}
+              <strong>User Name:</strong>
+              {user?.user_metadata?.full_name || "N/A"}
             </p>
             <p>
-              <strong>用户ID:</strong> {user?.id || "无"}
+              <strong>User ID:</strong> {user?.id || "N/A"}
             </p>
           </div>
         </div>
 
         <div className="bg-gray-50 rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">会话信息</h2>
+          <h2 className="text-xl font-semibold mb-4">Session Information</h2>
           <pre className="bg-white p-4 rounded border overflow-auto text-sm">
             {JSON.stringify(session, null, 2)}
           </pre>

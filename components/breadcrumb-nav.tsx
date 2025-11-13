@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import {
   Zap,
@@ -40,11 +40,58 @@ export function BreadcrumbNav() {
   const [appDescription, setAppDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [appStatus, setAppStatus] = useState<string | null>(null);
+  const [breadcrumbAppId, setBreadcrumbAppId] = useState<string | null>(null);
+  const [breadcrumbAppName, setBreadcrumbAppName] = useState<string | null>(
+    null
+  );
 
-  // 解析路径
-  const pathSegments = pathname.split("/").filter(Boolean);
+  // Parse the current path
+  const pathSegments = useMemo(
+    () => pathname.split("/").filter(Boolean),
+    [pathname]
+  );
 
-  // 路径映射
+  useEffect(() => {
+    const appIndex = pathSegments.findIndex((segment) => segment === "app");
+    if (appIndex !== -1 && appIndex + 1 < pathSegments.length) {
+      const nextId = pathSegments[appIndex + 1];
+      setBreadcrumbAppId(nextId);
+    } else {
+      setBreadcrumbAppId(null);
+      setBreadcrumbAppName(null);
+    }
+  }, [pathSegments]);
+
+  useEffect(() => {
+    if (!breadcrumbAppId) return;
+    let isCancelled = false;
+
+    const fetchAppName = async () => {
+      try {
+        const response = await fetch(`/api/apps/${breadcrumbAppId}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch app info: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!isCancelled) {
+          setBreadcrumbAppName(data?.data?.name || null);
+        }
+      } catch (error) {
+        console.warn("Failed to load breadcrumb app name", error);
+        if (!isCancelled) {
+          setBreadcrumbAppName(null);
+        }
+      }
+    };
+
+    fetchAppName();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [breadcrumbAppId]);
+
+  // Map path segments to breadcrumb metadata
   const pathMap: Record<string, { label: string; icon: any; href?: string }> = {
     dashboard: { label: "Dashboard", icon: BarChart3, href: "/dashboard" },
     connect: { label: "Connect Database", icon: Database, href: "/connect" },
@@ -69,7 +116,7 @@ export function BreadcrumbNav() {
     },
   };
 
-  // 构建面包屑
+  // Build breadcrumb items
   const breadcrumbs = [];
   let currentPath = "";
 
@@ -78,32 +125,48 @@ export function BreadcrumbNav() {
     currentPath += `/${segment}`;
 
     const pathInfo = pathMap[segment];
+    const isAppRoute = segment === "app" || segment === breadcrumbAppId;
+
     if (pathInfo) {
       breadcrumbs.push({
         label: pathInfo.label,
         icon: pathInfo.icon,
         href:
-          i === pathSegments.length - 1
+          i === pathSegments.length - 1 || isAppRoute
             ? undefined
             : pathInfo.href || currentPath,
         isLast: i === pathSegments.length - 1,
+        isDisabled: isAppRoute,
       });
     } else {
-      // 对于动态路由参数，显示原始值
+      const formattedLabel =
+        breadcrumbAppId && segment === breadcrumbAppId
+          ? breadcrumbAppName || appName || segment
+          : segment;
       breadcrumbs.push({
-        label: segment,
+        label: formattedLabel,
         icon: FileText,
-        href: i === pathSegments.length - 1 ? undefined : currentPath,
+        href:
+          i === pathSegments.length - 1 || isAppRoute ? undefined : currentPath,
         isLast: i === pathSegments.length - 1,
+        isDisabled: segment === breadcrumbAppId,
       });
     }
   }
 
-  // 检查是否在 preview 页面
+  // Check whether the current route is the preview page
   const isPreviewPage = pathname.startsWith("/preview");
   const appId = searchParams.get("id");
 
-  // 获取应用状态
+  const navigateToPublish = () => {
+    if (appId) {
+      router.push(`/publish?id=${appId}`);
+    } else {
+      router.push("/publish");
+    }
+  };
+
+  // Fetch application publication status
   useEffect(() => {
     if (isPreviewPage && appId && session) {
       const fetchAppStatus = async () => {
@@ -119,7 +182,7 @@ export function BreadcrumbNav() {
             setAppStatus(data.data?.status || null);
           }
         } catch (error) {
-          console.error("获取应用状态失败:", error);
+          console.log("Failed to get app status:", error);
         }
       };
 
@@ -127,22 +190,23 @@ export function BreadcrumbNav() {
     }
   }, [isPreviewPage, appId, session]);
 
-  // 处理保存应用
+  // Handle application save action
   const handleSaveApp = async () => {
     console.log(user);
 
     if (!appName.trim()) {
-      alert("请输入应用名称");
+      alert("Please enter the application name.");
       return;
     }
 
     if (!user || !session) {
-      alert("请先登录");
+      alert("Please log in first.");
       return;
     }
 
     setIsSaving(true);
 
+    // Legacy preview save functionality (currently unused)
     try {
       const response = await fetch("/api/apps", {
         method: "POST",
@@ -164,28 +228,30 @@ export function BreadcrumbNav() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "保存失败");
+        throw new Error(data.error || "Failed to save application.");
       }
 
-      // 保存成功
-      console.log("应用保存成功:", data);
+      // Save succeeded
+      console.log("Application saved successfully:", data);
 
-      // 关闭对话框
+      // Close dialog state
       setIsSaveDialogOpen(false);
       setAppName("");
       setAppDescription("");
 
-      // 跳转到保存成功页面
-      router.push("/save-success");
+      // Navigate to publish page after saving
+      navigateToPublish();
     } catch (error) {
-      console.error("保存应用失败:", error);
-      alert(`保存失败: ${error instanceof Error ? error.message : "未知错误"}`);
+      console.log("Failed to save application:", error);
+      alert(
+        `Save failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     } finally {
       setIsSaving(false);
     }
   };
 
-  // 处理取消保存
+  // Handle cancel action
   const handleCancelSave = () => {
     setIsSaveDialogOpen(false);
     setAppName("");
@@ -194,7 +260,7 @@ export function BreadcrumbNav() {
 
   return (
     <div className="flex items-center justify-between mb-6">
-      {/* 左侧面包屑导航 */}
+      {/* Left breadcrumb navigation */}
       <div className="flex items-center gap-1 text-sm text-gray-700">
         {/* Home Icon */}
         <Link href="/" className="flex items-center gap-1 hover:text-gray-900">
@@ -206,18 +272,10 @@ export function BreadcrumbNav() {
         {breadcrumbs.map((item, index) => (
           <div key={index} className="flex items-center gap-1">
             <span className="text-gray-400">/</span>
-            {item.isLast ? (
+            {item.isLast || item.isDisabled || !item.href ? (
               <div className="flex items-center gap-2">
                 <item.icon className="size-4" />
                 <span className="font-medium text-gray-900">{item.label}</span>
-                {item.label === "Versions" && (
-                  <Badge
-                    variant="outline"
-                    className="text-xs bg-orange-100 text-orange-800 border-orange-200"
-                  >
-                    Production
-                  </Badge>
-                )}
               </div>
             ) : (
               <Link
@@ -232,30 +290,30 @@ export function BreadcrumbNav() {
         ))}
       </div>
 
-      {/* 右侧按钮组 - 只在 preview 页面显示，且应用未发布时显示 */}
+      {/* Right action buttons: only visible on preview pages before publishing */}
       {isPreviewPage && appStatus !== "published" && (
         <div className="flex items-center gap-2">
-          <Button
+          {/* <Button
             size="sm"
             variant="ghost"
             className="h-8 px-3"
             onClick={() => setIsSaveDialogOpen(true)}
           >
             Save
-          </Button>
+          </Button> */}
           <Button
             size="sm"
             variant="default"
             className="h-8 px-3"
-            onClick={() => router.push("/publish")}
+            onClick={navigateToPublish}
           >
             Publish
           </Button>
         </div>
       )}
 
-      {/* 已发布状态显示 */}
-      {isPreviewPage && appStatus === "published" && (
+      {/* Published state display */}
+      {/* {isPreviewPage && appStatus === "published" && (
         <div className="flex items-center gap-2">
           <Badge
             variant="outline"
@@ -264,7 +322,7 @@ export function BreadcrumbNav() {
             published
           </Badge>
         </div>
-      )}
+      )} */}
 
       {/* Save Dialog */}
       <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>

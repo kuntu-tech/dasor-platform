@@ -64,15 +64,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
-      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en-US" suppressHydrationWarning>
+      <body
+        suppressHydrationWarning
+        className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}
+      >
         <AuthProvider>
           <AuthGuard>
-            <ConditionalSidebar>
-              <ConditionalBreadcrumb />
-              <Suspense fallback={null}>{children}</Suspense>
-              <Analytics />
-            </ConditionalSidebar>
+            <Suspense fallback={null}>
+              <ConditionalSidebar>
+                <Suspense fallback={null}>
+                  <ConditionalBreadcrumb />
+                </Suspense>
+                <Suspense fallback={null}>{children}</Suspense>
+                <Analytics />
+              </ConditionalSidebar>
+            </Suspense>
           </AuthGuard>
         </AuthProvider>
       </body>

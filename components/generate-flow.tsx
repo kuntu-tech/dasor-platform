@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,7 +9,7 @@ import {
   CardDescription,
   CardTitle,
 } from "@/components/ui/card";
-import { Sparkles, Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 type SelectedProblem = {
   id: string;
@@ -29,6 +28,35 @@ interface QuestionItem {
   status: QuestionStatus;
 }
 
+type BatchJobStatus = {
+  jobId?: string;
+  appId?: string;
+  status?: "pending" | "generating" | "succeeded" | "failed";
+  currentQueryIndex?: number | null;
+  totalQueries?: number | null;
+  currentToolName?: string | null;
+  currentToolIndex?: number | null;
+  totalToolsInCurrentQuery?: number | null;
+  completedToolsInCurrentQuery?: number | null;
+  totalTools?: number | null;
+  totalToolsCompleted?: number | null;
+  activeToolNames?: string[] | null;
+  lastCompletedToolName?: string | null;
+  message?: string | null;
+  error?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  lastUpdatedAt?: string | null;
+};
+
+type GenerationState =
+  | "idle"
+  | "preparing"
+  | "submitting"
+  | "running"
+  | "succeeded"
+  | "failed";
+
 const templates = [
   { id: "query", name: "Information Display" },
   { id: "carousel", name: "Carousel" },
@@ -36,369 +64,492 @@ const templates = [
   { id: "list-filter", name: "List" },
 ];
 
-// 假数据：全部10个问题
-const mockAllQuestions: QuestionItem[] = [
-  { id: "q1", text: "筛选高价值用户", status: "pending" },
-  { id: "q2", text: "统计商品品类销售额", status: "pending" },
-  { id: "q3", text: "分析新用户来源", status: "pending" },
-  { id: "q4", text: "预测用户流失风险", status: "pending" },
-  { id: "q5", text: "分析用户购买行为模式", status: "pending" },
-  { id: "q6", text: "评估营销活动效果", status: "pending" },
-  { id: "q7", text: "识别高潜力产品", status: "pending" },
-  { id: "q8", text: "分析用户满意度趋势", status: "pending" },
-  { id: "q9", text: "预测库存需求", status: "pending" },
-  { id: "q10", text: "优化推荐算法", status: "pending" },
-];
+const DEFAULT_ANCHOR_INDEX =
+  '[{"table":"calendar","columns":["listing_id","date","available","price","adjusted_price","minimum_nights","maximum_nights"],"index":0},{"table":"listings","columns":["id","name","host_id","host_name","neighbourhood_group","neighbourhood","latitude","longitude","room_type","price","minimum_nights","number_of_reviews","last_review","reviews_per_month","calculated_host_listings_count","availability_365","number_of_reviews_ltm","license"],"index":1},{"table":"listingsdetails","columns":["id","listing_url","scrape_id","last_scraped","source","name","description","neighborhood_overview","picture_url","host_id","host_url","host_name","host_since","host_location","host_about","host_response_time","host_response_rate","host_acceptance_rate","host_is_superhost","host_thumbnail_url","host_picture_url","host_neighbourhood","host_listings_count","host_total_listings_count","host_verifications","host_has_profile_pic","host_identity_verified","neighbourhood","neighbourhood_cleansed","neighbourhood_group_cleansed","latitude","longitude","property_type","room_type","accommodates","bathrooms","bathrooms_text","bedrooms","beds","amenities","price","minimum_nights","maximum_nights","minimum_minimum_nights","maximum_minimum_nights","minimum_maximum_nights","maximum_maximum_nights","minimum_nights_avg_ntm","maximum_nights_avg_ntm","calendar_updated","has_availability","availability_30","availability_60","availability_90","availability_365","calendar_last_scraped","number_of_reviews","number_of_reviews_ltm","number_of_reviews_l30d","availability_eoy","number_of_reviews_ly","estimated_occupancy_l365d","estimated_revenue_l365d","first_review","last_review","review_scores_rating","review_scores_accuracy","review_scores_cleanliness","review_scores_checkin","review_scores_communication","review_scores_location","review_scores_value","license","instant_bookable","calculated_host_listings_count","calculated_host_listings_count_entire_homes","calculated_host_listings_count_private_rooms","calculated_host_listings_count_shared_rooms","reviews_per_month"],"index":2},{"table":"neighbourhoods","columns":["neighbourhood_group","neighbourhood"],"index":3},{"table":"reviews","columns":["listing_id","date"],"index":4},{"table":"reviewsdetails","columns":["listing_id","id","date","reviewer_id","reviewer_name","comments"],"index":5}]';
 
 export function GenerateFlow() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const appIdFromQuery = searchParams.get("appId");
   const [selectedProblems, setSelectedProblems] = useState<SelectedProblem[]>(
     []
   );
-  const [allQuestions, setAllQuestions] = useState<QuestionItem[]>(mockAllQuestions);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [hasError, setHasError] = useState(false);
+  // Convert selectedProblems into QuestionItem objects for rendering
+  const getQuestionsFromProblems = (
+    problems: SelectedProblem[]
+  ): QuestionItem[] => {
+    return problems.map((problem, index) => ({
+      id: problem.id || `problem-${index}`,
+      text: problem.problem || problem.toString(),
+      status: "pending" as QuestionStatus,
+    }));
+  };
+  const [allQuestions, setAllQuestions] = useState<QuestionItem[]>([]);
+  const [jobState, setJobState] = useState<GenerationState>("idle");
+  const jobStateRef = useRef<GenerationState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [batchStatus, setBatchStatus] = useState<BatchJobStatus | null>(null);
+  const [jobAppId, setJobAppId] = useState<string | null>(null);
   const { user } = useAuth();
-  const dbConnectionData = localStorage.getItem("dbConnectionData");
-  const dbConnectionDataObj = JSON.parse(dbConnectionData || "{}");
-  console.log(dbConnectionDataObj, "dbConnectionDataObj");
-  // 防重复调用与首渲染仅触发一次
+  const [dbConnectionDataObj, setDbConnectionDataObj] = useState<any>({});
+  const [dbConnectionReady, setDbConnectionReady] = useState(false);
+  // Prevent duplicate calls and ensure first render triggers once
   const inFlightRef = useRef(false);
   const mountedCalledRef = useRef(false);
   const statusUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const POLL_INTERVAL_MS = 4000;
 
-  // 模拟状态更新：每个问题从pending -> generating -> done
   useEffect(() => {
-    if (!isGenerating) {
-      // 重置所有问题为pending
-      setAllQuestions(mockAllQuestions.map(q => ({ ...q, status: "pending" as QuestionStatus })));
-      return;
+    jobStateRef.current = jobState;
+  }, [jobState]);
+
+  // Fetch dbConnectionData on the client
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const dbConnectionData = localStorage.getItem("dbConnectionData");
+      if (dbConnectionData) {
+        try {
+          const parsed = JSON.parse(dbConnectionData);
+          setDbConnectionDataObj(parsed);
+          console.log(parsed, "dbConnectionDataObj");
+        } catch (e) {
+          console.log("Failed to parse dbConnectionData:", e);
+        }
+      }
+      setDbConnectionReady(true);
     }
+  }, []);
 
-    // 初始化：根据selectedProblems判断哪些是选中的（选中的先设为generating）
-    const selectedTexts = selectedProblems.map(p => p.toString());
-    setAllQuestions(prev => prev.map(q => {
-      const isSelected = selectedTexts.some(text => q.text.includes(text) || text.includes(q.text));
-      return { ...q, status: isSelected ? "generating" as QuestionStatus : "pending" as QuestionStatus };
-    }));
+  // Update allQuestions whenever selectedProblems changes
+  useEffect(() => {
+    if (selectedProblems.length > 0) {
+      const questions = getQuestionsFromProblems(selectedProblems);
+      setAllQuestions(questions);
+    }
+  }, [selectedProblems]);
 
-    let currentIndex = 0;
-    const totalQuestions = mockAllQuestions.length;
+  const clearStatusTimer = useCallback(() => {
+    if (statusUpdateIntervalRef.current) {
+      clearTimeout(statusUpdateIntervalRef.current);
+      statusUpdateIntervalRef.current = null;
+    }
+  }, []);
 
-    // 模拟状态转换：每隔2-3秒更新一个问题的状态
-    const updateStatus = () => {
-      setAllQuestions(prev => {
-        const updated = [...prev];
-        
-        // 找到当前正在生成中的问题，将其标记为done
-        const generatingIndex = updated.findIndex(q => q.status === "generating");
-        if (generatingIndex !== -1) {
-          updated[generatingIndex] = { ...updated[generatingIndex], status: "done" };
+  const buildMetadataPayload = useCallback(() => {
+    const taskId =
+      (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
+    let segmentsPayload: any[] = [];
+    try {
+      const marketsRaw = localStorage.getItem("marketsData");
+      if (marketsRaw) {
+        const markets = JSON.parse(marketsRaw);
+        if (Array.isArray(markets)) {
+          segmentsPayload = markets.map((seg: any) => ({
+            name: seg.name || seg.title,
+            analysis: seg.analysis || undefined,
+            valueQuestions: seg.valueQuestions || undefined,
+          }));
         }
+      }
+    } catch {}
 
-        // 找到下一个pending的问题，将其标记为generating
-        const nextPendingIndex = updated.findIndex(q => q.status === "pending");
-        if (nextPendingIndex !== -1) {
-          updated[nextPendingIndex] = { ...updated[nextPendingIndex], status: "generating" };
-          currentIndex++;
-          return updated;
-        }
+    let runResult: any = {};
+    try {
+      runResult = JSON.parse(localStorage.getItem("run_result") || "{}");
+    } catch {}
 
-        // 如果所有问题都done了，停止更新
-        if (updated.every(q => q.status === "done")) {
-          if (statusUpdateIntervalRef.current) {
-            clearInterval(statusUpdateIntervalRef.current);
-            statusUpdateIntervalRef.current = null;
+    return {
+      run_result: runResult,
+      domain: { primaryDomain: "Hospitality Management" },
+      ingest: { schemaHash: "sha256-3c7459f15975eae5" },
+      run_id: "r_1",
+      status: "complete",
+      task_id: taskId,
+      segments: segmentsPayload,
+    };
+  }, []);
+
+  const fetchMetadataFromService = useCallback(
+    async (signal?: AbortSignal) => {
+      const metadataPayload = buildMetadataPayload();
+      let payloadToSend: any = metadataPayload;
+      try {
+        const storedPublish = localStorage.getItem("run_result_publish");
+        if (storedPublish) {
+          const parsedPublish = JSON.parse(storedPublish);
+          if (parsedPublish && typeof parsedPublish === "object") {
+            payloadToSend = parsedPublish;
           }
         }
-
-        return updated;
-      });
-    };
-
-    // 首次立即更新一次（让选中的问题开始generating）
-    const firstUpdate = setTimeout(() => {
-      updateStatus();
-    }, 1000);
-
-    // 然后每隔2-3秒更新一次
-    statusUpdateIntervalRef.current = setInterval(() => {
-      updateStatus();
-    }, 2500) as unknown as NodeJS.Timeout;
-
-    return () => {
-      clearTimeout(firstUpdate);
-      if (statusUpdateIntervalRef.current) {
-        clearInterval(statusUpdateIntervalRef.current);
-        statusUpdateIntervalRef.current = null;
+      } catch (err) {
+        console.warn(
+          "Failed to parse run_result_publish, using default payload",
+          err
+        );
       }
-    };
-  }, [isGenerating, selectedProblems]);
+
+      const response = await fetch(
+        "https://business-insight.datail.ai/api/v1/apps/metadata",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payloadToSend),
+          cache: "no-store",
+          signal,
+        }
+      );
+      const text = await response.text();
+      let parsed: any = text;
+      try {
+        parsed = JSON.parse(text);
+      } catch {}
+      if (!response.ok) {
+        const err = new Error(
+          typeof parsed === "string"
+            ? parsed
+            : parsed?.error || `apps/metadata HTTP ${response.status}`
+        );
+        (err as any).meta = parsed;
+        throw err;
+      }
+      return parsed;
+    },
+    [buildMetadataPayload]
+  );
+
+  const updateQuestionStatuses = useCallback(
+    (statusPayload: BatchJobStatus | null) => {
+      setAllQuestions((prev) => {
+        if (!prev.length) {
+          return prev;
+        }
+
+        if (!statusPayload) {
+          return prev.map((item) => ({ ...item, status: "pending" }));
+        }
+
+        if (statusPayload.status === "succeeded") {
+          return prev.map((item) => ({ ...item, status: "done" }));
+        }
+
+        const total = prev.length;
+        const rawIndex =
+          typeof statusPayload.currentQueryIndex === "number"
+            ? statusPayload.currentQueryIndex
+            : null;
+        const assumedOneBased =
+          rawIndex !== null && rawIndex > 0 ? rawIndex - 1 : rawIndex ?? 0;
+        const normalizedIndex =
+          rawIndex === null
+            ? null
+            : Math.min(total - 1, Math.max(0, assumedOneBased));
+        const completedCount = Math.max(
+          0,
+          Math.min(
+            total,
+            statusPayload.status === "failed"
+              ? assumedOneBased
+              : assumedOneBased
+          )
+        );
+
+        return prev.map((item, index) => {
+          if (statusPayload.status === "failed") {
+            if (index < completedCount) {
+              return { ...item, status: "done" };
+            }
+            return { ...item, status: "pending" };
+          }
+
+          if (index < completedCount) {
+            return { ...item, status: "done" };
+          }
+
+          if (
+            normalizedIndex !== null &&
+            index === normalizedIndex &&
+            (statusPayload.status === "generating" ||
+              statusPayload.status === "pending")
+          ) {
+            return { ...item, status: "generating" };
+          }
+
+          if (
+            normalizedIndex === null &&
+            index === 0 &&
+            (statusPayload.status === "pending" ||
+              statusPayload.status === "generating")
+          ) {
+            return { ...item, status: "generating" };
+          }
+
+          return { ...item, status: "pending" };
+        });
+      });
+    },
+    []
+  );
+
+  const hydrateAppRecord = useCallback(async (appId: string) => {
+    if (!appId) return;
+    try {
+      const response = await fetch(`/api/apps/${appId}`, { cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || `HTTP ${response.status}`);
+      }
+
+      if (typeof window !== "undefined" && payload?.data) {
+        const appData = payload.data;
+        try {
+          localStorage.setItem("latestAppRecord", JSON.stringify(appData));
+        } catch {}
+
+        const domains = Array.isArray(appData?.generator_servers)
+          ? appData.generator_servers
+          : [];
+        const domain = domains[0]?.domain || "";
+        if (domain) {
+          localStorage.setItem("currentAppUrl", domain);
+        }
+
+        if (appData?.generator_meta) {
+          try {
+            localStorage.setItem(
+              "generator_meta",
+              JSON.stringify(appData.generator_meta)
+            );
+          } catch {}
+        }
+
+        if (appData?.generator_config) {
+          try {
+            localStorage.setItem(
+              "generator_config",
+              JSON.stringify(appData.generator_config)
+            );
+          } catch {}
+        }
+
+        localStorage.setItem("currentAppId", appId);
+      }
+    } catch (error) {
+      console.warn("Failed to load app details", error);
+    }
+  }, []);
+
+  const requestStatus = useCallback(
+    async (appId: string) => {
+      if (!appId) return;
+      clearStatusTimer();
+
+      try {
+        const response = await fetch(`/api/generate-batch/${appId}/status`, {
+          cache: "no-store",
+        });
+        const payload: BatchJobStatus = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error || `HTTP ${response.status}`);
+        }
+
+        // Update status, including all fields defined in documentation
+        setBatchStatus(payload);
+        updateQuestionStatuses(payload);
+
+        // According to documentation: Stop polling when status becomes succeeded or failed
+        if (payload?.status === "succeeded") {
+          setJobState("succeeded");
+          await hydrateAppRecord(payload.appId || appId);
+          router.push(`/preview?id=${payload.appId || appId}`);
+          return;
+        }
+
+        if (payload?.status === "failed") {
+          setJobState("failed");
+          // According to documentation: Check error field on failure
+          setErrorMessage(
+            payload?.error ||
+              payload?.message ||
+              "Generation failed, please try again"
+          );
+          return;
+        }
+
+        // According to documentation: Recommended to query every 2-5 seconds (currently using 4000ms, meets recommendation)
+        // Continue polling until status becomes succeeded or failed
+        statusUpdateIntervalRef.current = setTimeout(() => {
+          requestStatus(appId);
+        }, POLL_INTERVAL_MS);
+      } catch (error) {
+        console.log("Failed to query job status", error);
+        // Only continue polling if task is not completed
+        if (
+          jobStateRef.current !== "failed" &&
+          jobStateRef.current !== "succeeded"
+        ) {
+          // Continue polling even on error to avoid losing status due to temporary network issues
+          statusUpdateIntervalRef.current = setTimeout(() => {
+            requestStatus(appId);
+          }, POLL_INTERVAL_MS);
+        }
+      }
+    },
+    [
+      POLL_INTERVAL_MS,
+      clearStatusTimer,
+      hydrateAppRecord,
+      updateQuestionStatuses,
+      router,
+    ]
+  );
 
   useEffect(() => {
+    if (!jobAppId) return;
+    requestStatus(jobAppId);
+  }, [jobAppId, requestStatus]);
+
+  useEffect(() => {
+    return () => {
+      clearStatusTimer();
+    };
+  }, [clearStatusTimer]);
+
+  useEffect(() => {
+    if (!dbConnectionReady) {
+      return;
+    }
+    let problemsFromStorage: SelectedProblem[] | null = null;
     const stored = localStorage.getItem("selectedProblems");
     if (stored) {
       try {
         const problems = JSON.parse(stored);
+        problemsFromStorage = problems;
         setSelectedProblems(problems);
-        // Auto-start generation process
+        // Auto-start generation process for UI display only
         startGeneration(problems);
       } catch (e) {
-        console.error("Failed to parse selected problems", e);
+        console.log("Failed to parse selected problems", e);
       }
     }
+
     if (!mountedCalledRef.current) {
       mountedCalledRef.current = true;
-      generateBatchData();
+      if (appIdFromQuery) {
+        updateQuestionStatuses(null);
+        setBatchStatus(null);
+        setJobState("running");
+        setJobAppId(appIdFromQuery);
+      } else {
+        generateBatchData(problemsFromStorage || undefined);
+      }
     }
-    // testGenerateBatch();
-  }, []);
-  const testGenerateBatch = async () => {
-    setTimeout(() => {
-      router.push(`/preview?id=cd444900-083e-479a-bf5b-0a5b297c4563`);
-    }, 13000);
-  };
-
-  const generateBatchData = async () => {
+  }, [appIdFromQuery, dbConnectionReady]);
+  const generateBatchData = async (problemsOverride?: SelectedProblem[]) => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
-    setIsGenerating(true);
-    setHasError(false);
+    setJobState("preparing");
     setErrorMessage("");
-    // 提前声明供两个阶段复用的变量
+    setBatchStatus(null);
+    setJobAppId(null);
+    clearStatusTimer();
+    updateQuestionStatuses(null);
+    // Declare variables reused across both phases
     let extractedQueries: any[] = [];
-    let runResultForNext: any = null;
+    const currentProblems =
+      problemsOverride && problemsOverride.length > 0
+        ? problemsOverride
+        : selectedProblems;
 
+    let anchIndexNum: any = null;
+    const selectedQuestionsWithSql = localStorage.getItem(
+      "selectedQuestionsWithSql"
+    );
+    if (selectedQuestionsWithSql) {
+      const parsed = JSON.parse(selectedQuestionsWithSql);
+      extractedQueries = parsed?.questionsWithSql || extractedQueries;
+      anchIndexNum =
+        parsed?.anchIndex ??
+        parsed?.anchorIndex ??
+        parsed?.anchor_index ??
+        null;
+    }
     try {
-      // 先调用业务预处理接口：standal_sql
+      // Call the metadata service first to retrieve app_meta_info
+      let appMetaFromService: any | null = null;
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 600_000);
-        let segmentsPayload: any[] = [];
-        try {
-          const raw = localStorage.getItem("marketsData");
-          if (raw) {
-            const arr = JSON.parse(raw);
-            if (Array.isArray(arr)) {
-              segmentsPayload = arr.map((seg: any) => ({
-                name: seg.name || seg.title,
-                analysis: seg.analysis || undefined,
-                valueQuestions: seg.valueQuestions || [],
-                segmentId: seg.segmentId || seg.id || undefined,
-              }));
-            }
-          }
-        } catch {}
-
-        // const taskId =
-        //   (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
-        const taskId = "66cb45e4-5d87-49f2-a90d-6f4b76b5b0e2";
-        const run_result = {
-          domain: { primaryDomain: "Hospitality Management" },
-          ingest: { schemaHash: "sha256-3c7459f15975eae5" },
-          run_id: "r_1",
-          status: "complete",
-          task_id: taskId,
-          segments: segmentsPayload,
-          anchIndex: [
-            {
-              index: 0,
-              table: "calendar",
-              columns: [
-                "listing_id",
-                "date",
-                "available",
-                "price",
-                "adjusted_price",
-                "minimum_nights",
-                "maximum_nights",
-              ],
-            },
-            {
-              index: 1,
-              table: "listings",
-              columns: [
-                "id",
-                "name",
-                "host_id",
-                "host_name",
-                "neighbourhood_group",
-                "neighbourhood",
-                "latitude",
-                "longitude",
-                "room_type",
-                "price",
-                "minimum_nights",
-                "number_of_reviews",
-                "last_review",
-                "reviews_per_month",
-                "calculated_host_listings_count",
-                "availability_365",
-                "number_of_reviews_ltm",
-                "license",
-              ],
-            },
-            {
-              index: 2,
-              table: "listingsdetails",
-              columns: [
-                "id",
-                "listing_url",
-                "scrape_id",
-                "last_scraped",
-                "source",
-                "name",
-                "description",
-                "neighborhood_overview",
-                "picture_url",
-                "host_id",
-                "host_url",
-                "host_name",
-                "host_since",
-                "host_location",
-                "host_about",
-                "host_response_time",
-                "host_response_rate",
-                "host_acceptance_rate",
-                "host_is_superhost",
-                "host_thumbnail_url",
-                "host_picture_url",
-                "host_neighbourhood",
-                "host_listings_count",
-                "host_total_listings_count",
-                "host_verifications",
-                "host_has_profile_pic",
-                "host_identity_verified",
-                "neighbourhood",
-                "neighbourhood_cleansed",
-                "neighbourhood_group_cleansed",
-                "latitude",
-                "longitude",
-                "property_type",
-                "room_type",
-                "accommodates",
-                "bathrooms",
-                "bathrooms_text",
-                "bedrooms",
-                "beds",
-                "amenities",
-                "price",
-                "minimum_nights",
-                "maximum_nights",
-                "minimum_minimum_nights",
-                "maximum_minimum_nights",
-                "minimum_maximum_nights",
-                "maximum_maximum_nights",
-                "minimum_nights_avg_ntm",
-                "maximum_nights_avg_ntm",
-                "calendar_updated",
-                "has_availability",
-                "availability_30",
-                "availability_60",
-                "availability_90",
-                "availability_365",
-                "calendar_last_scraped",
-                "number_of_reviews",
-                "number_of_reviews_ltm",
-                "number_of_reviews_l30d",
-                "availability_eoy",
-                "number_of_reviews_ly",
-                "estimated_occupancy_l365d",
-                "estimated_revenue_l365d",
-                "first_review",
-                "last_review",
-                "review_scores_rating",
-                "review_scores_accuracy",
-                "review_scores_cleanliness",
-                "review_scores_checkin",
-                "review_scores_communication",
-                "review_scores_location",
-                "review_scores_value",
-                "license",
-                "instant_bookable",
-                "calculated_host_listings_count",
-                "calculated_host_listings_count_entire_homes",
-                "calculated_host_listings_count_private_rooms",
-                "calculated_host_listings_count_shared_rooms",
-                "reviews_per_month",
-              ],
-            },
-            {
-              index: 3,
-              table: "neighbourhoods",
-              columns: ["neighbourhood_group", "neighbourhood"],
-            },
-            {
-              index: 4,
-              table: "reviews",
-              columns: ["listing_id", "date"],
-            },
-            {
-              index: 5,
-              table: "reviewsdetails",
-              columns: [
-                "listing_id",
-                "id",
-                "date",
-                "reviewer_id",
-                "reviewer_name",
-                "comments",
-              ],
-            },
-          ],
-          parent_run_id: null,
-        };
-        runResultForNext = run_result;
-
-        const standalRes = await fetch(
-          "https://business-insight.datail.ai/api/v1/standal_sql",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ run_result }),
-            signal: controller.signal,
-          }
-        );
-        clearTimeout(timeout);
-        const standalText = await standalRes.text();
-        console.log(standalText, "standalText");
-        let standalJson: any = standalText;
-        try {
-          standalJson = JSON.parse(standalText);
-        } catch {}
-        if (!standalRes.ok) {
-          throw new Error(
-            typeof standalJson === "string"
-              ? standalJson.slice(0, 200)
-              : standalJson?.error || `standal_sql HTTP ${standalRes.status}`
-          );
-        }
-        // 将 standal_sql 成功返回的 queries 作为下一步 batchData.queries
-        extractedQueries = Array.isArray((standalJson as any)?.queries)
-          ? (standalJson as any).queries
-          : Array.isArray((standalJson as any)?.data?.queries)
-          ? (standalJson as any).data.queries
-          : [];
-        if (!Array.isArray(extractedQueries) || extractedQueries.length === 0) {
-          throw new Error("standal_sql 未返回有效的 queries 数组");
-        }
-      } catch (e) {
-        console.error("standal_sql 调用失败", e);
-        throw e instanceof Error ? e : new Error("standal_sql 调用失败");
+        appMetaFromService = await fetchMetadataFromService();
+      } catch (err) {
+        console.warn("Failed to fetch app metadata", err);
       }
 
+      if (!appMetaFromService || typeof appMetaFromService !== "object") {
+        appMetaFromService = {};
+      }
+
+      // Extract name and description from the metadata response
+      const chatMeta =
+        appMetaFromService.chatAppMeta ||
+        appMetaFromService.chatappmeta ||
+        appMetaFromService.chat_app_meta ||
+        {};
+
+      const appName =
+        (typeof chatMeta.name === "string" && chatMeta.name.trim()
+          ? chatMeta.name.trim()
+          : null) ||
+        currentProblems[0]?.problem ||
+        "Generated App";
+
+      const appDescription =
+        (typeof chatMeta.description === "string" && chatMeta.description.trim()
+          ? chatMeta.description.trim()
+          : null) || "Batch generated app";
+
+      // Update chatMeta to ensure it contains the latest name and description
+      chatMeta.name = appName;
+      chatMeta.description = appDescription;
+      appMetaFromService.chatAppMeta = chatMeta;
+
+      try {
+        const storedPublish = localStorage.getItem("run_result_publish");
+        if (storedPublish) {
+          const parsedPublish = JSON.parse(storedPublish);
+          if (parsedPublish && typeof parsedPublish === "object") {
+            anchIndexNum =
+              parsedPublish?.anchIndex ??
+              parsedPublish?.anchorIndex ??
+              parsedPublish?.anchor_index ??
+              null;
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to parse run_result_publish", err);
+      }
       const batchData = {
         queries: extractedQueries,
-        anchorIndex:
-          '[{"table":"calendar","columns":["listing_id","date","available","price","adjusted_price","minimum_nights","maximum_nights"],"index":0},{"table":"listings","columns":["id","name","host_id","host_name","neighbourhood_group","neighbourhood","latitude","longitude","room_type","price","minimum_nights","number_of_reviews","last_review","reviews_per_month","calculated_host_listings_count","availability_365","number_of_reviews_ltm","license"],"index":1},{"table":"listingsdetails","columns":["id","listing_url","scrape_id","last_scraped","source","name","description","neighborhood_overview","picture_url","host_id","host_url","host_name","host_since","host_location","host_about","host_response_time","host_response_rate","host_acceptance_rate","host_is_superhost","host_thumbnail_url","host_picture_url","host_neighbourhood","host_listings_count","host_total_listings_count","host_verifications","host_has_profile_pic","host_identity_verified","neighbourhood","neighbourhood_cleansed","neighbourhood_group_cleansed","latitude","longitude","property_type","room_type","accommodates","bathrooms","bathrooms_text","bedrooms","beds","amenities","price","minimum_nights","maximum_nights","minimum_minimum_nights","maximum_minimum_nights","minimum_maximum_nights","maximum_maximum_nights","minimum_nights_avg_ntm","maximum_nights_avg_ntm","calendar_updated","has_availability","availability_30","availability_60","availability_90","availability_365","calendar_last_scraped","number_of_reviews","number_of_reviews_ltm","number_of_reviews_l30d","availability_eoy","number_of_reviews_ly","estimated_occupancy_l365d","estimated_revenue_l365d","first_review","last_review","review_scores_rating","review_scores_accuracy","review_scores_cleanliness","review_scores_checkin","review_scores_communication","review_scores_location","review_scores_value","license","instant_bookable","calculated_host_listings_count","calculated_host_listings_count_entire_homes","calculated_host_listings_count_private_rooms","calculated_host_listings_count_shared_rooms","reviews_per_month"],"index":2},{"table":"neighbourhoods","columns":["neighbourhood_group","neighbourhood"],"index":3},{"table":"reviews","columns":["listing_id","date"],"index":4},{"table":"reviewsdetails","columns":["listing_id","id","date","reviewer_id","reviewer_name","comments"],"index":5}]',
+        anchorIndex: anchIndexNum,
         user_id: user?.id || "",
-        supabase_config: {
-          supabase_url: dbConnectionDataObj.connectionUrl,
-          supabase_key: dbConnectionDataObj.apiKey,
+        // supabase_config: {
+        //   supabase_url: dbConnectionDataObj.connectionUrl,
+        //   supabase_key: dbConnectionDataObj.apiKey,
+        //   access_token: dbConnectionDataObj.accessToken,
+        // },
+        connection_id:
+          dbConnectionDataObj.connectionId ||
+          dbConnectionDataObj.connection_id ||
+          undefined,
+        app: {
+          name: appName,
+          description: appDescription,
+          connection_id:
+            dbConnectionDataObj.connectionId ||
+            dbConnectionDataObj.connection_id ||
+            undefined,
+          app_meta_info: appMetaFromService,
         },
       };
 
+      setJobState("submitting");
       const response = await fetch("/api/generate-batch", {
         method: "POST",
         headers: {
@@ -413,21 +564,61 @@ export function GenerateFlow() {
         throw new Error(data.error || `HTTP ${response.status}`);
       }
 
-      console.log(data);
-      localStorage.setItem("currentAppUrl", data.data.domain);
-      router.push(`/preview?id=${data.data.serviceId}`);
+      const nextAppId = data?.appId || data?.data?.appId || data?.data?.id;
+      if (!nextAppId) {
+        throw new Error("Batch generation service did not return appId");
+      }
+
+      // According to documentation: Keep all returned fields to ensure complete status information
+      const initialStatus: BatchJobStatus = {
+        jobId: data?.jobId,
+        appId: nextAppId,
+        status: (data?.status as BatchJobStatus["status"]) || "pending",
+        currentQueryIndex:
+          typeof data?.currentQueryIndex === "number"
+            ? data.currentQueryIndex
+            : typeof data?.currentQueryIndex === "undefined"
+            ? 1
+            : null,
+        totalQueries:
+          typeof data?.totalQueries === "number"
+            ? data.totalQueries
+            : extractedQueries.length,
+        currentToolName: data?.currentToolName ?? null,
+        currentToolIndex: data?.currentToolIndex ?? null,
+        totalToolsInCurrentQuery: data?.totalToolsInCurrentQuery ?? null,
+        completedToolsInCurrentQuery: data?.completedToolsInCurrentQuery ?? null,
+        totalTools: data?.totalTools ?? null,
+        totalToolsCompleted: data?.totalToolsCompleted ?? null,
+        activeToolNames: data?.activeToolNames ?? null,
+        lastCompletedToolName: data?.lastCompletedToolName ?? null,
+        message:
+          data?.message ||
+          "Batch generation task submitted, please check the progress later",
+        error: data?.error ?? null,
+        startedAt: data?.startedAt ?? null,
+        completedAt: data?.completedAt ?? null,
+        lastUpdatedAt: data?.lastUpdatedAt ?? null,
+      };
+
+      setBatchStatus(initialStatus);
+      updateQuestionStatuses(initialStatus);
+      setJobAppId(nextAppId);
+      setJobState("running");
     } catch (err) {
-      console.error("Error generating batch", err);
-      setHasError(true);
-      setErrorMessage(err instanceof Error ? err.message : "生成失败，请重试");
+      console.log("Error generating batch", err);
+      setJobState("failed");
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : "Batch generation failed, please try again"
+      );
     } finally {
-      setIsGenerating(false);
       inFlightRef.current = false;
     }
   };
-  const startGeneration = (problems: SelectedProblem[]) => {
-    setIsGenerating(true);
 
+  const startGeneration = (problems: SelectedProblem[]) => {
     // Auto-assign default templates based on problem type
     const defaultTemplateMapping: Record<string, string> = {
       "Order Management": "query",
@@ -487,76 +678,142 @@ export function GenerateFlow() {
       featureCount: features.length,
     };
 
-    localStorage.setItem("currentApp", JSON.stringify(app));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("currentApp", JSON.stringify(app));
+    }
   };
+
+  const isStatusTrackingOnly = Boolean(appIdFromQuery);
+  const isFailed = jobState === "failed";
+  const isSucceeded = jobState === "succeeded";
+  const isProcessing = !isFailed && !isSucceeded;
+  const statusMessage =
+    batchStatus?.message ||
+    (isSucceeded
+      ? "Batch generation task completed"
+      : "Batch generation task is in progress, please wait");
+  const progressText =
+    typeof batchStatus?.currentQueryIndex === "number"
+      ? `${Math.max(1, batchStatus.currentQueryIndex)} / ${
+          (batchStatus?.totalQueries ?? allQuestions.length) || 1
+        }`
+      : null;
+  const toolProgress =
+    typeof batchStatus?.currentToolIndex === "number" &&
+    typeof batchStatus?.totalToolsInCurrentQuery === "number"
+      ? `(${Math.max(1, batchStatus.currentToolIndex + 1)} / ${
+          batchStatus.totalToolsInCurrentQuery || 1
+        })`
+      : "";
+  const currentToolText = batchStatus?.currentToolName
+    ? `${batchStatus.currentToolName}`.trim()
+    : null;
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top navigation removed on generate page */}
-
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-12 max-w-4xl">
         <div className="mb-12 text-center">
           <h1 className="text-3xl font-bold mb-2">Generating Your ChatAPP</h1>
-       
         </div>
 
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
-            {hasError ? (
+            {isFailed ? (
               <XCircle className="size-12 text-red-500 mb-6" />
+            ) : isSucceeded ? (
+              <CheckCircle2 className="size-12 text-green-600 mb-6" />
             ) : (
-              <Loader2 className="size-12 text-blue-600 animate-spin mb-6" />
+              <Loader2 className="size-12 text-gray-600 animate-spin mb-6" />
             )}
 
-            <CardTitle className="mb-4 text-xl">
-              {hasError ? "Generation Failed" : ""}
-            </CardTitle>
+            <CardDescription className="text-center max-w-md mb-8">
+              {isFailed
+                ? "Batch generation failed, please try again."
+                : isSucceeded
+                ? "Batch generation completed, you can jump to the preview to view the application details."
+                : "Batch generation process may take several minutes, we will continue to synchronize the progress."}
+            </CardDescription>
+
+            {/* <CardTitle className="mb-4 text-xl">
+              {isFailed
+                ? "Generation Failed"
+                : isSucceeded
+                ? "Generation Complete"
+                : "Generating Your App"}
+            </CardTitle> */}
 
             <div className="w-full max-w-md space-y-4">
-              {hasError ? (
-                /* Error State */
-                <div className="text-center">
-                  {/* <p className="text-lg font-medium text-red-600 mb-4">
-                    {errorMessage}
-                  </p> */}
-                  <Button
-                    onClick={() => {
-                      setHasError(false);
-                      setErrorMessage("");
-                      generateBatchData();
-                    }}
-                    className="mt-4"
-                  >
-                    Try Again
-                  </Button>
+              {isFailed ? (
+                <div className="text-center space-y-3">
+                  {errorMessage && (
+                    <p className="text-sm text-red-600">{errorMessage}</p>
+                  )}
+                  {isStatusTrackingOnly ? (
+                    <Button
+                      disabled={!jobAppId}
+                      onClick={() => {
+                        if (jobAppId) {
+                          requestStatus(jobAppId);
+                        }
+                      }}
+                    >
+                      Refresh Status
+                    </Button>
+                  ) : (
+                    <Button onClick={() => generateBatchData()}>
+                      Try Again
+                    </Button>
+                  )}
                 </div>
               ) : (
-                /* Loading State */
-                <div className="text-center">
-                 
+                <div className="text-center text-sm text-muted-foreground space-y-2">
+                  {/* <p>{statusMessage}</p>
+                  {progressText && (
+                    <p>
+                      Queries: <span className="font-medium">{progressText}</span>
+                    </p>
+                  )}
+                  {currentToolText && (
+                    <p>
+                      Current Tool:{" "}
+                      <span className="font-medium">{currentToolText}</span>
+                    </p>
+                  )}
+                  {batchStatus?.status && (
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground/80">
+                      Status: {batchStatus.status}
+                    </p>
+                  )} */}
                 </div>
               )}
+            </div>
 
-              {/* Selected Features Preview */}
-              <div className="mt-8 w-full">
-                <h2 className="text-lg font-medium text-muted-foreground mb-3">
-                  Selected Features:
-                </h2>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {allQuestions.map((question, index) => {
+            <div className="mt-8 w-full max-w-2xl">
+              <h2 className="text-lg font-medium text-muted-foreground mb-3">
+                Selected Features:
+              </h2>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {allQuestions.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    <p>
+                      No features selected. Please go back and select
+                      features.
+                    </p>
+                  </div>
+                ) : (
+                  allQuestions.map((question, index) => {
                     const statusConfig = {
                       pending: {
                         icon: Clock,
-                        color: "text-muted-foreground",
+                        color: "text-gray-600",
                         label: "",
-                        bgColor: "bg-gray-50",
+                        bgColor: "bg-gray-100",
                       },
                       generating: {
                         icon: Loader2,
-                        color: "text-blue-600",
+                        color: "text-gray-700",
                         label: "Generating",
-                        bgColor: "bg-blue-50",
+                        bgColor: "bg-gray-200",
                       },
                       done: {
                         icon: CheckCircle2,
@@ -574,27 +831,31 @@ export function GenerateFlow() {
                         key={question.id}
                         className={`flex items-center gap-3 text-sm p-3 rounded-lg transition-colors ${config.bgColor}`}
                       >
-                        {question.status === "generating" ? (
-                          <Icon className={`size-5 ${config.color} shrink-0 animate-spin`} />
+                        {question.status === "generating" && isProcessing ? (
+                          <Icon
+                            className={`size-5 ${config.color} shrink-0 animate-spin`}
+                          />
                         ) : (
-                          <Icon className={`size-5 ${config.color} shrink-0`} />
+                          <Icon
+                            className={`size-5 ${config.color} shrink-0`}
+                          />
                         )}
-                        <span className={`${config.color} font-medium`}>
-                          {config.label}
-                        </span>
                         <span className="text-foreground flex-1">
-                           {index + 1}. {question.text}
+                          {index + 1}. {question.text}
                         </span>
                       </div>
                     );
-                  })}
-                </div>
+                  })
+                )}
               </div>
             </div>
-
-            <CardDescription className="text-center max-w-md mt-6">
-              This process will take a few minutes. You can close this page. We will notify you once everything is complete.
-            </CardDescription>
+            <Button
+              className="mt-4"
+              variant="outline"
+              onClick={() => router.push("/")}
+            >
+              Back to Home
+            </Button>
           </CardContent>
         </Card>
       </main>

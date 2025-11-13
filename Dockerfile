@@ -1,26 +1,26 @@
-# 使用官方 Node.js 运行时作为基础镜像
+# Use official Node.js runtime as base image
 FROM node:20-alpine
 
-# 设置工作目录
+# Set working directory
 WORKDIR /app
 
-# 复制 package.json 和 package-lock.json
+# Copy package.json and package-lock.json
 COPY package*.json ./
 
-# 安装所有依赖（包括开发依赖，用于构建）
+# Install dependencies (including devDeps for build)
 RUN npm ci --no-audit --no-fund || npm install --legacy-peer-deps --no-audit --no-fund
 
-# 复制源代码
+# Copy source code
 COPY . .
 
-# 构建应用
+# Build application
 RUN npm run build
 
-# 清理开发依赖以减小镜像大小
+# Remove dev dependencies to shrink image
 RUN npm prune --omit=dev --legacy-peer-deps --no-audit --no-fund || true
 
-# 暴露端口（Render 会自动设置 PORT 环境变量）
+# Expose port (Render sets PORT env automatically)
 EXPOSE 4001
 
-# 启动应用
+# Launch application
 CMD ["npm", "start"]

@@ -17,11 +17,14 @@ import {
   Loader2,
   AlertCircle,
   Copy,
-  UploadCloud,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+
+const generateId = () =>
+  (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2));
 
 // Types
 export interface FileWithPreview {
@@ -128,14 +131,10 @@ const getFileTypeLabel = (type: string): string => {
 const isTextualFile = (file: File): boolean => {
   const textualTypes = [
     "text/",
-    "Applicationpp
-/json",
-    "Applicationpp
-/xml",
-    "Applicationpp
-/javascript",
-    "Applicationpp
-/typescript",
+    "application/json",
+    "application/xml",
+    "application/javascript",
+    "application/typescript",
   ];
 
   const textualExtensions = [
@@ -576,13 +575,12 @@ const ClaudeChatInput: React.FC<ChatInputProps> = ({
           return true;
         })
         .map((file) => ({
-          id: Math.random(),
+          id: generateId(),
           file,
           preview: file.type.startsWith("image/")
             ? URL.createObjectURL(file)
             : undefined,
-          type: file.type || "Applicationpp
-/octet-stream",
+          type: file.type || "application/octet-stream",
           uploadStatus: "pending" as const,
           uploadProgress: 0,
         }));
@@ -601,7 +599,7 @@ const ClaudeChatInput: React.FC<ChatInputProps> = ({
               );
             })
             .catch((error) => {
-              console.error("Error reading file content:", error);
+              console.log("Error reading file content:", error);
               setFiles((prev) =>
                 prev.map((f) =>
                   f.id === fileToUpload.id
@@ -687,7 +685,7 @@ const ClaudeChatInput: React.FC<ChatInputProps> = ({
         setMessage(message + textData.slice(0, PASTE_THRESHOLD) + "..."); // Add a portion to textarea
 
         const pastedItem: PastedContent = {
-          id: Math.random(),
+          id: generateId(),
           content: textData,
           timestamp: new Date(),
           wordCount: textData.split(/\s+/).filter(Boolean).length,

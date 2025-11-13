@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -43,6 +43,9 @@ import {
 } from "lucide-react";
 import { Trash2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { PricingModal } from "@/components/pricing-modal";
+import { CreateAppButton } from "@/components/create-app-button";
+import { Hero7 } from "@/components/ui/modern-hero";
 type AppItem = {
   id: string;
   name: string;
@@ -55,7 +58,13 @@ type AppItem = {
       api_key?: string;
     } | null;
   } | null;
-
+  generator_meta?: {
+    queries?: Array<{
+      index: number;
+      query: string;
+    }>;
+    [key: string]: any;
+  } | null;
   features: number;
   createdAt: string;
   updated_at: string;
@@ -65,60 +74,179 @@ type AppItem = {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"list" | "grid">("list");
   const [statusFilter, setStatusFilter] = useState<
     "all" | "published" | "draft" | "generating"
   >("all");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
   const { user, session } = useAuth();
 
-  const getApps = async () => {
+  // Handle subscription_required parameter - only show popup once per session
+  useEffect(() => {
+    const subscriptionRequired = searchParams.get("subscription_required");
+    if (subscriptionRequired === "1" && user?.id) {
+      const subscriptionCheckedKey = `subscription_popup_shown_${user.id}`;
+      const hasShownPopup =
+        sessionStorage.getItem(subscriptionCheckedKey) === "true";
+
+      if (!hasShownPopup) {
+        // Show popup only if not shown in this session
+        setIsPricingOpen(true);
+        sessionStorage.setItem(subscriptionCheckedKey, "true");
+        // Remove parameter from URL to prevent popup on refresh
+        router.replace("/", { scroll: false });
+      } else {
+        // If already shown, just remove parameter from URL
+        router.replace("/", { scroll: false });
+      }
+    }
+  }, [searchParams, user?.id, router]);
+
+  // Extract queries from generator_meta and store them in localStorage
+  const extractAndSaveQueries = (app: AppItem) => {
+    try {
+      if (
+        app.generator_meta?.queries &&
+        Array.isArray(app.generator_meta.queries)
+      ) {
+        // Pick only the query field from each entry
+        const selectedProblems = app.generator_meta.queries
+          .map((q) => q.query)
+          .filter((query) => query && query.trim().length > 0);
+
+        if (selectedProblems.length > 0) {
+          localStorage.setItem(
+            "selectedProblems",
+            JSON.stringify(selectedProblems)
+          );
+          console.log("Saved queries to selectedProblems:", selectedProblems);
+        }
+      }
+    } catch (error) {
+      console.log("Failed to extract and save queries:", error);
+    }
+  };
+
+  // Cache expiration (1 day)
+  const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 1 day
+
+  // Derive the cache key
+  const getCacheKey = useCallback(() => {
+    return `apps_cache_${user?.id || "anonymous"}`;
+  }, [user?.id]);
+
+  // Read cached data
+  const getCachedApps = useCallback((): AppItem[] | null => {
+    if (typeof window === "undefined") return null;
+
+    try {
+      const cacheKey = getCacheKey();
+      const cached = localStorage.getItem(cacheKey);
+      if (!cached) return null;
+
+      const { data, timestamp } = JSON.parse(cached);
+      const now = Date.now();
+
+      // Expiration check
+      if (now - timestamp > CACHE_EXPIRY) {
+        localStorage.removeItem(cacheKey);
+        return null;
+      }
+
+      return Array.isArray(data) ? data : null;
+    } catch (e) {
+      console.log("Failed to parse cached apps:", e);
+      return null;
+    }
+  }, [getCacheKey]);
+
+  // Write data into the cache
+  const setCachedApps = useCallback(
+    (data: AppItem[]) => {
+      if (typeof window === "undefined") return;
+
+      try {
+        const cacheKey = getCacheKey();
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            data,
+            timestamp: Date.now(),
+          })
+        );
+      } catch (e) {
+        console.log("Failed to cache apps:", e);
+      }
+    },
+    [getCacheKey]
+  );
+
+  // Clear cached entries
+  const clearAppsCache = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const cacheKey = getCacheKey();
+    localStorage.removeItem(cacheKey);
+  }, [getCacheKey]);
+
+  // Helper responsible for fetching data from the API
+  const fetchAppsFromAPI = useCallback(async () => {
     const queryParams = new URLSearchParams();
 
     if (user?.id) {
-      console.log(user);
       queryParams.append("user_id", user.id);
     }
 
-    // 添加时间戳防止缓存
     queryParams.append("_t", Date.now().toString());
 
     const response = await fetch(`/api/apps?${queryParams.toString()}`);
     const data = await response.json();
-    console.log(data);
-    setAppItems(data.data);
+
+    if (data.data && Array.isArray(data.data)) {
+      setAppItems(data.data);
+      // Persist the response in cache
+      setCachedApps(data.data);
+    }
+
     return data;
-  };
+  }, [user?.id, setCachedApps]);
+
+  const getApps = useCallback(
+    async (useCache: boolean = true) => {
+      // Honor cache first when allowed
+      if (useCache) {
+        const cachedData = getCachedApps();
+        if (cachedData) {
+          // Display cached data immediately
+          setAppItems(cachedData);
+          // Refresh in the background without using cache
+          fetchAppsFromAPI().catch(console.log);
+          return { data: cachedData };
+        }
+      }
+
+      // When no cache is available, fetch directly
+      try {
+        return await fetchAppsFromAPI();
+      } catch (error) {
+        console.log("Failed to fetch apps:", error);
+        // Fall back to cache if the request fails
+        const cachedData = getCachedApps();
+        if (cachedData) {
+          setAppItems(cachedData);
+        }
+        throw error;
+      }
+    },
+    [getCachedApps, fetchAppsFromAPI]
+  );
   useEffect(() => {
     if (user) {
       getApps();
-      
-      // 添加fake data用于展示Generating状态
-      const fakeGeneratingApp: AppItem = {
-        id: "fake-generating-app",
-        name: "E-commerce Analytics Dashboard",
-        description: "Real-time analytics dashboard for e-commerce operations with user behavior tracking",
-        status: "generating",
-        features: 8,
-        createdAt: new Date().toISOString().split("T")[0],
-        updated_at: new Date().toISOString().split("T")[0],
-        published_at: "",
-        visits: 0,
-      };
-      
-      // 延迟添加fake data，确保在真实数据加载后
-      setTimeout(() => {
-        setAppItems(prev => {
-          // 检查是否已存在fake app，避免重复添加
-          if (!prev.find(app => app.id === "fake-generating-app")) {
-            return [...prev, fakeGeneratingApp];
-          }
-          return prev;
-        });
-      }, 500);
     }
-  }, [user]);
+  }, [user, getApps]);
 
   // const initialApps: AppItem[] = [
   //   {
@@ -172,15 +300,19 @@ export default function DashboardPage() {
   const [appItems, setAppItems] = useState<AppItem[]>([]);
 
   const handleDelete = async (id: string) => {
-    // 确认删除
-    if (!confirm("确定要删除这个应用吗？此操作不可撤销。")) {
+    // Confirm deletion
+    if (
+      !confirm(
+        "Are you sure you want to delete this app? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
     setDeletingId(id);
 
     try {
-      // 调用后端API删除应用
+      // Invoke backend API to delete the app
       const response = await fetch(`/api/apps/${id}`, {
         method: "DELETE",
         headers: {
@@ -193,35 +325,42 @@ export default function DashboardPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "删除应用失败");
+        //throw new Error(errorData.error || "Failed to delete app");
       }
 
-      // 删除成功后重新获取数据，确保数据同步
-      await getApps();
+      // Clear cache and refetch to keep data consistent
+      clearAppsCache();
+      await getApps(false); // Force refresh without cache
 
-      console.log("应用删除成功");
+      console.log("App deleted successfully");
     } catch (error) {
-      console.error("删除应用失败:", error);
-      alert(`删除失败: ${error instanceof Error ? error.message : "未知错误"}`);
+      console.log("Failed to delete app:", error);
+      alert(
+        `Delete failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     } finally {
       setDeletingId(null);
     }
   };
 
   const filteredApps = useMemo(() => {
-    let filtered = appItems;
+    // Ensure appItems is always an array
+    const items = Array.isArray(appItems) ? appItems : [];
+    let filtered = items;
 
-    // 状态筛选
+    // Status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter((app) => app.status === statusFilter);
     }
 
-    // 搜索筛选 - 只筛选name字段
+    // Search filter - only match the name field
     const q = query.trim().toLowerCase();
     if (q) {
       filtered = filtered.filter((a) => {
-        // 只匹配name字段
-        return a.name.toLowerCase().includes(q);
+        // Match against the name field
+        return a.name?.toLowerCase().includes(q);
       });
     }
 
@@ -231,25 +370,28 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       <main className="px-6 py-8">
-        {/* Hero Section */}
-        <section className="py-16 md:py-24 mb-12 flex items-center justify-center bg-black">
-          <div className="flex flex-col items-center justify-center space-y-4">
-            <Button
-              size="lg"
-              asChild
-              className="h-12 px-6 text-base rounded-lg bg-transparent text-white hover:bg-white hover:text-black hover:backdrop-blur-sm hover:border-transparent border border-transparent transition-all duration-300"
+        <Hero7
+          heading="Generate chatApps from your data"
+          description="Importing and analyzing your Supabase database by AI and instantly build your app"
+          buttonComponent={
+            <CreateAppButton
+              onRequireSubscription={() => setIsPricingOpen(true)}
+              className="mt-10 inline-flex h-12 px-6 text-base rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
             >
-              <Link href="/connect">
-                <Plus className="size-5 mr-2" /> Create Your App
-              </Link>
-            </Button>
-          </div>
-        </section>
-        {/* 主标题区 */}
+              Connect Database to Start
+            </CreateAppButton>
+          }
+        />
+
+        {/* Pricing Modal */}
+        <PricingModal
+          isOpen={isPricingOpen}
+          onClose={() => setIsPricingOpen(false)}
+        />
+        {/* Main headline section */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold">MyApps</h1>
-          
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -257,16 +399,16 @@ export default function DashboardPage() {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search App"
+                placeholder="Search by Name"
                 className="pl-9 w-72"
               />
             </div>
             <div className="flex items-center gap-2">
               <Select
                 value={statusFilter}
-                onValueChange={(value: "all" | "published" | "draft" | "generating") =>
-                  setStatusFilter(value)
-                }
+                onValueChange={(
+                  value: "all" | "published" | "draft" | "generating"
+                ) => setStatusFilter(value)}
               >
                 <SelectTrigger className="w-[140px] h-9">
                   <SelectValue placeholder="All Status" />
@@ -298,7 +440,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 主体列表区 */}
+        {/* Main content list */}
         {view === "grid" ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -308,8 +450,9 @@ export default function DashboardPage() {
                   className="hover:shadow-sm transition-shadow cursor-pointer"
                   onClick={() => {
                     if (app.status === "generating") {
-                      router.push("/generate");
+                      router.push(`/generate?appId=${app.id}`);
                     } else {
+                      extractAndSaveQueries(app);
                       router.push(`/preview?id=${app.id}`);
                     }
                   }}
@@ -328,66 +471,27 @@ export default function DashboardPage() {
                                 : "bg-gray-100 text-gray-700"
                             }`}
                           >
-                            {app.status === "generating" ? "Generating" : app.status}
+                            {app.status === "generating"
+                              ? "Generating"
+                              : app.status}
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-2">
                           {app.description}
                         </p>
                       </div>
-                      {app.status === "generating" ? null : app.status === "published" ? (
-                        // <DropdownMenu>
-                        //   <DropdownMenuTrigger asChild>
-                        //     <Button
-                        //       variant="ghost"
-                        //       size="icon"
-                        //       onClick={(e) => {
-                        //         e.stopPropagation();
-                        //       }}
-                        //     >
-                        //       <MoreHorizontal className="size-4" />
-                        //     </Button>
-                        //   </DropdownMenuTrigger>
-                        //   <DropdownMenuContent align="end">
-                        //     <DropdownMenuItem
-                        //       asChild
-                        //       onClick={(e) => {
-                        //         e.stopPropagation();
-                        //       }}
-                        //     >
-                        //       <Link href={`/app/${app.id}/versions`}>
-                        //         Versions
-                        //       </Link>
-                        //     </DropdownMenuItem>
-                        //   </DropdownMenuContent>
-                        // </DropdownMenu>
-
+                      {app.status === "generating" ? null : (
                         <Button
                           variant="ghost"
                           size="icon"
                           disabled={deletingId === app.id}
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(`/preview?id=${app.id}`);
+                            extractAndSaveQueries(app);
+                            router.push(`/app/${app.id}/versions`);
                           }}
                         >
                           <Info className="size-4 text-blue-600" />
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          disabled={deletingId === app.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(app.id);
-                          }}
-                        >
-                          {deletingId === app.id ? (
-                            <div className="size-4 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
-                          ) : (
-                            <Trash2 className="size-4 text-destructive" />
-                          )}
                         </Button>
                       )}
                     </div>
@@ -408,12 +512,12 @@ export default function DashboardPage() {
                             ?.access_token || "-"}
                         </span>
                       </div>
-                      <div className="truncate text-right md:text-left">
+                      {/* <div className="truncate text-right md:text-left">
                         <span className="text-foreground/80">
                           Valued Questions:{" "}
                         </span>
                         <span className="tabular-nums">{app.features}</span>
-                      </div>
+                      </div> */}
 
                       <div className="truncate">
                         <span className="text-foreground/80">
@@ -457,9 +561,6 @@ export default function DashboardPage() {
                     <TableHead className="w-[15%]">Project ID</TableHead>
                     <TableHead className="w-[15%]">Access Token</TableHead>
                     <TableHead className="w-[15%]">API Key</TableHead>
-                    <TableHead className="w-[10%] text-center">
-                      Valued Questions
-                    </TableHead>
                     <TableHead className="w-[10%]">Last Edit Date</TableHead>
                     <TableHead className="w-[10%]">Published Date</TableHead>
                     <TableHead className="w-[8%]"></TableHead>
@@ -471,8 +572,9 @@ export default function DashboardPage() {
                       key={app.id}
                       onClick={() => {
                         if (app.status === "generating") {
-                          router.push("/generate");
+                          router.push(`/generate?appId=${app.id}`);
                         } else {
+                          extractAndSaveQueries(app);
                           router.push(`/preview?id=${app.id}`);
                         }
                       }}
@@ -491,7 +593,9 @@ export default function DashboardPage() {
                               : "bg-gray-100 text-gray-700"
                           }`}
                         >
-                          {app.status === "generating" ? "Generating" : app.status}
+                          {app.status === "generating"
+                            ? "Generating"
+                            : app.status}
                         </span>
                       </TableCell>
                       <TableCell className="text-muted-foreground truncate max-w-[260px]">
@@ -506,12 +610,11 @@ export default function DashboardPage() {
                           "-"}
                       </TableCell>
                       <TableCell className="truncate text-xs text-muted-foreground font-mono max-w-[260px]">
-                        {app.data_connections?.connection_info?.api_key ||
-                          "-"}
+                        {app.data_connections?.connection_info?.api_key || "-"}
                       </TableCell>
-                      <TableCell className="text-center tabular-nums">
+                      {/* <TableCell className="text-center tabular-nums">
                         {app.features}
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell className="tabular-nums">
                         {app.updated_at
                           ? new Date(app.updated_at).toLocaleDateString("en-CA")
@@ -526,44 +629,23 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {app.status === "generating" ? null : app.status === "published" ? (
-                            // <DropdownMenu>
-                            //   <DropdownMenuTrigger asChild>
-                            //     <Button
-                            //       variant="ghost"
-                            //       size="icon"
-                            //       onClick={(e) => {
-                            //         e.stopPropagation();
-                            //       }}
-                            //     >
-                            //       <MoreHorizontal className="size-4" />
-                            //     </Button>
-                            //   </DropdownMenuTrigger>
-                            //   <DropdownMenuContent align="end">
-                            //     <DropdownMenuItem
-                            //       asChild
-                            //       onClick={(e) => {
-                            //         e.stopPropagation();
-                            //       }}
-                            //     >
-                            //       <Link href={`/app/${app.id}/versions`}>
-                            //         Versions
-                            //       </Link>
-                            //     </DropdownMenuItem>
-                            //   </DropdownMenuContent>
-                            // </DropdownMenu>
+                          {app.status === "generating" ? null : app.status ===
+                            "published" ? (
                             <Button
                               variant="ghost"
                               size="icon"
                               disabled={deletingId === app.id}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                router.push(`/preview?id=${app.id}`);
+                                extractAndSaveQueries(app);
+                                router.push(`/app/${app.id}/versions`);
                               }}
                             >
                               <Info className="size-4 text-blue-600" />
                             </Button>
-                          ) : (
+                          ) : null}
+                          {app.status === "generating" ? null : app.status ===
+                            "draft" ? (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -579,7 +661,7 @@ export default function DashboardPage() {
                                 <Trash2 className="size-4 text-destructive" />
                               )}
                             </Button>
-                          )}
+                          ) : null}
                         </div>
                       </TableCell>
                     </TableRow>

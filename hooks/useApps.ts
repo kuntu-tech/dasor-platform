@@ -55,7 +55,7 @@ export function useApps() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 获取应用列表
+  // Fetch the list of apps
   const fetchApps = async (
     params: {
       page?: number;
@@ -83,14 +83,14 @@ export function useApps() {
       const data: AppsResponse = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "获取应用列表失败");
+        throw new Error(data.error || "Failed to fetch app list");
       }
 
       setApps(data.data);
       return data;
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "获取应用列表失败";
+        err instanceof Error ? err.message : "Failed to fetch app list";
       setError(errorMessage);
       throw err;
     } finally {
@@ -98,7 +98,7 @@ export function useApps() {
     }
   };
 
-  // 获取单个应用
+  // Fetch a single app
   const fetchApp = async (id: string): Promise<App> => {
     setLoading(true);
     setError(null);
@@ -108,12 +108,12 @@ export function useApps() {
       const data: AppResponse = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "获取应用失败");
+        throw new Error(data.error || "Failed to fetch app");
       }
 
       return data.data;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "获取应用失败";
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch app";
       setError(errorMessage);
       throw err;
     } finally {
@@ -121,7 +121,7 @@ export function useApps() {
     }
   };
 
-  // 创建应用
+  // Create a new app
   const createApp = async (appData: {
     name: string;
     description?: string;
@@ -149,14 +149,15 @@ export function useApps() {
       const data: AppResponse = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "创建应用失败");
+        throw new Error(data.error || "Failed to create app");
       }
 
-      // 更新本地状态
+      // Update local state with the new app
       setApps((prev) => [data.data, ...prev]);
       return data.data;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "创建应用失败";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to create app";
       setError(errorMessage);
       throw err;
     } finally {
@@ -164,7 +165,7 @@ export function useApps() {
     }
   };
 
-  // 更新应用
+  // Update an existing app
   const updateApp = async (
     id: string,
     appData: {
@@ -196,14 +197,15 @@ export function useApps() {
       const data: AppResponse = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "更新应用失败");
+        throw new Error(data.error || "Failed to update app");
       }
 
-      // 更新本地状态
+      // Update local state with the revised app
       setApps((prev) => prev.map((app) => (app.id === id ? data.data : app)));
       return data.data;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "更新应用失败";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update app";
       setError(errorMessage);
       throw err;
     } finally {
@@ -211,7 +213,7 @@ export function useApps() {
     }
   };
 
-  // 删除应用
+  // Delete an app
   const deleteApp = async (id: string): Promise<void> => {
     setLoading(true);
     setError(null);
@@ -229,13 +231,14 @@ export function useApps() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "删除应用失败");
+        throw new Error(data.error || "Failed to delete app");
       }
 
-      // 更新本地状态
+      // Update local state after deletion
       setApps((prev) => prev.filter((app) => app.id !== id));
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "删除应用失败";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to delete app";
       setError(errorMessage);
       throw err;
     } finally {

@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const noStoreHeaders = {
+  "Cache-Control": "no-store, max-age=0",
+};
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
 
     if (!userId) {
-      return NextResponse.json({ success: false, error: "userId is required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "userId is required" },
+        { status: 400, headers: noStoreHeaders }
+      );
     }
 
     const { data: vendor, error } = await supabaseAdmin
@@ -17,21 +27,33 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      console.error("获取vendor错误:", error);
-      return NextResponse.json({ success: false, error: "Failed to fetch vendor data", details: error.message }, { status: 500 });
+      console.log("Failed to fetch vendor:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to fetch vendor data", details: error.message },
+        { status: 500, headers: noStoreHeaders }
+      );
     }
 
     if (!vendor) {
-      return NextResponse.json({ success: false, error: "No vendor found for this user" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "No vendor found for this user" },
+        { status: 404, headers: noStoreHeaders }
+      );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: vendor,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        data: vendor,
+      },
+      { headers: noStoreHeaders }
+    );
   } catch (error) {
-    console.error("API错误:", error);
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+    console.log("API error:", error);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500, headers: noStoreHeaders }
+    );
   }
 }
 

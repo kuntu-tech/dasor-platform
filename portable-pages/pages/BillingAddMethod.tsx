@@ -18,19 +18,19 @@ const BillingAddMethod = () => {
 
   return (
     <div className="mx-auto max-w-2xl p-8">
-      <div className="mb-6 text-sm text-muted-foreground">Billing &gt; 支付方式</div>
-      <h1 className="mb-6 text-3xl font-semibold">添加支付方式</h1>
+      <div className="mb-6 text-sm text-muted-foreground">Billing &gt; Payment Methods</div>
+      <h1 className="mb-6 text-3xl font-semibold">Add Payment Method</h1>
 
       <Tabs defaultValue="card" className="mb-6">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="card">银行卡</TabsTrigger>
-          <TabsTrigger value="usbank">美国银行账户</TabsTrigger>
+          <TabsTrigger value="card">Card</TabsTrigger>
+          <TabsTrigger value="usbank">US Bank Account</TabsTrigger>
           <TabsTrigger value="cashapp">Cash App Pay</TabsTrigger>
         </TabsList>
         <TabsContent value="card">
           <div className="space-y-5">
             <div>
-              <Label>卡号</Label>
+              <Label>Card Number</Label>
               <div className="relative mt-2">
                 <Input placeholder="1234 1234 1234 1234" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} />
                 <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 select-none text-xs text-muted-foreground">VISA • MASTERCARD • AMEX • DISCOVER</div>
@@ -39,11 +39,11 @@ const BillingAddMethod = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>有效期</Label>
-                <Input placeholder="月/年" className="mt-2" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
+                <Label>Expiration Date</Label>
+                <Input placeholder="MM/YY" className="mt-2" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
               </div>
               <div>
-                <Label>安全码</Label>
+                <Label>Security Code</Label>
                 <div className="relative mt-2">
                   <Input placeholder="CVC" value={cvc} onChange={(e) => setCvc(e.target.value)} />
                   <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">123</div>
@@ -53,40 +53,44 @@ const BillingAddMethod = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>国家/地区</Label>
+                <Label>Country / Region</Label>
                 <Select defaultValue={country} onValueChange={setCountry}>
                   <SelectTrigger className="mt-2">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="US">美国</SelectItem>
-                    <SelectItem value="CN">中国</SelectItem>
-                    <SelectItem value="GB">英国</SelectItem>
+                    <SelectItem value="US">United States</SelectItem>
+                    <SelectItem value="CN">China</SelectItem>
+                    <SelectItem value="GB">United Kingdom</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>邮政编码</Label>
+                <Label>Postal Code</Label>
                 <Input className="mt-2" placeholder="12345" value={postal} onChange={(e) => setPostal(e.target.value)} />
               </div>
             </div>
 
-            <p className="text-sm text-muted-foreground">提供您的银行卡信息，即表示您允许 Cursor 按照他们的条款从您的银行卡收取未来款项。</p>
-            <p className="text-xs text-muted-foreground">您可以在他们的服务条款和隐私政策页面查看 Cursor 的重要信息。</p>
+            <p className="text-sm text-muted-foreground">
+              By providing your card information, you authorize Cursor to charge future payments according to their terms.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Review Cursor’s service terms and privacy policy for more details.
+            </p>
 
             <div className="pt-2">
               <div className="flex gap-3">
-                <Button disabled={isDisabled} className="px-10">添加</Button>
-                <Button variant="outline" className="px-10" onClick={() => navigate(-1)}>返回</Button>
+                <Button disabled={isDisabled} className="px-10">Add</Button>
+                <Button variant="outline" className="px-10" onClick={() => navigate(-1)}>Back</Button>
               </div>
             </div>
           </div>
         </TabsContent>
         <TabsContent value="usbank">
-          <div className="text-sm text-muted-foreground">暂未开放，请选择银行卡添加。</div>
+          <div className="text-sm text-muted-foreground">Not available yet. Please add a card instead.</div>
         </TabsContent>
         <TabsContent value="cashapp">
-          <div className="text-sm text-muted-foreground">暂未开放，请选择银行卡添加。</div>
+          <div className="text-sm text-muted-foreground">Not available yet. Please add a card instead.</div>
         </TabsContent>
       </Tabs>
     </div>

@@ -1,253 +1,214 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 
-// GET /api/apps/[id] - 获取单个应用
+export const dynamic = "force-dynamic";
+
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: appId } = await params;
+  if (!appId) {
+    return NextResponse.json({ error: "Missing appId" }, { status: 400 });
+  }
+
   try {
-    const { id } = params;
-
-    if (!id) {
-      return NextResponse.json({ error: "应用ID不能为空" }, { status: 400 });
-    }
-
-    const { data: app, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("apps")
-      .select(
-        `
-        *,
-        users:user_id (
-          id,
-          name,
-          email,
-          avatar_url
-        ),
-        data_connections:connection_id (
-          id,
-          connection_info
-        )
-      `
-      )
-      .eq("id", id)
-      .single();
+      .select("*")
+      .eq("id", appId)
+      .maybeSingle();
 
     if (error) {
-      if (error.code === "PGRST116") {
-        return NextResponse.json({ error: "应用不存在" }, { status: 404 });
-      }
-      console.error("获取应用错误:", error);
-      return NextResponse.json({ error: "获取应用失败" }, { status: 500 });
+      console.log("Failed to fetch app details:", error);
+      return NextResponse.json(
+        { error: "Failed to fetch app details" },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: app,
-    });
-  } catch (error) {
-    console.error("获取应用异常:", error);
-    return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
+    if (!data) {
+      return NextResponse.json(
+        { error: "App not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, data });
+  } catch (err) {
+    console.log("Unexpected error while fetching app details:", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
-// PUT /api/apps/[id] - 更新应用
-export async function PUT(
+export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  return handleUpdate(request, params);
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return handleUpdate(request, params);
+}
+
+async function handleUpdate(
+  request: NextRequest,
+  paramsPromise: Promise<{ id: string }>
+) {
+  const { id: appId } = await paramsPromise;
+  if (!appId) {
+    return NextResponse.json({ error: "Missing appId" }, { status: 400 });
+  }
+
   try {
-    const { id } = params;
-    const body = await request.json();
-    const {
-      name,
-      description,
-      category,
-      tags,
-      config,
-      metadata,
-      is_public,
-      status,
-    } = body;
-
-    if (!id) {
-      return NextResponse.json({ error: "应用ID不能为空" }, { status: 400 });
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json(
+        { error: "Request body cannot be empty" },
+        { status: 400 }
+      );
     }
 
-    // 获取当前用户
-    const authHeader = request.headers.get("Authorization");
-    let userId = null;
+    const allowedFields = [
+      "name",
+      "description",
+      "status",
+      "app_version",
+      "build_status",
+      "deployment_status",
+      "payment_model",
+      "published_at",
+      "app_meta_info",
+    ];
 
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.substring(7);
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser(token);
-
-      if (authError || !user) {
-        return NextResponse.json({ error: "无效的认证token" }, { status: 401 });
+    const payload: Record<string, any> = {};
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        payload[field] = body[field];
       }
-
-      // 从users表获取用户ID
-      const { data: userProfile, error: userError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (userError || !userProfile) {
-        return NextResponse.json({ error: "用户信息不存在" }, { status: 404 });
-      }
-
-      userId = userProfile.id;
-    } else {
-      return NextResponse.json({ error: "缺少认证token" }, { status: 401 });
     }
 
-    // 检查应用是否存在且属于当前用户
-    const { data: existingApp, error: checkError } = await supabaseAdmin
+    if (body.app_meta_info !== undefined) {
+      try {
+        if (typeof body.app_meta_info === "string") {
+          payload.app_meta_info = JSON.parse(body.app_meta_info);
+        } else if (
+          body.app_meta_info &&
+          typeof body.app_meta_info === "object"
+        ) {
+          payload.app_meta_info = body.app_meta_info;
+        } else {
+          payload.app_meta_info = null;
+        }
+      } catch (e) {
+        console.warn("Failed to parse app_meta_info", e);
+      }
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return NextResponse.json(
+        { error: "No fields to update" },
+        { status: 400 }
+      );
+    }
+
+    const { data, error } = await supabaseAdmin
       .from("apps")
-      .select("user_id")
-      .eq("id", id)
-      .single();
-
-    if (checkError || !existingApp) {
-      return NextResponse.json({ error: "应用不存在" }, { status: 404 });
-    }
-
-    if (existingApp.user_id !== userId) {
-      return NextResponse.json({ error: "无权限修改此应用" }, { status: 403 });
-    }
-
-    // 构建更新数据
-    const updateData: any = {
-      updated_at: new Date().toISOString(),
-    };
-
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
-    if (category !== undefined) updateData.category = category;
-    if (tags !== undefined) updateData.tags = tags;
-    if (config !== undefined) updateData.config = config;
-    if (metadata !== undefined) updateData.metadata = metadata;
-    if (is_public !== undefined) updateData.is_public = is_public;
-    if (status !== undefined) {
-      updateData.status = status;
-      if (status === "published") {
-        updateData.published_at = new Date().toISOString();
-      }
-    }
-
-    // 更新应用
-    const { data: app, error } = await supabaseAdmin
-      .from("apps")
-      .update(updateData)
-      .eq("id", id)
-      .select(
-        `
-        *,
-        users:user_id (
-          id,
-          name,
-          email,
-          avatar_url
-        ),
-        data_connections:connection_id (
-          id,
-          connection_info
-        )
-      `
-      )
+      .update(payload)
+      .eq("id", appId)
+      .select("*")
       .single();
 
     if (error) {
-      console.error("更新应用错误:", error);
-      return NextResponse.json({ error: "更新应用失败" }, { status: 500 });
+      console.log("Failed to update app:", error);
+      return NextResponse.json(
+        { error: "Failed to update app", details: error.message || String(error) },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: app,
-    });
-  } catch (error) {
-    console.error("更新应用异常:", error);
-    return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
+    return NextResponse.json({ success: true, data });
+  } catch (err) {
+    console.log("Unexpected error while updating app:", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
-// DELETE /api/apps/[id] - 删除应用
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: appId } = await params;
+  if (!appId) {
+    return NextResponse.json({ error: "Missing appId" }, { status: 400 });
+  }
+
   try {
-    const { id } = params;
-
-    if (!id) {
-      return NextResponse.json({ error: "应用ID不能为空" }, { status: 400 });
-    }
-
-    // 获取当前用户
-    const authHeader = request.headers.get("Authorization");
-    let userId = null;
-
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.substring(7);
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser(token);
-
-      if (authError || !user) {
-        return NextResponse.json({ error: "无效的认证token" }, { status: 401 });
-      }
-
-      // 从users表获取用户ID
-      const { data: userProfile, error: userError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("id", user.id)
-        .single();
-
-      if (userError || !userProfile) {
-        return NextResponse.json({ error: "用户信息不存在" }, { status: 404 });
-      }
-
-      userId = userProfile.id;
-    } else {
-      return NextResponse.json({ error: "缺少认证token" }, { status: 401 });
-    }
-
-    // 检查应用是否存在且属于当前用户
+    // Verify app exists before deletion
     const { data: existingApp, error: checkError } = await supabaseAdmin
       .from("apps")
-      .select("user_id")
-      .eq("id", id)
-      .single();
+      .select("id")
+      .eq("id", appId)
+      .maybeSingle();
 
-    if (checkError || !existingApp) {
-      return NextResponse.json({ error: "应用不存在" }, { status: 404 });
+    if (checkError) {
+      console.log("Failed to query app:", checkError);
+      return NextResponse.json(
+        {
+          error: "Failed to delete app",
+          details: checkError.message || String(checkError),
+        },
+        { status: 500 }
+      );
     }
 
-    if (existingApp.user_id !== userId) {
-      return NextResponse.json({ error: "无权限删除此应用" }, { status: 403 });
+    if (!existingApp) {
+      return NextResponse.json({ error: "App not found" }, { status: 404 });
     }
 
-    // 删除应用
-    const { error } = await supabaseAdmin.from("apps").delete().eq("id", id);
+    // Perform deletion
+    const { data, error } = await supabaseAdmin
+      .from("apps")
+      .delete()
+      .eq("id", appId)
+      .select();
 
     if (error) {
-      console.error("删除应用错误:", error);
-      return NextResponse.json({ error: "删除应用失败" }, { status: 500 });
+      console.log("Failed to delete app:", error);
+      return NextResponse.json(
+        {
+          error: "Failed to delete app",
+          details: error.message || String(error),
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
       success: true,
-      message: "应用删除成功",
+      message: "App deleted",
+      data: data?.[0] || null,
     });
-  } catch (error) {
-    console.error("删除应用异常:", error);
-    return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
+  } catch (err) {
+    console.log("Unexpected error while deleting app:", err);
+    const errorMessage =
+      err instanceof Error ? err.message : String(err) || "Unknown error";
+    return NextResponse.json(
+      {
+        error: "Failed to delete app",
+        details: errorMessage,
+      },
+      { status: 500 }
+    );
   }
 }

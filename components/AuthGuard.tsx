@@ -1,59 +1,114 @@
 "use client";
 
-// import { useEffect } from "react";
-// import { useRouter, usePathname } from "next/navigation";
-// import { useAuth } from "@/components/AuthProvider";
+import { useEffect, useMemo } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
+import { supabase } from "@/lib/supabase";
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  // 跳过登录验证，直接允许访问所有页面
-  return <>{children}</>;
-
-  // 以下代码已禁用，如需恢复认证，请取消注释
-  /*
-  const { user, loading } = useAuth();
+  const { user, loading, isVerifyingSignOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
-  // 不需要认证的页面路径
-  const publicPaths = [
-    "/auth/login",
-    "/auth/register",
-    "/auth/callback",
-    "/auth/forgot-password",
-    "/auth/reset-password",
-  ];
+  const isPublicPath = useMemo(() => {
+    if (!pathname) return false;
 
+    const publicExact = new Set([
+      "/auth/login",
+      "/auth/register",
+      "/auth/callback",
+      "/auth/forgot-password",
+      "/auth/reset-password",
+      "/purchase/success",
+      "/purchase/cancel",
+      "/oauth/callback",
+      "/subscription/cancel",
+      "/subscription/success",
+    ]);
+
+    if (publicExact.has(pathname)) return true;
+
+    const publicPrefixes = ["/auth/", "/oauth/"];
+    return publicPrefixes.some((prefix) => pathname.startsWith(prefix));
+  }, [pathname]);
+
+  // 🚦 Primary guard logic
   useEffect(() => {
-    console.log("loading", loading);
-    // 如果正在加载，等待加载完成
-    if (loading) return;
+    if (isPublicPath || loading || isVerifyingSignOut) return;
 
-    // 如果是公开页面，允许访问
-    if (publicPaths.includes(pathname)) {
-      return;
-    }
+    let cancelled = false;
+    let verifyTimer: NodeJS.Timeout | null = null;
+    let hardRedirectTimer: NodeJS.Timeout | null = null;
 
-    // 如果没有用户且不在公开页面，重定向到登录页
     if (!user) {
-      console.log("未认证用户访问受保护页面，重定向到登录页");
-      router.push("/auth/login");
-      return;
+      const verifyAndRedirect = async () => {
+        try {
+          const { data, error } = await supabase.auth.getSession();
+
+          if (cancelled) return;
+
+          if (error) console.warn("AuthGuard session verification error:", error);
+
+          if (!data.session) {
+            console.log("🚪 Session missing after verification, redirecting.");
+            router.replace("/auth/login");
+          } else {
+            console.log("✅ Session recovered during verification, stay on page.");
+            clearTimeout(hardRedirectTimer!);
+          }
+        } catch (err) {
+          if (!cancelled) {
+            console.warn("AuthGuard session verification threw:", err);
+            router.replace("/auth/login");
+          }
+        }
+      };
+
+      // ✅ Initial delayed verification
+      verifyTimer = setTimeout(verifyAndRedirect, 800);
+
+      // ✅ Hard timeout fallback to avoid indefinite waiting
+      hardRedirectTimer = setTimeout(() => {
+        if (!cancelled) {
+          console.warn(
+            "AuthGuard hard fallback triggered, forcing redirect to /auth/login."
+          );
+          router.replace("/auth/login");
+        }
+      }, 5000);
     }
 
-    // 如果已登录用户在登录页，重定向到首页
-    if (user && pathname === "/auth/login") {
-      console.log("已认证用户访问登录页，重定向到首页");
-      router.push("/");
-      return;
-    }
-  }, [user, loading, pathname, router]);
+    return () => {
+      cancelled = true;
+      if (verifyTimer) clearTimeout(verifyTimer);
+      if (hardRedirectTimer) clearTimeout(hardRedirectTimer);
+    };
+  }, [user, loading, isVerifyingSignOut, isPublicPath, router]);
 
-  // 如果正在加载，显示加载界面
-  if (loading) {
+  // ✅ Secondary check: auto-refresh if user recovers but UI was stuck
+  useEffect(() => {
+    if (!loading && user) {
+      console.log("✅ AuthGuard detected session recovery, refreshing page");
+      router.refresh(); // Re-render protected content
+    }
+  }, [user, loading, router]);
+
+  // ✅ Redirect to homepage if user remains on login after sign-in
+  useEffect(() => {
+    if (!loading && user && pathname === "/auth/login") {
+      router.replace("/");
+    }
+  }, [loading, user, pathname, router]);
+
+  // ✅ Allow public routes to render directly
+  if (isPublicPath) return <>{children}</>;
+
+  // ✅ Loading or verification-in-progress state
+  if (loading || isVerifyingSignOut) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
@@ -64,24 +119,18 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // 如果是公开页面，直接显示内容
-  if (publicPaths.includes(pathname)) {
-    return <>{children}</>;
-  }
-
-  // 如果没有用户且不在公开页面，不显示内容（等待重定向）
+  // ✅ Show waiting state when user is absent (recovery may occur)
   if (!user) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Redirecting to the login page...</p>
+          <p className="text-gray-600">Checking session status...</p>
         </div>
       </div>
     );
   }
 
-  // 已认证用户，显示受保护的内容
+  // ✅ Everything looks good
   return <>{children}</>;
-  */
 }

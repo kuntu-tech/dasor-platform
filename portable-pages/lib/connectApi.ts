@@ -1,6 +1,6 @@
 export const CONNECT_API_BASE =
   process.env.NEXT_PUBLIC_CONNECT_API_BASE?.replace(/\/$/, "") ||
-  "https://unfrequentable-sceptical-vince.ngrok-free.dev";
+  "https://test-payment-1j3d.onrender.com";
 
 export const SERVICE_API_TOKEN = process.env.NEXT_PUBLIC_SERVICE_API_TOKEN || "";
 
@@ -46,6 +46,11 @@ export interface VendorStatusResponse {
     created_at: string;
     updated_at: string;
     user_id: string;
+    subscription_id?: string | null;
+    subscription_status?: string | null;
+    subscription_period_end?: string | null;
+    charges_enabled?: boolean | null;
+    payouts_enabled?: boolean | null;
   };
   error?: string;
 }
@@ -55,6 +60,7 @@ export async function bindVendor(body: BindRequestBody): Promise<BindResponse> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
       ...(SERVICE_API_TOKEN ? { Authorization: `Bearer ${SERVICE_API_TOKEN}` } : {}),
     },
     body: JSON.stringify(body),
@@ -65,18 +71,51 @@ export async function bindVendor(body: BindRequestBody): Promise<BindResponse> {
 }
 
 export async function getVendorStatus(userId: string): Promise<VendorStatusResponse> {
-  const res = await fetch(`/api/connect/status?userId=${userId}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+  try {
+    const res = await fetch(`/api/connect/status?userId=${userId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
-  const json = (await res.json()) as VendorStatusResponse;
-  return json;
+    const rawText = await res.text();
+    let json: VendorStatusResponse | undefined;
+
+    if (rawText) {
+      try {
+        json = JSON.parse(rawText) as VendorStatusResponse;
+      } catch (parseError) {
+        console.warn("Failed to parse vendor status response:", parseError);
+      }
+    }
+
+    if (!res.ok) {
+      const notFoundMessage = res.status === 404 ? "Vendor status not found" : `Request failed: ${res.status}`;
+      return {
+        success: false,
+        error: json?.error || notFoundMessage,
+      };
+    }
+
+    if (!json) {
+      return {
+        success: false,
+        error: "Invalid vendor status response",
+      };
+    }
+
+    return json;
+  } catch (error) {
+    console.warn("getVendorStatus request error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
 }
 
-// OAuth 相关接口
+// OAuth-related interfaces
 export interface OAuthStartRequestBody {
   email: string;
   userId?: string;
@@ -118,6 +157,7 @@ export async function startOAuth(body: OAuthStartRequestBody): Promise<OAuthStar
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
       ...(SERVICE_API_TOKEN ? { Authorization: `Bearer ${SERVICE_API_TOKEN}` } : {}),
     },
     body: JSON.stringify(body),
@@ -133,6 +173,7 @@ export async function linkVendorAccount(body: OAuthLinkRequestBody): Promise<OAu
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
       ...(SERVICE_API_TOKEN ? { Authorization: `Bearer ${SERVICE_API_TOKEN}` } : {}),
     },
     body: JSON.stringify(body),
@@ -140,4 +181,234 @@ export async function linkVendorAccount(body: OAuthLinkRequestBody): Promise<OAu
 
   const json = (await res.json()) as OAuthLinkResponse;
   return json;
+}
+
+// Subscription-related interfaces
+export interface CreateSubscriptionRequestBody {
+  interval: "month" | "year";
+  successUrl?: string; // Callback URL after successful payment (optional)
+  cancelUrl?: string; // Callback URL after payment cancellation (optional)
+}
+
+export interface CreateSubscriptionResponse {
+  success: boolean;
+  data?: {
+    sessionId?: string;
+    customerId?: string;
+    checkoutUrl?: string;
+    priceId?: string;
+    subscriptionId?: string;
+    status?: string;
+    alreadySubscribed?: boolean;
+    message?: string;
+  };
+  message?: string;
+  error?: string;
+}
+
+export async function createSubscription(
+  vendorId: number,
+  body: CreateSubscriptionRequestBody
+): Promise<CreateSubscriptionResponse> {
+  // Use the backend proxy API to avoid CORS issues
+  const res = await fetch(`/api/subscriptions/${vendorId}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  // Attempt to parse the response
+  let json: CreateSubscriptionResponse;
+  try {
+    json = (await res.json()) as CreateSubscriptionResponse;
+  } catch (error) {
+    console.log("Failed to parse JSON response:", error);
+    return {
+      success: false,
+      error: `Failed to parse response: ${res.status}`,
+    };
+  }
+
+  // Validate response status and payload
+  if (!res.ok) {
+    console.log("Subscription API HTTP error:", res.status, json);
+    return {
+      success: false,
+      error: json.error || `HTTP error: ${res.status}`,
+    };
+  }
+
+  // Ensure the response includes a success flag
+  if (json.success === false || (json.success === undefined && !json.data?.checkoutUrl)) {
+    console.log("Subscription API error:", res.status, json);
+    return {
+      success: false,
+      error: json.error || json.message || "Subscription request failed",
+    };
+  }
+
+  return json;
+}
+
+// Sync subscription status API
+export interface SyncSubscriptionStatusResponse {
+  success: boolean;
+  data?: {
+    vendorId: number;
+    subscriptionStatus: string;
+    transactionId?: number;
+  };
+  message?: string;
+  error?: string;
+}
+
+export async function syncSubscriptionStatus(
+  vendorId: number,
+  sessionId?: string
+): Promise<SyncSubscriptionStatusResponse> {
+  // Build the request body (include sessionId when provided)
+  const requestBody: { sessionId?: string } = {};
+  if (sessionId) {
+    requestBody.sessionId = sessionId;
+  }
+
+  // Use the backend proxy API to avoid CORS issues
+  const res = await fetch(`/api/subscriptions/${vendorId}/sync-status`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+    body: Object.keys(requestBody).length > 0 ? JSON.stringify(requestBody) : undefined,
+  });
+
+  // Attempt to parse the response
+  let json: SyncSubscriptionStatusResponse;
+  try {
+    json = (await res.json()) as SyncSubscriptionStatusResponse;
+  } catch (error) {
+    console.log("Failed to parse JSON response:", error);
+    return {
+      success: false,
+      error: `Failed to parse response: ${res.status}`,
+    };
+  }
+
+  // Validate response status and payload
+  if (!res.ok) {
+    console.log("Sync-status API HTTP error:", res.status, json);
+    return {
+      success: false,
+      error: json.error || `HTTP error: ${res.status}`,
+    };
+  }
+
+  // Ensure the response indicates success
+  if (json.success === false) {
+    console.log("Sync-status API error:", res.status, json);
+    return {
+      success: false,
+      error: json.error || json.message || "Sync status request failed",
+    };
+  }
+
+  return json;
+}
+
+// App payment interfaces
+export interface CreateAppPaymentRequestBody {
+  app_userid: string; // app_users.id – used to look up app_id and user details
+  successUrl?: string; // Callback URL after successful payment (optional)
+  cancelUrl?: string; // Callback URL when payment is cancelled (optional)
+}
+
+export interface CreateAppPaymentResponse {
+  success: boolean;
+  data?: {
+    type: "free" | "paid";
+    url?: string; // Payment link for paid apps
+    sessionId?: string; // Session ID for paid apps
+    paymentModel?: string; // Payment mode (subscription/one_time)
+    priceAmount?: number; // Price amount
+    message?: string; // Informational message for free apps
+  };
+  message?: string;
+  error?: string;
+  details?: any; // Additional error details (optional)
+}
+
+/**
+ * Create an app payment session
+ * @param body Request payload { app_userid } - corresponds to app_users.id
+ * @returns Payment information
+ */
+export async function createAppPayment(
+  body: CreateAppPaymentRequestBody
+): Promise<CreateAppPaymentResponse> {
+  // Use the backend proxy API to avoid CORS issues
+  const url = `/api/app-payments/create`;
+  console.log("Calling createAppPayment:", url, body);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    console.log("createAppPayment response status:", res.status);
+
+    // Attempt to parse the response
+    let json: CreateAppPaymentResponse;
+    try {
+      json = (await res.json()) as CreateAppPaymentResponse;
+    } catch (error) {
+      console.log("Failed to parse JSON response:", error);
+      return {
+        success: false,
+        error: `Failed to parse response: ${res.status}`,
+      };
+    }
+
+    // Validate response status
+    if (!res.ok) {
+      console.log("App Payment API HTTP error:", res.status, json);
+      // Attempt to extract more detailed error information
+      const errorMessage = 
+        json.error || 
+        json.details?.error || 
+        json.message || 
+        json.details?.message ||
+        `HTTP error: ${res.status}`;
+      
+      return {
+        success: false,
+        error: errorMessage,
+        details: json.details,
+      };
+    }
+
+    // Validate response payload
+    if (json.success === false) {
+      console.log("App Payment API error:", res.status, json);
+      return {
+        success: false,
+        error: json.error || json.message || "Failed to create payment link",
+      };
+    }
+
+    return json;
+  } catch (error) {
+    console.log("createAppPayment error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
 }

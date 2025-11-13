@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Separator } from "@/components/ui/separator"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { 
   User, 
   CreditCard, 
@@ -18,13 +19,17 @@ import {
   Download,
   X,
   Camera,
-  Wallet
+  Wallet,
+  Loader2
 } from "lucide-react"
 import PaymentAccount from "@/portable-pages/components/settings/PaymentAccount"
+import { useAuth } from "@/components/AuthProvider"
+import { getBillingPortalUrl } from "@/lib/billingPortal"
+import { supabase } from "@/lib/supabase"
 
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
-  { id: "billing", label: "Usage & Billing", icon: CreditCard },
+  { id: "billing", label: "Billing", icon: CreditCard },
   { id: "payout", label: "Payout Account", icon: Wallet },
 ]
 
@@ -36,8 +41,79 @@ interface SettingsModalProps {
 
 export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState(defaultTab)
+  const { user, session } = useAuth()
+  const [billingPortalUrl, setBillingPortalUrl] = useState<string | null>(null)
+  const [billingPortalLoading, setBillingPortalLoading] = useState(false)
+  const [billingPortalError, setBillingPortalError] = useState<string | null>(null)
+  const [hasPaymentHistory, setHasPaymentHistory] = useState<boolean | null>(null)
+  const [checkingPaymentHistory, setCheckingPaymentHistory] = useState(false)
+  const [paymentStatus, setPaymentStatus] = useState<"no_vendor" | "no_payment_history" | "has_payment_history" | null>(null)
+  
+  // Avatar upload states
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarLoading, setAvatarLoading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 处理ESC键关闭
+  const [displayName, setDisplayName] = useState("")
+  const [username, setUsername] = useState("")
+  const [bio, setBio] = useState("")
+  const [useCustomUsername, setUseCustomUsername] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(false)
+
+  const getLatestAccessToken = useCallback(async (): Promise<string | null> => {
+    let accessToken = session?.access_token ?? null
+    try {
+      const { data, error } = await supabase.auth.getSession()
+      if (error) {
+        console.warn("Failed to refresh Supabase session:", error)
+      }
+      if (data?.session?.access_token) {
+        accessToken = data.session.access_token
+      }
+    } catch (error) {
+      console.warn("Unexpected error while fetching Supabase session:", error)
+    }
+    return accessToken
+  }, [session?.access_token])
+
+  const avatarCacheKey = useMemo(() => {
+    if (typeof window === "undefined") return null
+    return user?.id ? `cached_avatar_${user.id}` : null
+  }, [user?.id])
+
+  const updateAvatar = useCallback(
+    (url: string | null) => {
+      setAvatarUrl(url)
+      if (typeof window === "undefined" || !avatarCacheKey) return
+      if (url) {
+        localStorage.setItem(avatarCacheKey, url)
+      } else {
+        localStorage.removeItem(avatarCacheKey)
+      }
+    },
+    [avatarCacheKey]
+  )
+
+  type UserProfileRow = {
+    name?: string | null
+    full_name?: string | null
+    username?: string | null
+    bio?: string | null
+    avatar_url?: string | null
+  }
+
+  const deriveDefaultUsername = () => {
+    if (user?.email) {
+      return user.email
+    }
+    return ""
+  }
+
+// Handle ESC key to close the modal
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -47,7 +123,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
 
     if (isOpen) {
       document.addEventListener("keydown", handleEscape)
-      // 防止背景滚动
+      // Prevent background scrolling
       document.body.style.overflow = "hidden"
     }
 
@@ -57,12 +133,362 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     }
   }, [isOpen, onClose])
 
-  // 当弹窗打开时，设置默认标签页
+// Fetch user profile data
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user?.id) {
+        setDisplayName("")
+        setUsername("")
+        setBio("")
+        updateAvatar(null)
+        setUseCustomUsername(false)
+        return
+      }
+
+      // Prefill from Supabase Auth metadata to avoid temporary empty fields
+      const metadataDisplayName =
+        (user.user_metadata?.full_name as string | undefined) ??
+        (user.user_metadata?.name as string | undefined) ??
+        user.email ??
+        ""
+      setDisplayName(metadataDisplayName)
+
+      const metadataUsername =
+        (user.user_metadata?.username as string | undefined) ??
+        deriveDefaultUsername()
+      setUsername(metadataUsername ?? "")
+      setUseCustomUsername(Boolean(user.user_metadata?.username))
+
+      const metadataBio =
+        (user.user_metadata?.bio as string | undefined) ?? ""
+      setBio(metadataBio)
+
+      const metadataAvatar =
+        (user.user_metadata?.avatar_url as string | undefined) ??
+        (user.user_metadata?.picture as string | undefined) ??
+        null
+      updateAvatar(metadataAvatar ?? null)
+
+      const accessToken = await getLatestAccessToken()
+
+      if (!accessToken) {
+        return
+      }
+
+      setProfileLoading(true)
+
+      try {
+        const response = await fetch("/api/users/self", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId: user.id }),
+          cache: "no-store",
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch profile: ${response.status}`)
+        }
+
+        const payload = (await response.json()) as {
+          data?: UserProfileRow | null
+        }
+
+        const profileData = payload?.data ?? null
+
+        const fallbackDisplayName =
+          profileData?.name ??
+          profileData?.full_name ??
+          (user.user_metadata?.full_name as string | undefined) ??
+          (user.user_metadata?.name as string | undefined) ??
+          user.email ??
+          ""
+
+        setDisplayName(fallbackDisplayName)
+
+        const fetchedUsername =
+          profileData?.username ??
+          (user.user_metadata?.username as string | undefined) ??
+          deriveDefaultUsername()
+        setUsername(fetchedUsername ?? "")
+        setUseCustomUsername(Boolean(profileData?.username || user.user_metadata?.username))
+
+        const fetchedBio =
+          profileData?.bio ?? (user.user_metadata?.bio as string | undefined) ?? ""
+        setBio(fetchedBio)
+
+        const fetchedAvatar =
+          profileData?.avatar_url ??
+          (user.user_metadata?.avatar_url as string | undefined) ??
+          (user.user_metadata?.picture as string | undefined) ??
+          null
+        updateAvatar(fetchedAvatar ?? null)
+      } catch (error) {
+        console.log("Failed to load user profile:", error)
+      } finally {
+        setProfileLoading(false)
+      }
+    }
+
+    if (isOpen) {
+      if (typeof window !== "undefined" && avatarCacheKey) {
+        const cachedUrl = localStorage.getItem(avatarCacheKey)
+        if (cachedUrl) {
+          setAvatarUrl(cachedUrl)
+        }
+      }
+      fetchUserProfile()
+    }
+  }, [user?.id, isOpen, avatarCacheKey, updateAvatar, getLatestAccessToken])
+
+// Set the default tab whenever the modal opens
   useEffect(() => {
     if (isOpen) {
       setActiveTab(defaultTab)
     }
   }, [isOpen, defaultTab])
+
+  useEffect(() => {
+    const handleAvatarUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ avatarUrl?: string | null }>).detail
+      if (detail && "avatarUrl" in detail) {
+        updateAvatar(detail.avatarUrl ?? null)
+      }
+    }
+
+    window.addEventListener("avatar-updated", handleAvatarUpdated)
+    return () => {
+      window.removeEventListener("avatar-updated", handleAvatarUpdated)
+    }
+  }, [updateAvatar])
+
+// When switching to the billing tab, check payment history before loading Customer Portal
+  useEffect(() => {
+    if (activeTab === "billing" && user?.id) {
+      // Check payment history if not already done
+      if (hasPaymentHistory === null && !checkingPaymentHistory) {
+        setCheckingPaymentHistory(true)
+        
+        fetch(`/api/check-payment-history?userId=${user.id}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success) {
+              setHasPaymentHistory(data.hasPaymentHistory)
+              setPaymentStatus(data.status || null)
+              
+              // Only load the portal when payment history exists
+              if (data.status === "has_payment_history" && !billingPortalUrl && !billingPortalLoading) {
+                setBillingPortalLoading(true)
+                setBillingPortalError(null)
+                
+                getBillingPortalUrl(user.id, window.location.href)
+                  .then((url) => {
+                    if (url) {
+                      setBillingPortalUrl(url)
+                    } else {
+                      setBillingPortalError("Failed to load billing portal. Please try again later.")
+                    }
+                  })
+                  .catch((error) => {
+                console.log("Failed to load Customer Portal:", error)
+                    setBillingPortalError("Network error. Please try again later.")
+                  })
+                  .finally(() => {
+                    setBillingPortalLoading(false)
+                  })
+              }
+            } else {
+              // On failure, default to “no payment history”
+              setHasPaymentHistory(false)
+              setPaymentStatus("no_payment_history")
+            }
+          })
+          .catch((error) => {
+            console.log("Failed to check payment history:", error)
+            setHasPaymentHistory(false)
+            setPaymentStatus("no_payment_history")
+          })
+          .finally(() => {
+            setCheckingPaymentHistory(false)
+          })
+      } else if (paymentStatus === "has_payment_history" && !billingPortalUrl && !billingPortalLoading) {
+        // Load the portal if payment history exists but the portal has not yet loaded
+        setBillingPortalLoading(true)
+        setBillingPortalError(null)
+        
+        getBillingPortalUrl(user.id, window.location.href)
+          .then((url) => {
+            if (url) {
+              setBillingPortalUrl(url)
+            } else {
+              setBillingPortalError("Failed to load billing portal. Please try again later.")
+            }
+          })
+          .catch((error) => {
+            console.log("Failed to load Customer Portal:", error)
+            setBillingPortalError("Network error. Please try again later.")
+          })
+          .finally(() => {
+            setBillingPortalLoading(false)
+          })
+      }
+    }
+  }, [activeTab, user?.id, billingPortalUrl, billingPortalLoading, hasPaymentHistory, checkingPaymentHistory, paymentStatus])
+
+// Handle avatar file upload
+  const handleFileUpload = async (file: File) => {
+    if (!user?.id) {
+      setUploadError("Please log in first")
+      return
+    }
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError("Unsupported file type. Supported: JPG, PNG, WebP, GIF")
+      return
+    }
+
+    // Validate file size (5 MB)
+    const maxSize = 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      setUploadError("File size exceeds limit (Max 5MB)")
+      return
+    }
+
+    // Create preview URL
+    const preview = URL.createObjectURL(file)
+    setPreviewUrl(preview)
+    setUploadError(null)
+    setUploadSuccess(null)
+    setAvatarLoading(true)
+    setUploadProgress(50) // simulate midpoint progress
+
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("userId", user.id)
+
+      const response = await fetch("/api/upload-avatar", {
+        method: "POST",
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Upload failed")
+      }
+
+      // Update avatar URL (append cache-busting param)
+      const avatarUrlWithCache = `${result.url}?t=${Date.now()}`
+      
+      // Preload the new image to ensure it’s ready before switching
+      const img = new Image()
+      
+      // Attach load and error handlers
+      let imageLoaded = false
+      
+      img.onload = () => {
+        if (!imageLoaded) {
+          imageLoaded = true
+          // On successful load, update state and clear preview
+          updateAvatar(avatarUrlWithCache)
+          setPreviewUrl(null)
+          // Clean up the preview URL
+          if (preview) {
+            URL.revokeObjectURL(preview)
+          }
+        }
+      }
+      
+      img.onerror = () => {
+        if (!imageLoaded) {
+          imageLoaded = true
+          // Even if loading fails, update the URL (network issues might be transient)
+          // Keep preview URL briefly to avoid showing fallback immediately
+          updateAvatar(avatarUrlWithCache)
+          // Delay clearing the preview so the user can view it longer
+          setTimeout(() => {
+            setPreviewUrl(null)
+            if (preview) {
+              URL.revokeObjectURL(preview)
+            }
+          }, 1000)
+        }
+      }
+      
+      // Assign the image source (this triggers loading)
+      img.src = avatarUrlWithCache
+      
+      // If the image is cached (complete === true), the onload might not fire
+      // therefore check the complete state
+      if (img.complete && img.naturalWidth > 0) {
+        // Image is cached and valid; update immediately
+        if (!imageLoaded) {
+          imageLoaded = true
+          updateAvatar(avatarUrlWithCache)
+          setPreviewUrl(null)
+          if (preview) {
+            URL.revokeObjectURL(preview)
+          }
+        }
+      }
+      
+      setUploadProgress(100)
+      setUploadSuccess("Avatar updated successfully")
+
+      // Dispatch a custom event so other components refresh the avatar
+      window.dispatchEvent(new CustomEvent('avatar-updated', { 
+        detail: { avatarUrl: avatarUrlWithCache } 
+      }))
+
+      // Automatically remove success message after 3 seconds
+      setTimeout(() => {
+        setUploadSuccess(null)
+      }, 3000)
+    } catch (error) {
+      console.log("Failed to upload avatar:", error)
+      setUploadError(error instanceof Error ? error.message : "Upload failed")
+      setPreviewUrl(null)
+      if (preview) {
+        URL.revokeObjectURL(preview)
+      }
+    } finally {
+      setAvatarLoading(false)
+      setTimeout(() => setUploadProgress(0), 1000)
+    }
+  }
+
+// Handle file picker change
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleFileUpload(file)
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+
+// Determine avatar display URL (prefer preview over stored avatar)
+// avatarUrl already contains cache-busting params; use as-is
+  const displayAvatarUrl =
+    previewUrl || avatarUrl || "/placeholder-user.jpg"
+
+// Derive user initials as fallback
+  const getInitials = () => {
+    if (displayName) {
+      return displayName.charAt(0).toUpperCase()
+    }
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase()
+    }
+    return "U"
+  }
 
   const renderAccountContent = () => (
     <div className="space-y-6">
@@ -80,17 +506,58 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
           {/* Avatar Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-orange-500 flex items-center justify-center">
-                <span className="text-white text-2xl font-bold">G</span>
+              <Avatar className="w-20 h-20">
+                <AvatarImage 
+                  src={displayAvatarUrl || undefined} 
+                  alt="Avatar"
+                key={displayAvatarUrl} // force re-render to bypass caching issues
+                />
+                <AvatarFallback className="bg-orange-500 text-white text-2xl font-bold">
+                  {getInitials()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col gap-2">
+                <Button 
+                  variant="outline" 
+                  className="gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={avatarLoading}
+                >
+                  {avatarLoading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="size-4" />
+                      Change Avatar
+                    </>
+                  )}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
               </div>
-              <Button variant="outline" className="gap-2">
-                <Camera className="size-4" />
-                Change Avatar
-              </Button>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Or drag and drop an image anywhere on this area
-            </p>
+
+            {/* Upload Error */}
+            {uploadError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{uploadError}</p>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {uploadSuccess && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-600">{uploadSuccess}</p>
+              </div>
+            )}
           </div>
 
           {/* Display Name */}
@@ -98,234 +565,248 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
             <label className="text-sm font-medium">Display Name</label>
             <input 
               type="text" 
-              defaultValue="Gomberg Lambino"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter your display name"
+              disabled={profileLoading}
             />
           </div>
 
-          {/* Username */}
+          {/* Email */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Username</label>
+            <label className="text-sm font-medium">Email</label>
             <input 
               type="text" 
-              defaultValue="gomberglambino"
+              value={useCustomUsername ? username : deriveDefaultUsername()}
+              onChange={(event) => setUsername(event.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter your email"
+              disabled={!useCustomUsername || profileLoading}
             />
             <div className="flex items-center gap-2">
               <input 
                 type="checkbox" 
                 id="custom-username" 
-                defaultChecked
+                checked={useCustomUsername}
+                onChange={(event) => setUseCustomUsername(event.target.checked)}
                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
               />
               <label htmlFor="custom-username" className="text-sm text-gray-700">
-                Use custom username
+                Use custom email
               </label>
             </div>
           </div>
 
-          {/* Bio */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Bio</label>
-            <textarea 
-              placeholder="Tell us about yourself"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
-            />
-            <p className="text-sm text-muted-foreground">180 characters remaining</p>
-          </div>
+          
         </CardContent>
       </Card>
     </div>
   )
 
-  const renderBillingContent = () => (
-    <div className="space-y-6">
-      {/* Billing Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Usage & Billing</h1>
-          <div className="mt-1">
-            <h2 className="text-lg font-semibold">Billing</h2>
-            <p className="text-sm text-muted-foreground">
-              For questions about billing,{" "}
-              <a href="#" className="text-blue-600 hover:underline">contact us</a>
+  const renderBillingContent = () => {
+    <div>
+    <h1 className="text-2xl font-bold">Billing</h1>
+  </div>
+
+    // Show prompt when the user is not signed in
+    if (!user?.id) {
+      return (
+        
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <p className="text-muted-foreground">Please log in to view billing information</p>
+          </div>
+        </div>
+      )
+    }
+
+    // Display loading state while checking payment history
+    if (checkingPaymentHistory) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Checking payment history...</p>
+          </div>
+        </div>
+      )
+    }
+
+    // Prompt when Stripe account is not linked
+    if (paymentStatus === "no_vendor") {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center max-w-md px-6">
+            <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <svg
+                className="w-8 h-8 text-gray-400"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+              </svg>
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+              Stripe account not connected
+            </h2>
+            <p className="text-gray-600 text-base leading-relaxed">
+              Please connect your Stripe account to view billing information and payment history.
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
-            Manage subscription
-            <ExternalLink className="size-4" />
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2">
-            All plans
-            <ArrowRight className="size-4" />
-          </Button>
+      )
+    }
+
+    // Prompt when no payment history exists
+    if (paymentStatus === "no_payment_history") {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center max-w-md px-6">
+            <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <svg
+                className="w-8 h-8 text-gray-400"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+              No payment history
+            </h2>
+            <p className="text-gray-600 text-base leading-relaxed">
+              You don't have any payment records yet. Once you receive payments, they will appear here.
+            </p>
+          </div>
+        </div>
+      )
+    }
+
+    // Render loading state while data is fetching
+    if (billingPortalLoading) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading billing portal...</p>
+          </div>
+        </div>
+      )
+    }
+
+    // Show error message on load failure
+    if (billingPortalError) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{billingPortalError}</p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setBillingPortalUrl(null)
+                setBillingPortalError(null)
+                setBillingPortalLoading(true)
+                getBillingPortalUrl(user.id, window.location.href)
+                  .then((url) => {
+                    if (url) {
+                      setBillingPortalUrl(url)
+                    } else {
+                      setBillingPortalError("Failed to load billing portal. Please try again later.")
+                    }
+                  })
+                  .catch((error) => {
+                    console.log("Failed to load Customer Portal:", error)
+                    setBillingPortalError("Network error. Please try again later.")
+                  })
+                  .finally(() => {
+                    setBillingPortalLoading(false)
+                  })
+              }}
+            >
+              Retry
+            </Button>
+          </div>
+        </div>
+      )
+    }
+
+    // Present CTA when the portal URL is available
+    // Note: Stripe Customer Portal does not support embedding inside an iframe (CSP limitation)
+    if (billingPortalUrl) {
+      return (
+        <div className="h-full w-full flex flex-col items-center justify-center p-8 space-y-6">
+          <div className="text-center max-w-md">
+            <div className="mb-4">
+              <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <ExternalLink className="h-8 w-8 text-primary" />
+              </div>
+            </div>
+           
+            <Button
+              onClick={() => {
+                if (billingPortalUrl) {
+                  window.open(billingPortalUrl, '_blank', 'noopener,noreferrer');
+                }
+              }}
+              size="lg"
+              className="gap-2"
+            >
+              <ExternalLink className="size-4" />
+              Open Billing Portal
+            </Button>
+            <p className="text-xs text-muted-foreground mt-4">
+              Click the button to open the Stripe Customer Portal in a new tab.
+            </p>
+          </div>
+        </div>
+      )
+    }
+
+    // Default state (should be unreachable)
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
-
-      {/* Account Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Account Info</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm font-medium">Balance</p>
-              <p className="text-xs text-muted-foreground">Will be used for your future payments</p>
-            </div>
-            <p className="text-lg font-semibold">$0.00</p>
-          </div>
-          <Separator />
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm font-medium">Next payment</p>
-              <p className="text-xs text-muted-foreground">Pro (monthly)</p>
-            </div>
-            <p className="text-sm">October 17th, 2025</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Current Plan */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-lg">Pro</CardTitle>
-            <Badge variant="secondary">Current plan</Badge>
-          </div>
-          <CardDescription>For more projects and usage</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-                </div>
-                <span className="text-sm font-medium">New UI Generations</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">67.69 / 100</span>
-                <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="w-2/3 h-full bg-blue-600 rounded-full"></div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Infinity className="size-4 text-green-600" />
-                <span className="text-sm font-medium">UI Inspirations</span>
-              </div>
-              <span className="text-sm text-green-600 font-medium">unlimited</span>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Infinity className="size-4 text-green-600" />
-                <span className="text-sm font-medium">SVG Logo Searches</span>
-              </div>
-              <span className="text-sm text-green-600 font-medium">unlimited</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Upgrade to Pro Plus */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="text-lg">Upgrade to Pro Plus</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">$40 per month</p>
-              <p className="text-sm text-muted-foreground">For power users</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">View all plans</Button>
-              <Button size="sm">Upgrade plan</Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Check className="size-4 text-green-600" />
-              <span className="text-sm">200 credits per month</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="size-4 text-green-600" />
-              <span className="text-sm">Everything from Pro</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="size-4 text-green-600" />
-              <span className="text-sm">Early access to new features</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Payment History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Payment history</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>№</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-mono text-sm">SKVGEW24-0001</TableCell>
-                <TableCell>2025/9/17</TableCell>
-                <TableCell>$20.00</TableCell>
-                <TableCell>2025/9/17 - 2025/9/17</TableCell>
-                <TableCell>
-                  <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
-                    Paid
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="sm">
-                    <Download className="size-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  )
+    )
+  }
 
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* 蒙版 */}
+      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
       
-      {/* 窗口 */}
+      {/* Modal window */}
       <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-6xl h-[80vh] mx-4 flex overflow-hidden">
-        {/* 左侧导航栏 */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-full"
+        >
+          <X className="size-4" />
+          <span className="sr-only">Close settings</span>
+        </Button>
+
+        {/* Left sidebar */}
         <div className="w-64 bg-gray-50 border-r border-gray-200 p-6 flex flex-col">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-lg font-semibold">Settings</h2>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="size-4" />
-            </Button>
           </div>
           
           <nav className="space-y-1 flex-1">
@@ -346,11 +827,13 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
           </nav>
         </div>
 
-        {/* 主内容区 */}
-        <div className="flex-1 p-8 overflow-y-auto">
-          {activeTab === "account" && renderAccountContent()}
-          {activeTab === "billing" && renderBillingContent()}
-          {activeTab === "payout" && <PaymentAccount />}
+        {/* Main content area */}
+        <div className="flex-1 overflow-y-auto">
+          <div className={activeTab === "billing" ? "h-full" : "p-8"}>
+            {activeTab === "account" && renderAccountContent()}
+            {activeTab === "billing" && renderBillingContent()}
+            {activeTab === "payout" && <PaymentAccount />}
+          </div>
         </div>
       </div>
     </div>

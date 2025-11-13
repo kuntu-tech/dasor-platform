@@ -415,7 +415,7 @@ export default function MarketExplorationPage({
   const [highlightedMarkets, setHighlightedMarkets] = useState<string[]>([]);
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>([]);
   const router = useRouter();
-  // 处理传入的 marketsData
+  // Handle incoming marketsData
   useEffect(() => {
     if (marketsData && marketsData.length > 0) {
       console.log("Received marketsData:", marketsData);

@@ -10,13 +10,13 @@ const nextConfig = {
     unoptimized: true,
   },
   devIndicators: false,
-  output: "standalone", // 添加 standalone 输出模式配置
-  // 确保 standalone 输出包含必要文件
+  output: "standalone", // Enable standalone output mode
+  // Ensure standalone output includes required files
   outputFileTracingRoot: process.cwd(),
   distDir: '.next',
-  // 优化服务器配置
+  // Server optimizations
   experimental: {
-    // 优化内存使用
+    // Memory optimizations (placeholder for future settings)
   },
   outputFileTracingIncludes: {
     '*': [
@@ -27,7 +27,7 @@ const nextConfig = {
       'ecosystem.standalone.cjs',
     ],
   },
-  // 优化API路由
+  // Optimize API routes
   async headers() {
     return [
       {
@@ -35,7 +35,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=300, s-maxage=300', // 5分钟缓存
+            value: 'public, max-age=300, s-maxage=300', // 5 minute cache
           },
           {
             key: 'X-Response-Time',
@@ -46,7 +46,7 @@ const nextConfig = {
     ];
   },
 
-  // 允许跨域（本地测试用）
+  // Allow CORS (for local testing)
   async rewrites() {
     return [
       {

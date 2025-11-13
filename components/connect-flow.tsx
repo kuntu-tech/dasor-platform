@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import MarketExplorationPage from "@/app/market-exploration/page";
@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { CircleProgress } from "@/components/ui/circle-progress";
 import aaaa from "@/formatted_analysis_result.json";
 type Step = "connect" | "analyzing" | "results";
 type AnalysisStep =
@@ -42,6 +43,16 @@ type AnalysisStep =
   | "sampling-data"
   | "evaluating"
   | "complete";
+type StepVisualStatus = "waiting" | "in-progress" | "completed" | "error";
+const STEP_PROGRESS_RANGES: Record<AnalysisStep, { start: number; end: number }> =
+  {
+    connecting: { start: 0, end: 10 },
+    "reading-schema": { start: 10, end: 30 },
+    "validating-data": { start: 30, end: 40 },
+    "sampling-data": { start: 40, end: 85 },
+    evaluating: { start: 85, end: 100 },
+    complete: { start: 100, end: 100 },
+  };
 import { useAuth } from "./AuthProvider";
 type AnalysisResultItem = {
   id: string;
@@ -354,8 +365,7 @@ export function ConnectFlow() {
   const [analysisResults, setAnalysisResults] = useState<AnalysisResultItem[]>(
     []
   );
-  const [analysisStep, setAnalysisStep] =
-    useState<AnalysisStep>("validating-data");
+  const [analysisStep, setAnalysisStep] = useState<AnalysisStep>("connecting");
   const [chatInput, setChatInput] = useState("");
   const [pendingChatInput, setPendingChatInput] = useState("");
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -366,19 +376,21 @@ export function ConnectFlow() {
   const [dataValidationError, setDataValidationError] = useState<string | null>(
     null
   );
+  const [runError, setRunError] = useState<string | null>(null);
   const [hasValidated, setHasValidated] = useState<boolean>(false);
   const [showInputError, setShowInputError] = useState<boolean>(false);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [accessToken, setAccessToken] = useState("");
   const { user } = useAuth();
-  const [progress, setProgress] = useState(0); // 百分比
+  const [progress, setProgress] = useState(0); // percentage
   const [jobStatus, setJobStatus] = useState("init");
-  // 简化的数据库验证函数 - 支持测试用的 URL 和 API Key
+  // const [connectionId, setConnectionId] = useState("");
+  // Simplified database validation helper supporting test URLs and API keys
   const performRealDatabaseValidation = async (
     url: string,
     key: string
   ): Promise<void> => {
-    // 测试用的有效组合
+    // Valid test combinations for demos
     const validTestCombinations = [
       { url: "https://demo.supabase.co", key: "demo-key-abcdefghijklmnop" },
       {
@@ -392,35 +404,35 @@ export function ConnectFlow() {
       { url: "https://localhost:3000", key: "localhost-key-123456789" },
     ];
 
-    // 特殊测试组合 - 连接成功但数据真实性验证失败
+    // Special combination: connection succeeds but data validation fails later
     const dataValidationFailedCombination = {
       url: "https://test.supabase.co",
       key: "test-api-key-123456789",
     };
 
-    // 检查是否是数据真实性验证失败的测试组合
+    // Check whether this matches the data-validation failure combination
     if (
       url === dataValidationFailedCombination.url &&
       key === dataValidationFailedCombination.key
     ) {
-      // 模拟连接验证延迟
+      // Simulate latency for connection validation
       await new Promise((resolve) => setTimeout(resolve, 500));
-      // 连接成功，但会在后续步骤中触发数据真实性验证失败
+      // Connection succeeds; data validation will fail downstream
       return;
     }
 
-    // 检查是否是其他测试用的有效组合
+    // Evaluate other valid test combos
     const isValidTest = validTestCombinations.some(
       (combo) => url === combo.url && key === combo.key
     );
 
     if (isValidTest) {
-      // 模拟验证延迟
+      // Simulate validation delay
       await new Promise((resolve) => setTimeout(resolve, 500));
-      return; // 验证通过
+      return; // Validation passed
     }
 
-    // 对于其他组合，进行基本格式验证
+    // Perform basic format validation for all other inputs
     if (!url.includes("supabase.co") && !url.includes("localhost")) {
       throw new Error(
         "Invalid Supabase URL format. Try: https://test.supabase.co"
@@ -431,11 +443,92 @@ export function ConnectFlow() {
       throw new Error("Invalid API Key format. Try: test-api-key-123456789");
     }
 
-    // 模拟验证失败（用于测试错误情况）
+    // Simulate failure (used for testing error handling)
     throw new Error(
       "Invalid Supabase URL format. Try: https://test.supabase.co"
     );
   };
+
+  // Detect redirect from publish page and pre-populate markets defaults
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const skipToBusinessInsight = localStorage.getItem("skipToBusinessInsight");
+    if (skipToBusinessInsight === "true") {
+      // Clear the flag
+      localStorage.removeItem("skipToBusinessInsight");
+
+      // Load marketsData from localStorage and use as defaults
+      const marketsDataStr = localStorage.getItem("marketsData");
+      if (marketsDataStr) {
+        try {
+          const marketsData = JSON.parse(marketsDataStr);
+          if (Array.isArray(marketsData) && marketsData.length > 0) {
+            // Ensure every field has a default value when mapping markets
+            const mappedMarkets = marketsData.map(
+              (seg: any, index: number) => ({
+                id: seg.id || seg.segmentId || seg.name || `segment-${index}`,
+                title: seg.title || seg.name || "Untitled Segment",
+                analysis: seg.analysis || {},
+                valueQuestions: seg.valueQuestions || [],
+              })
+            );
+            setMarkets(mappedMarkets);
+          }
+        } catch (e) {
+          console.log("Failed to parse marketsData from localStorage:", e);
+        }
+      }
+
+      // If run_result exists, jump directly to the results step
+      const runResultStr = localStorage.getItem("run_result");
+      if (runResultStr) {
+        // Directly transition to the results step (business insight)
+        setStep("results");
+        setAnalysisStep("complete");
+        setProgress(100);
+        setHasValidated(true);
+
+        // Seed default analysisResults so the page renders correctly
+        // The results view requires either analysisResults or marketsDataWithDefaults
+        setAnalysisResults((prev) => {
+          if (prev.length === 0) {
+            return testAnalysisData;
+          }
+          return prev;
+        });
+      }
+    }
+  }, []);
+
+  // Compute fallback marketsData (used after publish-page redirects)
+  const marketsDataWithDefaults = useMemo(() => {
+    if (markets.length > 0) {
+      return markets;
+    }
+
+    // When no markets are present, attempt to hydrate from localStorage
+    if (typeof window !== "undefined") {
+      try {
+        const marketsDataStr = localStorage.getItem("marketsData");
+        if (marketsDataStr) {
+          const marketsData = JSON.parse(marketsDataStr);
+          if (Array.isArray(marketsData) && marketsData.length > 0) {
+            return marketsData.map((seg: any, index: number) => ({
+              id: seg.id || seg.segmentId || seg.name || `segment-${index}`,
+              title: seg.title || seg.name || "Untitled Segment",
+              analysis: seg.analysis || {},
+              valueQuestions: seg.valueQuestions || [],
+            }));
+          }
+        }
+      } catch (e) {
+        console.log("Failed to parse marketsData from localStorage:", e);
+      }
+    }
+
+    return [];
+  }, [markets]);
 
   // useEffect(() => {
   //   // If URL param results=1, jump directly to results screen with existing/default suggestions
@@ -474,11 +567,11 @@ export function ConnectFlow() {
   //       if (currentIndex < steps.length) {
   //         setAnalysisStep(steps[currentIndex]);
 
-  //         // 注意：真实的验证已经在 handleConnect 中完成
-  //         // 这里只是显示进度，不再进行模拟验证
+  //         // Note: actual validation is completed within handleConnect
+  //         // This section only updates progress visuals
   //       } else {
   //         clearInterval(interval);
-  //         // 当所有步骤完成时，设置分析结果并跳转到结果页面
+  //         // When all steps finish, set analysis results and navigate to results
   //         setAnalysisResults(
   //           [
   //             // E-commerce Platform Operators - 10 problems
@@ -775,7 +868,7 @@ export function ConnectFlow() {
   //         );
   //         // setStep("results");
   //       }
-  //     }, 1900); // 缩短为原来的一半以加快分析过程
+  //     }, 1900); // Halved duration to speed up the analysis flow
 
   //     return () => clearInterval(interval);
   //   }
@@ -815,25 +908,30 @@ export function ConnectFlow() {
       await new Promise((r) => setTimeout(r, interval));
       last = data;
     }
-    return { ...last, status: "timeout", error: "超过最大轮询等待时间" };
+    return {
+      ...last,
+      status: "timeout",
+      error: "Exceeded maximum polling wait time",
+    };
   };
   const handleConnectAPI = async () => {
     console.log("handleConnectAPI");
 
-    // 清除之前的错误信息
+    // Clear previous error states
     setConnectionError(null);
     setDataValidationError(null);
+    setRunError(null);
     setShowInputError(false);
     setStep("analyzing");
     setIsAnalyzing(false);
 
-    // 校验 connectionUrl 格式
+    // Validate connectionUrl format
     if (!connectionUrl || connectionUrl.trim() === "") {
       setConnectionError("Connection URL cannot be empty");
       return;
     }
 
-    // 校验 URL 格式
+    // Validate URL format
     // try {
     //   new URL(connectionUrl);
     // } catch (error) {
@@ -841,13 +939,13 @@ export function ConnectFlow() {
     //   return;
     // }
 
-    // 校验 access token 格式
+    // Validate access token format
     if (!accessToken || accessToken.trim() === "") {
       setConnectionError("access token cannot be empty");
       return;
     }
 
-    // 校验 access token 长度（通常至少8位）
+    // Enforce minimum access token length (typically ≥ 8)
     if (accessToken.length < 8) {
       setConnectionError("Access token must be at least 8 characters long");
       return;
@@ -857,46 +955,66 @@ export function ConnectFlow() {
       return;
     }
 
-    // 校验 API Key 长度（通常至少8位）
+    // Enforce minimum API key length (typically ≥ 8)
     if (apiKey.length < 8) {
       setConnectionError("API key must be at least 8 characters long");
       return;
     }
 
-    // 开始分析流程
+    // Begin the analysis flow
     setStep("analyzing");
-    setAnalysisStep("validating-data");
+    setAnalysisStep("connecting");
+    setProgress(0); // Initialize progress
     setIsAnalyzing(true);
     console.log(aaaa, "--------------------------------");
+    let connectionId = "";
+    let runData = {};
     try {
       console.log("Step 0: Validating connection...");
-      // const validateRes = await fetch("/api/validate-connection", {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     projectId: connectionUrl,
-      //     accessToken: accessToken,
-      //   }),
-      // });
-      // if (!validateRes.ok) {
-      //   const errorData = await validateRes.json();
-      //   throw new Error(
-      //     errorData.error || `Data validation failed: ${validateRes.status}`
-      //   );
-      // }
-      // const validateResData = await validateRes.json();
-      // console.log("Data validation successful:", validateResData);
-      // if (!validateResData.success) {
-      //   setDataValidationError(
-      //     "Data authenticity validation failed: No available data tables or empty data in database"
-      //   );
-      //   return;
-      // }
-      // 连接成功，存入data_connections表
+      setProgress(5); // Connection validation at 5%
+      const validateRes = await fetch("/api/validate-connection", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectId: connectionUrl,
+          accessToken: accessToken,
+        }),
+      });
+      if (!validateRes.ok) {
+        let errorMsg = `Connection validation failed: ${validateRes.status}`;
+        try {
+          const errorData = await validateRes.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch {
+          const errorText = await validateRes.text();
+          errorMsg = errorText?.slice(0, 200) || errorMsg;
+        }
+        setConnectionError(
+          "Please check your API Key, Project ID or Access Token"
+        );
+        setDataValidationError(null);
+        setAnalysisStep("connecting"); // Reset to connecting step (failure stage)
+        setStep("analyzing");
+        setIsAnalyzing(false);
+        return; // Exit early, skip subsequent steps
+      }
+      const validateResData = await validateRes.json();
+      console.log("Data validation successful:", validateResData);
+      if (!validateResData.success) {
+        setConnectionError(
+          "Please check your API Key, Project ID or Access Token"
+        );
+        setDataValidationError(null);
+        setAnalysisStep("connecting"); // Reset to connecting step (failure stage)
+        setStep("analyzing");
+        setIsAnalyzing(false);
+        return; // Exit early, skip subsequent steps
+      }
+      // After validate-connection succeeds, continue with persistence
       try {
-        await fetch("/api/data-connections", {
+        const dataConnectionsResponse = await fetch("/api/data-connections", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -910,50 +1028,103 @@ export function ConnectFlow() {
             status: "active",
           }),
         });
+        const dataConnectionsData = await dataConnectionsResponse.json();
+        console.log("Data connections successful:", dataConnectionsData);
+        if (!dataConnectionsData.success) {
+          throw new Error(
+            dataConnectionsData.error || "Data connections failed"
+          );
+        }
+        // connectionId corresponds to the id field in data_connections
+        connectionId = dataConnectionsData.record?.id;
       } catch (e) {
         console.warn("save data_connections failed", e);
       }
 
-      // 进入数据验证步骤
+      // Step 1 complete: database connection at 10%
+      setProgress(10);
 
-      // 第一步：数据验证
-      console.log("Step 1: Validating data...");
+      // Steps 2 & 3: run data validation APIs
+      // UI Step 2: Read Data Table Structure (reading-schema) - progress 0-20%
+      // UI Step 3: Data Availability Validation (validating-data) - progress 20-40%
+      console.log("Step 2-3: Validating data...");
+      setAnalysisStep("reading-schema"); // Start UI Step 2
+      setProgress(15); // Begin validation at 15%
+      // const validateResponse = await fetch(
+      //   "https://my-connector.onrender.com/review",
+      //   {
+      //     method: "POST",
+      //     headers: {
+      //       "Content-Type": "application/json",
+      //     },
+      //     body: JSON.stringify({
+      //       supabase_project_id: connectionUrl,
+      //       supabase_access_token: accessToken,
+      //       user_name: "huimin",
+      //     }),
+      //   }
+      // );
       const validateResponse = await fetch(
-        "https://my-connector.onrender.com/review",
+        "https://data-validation.datail.ai/api/v1/validate",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            supabase_project_id: connectionUrl,
-            supabase_access_token: accessToken,
-            user_name: "huimin",
+            user_id: user?.id || "",
+            connection_id: connectionId,
+            project_id: connectionUrl,
+            access_token: accessToken,
           }),
         }
       );
 
       if (!validateResponse.ok) {
         const errorData = await validateResponse.json();
-        throw new Error(
+        const errorMsg =
           errorData.error ||
-            `Data validation failed: ${validateResponse.status}`
-        );
+          `Data validation failed: ${validateResponse.status}`;
+        setDataValidationError(errorMsg);
+        setAnalysisStep("validating-data"); // Surface UI Step 3
+        setStep("analyzing");
+        setIsAnalyzing(false);
+        return;
       }
 
       const validateData = await validateResponse.json();
       console.log("Data validation successful:", validateData);
-      if (!validateData.final_conclusion) {
+
+      // Midway through validation; transition to UI Step 3
+      setAnalysisStep("validating-data"); // UI Step 3
+      setProgress(30); // Validation at 30%
+
+      if (validateData.validation_report.summary.status == "unusable") {
         setDataValidationError(
-          "Data authenticity validation failed: No available data tables or empty data in database"
+          validateData.validation_report.summary.note ||
+            "Data validation failed"
         );
+        setAnalysisStep("validating-data"); // Keep UI Step 3 active
+        setStep("analyzing");
+        setIsAnalyzing(false);
         return;
       }
-      // 第二步：连接数据库
-      console.log("Step 2: Connecting to database...");
 
-      setAnalysisStep("connecting");
-      // 连接方式一
+      // Data validation finished, progress to 40%
+      setProgress(40);
+      runData = {
+        user_id: user?.id || validateData.user_id,
+        trace_id: validateData.trace_id,
+        connection_id: connectionId || validateData.connection_id,
+        data_structure: validateData.data_structure,
+      };
+
+      // Step 4: execute pipeline/run and begin polling
+      console.log("Step 4: Running pipeline...");
+      setAnalysisStep("sampling-data"); // UI Step 4
+      setProgress(45); // Start pipeline/run at 45%
+
+      // Connection approach 1
       // const connectResponse = await fetch("/api/connect", {
       //   method: "POST",
       //   headers: {
@@ -961,7 +1132,7 @@ export function ConnectFlow() {
       //   },
       //   body: JSON.stringify({ url: connectionUrl, key: accessToken }),
       // });
-      // 连接方式二
+      // Connection approach 2
       // const connectResponse = await fetch(
       //   "https://my-connector.onrender.com/analyze",
       //   {
@@ -993,59 +1164,151 @@ export function ConnectFlow() {
       //   "Database connection successful:",
       //   connectData.results.market_analysis
       // );
-      // 连接方式三
+      // Connection approach 3
       const connectResponse = await fetch(
         "https://business-insight.datail.ai/api/v1/pipeline/run",
+        // "http://192.168.30.159:8900/api/v1/pipeline/run",
+        // "https://business-insight.datail.ai/api/v1/pipeline/run",
         // "https://business-insighter.onrender.com/api/v1/run-analysis",
-        // "http://192.168.30.150:8001/api/v1/run-analysis",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            user_id: user?.id || "4748756a-5682-4807-8ced-dd4c3aea5a08",
-            project: {
-              project_id: connectionUrl,
-              access_token: accessToken,
-            },
-          }),
+          body: JSON.stringify(runData),
         }
       );
 
       if (!connectResponse.ok) {
-        const errorData = await connectResponse.json();
-        throw new Error(
-          errorData.error ||
-            `Data validation failed: ${connectResponse.statusText}`
-        );
+        let errorMsg = `Pipeline run failed: ${connectResponse.status}`;
+        try {
+          const errorData = await connectResponse.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch {
+          const errorText = await connectResponse.text();
+          errorMsg = errorText?.slice(0, 200) || errorMsg;
+        }
+        setRunError(errorMsg);
+        setAnalysisStep("sampling-data"); // Flag sampling-data step as failure point
+        setStep("analyzing");
+        setIsAnalyzing(false);
+        return;
       }
 
-      const connectData1 = await connectResponse.json();
-      console.log("Connect successful:", connectData1);
+      const connectData = await connectResponse.json();
+      console.log("Pipeline run successful, job_id:", connectData.job_id);
+
+      // Enter polling phase; update analysisStep based on progress
+      // Progress allocation: polling consumes 40-80%, standal_sql uses 80-100%
       setJobStatus("waiting");
       const pollingResult = await pollJobProgress(
-        connectData1.job_id,
+        connectData.job_id,
         (progress, status, data) => {
-          if (progress !== null) setProgress(progress); // 假如progress是0~1
+          if (progress !== null) {
+            // Map polling progress (0-100) into 45-80 and keep analysisStep aligned
+            const mappedProgress = 45 + Math.floor((progress / 100) * 35); // 45-80%
+            setProgress(mappedProgress);
+            // Remain within sampling-data (UI Step 4)
+          }
           if (status) setJobStatus(status);
         },
-        10000, // 2s轮询一次
-        6 // 最多轮询6分钟
+        10000, // Poll every 10 seconds
+        6 // Maximum polling window 6 minutes
       );
       if (pollingResult.status === "completed") {
         setJobStatus("done");
+        setProgress(80); // Polling complete, progress at 80%
         console.log("pollingResult:", pollingResult);
       } else {
         setJobStatus(pollingResult.status || "error");
-        setConnectionError(pollingResult.error || "Job failed");
+        setRunError(pollingResult.error || "Pipeline run failed");
+        setStep("analyzing");
+        setIsAnalyzing(false);
         return;
       }
-      const segments = pollingResult?.run_results?.run_result?.segments || [];
-      localStorage.setItem(
-        "run_result",
-        JSON.stringify(pollingResult?.run_results.run_result)
-      );
+
+      // Step 5: evaluating - call standal_sql endpoint
+      // During standal_sql, progress spans 80% to 100%
+      console.log("Step 5: Evaluating - calling standal_sql...");
+      setAnalysisStep("evaluating"); // UI Step 5
+      setProgress(85); // Initiate standal_sql at 85%
+      let standalJson: any = {};
+      try {
+        const run_results = pollingResult?.run_results;
+        if (!run_results) {
+          throw new Error("No run_result found in polling result");
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 600_000); // 10 minute timeout
+
+        setProgress(90); // standal_sql in progress, 90%
+        const standalRes = await fetch(
+          // "http://192.168.30.159:8900/api/v1/standal_sql",
+          "https://business-insight.datail.ai/api/v1/standal_sql",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ run_results }),
+            signal: controller.signal,
+          }
+        );
+
+        clearTimeout(timeout);
+        const standalText = await standalRes.text();
+        console.log(standalText, "standal_sql response");
+
+        try {
+          standalJson = JSON.parse(standalText);
+        } catch {}
+
+        if (!standalRes.ok) {
+          throw new Error(
+            typeof standalJson === "string"
+              ? standalJson.slice(0, 200)
+              : standalJson?.error || `standal_sql HTTP ${standalRes.status}`
+          );
+        }
+
+        console.log("standal_sql completed successfully:", standalJson);
+        localStorage.setItem(
+          "standalJson",
+          JSON.stringify({
+            anchIndex: standalJson.run_results?.run_result?.anchIndex,
+            segments: standalJson.run_results.run_result.segments,
+          })
+        );
+        setProgress(100); // standal_sql finished, progress 100%
+        // Success: continue to next steps
+      } catch (e) {
+        console.log("standal_sql call failed", e);
+        const errorMsg =
+          e instanceof Error ? e.message : "standal_sql request failed";
+        setRunError(errorMsg);
+        setAnalysisStep("evaluating");
+        setStep("analyzing");
+        setIsAnalyzing(false);
+        return;
+      }
+
+      // Evaluating stage complete; mark as finished
+      setAnalysisStep("complete");
+      const segments = standalJson?.run_results?.run_result?.segments || [];
+
+      // Persist run_result ensuring task_id is present
+      const runResultToSave = {
+        ...standalJson?.run_results.run_result,
+        task_id:
+          pollingResult?.run_results?.task_id ||
+          pollingResult?.task_id ||
+          standalJson?.run_results?.task_id,
+      };
+      localStorage.setItem("run_result", JSON.stringify(runResultToSave));
+
+      // Save task_id separately in localStorage for durability
+      if (runResultToSave.task_id) {
+        localStorage.setItem("originalTaskId", runResultToSave.task_id);
+      }
       const mapped = segments.map((seg: any) => ({
         id: seg.segmentId || seg.name,
         title: seg.name,
@@ -1057,22 +1320,7 @@ export function ConnectFlow() {
         localStorage.setItem("marketsData", JSON.stringify(mapped));
       } catch {}
 
-      // 数据验证成功，继续后续步骤
-      setAnalysisStep("reading-schema");
-
-      // 模拟后续步骤的进度
-      const steps = [
-        "reading-schema",
-        "sampling-data",
-        "evaluating",
-        "complete",
-      ];
-      for (let i = 0; i < steps.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setAnalysisStep(steps[i] as AnalysisStep);
-      }
-
-      // 获取分析结果（此页面由 markets 渲染，不再使用本地演示数据）
+      // Populate analysis results (page rendered via markets; demo data deprecated)
       setAnalysisResults(testAnalysisData);
       setStep("results");
       setIsAnalyzing(false);
@@ -1082,674 +1330,41 @@ export function ConnectFlow() {
           connectionUrl: connectionUrl,
           apiKey: apiKey,
           accessToken: accessToken,
+          id: connectionId,
+          connectionId: connectionId,
         })
       );
     } catch (error) {
-      console.error("API call failed:", error);
+      console.log("API call failed:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 
-      // 根据错误发生的位置直接设置错误类型
-      // 如果是在 run-analysis 接口调用失败，设置连接错误
-      setConnectionError(`Connection failed: ${errorMessage}`);
-      setDataValidationError(null); // 清除数据验证错误
+      // Derive error type based on where the failure occurred
+      // Identify which step raised the failure
+      if (
+        analysisStep === "reading-schema" ||
+        analysisStep === "validating-data"
+      ) {
+        // Data validation failure
+        setDataValidationError(errorMessage);
+        setRunError(null);
+      } else if (analysisStep === "sampling-data") {
+        // pipeline/run failure
+        setRunError(errorMessage);
+        setDataValidationError(null);
+      } else if (analysisStep === "evaluating") {
+        // standal_sql failure
+        setRunError(errorMessage);
+        setDataValidationError(null);
+      } else {
+        // Miscellaneous errors
+        setRunError(errorMessage);
+        setDataValidationError(null);
+      }
 
-      // 停留在 analyzing step 显示错误状态
+      // Keep UI on analyzing step to display the error
       setStep("analyzing");
       setIsAnalyzing(false);
-    }
-  };
-  const handleConnect = async () => {
-    if (!connectionUrl) return;
-
-    setStep("analyzing");
-    setAnalysisStep("connecting");
-    setConnectionError(null); // Reset connection error
-    setDataValidationError(null); // Reset data validation error
-
-    // 如果已经验证过，直接跳过验证步骤
-    if (hasValidated) {
-      // 直接进入后续流程
-      setTimeout(() => {
-        const initialResults: AnalysisResultItem[] = [
-          // E-commerce Platform Operators - 10 problems
-          {
-            id: "1-1",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Order Management and Tracking System",
-            marketValue:
-              "High Value - Can improve operational efficiency by 50%, reduce customer service inquiries",
-            implementationMethod: "Metadata Supported",
-            implementationDifficulty: 1,
-          },
-          {
-            id: "1-2",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Real-time Inventory Monitoring Dashboard",
-            marketValue:
-              "High Value - Prevent overselling, improve inventory turnover by 30%",
-            implementationMethod: "Metadata Supported",
-            implementationDifficulty: 1,
-          },
-          {
-            id: "1-3",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Return and Refund Process Management",
-            marketValue:
-              "Medium Value - Simplify return process, improve customer satisfaction",
-            implementationMethod: "Metadata Supported",
-            implementationDifficulty: 2,
-          },
-          {
-            id: "1-4",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Supplier Performance Analysis",
-            marketValue:
-              "Medium Value - Optimize supply chain, reduce procurement costs by 15%",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 3,
-          },
-          {
-            id: "1-5",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Logistics Delivery Optimization Recommendations",
-            marketValue:
-              "High Value - Reduce delivery costs by 20%, improve delivery efficiency",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 4,
-          },
-          {
-            id: "1-6",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Promotional Campaign Effectiveness Analysis",
-            marketValue:
-              "High Value - Improve ROI by 40%, precise marketing targeting",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 3,
-          },
-          {
-            id: "1-7",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Customer Lifetime Value Prediction",
-            marketValue:
-              "High Value - Identify high-value customers, improve repeat purchase rate by 25%",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 4,
-          },
-          {
-            id: "1-8",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Product Recommendation Engine",
-            marketValue:
-              "High Value - Increase average order value by 30%, boost cross-selling",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 5,
-          },
-          {
-            id: "1-9",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Price Competitiveness Analysis",
-            marketValue:
-              "Medium Value - Optimize pricing strategy, maintain market competitiveness",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 3,
-          },
-          {
-            id: "1-10",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Seasonal Demand Forecasting",
-            marketValue:
-              "High Value - Optimize inventory planning, reduce stock accumulation",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 4,
-          },
-          // Product Managers - 10 problems
-          {
-            id: "2-1",
-            userProfile: "Product Managers",
-            problem: "Product Catalog and Inventory Display",
-            marketValue:
-              "High Value - Improve product visibility, increase conversion rate",
-            implementationMethod: "Metadata Supported",
-            implementationDifficulty: 1,
-          },
-          {
-            id: "2-2",
-            userProfile: "Product Managers",
-            problem: "User Feedback Collection and Analysis",
-            marketValue:
-              "High Value - Rapid product iteration, improve user satisfaction",
-            implementationMethod: "Metadata Supported",
-            implementationDifficulty: 2,
-          },
-          {
-            id: "2-3",
-            userProfile: "Product Managers",
-            problem: "Feature Usage Statistics",
-            marketValue:
-              "Medium Value - Identify core features, optimize product roadmap",
-            implementationMethod: "Metadata Supported",
-            implementationDifficulty: 2,
-          },
-          {
-            id: "2-4",
-            userProfile: "Product Managers",
-            problem: "A/B Testing Results Analysis",
-            marketValue:
-              "High Value - Data-driven decisions, improve product effectiveness",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 3,
-          },
-          {
-            id: "2-5",
-            userProfile: "Product Managers",
-            problem: "User Churn Early Warning System",
-            marketValue:
-              "High Value - Early intervention, reduce churn rate by 30%",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 4,
-          },
-          {
-            id: "2-6",
-            userProfile: "Product Managers",
-            problem: "Competitor Feature Comparison Analysis",
-            marketValue:
-              "Medium Value - Maintain competitive advantage, respond quickly to market",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 3,
-          },
-          {
-            id: "2-7",
-            userProfile: "Product Managers",
-            problem: "Target User Segmentation",
-            marketValue:
-              "High Value - Precise target user positioning, improve conversion",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 3,
-          },
-          {
-            id: "2-8",
-            userProfile: "Product Managers",
-            problem: "Product Roadmap Priority Ranking",
-            marketValue:
-              "Medium Value - Optimize resource allocation, accelerate product iteration",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 4,
-          },
-          {
-            id: "2-9",
-            userProfile: "Product Managers",
-            problem: "New Feature Adoption Rate Prediction",
-            marketValue:
-              "Medium Value - Evaluate feature value, reduce development risk",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 4,
-          },
-          {
-            id: "2-10",
-            userProfile: "Product Managers",
-            problem: "User Journey Visualization",
-            marketValue:
-              "High Value - Discover pain points, optimize user experience",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 3,
-          },
-          // Data Analysts - 10 problems
-          {
-            id: "3-1",
-            userProfile: "Data Analysts",
-            problem: "Sales Trend Visualization Dashboard",
-            marketValue:
-              "High Value - Real-time business performance insights, quick decision making",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 3,
-          },
-          {
-            id: "3-2",
-            userProfile: "Data Analysts",
-            problem: "Multi-dimensional Data Drill-down Analysis",
-            marketValue:
-              "High Value - Deep data value mining, discover hidden opportunities",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 4,
-          },
-          {
-            id: "3-3",
-            userProfile: "Data Analysts",
-            problem: "Anomaly Data Detection and Alerting",
-            marketValue:
-              "Medium Value - Timely problem detection, reduce losses",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 3,
-          },
-          {
-            id: "3-4",
-            userProfile: "Data Analysts",
-            problem: "Automated Report Generation",
-            marketValue:
-              "Medium Value - Save 80% report time, improve efficiency",
-            implementationMethod: "Metadata Supported",
-            implementationDifficulty: 2,
-          },
-          {
-            id: "3-5",
-            userProfile: "Data Analysts",
-            problem: "Prediction Model Accuracy Monitoring",
-            marketValue:
-              "High Value - Continuously optimize models, improve prediction accuracy",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 4,
-          },
-          {
-            id: "3-6",
-            userProfile: "Data Analysts",
-            problem: "Customer Segmentation and Clustering Analysis",
-            marketValue:
-              "High Value - Precisely identify customer groups, improve marketing effectiveness",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 3,
-          },
-          {
-            id: "3-7",
-            userProfile: "Data Analysts",
-            problem: "Key Metrics Real-time Monitoring",
-            marketValue:
-              "High Value - Quick response to business changes, seize opportunities",
-            implementationMethod: "Metadata Supported",
-            implementationDifficulty: 2,
-          },
-          {
-            id: "3-8",
-            userProfile: "Data Analysts",
-            problem: "Data Quality Assessment Report",
-            marketValue:
-              "Medium Value - Ensure data reliability, improve analysis accuracy",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 3,
-          },
-          {
-            id: "3-9",
-            userProfile: "Data Analysts",
-            problem: "Business Attribution Analysis",
-            marketValue:
-              "High Value - Find growth drivers, optimize resource allocation",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 4,
-          },
-          {
-            id: "3-10",
-            userProfile: "Data Analysts",
-            problem: "Competitor Data Comparison",
-            marketValue:
-              "Medium Value - Understand market positioning, develop competitive strategies",
-            implementationMethod: "Requires Modeling",
-            implementationDifficulty: 3,
-          },
-        ];
-
-        const sorted = initialResults.sort((a, b) => {
-          // First, group by user profile
-          if (a.userProfile !== b.userProfile) {
-            return a.userProfile.localeCompare(b.userProfile, "zh-CN");
-          }
-
-          // Within same profile, sort by market value (high->low)
-          const getValueLevel = (text: string) => {
-            if (text.startsWith("High Value")) return 3;
-            if (text.startsWith("Medium Value")) return 2;
-            return 1;
-          };
-
-          const aValue = getValueLevel(a.marketValue);
-          const bValue = getValueLevel(b.marketValue);
-
-          if (aValue !== bValue) {
-            return bValue - aValue;
-          }
-          // Then by implementation difficulty (easy->hard)
-          return a.implementationDifficulty - b.implementationDifficulty;
-        });
-
-        setAnalysisResults(sorted);
-        setStep("results");
-      }, 500);
-    } else {
-      // 如果未验证过，进行真实验证
-      try {
-        await performRealDatabaseValidation(connectionUrl, accessToken);
-        // 验证成功，标记为已验证
-        setHasValidated(true);
-
-        // 特殊处理：如果是 test.supabase.co 组合，在第二步进行数据真实性验证
-        if (
-          connectionUrl === "https://test.supabase.co" &&
-          accessToken === "test-api-key-123456789"
-        ) {
-          // 模拟数据真实性验证失败
-          setTimeout(() => {
-            setDataValidationError(
-              "Data authenticity validation failed: No available data tables or empty data in database"
-            );
-          }, 1000); // 缩短为原来的一半
-          return;
-        }
-
-        // 不在这里直接跳转，让 useEffect 中的步骤逻辑处理后续流程
-        // 这样用户可以看到完整的验证进度
-        // setTimeout(() => {
-        const initialResults: AnalysisResultItem[] = [
-          // E-commerce Platform Operators - 10 problems
-          {
-            id: "1-1",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Order Management and Tracking System",
-            marketValue:
-              "High Value - Can improve operational efficiency by 50%, reduce customer service inquiries",
-            implementationMethod: "Metadata Supported" as const,
-            implementationDifficulty: 1,
-          },
-          {
-            id: "1-2",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Real-time Inventory Monitoring Dashboard",
-            marketValue:
-              "High Value - Prevent overselling, improve inventory turnover by 30%",
-            implementationMethod: "Metadata Supported" as const,
-            implementationDifficulty: 1,
-          },
-          {
-            id: "1-3",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Return and Refund Process Management",
-            marketValue:
-              "Medium Value - Simplify return process, improve customer satisfaction",
-            implementationMethod: "Metadata Supported" as const,
-            implementationDifficulty: 2,
-          },
-          {
-            id: "1-4",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Supplier Performance Analysis",
-            marketValue:
-              "Medium Value - Optimize supply chain, reduce procurement costs by 15%",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 3,
-          },
-          {
-            id: "1-5",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Logistics Delivery Optimization Recommendations",
-            marketValue:
-              "High Value - Reduce delivery costs by 20%, improve delivery efficiency",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 4,
-          },
-          {
-            id: "1-6",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Promotional Campaign Effectiveness Analysis",
-            marketValue:
-              "High Value - Improve ROI by 40%, precise marketing targeting",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 3,
-          },
-          {
-            id: "1-7",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Customer Lifetime Value Prediction",
-            marketValue:
-              "High Value - Identify high-value customers, improve repeat purchase rate by 25%",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 4,
-          },
-          {
-            id: "1-8",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Product Recommendation Engine",
-            marketValue:
-              "High Value - Increase average order value by 30%, boost cross-selling",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 5,
-          },
-          {
-            id: "1-9",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Price Competitiveness Analysis",
-            marketValue:
-              "Medium Value - Optimize pricing strategy, maintain market competitiveness",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 3,
-          },
-          {
-            id: "1-10",
-            userProfile: "E-commerce Platform Operators",
-            problem: "Seasonal Demand Forecasting",
-            marketValue:
-              "High Value - Optimize inventory planning, reduce stock accumulation",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 4,
-          },
-          // Product Managers - 10 problems
-          {
-            id: "2-1",
-            userProfile: "Product Managers",
-            problem: "Product Catalog and Inventory Display",
-            marketValue:
-              "High Value - Improve product visibility, increase conversion rate",
-            implementationMethod: "Metadata Supported" as const,
-            implementationDifficulty: 1,
-          },
-          {
-            id: "2-2",
-            userProfile: "Product Managers",
-            problem: "Product Performance Analytics Dashboard",
-            marketValue:
-              "High Value - Data-driven product decisions, improve product success rate",
-            implementationMethod: "Metadata Supported" as const,
-            implementationDifficulty: 2,
-          },
-          {
-            id: "2-3",
-            userProfile: "Product Managers",
-            problem: "User Behavior Analysis and Heatmaps",
-            marketValue:
-              "High Value - Optimize user experience, increase user engagement by 35%",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 3,
-          },
-          {
-            id: "2-4",
-            userProfile: "Product Managers",
-            problem: "A/B Testing Results Analysis",
-            marketValue:
-              "Medium Value - Improve conversion rates, optimize product features",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 2,
-          },
-          {
-            id: "2-5",
-            userProfile: "Product Managers",
-            problem: "Feature Usage Statistics and Insights",
-            marketValue:
-              "High Value - Identify popular features, guide product roadmap",
-            implementationMethod: "Metadata Supported" as const,
-            implementationDifficulty: 1,
-          },
-          {
-            id: "2-6",
-            userProfile: "Product Managers",
-            problem: "Competitor Analysis and Market Positioning",
-            marketValue:
-              "Medium Value - Maintain competitive advantage, identify market opportunities",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 4,
-          },
-          {
-            id: "2-7",
-            userProfile: "Product Managers",
-            problem: "Product Lifecycle Management",
-            marketValue:
-              "High Value - Optimize product launch timing, improve lifecycle efficiency",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 3,
-          },
-          {
-            id: "2-8",
-            userProfile: "Product Managers",
-            problem: "Customer Feedback Sentiment Analysis",
-            marketValue:
-              "High Value - Improve product quality, enhance customer satisfaction",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 4,
-          },
-          {
-            id: "2-9",
-            userProfile: "Product Managers",
-            problem: "Product Roadmap Optimization",
-            marketValue:
-              "Medium Value - Align development priorities with business goals",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 3,
-          },
-          {
-            id: "2-10",
-            userProfile: "Product Managers",
-            problem: "Technical Debt Assessment and Prioritization",
-            marketValue:
-              "Medium Value - Improve code quality, reduce maintenance costs",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 2,
-          },
-          // Marketing Teams - 10 problems
-          {
-            id: "3-1",
-            userProfile: "Marketing Teams",
-            problem: "Campaign Performance Tracking Dashboard",
-            marketValue:
-              "High Value - Optimize marketing ROI, improve campaign effectiveness",
-            implementationMethod: "Metadata Supported" as const,
-            implementationDifficulty: 1,
-          },
-          {
-            id: "3-2",
-            userProfile: "Marketing Teams",
-            problem: "Customer Segmentation and Targeting",
-            marketValue:
-              "High Value - Improve targeting accuracy, increase conversion rates by 40%",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 3,
-          },
-          {
-            id: "3-3",
-            userProfile: "Marketing Teams",
-            problem: "Social Media Analytics and Engagement",
-            marketValue:
-              "High Value - Enhance brand presence, improve social media ROI",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 2,
-          },
-          {
-            id: "3-4",
-            userProfile: "Marketing Teams",
-            problem: "Email Marketing Optimization",
-            marketValue:
-              "High Value - Increase open rates by 25%, improve email campaign performance",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 2,
-          },
-          {
-            id: "3-5",
-            userProfile: "Marketing Teams",
-            problem: "Content Performance Analysis",
-            marketValue:
-              "Medium Value - Optimize content strategy, improve engagement metrics",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 3,
-          },
-          {
-            id: "3-6",
-            userProfile: "Marketing Teams",
-            problem: "Lead Scoring and Qualification",
-            marketValue:
-              "High Value - Improve lead quality, increase sales conversion by 30%",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 4,
-          },
-          {
-            id: "3-7",
-            userProfile: "Marketing Teams",
-            problem: "Marketing Attribution Analysis",
-            marketValue:
-              "High Value - Optimize marketing spend allocation, improve ROI measurement",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 4,
-          },
-          {
-            id: "3-8",
-            userProfile: "Marketing Teams",
-            problem: "Brand Sentiment Monitoring",
-            marketValue:
-              "Medium Value - Protect brand reputation, improve brand perception",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 3,
-          },
-          {
-            id: "3-9",
-            userProfile: "Marketing Teams",
-            problem: "Marketing Budget Optimization",
-            marketValue:
-              "High Value - Maximize marketing efficiency, reduce wasted spend",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 3,
-          },
-          {
-            id: "3-10",
-            userProfile: "Marketing Teams",
-            problem: "Cross-Channel Marketing Coordination",
-            marketValue:
-              "Medium Value - Improve marketing consistency, enhance customer experience",
-            implementationMethod: "Requires Modeling" as const,
-            implementationDifficulty: 2,
-          },
-        ];
-
-        // Sort results by user profile, then by market value, then by implementation difficulty
-        const sorted = initialResults.sort((a, b) => {
-          // First by user profile
-          if (a.userProfile !== b.userProfile) {
-            return a.userProfile.localeCompare(b.userProfile);
-          }
-
-          // Within same profile, sort by market value (high->low)
-          const getValueLevel = (text: string) => {
-            if (text.startsWith("High Value")) return 3;
-            if (text.startsWith("Medium Value")) return 2;
-            return 1;
-          };
-
-          const aValue = getValueLevel(a.marketValue);
-          const bValue = getValueLevel(b.marketValue);
-
-          if (aValue !== bValue) {
-            return bValue - aValue;
-          }
-          // Then by implementation difficulty (easy->hard)
-          return a.implementationDifficulty - b.implementationDifficulty;
-        });
-
-        // setAnalysisResults(sorted)
-        // setStep("results")
-        // }, 1000)
-      } catch (error) {
-        console.error("Database connection failed:", error);
-        setConnectionError(
-          `Database connection failed: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`
-        );
-        // 连接失败时，不继续后续流程
-        return;
-      }
     }
   };
 
@@ -1816,21 +1431,195 @@ export function ConnectFlow() {
     });
   };
 
-  const getStepStatus = (stepName: AnalysisStep) => {
+  const getStepStatus = (stepName: AnalysisStep): StepVisualStatus => {
+    // API order: connecting -> validating-data (UI Steps 2 & 3) -> pipeline/run (UI Step 4) -> standal_sql (UI Step 5)
+    // UI order: connecting -> reading-schema (Step 2) -> validating-data (Step 3) -> sampling-data (Step 4) -> evaluating (Step 5)
     const steps: AnalysisStep[] = [
-      "validating-data",
       "connecting",
-      "reading-schema",
-      "sampling-data",
-      "evaluating",
+      "reading-schema", // UI Step 2 executing validating-data API
+      "validating-data", // UI Step 3 continuing validating-data API
+      "sampling-data", // UI Step 4 running pipeline/polling
+      "evaluating", // UI Step 5 executing standal_sql
       "complete",
     ];
     const currentIndex = steps.indexOf(analysisStep);
     const stepIndex = steps.indexOf(stepName);
 
+    // When connection errors exist, determine status by step position
+    if (connectionError) {
+      const connectingIndex = steps.indexOf("connecting");
+      const readingSchemaIndex = steps.indexOf("reading-schema");
+
+      // Connection step failed; surface the error (UI handles messaging)
+      if (stepName === "connecting") {
+        return "error";
+      }
+      // Error while parked on reading-schema indicates failure in that step
+      if (stepName === "reading-schema" && analysisStep === "reading-schema") {
+        return "error";
+      }
+      // After connection failure, later steps should remain waiting
+      if (stepIndex > connectingIndex) {
+        // reading-schema with error means failure for that step
+        if (
+          stepIndex === readingSchemaIndex &&
+          analysisStep === "reading-schema"
+        ) {
+          return "error";
+        }
+        return "waiting";
+      }
+      // Steps before connecting (e.g., validating-data) may already be complete or failed
+      if (stepIndex < connectingIndex) {
+        // If validating-data also reports an error, mark as failure
+        if (stepName === "validating-data" && dataValidationError) {
+          return "error";
+        }
+        // Otherwise treat as completed when the index is behind current
+        return currentIndex > stepIndex ? "completed" : "waiting";
+      }
+    }
+
+    // When runError exists (reading-schema failure), subsequent steps should wait
+    if (runError) {
+      if (stepName === "reading-schema") {
+        return "error";
+      }
+      // After reading-schema failure, both validating-data and later steps wait
+      const readingSchemaIndex = steps.indexOf("reading-schema");
+      if (stepIndex > readingSchemaIndex) {
+        return "waiting";
+      }
+    }
+
+    // Highlight data validation errors when step is validating-data
+    if (dataValidationError && stepName === "validating-data") {
+      return "error";
+    }
+
+    // Special handling: when analysisStep is "connecting", both reading-schema and validating-data remain waiting
+    // API order is validating-data -> reading-schema, while UI order is reading-schema -> validating-data
+    // if (analysisStep === "connecting") {
+    //   if (stepName === "validating-data") {
+    //     // If the connection is still running, validation might be active or done
+    //     // For safety, mark as completed only after connection finishes
+    //     // Check for connection errors; absence suggests validation is underway
+    //     return "waiting";
+    //   }
+    //   if (stepName === "connecting") {
+    //     return "in-progress";
+    //   }
+    //   // Subsequent steps remain waiting
+    //   return "waiting";
+    // }
+
+    // Normal flow: determine status based on position in step order
+    // API order: validating-data (UI Steps 2 & 3) -> pipeline/run (UI Step 4) -> standal_sql (UI Step 5)
+    // UI order: reading-schema (Step 2) -> validating-data (Step 3) -> sampling-data (Step 4) -> evaluating (Step 5)
+
+    // If analysisStep is reading-schema, the validating-data API (UI Step 2) is active
+    // reading-schema (UI Step 2) should be in-progress; validating-data (UI Step 3) should wait
+    if (analysisStep === "reading-schema") {
+      if (stepName === "reading-schema") {
+        return "in-progress"; // UI Step 2 executing validating-data
+      }
+      if (stepName === "validating-data") {
+        return "waiting"; // UI Step 3 awaiting validating-data completion
+      }
+    }
+
+    // When the current step is validating-data, that API (UI Step 3) is executing
+    // reading-schema (UI Step 2) should appear complete and validating-data (UI Step 3) should be in-progress
+    if (analysisStep === "validating-data") {
+      if (stepName === "reading-schema") {
+        return "completed"; // UI Step 2 completed
+      }
+      if (stepName === "validating-data") {
+        return "in-progress"; // UI Step 3 executing validating-data
+      }
+    }
+
+    // All other cases fall back to the default progression
     if (stepIndex < currentIndex) return "completed";
     if (stepIndex === currentIndex) return "in-progress";
     return "waiting";
+  };
+
+  const getStepProgressPercentage = (stepName: AnalysisStep) => {
+    if (stepName === "complete") {
+      return progress >= 100 ? 100 : 0;
+    }
+    const range = STEP_PROGRESS_RANGES[stepName];
+    if (!range) {
+      return 0;
+    }
+    if (progress <= range.start) {
+      return 0;
+    }
+    if (progress >= range.end) {
+      return 100;
+    }
+    const span = Math.max(range.end - range.start, 1);
+    return Math.round(((progress - range.start) / span) * 100);
+  };
+
+  const StepProgressIndicator = ({
+    step,
+    status,
+  }: {
+    step: AnalysisStep;
+    status: StepVisualStatus;
+  }) => {
+    let value = getStepProgressPercentage(step);
+
+    if (status === "completed") {
+      value = 100;
+    } else if (status === "waiting") {
+      value = 0;
+    } else if (status === "in-progress" && value === 0) {
+      value = 1;
+    } else if (status === "error" && value === 0 && progress > 0) {
+      value = 1;
+    }
+
+    value = Math.max(0, Math.min(100, value));
+
+    const isCompleted = status === "completed" && value === 100;
+
+    return (
+      <div className="relative flex h-9 w-9 items-center justify-center">
+        {status === "in-progress" ? (
+          <div className="relative">
+            <div className="animate-spin">
+              <CircleProgress
+                value={25}
+                maxValue={100}
+                size={36}
+                strokeWidth={2}
+                getColor={() => "stroke-primary"}
+                disableAnimation={true}
+                className="text-primary"
+              />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xs font-semibold text-primary">
+                {value}%
+              </span>
+            </div>
+          </div>
+        ) : status === "error" ? (
+          <XCircle className="size-9 text-red-600" />
+        ) : isCompleted ? (
+          <CheckCircle2 className="size-9 text-green-500" />
+        ) : (
+          <div className="relative flex h-9 w-9 items-center justify-center">
+            <span className="text-xs font-semibold text-muted-foreground">
+              {value}%
+            </span>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const getMarketValueColor = (value: string) => {
@@ -1855,6 +1644,25 @@ export function ConnectFlow() {
     acc[result.userProfile].push(result);
     return acc;
   }, {} as Record<string, AnalysisResultItem[]>);
+
+  const stepStatuses = {
+    connecting: getStepStatus("connecting"),
+    reading: getStepStatus("reading-schema"),
+    validating:
+      dataValidationError
+        ? ("error" as StepVisualStatus)
+        : runError
+        ? ("waiting" as StepVisualStatus)
+        : getStepStatus("validating-data"),
+    sampling:
+      connectionError || dataValidationError
+        ? ("error" as StepVisualStatus)
+        : getStepStatus("sampling-data"),
+    evaluating:
+      connectionError || dataValidationError
+        ? ("error" as StepVisualStatus)
+        : getStepStatus("evaluating"),
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -1897,8 +1705,10 @@ export function ConnectFlow() {
                 </div>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <Info className="size-4 mt-0.5 shrink-0" />
-                  <span>Project ID can be found in "Project Settings → General
-                  Settings"</span>
+                  <span>
+                    Project ID can be found in "Project Settings → General
+                    Settings"
+                  </span>
                 </div>
               </div>
 
@@ -1930,8 +1740,10 @@ export function ConnectFlow() {
                 </div>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <Info className="size-4 mt-0.5 shrink-0" />
-                  <span>Access Token can be found in "Account Preferences →
-Access Tokens"</span>
+                  <span>
+                    Access Token can be found in "Account Preferences → Access
+                    Tokens"
+                  </span>
                 </div>
               </div>
               <div className="space-y-3">
@@ -1961,8 +1773,10 @@ Access Tokens"</span>
                 </div>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <Info className="size-4 mt-0.5 shrink-0" />
-                  <span>APl Key can be found in "Project Settings → API Keys
-→ Publishable key"</span>
+                  <span>
+                    APl Key can be found in "Project Settings → API Keys →
+                    Publishable key"
+                  </span>
                 </div>
               </div>
 
@@ -1981,7 +1795,7 @@ Access Tokens"</span>
                     Analyzing...
                   </>
                 ) : (
-                  "Connect and Analyse"
+                  "Import and Analyse"
                 )}
               </Button>
 
@@ -1994,19 +1808,23 @@ Access Tokens"</span>
                       You're in Control
                     </h4>
                     <p className="text-sm text-blue-800 leading-relaxed">
-                     Datail do not modify or upload any of your database content. Access is strictly read-only.
+                      Datail do not modify or upload any of your database
+                      content. Access is strictly read-only.
                     </p>
                     <h4 className="font-semibold text-blue-900">
                       Data Access Details
                     </h4>
                     <p className="text-sm text-blue-800 leading-relaxed">
-                    Access permissions are used solely to read your database structure and content for generating analysis results.
-                    No data will be written to, updated, or deleted from your database.                    </p>
+                      Access permissions are used solely to read your database
+                      structure and content for generating analysis results. No
+                      data will be written to, updated, or deleted from your
+                      database.{" "}
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* 测试用的 URL 和 API Key 提示 */}
+              {/* Test URL and API key hints */}
               {/* <div className="bg-green-50 border border-green-200 rounded-lg p-6 space-y-3">
                 <div className="flex items-start gap-3">
                   <Info className="size-5 text-green-600 mt-0.5 shrink-0" />
@@ -2027,7 +1845,7 @@ Access Tokens"</span>
                           <strong>API Key:</strong> test-api-key-123456789
                         </div>
                         <div className="text-red-600 text-xs mt-1">
-                          ⚠️ 连接成功但数据真实性验证失败
+                          ⚠️ Connection succeeded but data validation failed
                         </div>
                       </div>
                       <div className="font-mono bg-green-100 p-2 rounded">
@@ -2056,107 +1874,31 @@ Access Tokens"</span>
 
         {step === "analyzing" && (
           <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <h1 className="text-3xl font-bold mb-6 text-center">Analyzing Your Database</h1>
+            <h1 className="text-3xl font-bold mb-6 text-center">
+              Analyzing Your Database
+            </h1>
             <Card className="max-w-2xl mx-auto w-full">
+              {/* <CardHeader>
+                <CardTitle>Analyzing Your Database</CardTitle>
+              </CardHeader> */}
               <CardContent className="space-y-6 py-8">
-                {/* Data Availability Validation */}
-                <div className="flex items-start gap-4">
-                  <div className="mt-1">
-                    {dataValidationError ? (
-                      <XCircle className="size-6 text-red-600" />
-                    ) : getStepStatus("validating-data") === "completed" ? (
-                      <CheckCircle2 className="size-6 text-green-600" />
-                    ) : getStepStatus("validating-data") === "in-progress" ? (
-                      <Loader2 className="size-6 text-primary animate-spin" />
-                    ) : (
-                      <Clock className="size-6 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium">
-                        Data Availability Validation
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {dataValidationError
-                        ? "Data validation failed, please check data availability"
-                        : "Check data integrity and accessibility"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* 如果数据真实性验证失败，显示错误信息和建议 */}
-                {dataValidationError && (
-                  <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
-                    <div className="flex items-start gap-3">
-                      <XCircle className="size-6 text-red-600 mt-0.5 shrink-0" />
-                      <div className="space-y-3">
-                        <h4 className="font-bold text-red-900 text-lg">
-                          🚨 Data Authenticity Validation Failed
-                        </h4>
-                        <p className="text-red-800 font-medium">
-                          {dataValidationError}
-                        </p>
-                        <div className="bg-red-100 border border-red-200 rounded-lg p-4">
-                          <p className="font-semibold text-red-900 mb-2">
-                            🔍 Data Problem Diagnosis:
-                          </p>
-                        </div>
-                        <div className="bg-red-200 border border-red-300 rounded-lg p-4">
-                          <p className="font-semibold text-red-900 mb-2">
-                            💡 Suggested Solutions:
-                          </p>
-                        </div>
-                        <div className="flex gap-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              // setConnectionUrl("");
-                              // setAccessToken("");
-                              // setConnectionError(null);
-                              // setDataValidationError(null);
-                              // setHasValidated(false); // Reset validation status
-                              setIsAnalyzing(false);
-                              setStep("connect");
-                              setConnectionError(null);
-                              setDataValidationError(null);
-                              setHasValidated(false);
-                              setShowInputError(true);
-                            }}
-                            className="border-red-300 text-red-700 hover:bg-red-50"
-                          >
-                            Back
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Database Connection */}
                 <div className="flex items-start gap-4">
                   <div className="mt-1">
-                    {connectionError ? (
-                      <XCircle className="size-6 text-red-600" />
-                    ) : getStepStatus("connecting") === "completed" ? (
-                      <CheckCircle2 className="size-6 text-green-600" />
-                    ) : getStepStatus("connecting") === "in-progress" ? (
-                      <Loader2 className="size-6 text-primary animate-spin" />
-                    ) : (
-                      <Clock className="size-6 text-muted-foreground" />
-                    )}
+                    <StepProgressIndicator
+                      step="connecting"
+                      status={stepStatuses.connecting}
+                    />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium">Database Connection</span>
 
-                      {getStepStatus("connecting") === "in-progress" && (
+                      {/* {getStepStatus("connecting") === "in-progress" && (
                         <span className="text-xs text-muted-foreground ml-2">
                           {progress}%
                         </span>
-                      )}
+                      )} */}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {connectionError
@@ -2166,19 +1908,42 @@ Access Tokens"</span>
                   </div>
                 </div>
 
-                {/* 如果数据库连接失败，显示连接错误信息 */}
+                {/* Display connection error details when failure occurs */}
                 {connectionError && (
                   <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
                     <div className="flex items-start gap-3">
                       <XCircle className="size-6 text-red-600 mt-0.5 shrink-0" />
                       <div className="space-y-3">
-                        <h4 className="font-bold text-red-900 text-lg">
+                        {/* <h4 className="font-bold text-red-900 text-lg">
                           🚨 Database Connection Failed
                         </h4>
                         <p className="text-red-800 font-medium">
                           {connectionError}
                         </p>
-                      
+                        <div className="bg-red-100 border border-red-200 rounded-lg p-4">
+                          <p className="font-semibold text-red-900 mb-2">
+                            🔍 Connection Problem Diagnosis:
+                          </p>
+                          <ul className="list-disc list-inside space-y-1 text-sm text-red-800">
+                            <li>
+                              Invalid Supabase URL format or project not found
+                            </li>
+                            <li>
+                              Incorrect API Key or insufficient permissions
+                            </li>
+                            <li>
+                              Network connectivity issues or firewall blocking
+                            </li>
+                            <li>Supabase service temporarily unavailable</li>
+                            <li>
+                              Database project may have been deleted or
+                              suspended
+                            </li>
+                          </ul>
+                        </div> */}
+                        <h4 className="font-bold text-red-900 text-lg">
+                          {connectionError}
+                        </h4>
                         {/* <div className="bg-red-200 border border-red-300 rounded-lg p-4">
                           <p className="font-semibold text-red-900 mb-2">
                             💡 Suggested Solutions:
@@ -2236,83 +2001,166 @@ Access Tokens"</span>
                     </div>
                   </div>
                 )}
+                {/* Read Data Table Structure (metadata) - Step 2 in UI order */}
+                {/* Hide Step 2 when Step 1 fails */}
+                {!connectionError && (
+                  <div className="flex items-start gap-4">
+                    <div className="mt-1">
+                      <StepProgressIndicator
+                        step="reading-schema"
+                        status={stepStatuses.reading}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium">
+                          Read Data Table Structure
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {runError
+                          ? "Failed to read database schema"
+                          : "Analyze table structure, field types and relationships"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Surface error message when Step 3 fails */}
+                {runError && (
+                  <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <XCircle className="size-6 text-red-600 mt-0.5 shrink-0" />
+                      <div className="space-y-3">
+                        <h4 className="font-bold text-red-900 text-lg">
+                          {runError}
+                        </h4>
+                        <div className="flex gap-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setRunError(null);
+                              setStep("connect");
+                              setConnectionError(null);
+                              setDataValidationError(null);
+                              setHasValidated(false);
+                              setShowInputError(true);
+                            }}
+                            className="border-red-300 text-red-700 hover:bg-red-50"
+                          >
+                            Reconnect
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Data Availability Validation - Step 3 in UI order */}
+                {/* Hide Step 3 when Step 1 fails */}
+                {!connectionError && (
+                  <div className="flex items-start gap-4">
+                    <div className="mt-1">
+                      <StepProgressIndicator
+                        step="validating-data"
+                        status={stepStatuses.validating}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium">
+                          Data Availability Validation
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {dataValidationError
+                          ? "Data validation failed, please check data availability"
+                          : runError
+                          ? "Waiting for schema reading..."
+                          : "Check data integrity and accessibility"}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Only show subsequent steps if both connection and data validation are successful */}
                 {!connectionError && !dataValidationError && (
                   <>
-                    <div className="flex items-start gap-4">
-                      <div className="mt-1">
-                        {connectionError || dataValidationError ? (
-                          <XCircle className="size-6 text-red-600" />
-                        ) : getStepStatus("reading-schema") === "completed" ? (
-                          <CheckCircle2 className="size-6 text-green-600" />
-                        ) : getStepStatus("reading-schema") ===
-                          "in-progress" ? (
-                          <Loader2 className="size-6 text-primary animate-spin" />
-                        ) : (
-                          <Clock className="size-6 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium">
-                            Read Data Table Structure (metadata)
-                          </span>
+                    {/* Display error messaging and guidance when data validation fails */}
+                    {dataValidationError && (
+                      <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 space-y-4">
+                        <div className="flex items-start gap-3">
+                          <XCircle className="size-6 text-red-600 mt-0.5 shrink-0" />
+                          <div className="space-y-3">
+                            <h4 className="font-bold text-red-900 text-lg">
+                              {dataValidationError}
+                            </h4>
+                            <div className="flex gap-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setIsAnalyzing(false);
+                                  setStep("connect");
+                                  setConnectionError(null);
+                                  setDataValidationError(null);
+                                  setHasValidated(false);
+                                  setShowInputError(true);
+                                }}
+                                className="border-red-300 text-red-700 hover:bg-red-50"
+                              >
+                                Reconnect
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          Analyze table structure, field types and relationships
-                        </p>
                       </div>
-                    </div>
+                    )}
 
-                    <div className="flex items-start gap-4">
-                      <div className="mt-1">
-                        {connectionError || dataValidationError ? (
-                          <XCircle className="size-6 text-red-600" />
-                        ) : getStepStatus("sampling-data") === "completed" ? (
-                          <CheckCircle2 className="size-6 text-green-600" />
-                        ) : getStepStatus("sampling-data") === "in-progress" ? (
-                          <Loader2 className="size-6 text-primary animate-spin" />
-                        ) : (
-                          <Clock className="size-6 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium">
-                            Extract Sample Data for Content Analysis
-                          </span>
+                    {/* Skip subsequent steps when Step 3 fails */}
+                    {!runError && (
+                      <>
+                        <div className="flex items-start gap-4">
+                          <div className="mt-1">
+                            <StepProgressIndicator
+                              step="sampling-data"
+                              status={stepStatuses.sampling}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium">
+                                Extract Sample Data for Content Analysis
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Read small samples to understand data content and
+                              patterns
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          Read small samples to understand data content and
-                          patterns
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="flex items-start gap-4">
-                      <div className="mt-1">
-                        {connectionError || dataValidationError ? (
-                          <XCircle className="size-6 text-red-600" />
-                        ) : getStepStatus("evaluating") === "completed" ? (
-                          <CheckCircle2 className="size-6 text-green-600" />
-                        ) : getStepStatus("evaluating") === "in-progress" ? (
-                          <Loader2 className="size-6 text-primary animate-spin" />
-                        ) : (
-                          <Clock className="size-6 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium">
-                            Evaluate Business Value and Generate Recommendations
-                          </span>
-                          {getStepStatus("evaluating") === "completed" && (
+                        <div className="flex items-start gap-4">
+                          <div className="mt-1">
+                            <StepProgressIndicator
+                              step="evaluating"
+                              status={stepStatuses.evaluating}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium">
+                                Evaluate Business Value and Generate
+                                Recommendations
+                              </span>
+                              {/* {getStepStatus("evaluating") === "completed" && (
                             <span className="text-xs text-green-600 font-medium">
                               [✓]
                             </span>
                           )}
-                          {getStepStatus("evaluating") === "in-progress" && (
+                              {getStepStatus("evaluating") ===
+                                "in-progress" && (
                             <span className="text-xs text-primary font-medium">
                               [In Progress...]
                             </span>
@@ -2321,37 +2169,31 @@ Access Tokens"</span>
                             <span className="text-xs text-muted-foreground font-medium">
                               [Waiting...]
                             </span>
-                          )}
+                              )} */}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              AI analyzes data value and recommends best ChatApp
+                              templates
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          AI analyzes data value and recommends best
-                          Applicationpp templates
-                        </p>
-                      </div>
-                    </div>
 
-                    {/* Progress bar - only show if both connection and data validation are successful */}
-                    {!connectionError && !dataValidationError && (
-                      <div className="pt-4">
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary transition-all duration-500"
-                            style={{
-                              width: `${
-                                analysisStep === "validating-data"
-                                  ? 20
-                                  : analysisStep === "connecting"
-                                  ? 40
-                                  : analysisStep === "reading-schema"
-                                  ? 60
-                                  : analysisStep === "sampling-data"
-                                  ? 80
-                                  : 100
-                              }%`,
-                            }}
-                          />
-                        </div>
-                      </div>
+                        {/* Progress bar - only show if both connection and data validation are successful */}
+                        {!connectionError &&
+                          !dataValidationError &&
+                          !runError && (
+                            <div className="pt-4">
+                              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-primary transition-all duration-500"
+                                  style={{
+                                    width: `${progress}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                      </>
                     )}
                   </>
                 )}
@@ -2360,14 +2202,18 @@ Access Tokens"</span>
           </div>
         )}
 
-        {step === "results" && analysisResults.length > 0 && (
-          <div className="space-y-6">
-            <Card className="leading-3 border-muted border-none -mt-12">
-              <CardHeader></CardHeader>
-              <CardContent className="space-y-6">
-                <MarketExplorationPage marketsData={markets} />
-                {/* Debug info */}
-                {/* {process.env.NODE_ENV === "development" && (
+        {step === "results" &&
+          (analysisResults.length > 0 ||
+            marketsDataWithDefaults.length > 0) && (
+            <div className="space-y-6">
+              <Card className="leading-3 border-muted border-none -mt-12">
+                <CardHeader></CardHeader>
+                <CardContent className="space-y-6">
+                  <MarketExplorationPage
+                    marketsData={marketsDataWithDefaults}
+                  />
+                  {/* Debug info */}
+                  {/* {process.env.NODE_ENV === "development" && (
                   <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
                     <p>Markets data passed: {markets.length} items</p>
                     {markets.length > 0 && (
@@ -2377,10 +2223,10 @@ Access Tokens"</span>
                     )}
                   </div>
                 )} */}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
       </main>
     </div>
   );

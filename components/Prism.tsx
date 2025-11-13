@@ -1,7 +1,8 @@
+"use client";
 import { useEffect, useRef } from "react";
 
-// 由于依赖安装问题，我们暂时创建一个简化版本的Prism组件
-// 您稍后可以安装ogl依赖后替换为完整版本
+// Temporary lightweight Prism component used while ogl dependency is unavailable
+// Replace with the full implementation after installing the ogl package
 
 const Prism = ({
   height = 3.5,
@@ -20,15 +21,14 @@ const Prism = ({
   suspendWhenOffscreen = false,
   timeScale = 0.5,
 }) => {
-  const containerRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // 创建一个临时的渐变背景作为占位符
-    // 等安装ogl依赖后可以替换为完整的WebGL实现
-    const gradientDiv = document.createElement('div');
+    // Render a placeholder gradient background until the full WebGL version is available
+    const gradientDiv = document.createElement("div");
     gradientDiv.style.cssText = `
       position: absolute;
       inset: 0;
@@ -41,8 +41,8 @@ const Prism = ({
       animation: prism-animation 8s ease-in-out infinite;
     `;
 
-    // 添加动画样式
-    const style = document.createElement('style');
+    // Apply basic animation styling
+    const style = document.createElement("style");
     style.textContent = `
       @keyframes prism-animation {
         0%, 100% { 

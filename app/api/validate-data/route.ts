@@ -3,27 +3,27 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   try {
     const { url, key } = await request.json();
-    console.log("验证数据接口调用:", { url, key });
+    console.log("Validate data API invoked:", { url, key });
 
-    // 正常情况下的返回（注释掉）
+    // Normal return (commented for reference)
     return NextResponse.json({
       valid: true,
       message: "Data validated successfully!",
     });
-    // 模拟连接错误 - 用于测试
+    // Simulated connection error for testing
     // return NextResponse.json(
     //   {
-    //     error: "数据验证失败: 无法连接到数据库",
-    //     details: "数据库连接超时，请检查网络连接和数据库状态",
+    //     error: "Data validation failed: unable to connect to the database",
+    //     details: "Database connection timed out. Please check connectivity and database status.",
     //   },
     //   { status: 500 }
     // );
   } catch (error) {
-    console.error("验证数据接口错误:", error);
+    console.log("Validate data API error:", error);
     return NextResponse.json(
       {
-        error: "服务器内部错误",
-        details: "处理请求时发生未知错误",
+        error: "Internal server error",
+        details: "An unexpected error occurred while processing the request.",
       },
       { status: 500 }
     );

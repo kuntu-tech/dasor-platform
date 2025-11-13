@@ -54,8 +54,9 @@ export async function POST(req: NextRequest) {
     }
 
     let friendlyError = `HTTP ${res.status}`;
-    if (res.status === 401) friendlyError = "Unauthorized - 凭据无效";
-    if (res.status === 404) friendlyError = "Not Found - 项目不存在";
+    if (res.status === 401)
+      friendlyError = "Unauthorized - Invalid credentials";
+    if (res.status === 404) friendlyError = "Not Found - Project not found";
 
     return NextResponse.json(
       {

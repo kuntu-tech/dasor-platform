@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const CONNECT_API_BASE = process.env.NEXT_PUBLIC_CONNECT_API_BASE?.replace(/\/$/, "") || "https://unfrequentable-sceptical-vince.ngrok-free.dev";
+const CONNECT_API_BASE = process.env.NEXT_PUBLIC_CONNECT_API_BASE?.replace(/\/$/, "") || "https://test-payment-1j3d.onrender.com";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing code or state" }, { status: 400 });
     }
 
-    // 服务端发起请求，绕过浏览器限制
+    // Forward request server-side to bypass browser restrictions
     const targetUrl = `${CONNECT_API_BASE}/api/oauth/callback?code=${code}&state=${state}`;
     console.log("Proxy forwarding to:", targetUrl);
     console.log("Proxy headers:", {
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       data = await response.json();
     } else {
       const text = await response.text();
-      console.error("Non-JSON response from proxy:", text.substring(0, 500));
+      console.log("Non-JSON response from proxy:", text.substring(0, 500));
       return NextResponse.json(
         { success: false, error: "Invalid response from backend" },
         { status: 500 }
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Proxy OAuth callback error:", error);
+    console.log("Proxy OAuth callback error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to process OAuth callback" },
       { status: 500 }

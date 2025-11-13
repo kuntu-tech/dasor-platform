@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Target
 } from "lucide-react"
+import { CreateAppButton } from "@/components/create-app-button"
 
 type ConnectedDataSource = {
   id: string
@@ -39,7 +40,7 @@ export default function ConnectedListPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // 模拟加载已连接的数据源
+    // Simulate fetching connected data sources
     const mockConnectedSources: ConnectedDataSource[] = [
       {
         id: "source-1",
@@ -101,7 +102,7 @@ export default function ConnectedListPage() {
 
   const handleGenerateFromSelected = () => {
     if (selectedSources.size > 0) {
-      // 将选中的数据源信息存储到localStorage，供生成流程使用
+      // Persist selected sources in localStorage for downstream generation flow
       const selectedData = connectedSources.filter(source => selectedSources.has(source.id))
       localStorage.setItem("selectedConnectedSources", JSON.stringify(selectedData))
       router.push("/generate")
@@ -149,10 +150,10 @@ export default function ConnectedListPage() {
               <Plus className="mr-2 size-4" />
               Add Data Source
             </Button>
-            <Button size="sm" onClick={() => router.push("/connect")}>
+            <CreateAppButton size="sm">
               <Database className="mr-2 size-4" />
               Connect New
-            </Button>
+            </CreateAppButton>
           </div>
         </div>
       </header>
@@ -324,10 +325,10 @@ s from existing data sources
                 Connect your first database to start generating Applicationpp
 s with AI
               </CardDescription>
-              <Button onClick={() => router.push("/connect")}>
+              <CreateAppButton>
                 <Database className="mr-2 size-4" />
                 Connect Your First Database
-              </Button>
+              </CreateAppButton>
             </CardContent>
           </Card>
         )}

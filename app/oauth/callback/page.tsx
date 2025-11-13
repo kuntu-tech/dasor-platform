@@ -1,79 +1,158 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function OAuthCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "success" | "error" | "no-payment">("loading");
   const [message, setMessage] = useState("");
+  const hasProcessed = useRef(false);
+  const abortControllers = useRef<{ payment?: AbortController; callback?: AbortController }>({});
 
   useEffect(() => {
+    // Prevent duplicate execution
+    if (hasProcessed.current) {
+      return;
+    }
+
     const handleCallback = async () => {
+      // Flag as processed
+      hasProcessed.current = true;
       try {
-        // Stripe OAuth 回调参数
+        // Stripe OAuth callback parameters
         const code = searchParams.get("code");
         const state = searchParams.get("state");
         const error = searchParams.get("error");
         
-        // 后端处理后的结果参数
+        // Parameters returned after backend processing
         const oauth = searchParams.get("oauth");
         const vendorId = searchParams.get("vendorId");
         const accountId = searchParams.get("accountId");
 
-        // 如果有 error，说明 Stripe 授权被拒绝
+        let hasPaymentHistory = true;
+
+        // Presence of error indicates Stripe authorization was denied
         if (error) {
           setStatus("error");
-          setMessage(decodeURIComponent(error || "Stripe 授权被拒绝"));
+          setMessage(decodeURIComponent(error || "Stripe authorization was denied"));
           return;
         }
 
-        // 如果已经是后端处理后的结果（有 oauth 参数）
+        // Handle backend-processed result (identified by oauth param)
         if (oauth === "success") {
           setStatus("success");
-          setMessage("账户关联成功！");
+          setMessage("Account linked successfully!");
           setTimeout(() => {
-            router.push("/settings");
+            // Retrieve stored return path; default to homepage
+            const returnPath = typeof window !== "undefined" 
+              ? sessionStorage.getItem("oauth_return_path") || "/"
+              : "/";
+            if (typeof window !== "undefined") {
+              sessionStorage.removeItem("oauth_return_path");
+            }
+            // Return to origin page and append query to open payout tab
+            router.push(`${returnPath}${returnPath === "/" ? "?" : "&"}openSettings=payout`);
           }, 3000);
           return;
         }
 
         if (oauth === "error") {
           setStatus("error");
-          setMessage("授权失败");
+          setMessage("Authorization failed");
           return;
         }
 
-        // 如果是 Stripe 回调（有 code 和 state）
+        // Stripe callback path (when both code and state are provided)
         if (code && state) {
           try {
-            // 通过本地 API 代理转发请求，绕过浏览器限制
+            // Ensure the user has a payment history
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.user?.id) {
+              setStatus("error");
+              setMessage("User not authenticated");
+              return;
+            }
+
+            // Query payment history for the current user
+            const paymentController = new AbortController();
+            abortControllers.current.payment = paymentController;
+            const paymentTimeout = window.setTimeout(() => {
+              paymentController.abort();
+            }, 8000);
+
+            let checkResponse: Response | null = null;
+
+            try {
+              checkResponse = await fetch(
+                `/api/check-payment-history?userId=${session.user.id}`,
+                {
+                  method: "GET",
+                  headers: {
+                    Accept: "application/json",
+                  },
+                  signal: paymentController.signal,
+                }
+              );
+            } finally {
+              window.clearTimeout(paymentTimeout);
+              abortControllers.current.payment = undefined;
+            }
+
+            if (!checkResponse.ok) {
+              console.log("Error checking payment history");
+              // If the check fails, continue OAuth flow regardless
+            } else {
+              const checkData = await checkResponse.json();
+              
+              // Show static messaging if no payment history exists
+              if (checkData.success && !checkData.hasPaymentHistory) {
+                hasPaymentHistory = false;
+                setMessage("No payment history yet. Completing authorization...");
+              }
+            }
+
+            // Continue the OAuth flow via local proxy when payment history exists
             const callbackUrl = `/api/proxy-oauth-callback?code=${code}&state=${state}`;
             console.log("Calling OAuth callback:", callbackUrl);
             
-            const response = await fetch(callbackUrl, {
-              method: "GET",
-              headers: {
-                "Accept": "application/json",
-              },
-            });
+            const callbackController = new AbortController();
+            abortControllers.current.callback = callbackController;
+            const callbackTimeout = window.setTimeout(() => {
+              callbackController.abort();
+            }, 12000);
+
+            let response: Response;
+            try {
+              response = await fetch(callbackUrl, {
+                method: "GET",
+                headers: {
+                  "Accept": "application/json",
+                },
+                signal: callbackController.signal,
+              });
+            } finally {
+              window.clearTimeout(callbackTimeout);
+              abortControllers.current.callback = undefined;
+            }
 
             console.log("Response status:", response.status);
             console.log("Response headers:", response.headers.get("content-type"));
 
             if (!response.ok) {
               const text = await response.text();
-              console.error("Error response:", text);
+              console.log("Error response:", text);
               throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const contentType = response.headers.get("content-type");
             if (!contentType || !contentType.includes("application/json")) {
               const text = await response.text();
-              console.error("Non-JSON response:", text.substring(0, 500));
+              console.log("Non-JSON response:", text.substring(0, 500));
               setStatus("error");
-              setMessage("服务器返回了错误格式的数据");
+              setMessage("Server returned invalid data format");
               return;
             }
 
@@ -81,34 +160,76 @@ export default function OAuthCallbackPage() {
 
             if (data.success) {
               setStatus("success");
-              setMessage("账户关联成功！");
+              setMessage(
+                hasPaymentHistory
+                  ? "Account linked successfully!"
+                  : "Account linked successfully! Your payouts will appear here after you receive payments."
+              );
               setTimeout(() => {
-                router.push("/settings");
+                // Retrieve the saved origin path or default to home
+                const returnPath =
+                  typeof window !== "undefined"
+                    ? sessionStorage.getItem("oauth_return_path") || "/"
+                    : "/";
+                if (typeof window !== "undefined") {
+                  sessionStorage.removeItem("oauth_return_path");
+                }
+                // Navigate back with query parameter to open the payout tab
+                router.push(
+                  `${returnPath}${
+                    returnPath === "/" ? "?" : "&"
+                  }openSettings=payout`
+                );
               }, 3000);
             } else {
               setStatus("error");
-              setMessage(data.error || "关联失败");
+              setMessage(data.error || "Failed to link account");
             }
           } catch (err) {
-            console.error("OAuth callback processing error:", err);
+            console.log("OAuth callback processing error:", err);
             setStatus("error");
-            setMessage("网络错误，请重试");
+            if (err instanceof DOMException && err.name === "AbortError") {
+              setMessage("Authorization timed out, please try again.");
+            } else {
+              setMessage("Network error, please try again.");
+            }
           }
           return;
         }
 
-        // 既不是 Stripe 回调也不是后端结果
+        // Invalid scenario: neither Stripe callback nor backend result
         setStatus("error");
-        setMessage("回调参数无效");
+        setMessage("Invalid callback parameters");
       } catch (error) {
-        console.error("OAuth callback error:", error);
+        console.log("OAuth callback error:", error);
         setStatus("error");
-        setMessage("处理回调时发生错误");
+        setMessage("An error occurred while processing the callback");
       }
     };
 
     handleCallback();
+    return () => {
+      abortControllers.current.payment?.abort();
+      abortControllers.current.callback?.abort();
+      abortControllers.current = {};
+    };
   }, [searchParams, router]);
+
+  useEffect(() => {
+    if (status !== "loading") return;
+
+    const timeoutId = window.setTimeout(() => {
+      abortControllers.current.payment?.abort();
+      abortControllers.current.callback?.abort();
+      abortControllers.current = {};
+      setStatus("error");
+      setMessage("Authorization timed out, please try again.");
+    }, 15000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [status]);
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center">
@@ -116,8 +237,50 @@ export default function OAuthCallbackPage() {
         {status === "loading" && (
           <>
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">正在处理授权...</p>
+            <p className="text-gray-600">Processing authorization...</p>
           </>
+        )}
+
+        {status === "no-payment" && (
+          <div className="max-w-lg mx-auto px-6 py-12">
+            <div className="mb-8">
+              <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+              </div>
+              <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+                No payment history
+              </h1>
+              <p className="text-gray-600 text-base leading-relaxed">
+                You don't have any payment records yet. Once you receive payments, they will appear here.
+              </p>
+            </div>
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  const returnPath = typeof window !== "undefined" 
+                    ? sessionStorage.getItem("oauth_return_path") || "/"
+                    : "/";
+                  if (typeof window !== "undefined") {
+                    sessionStorage.removeItem("oauth_return_path");
+                  }
+                  router.push(returnPath || "/");
+                }}
+                className="w-full inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                Go back
+              </button>
+            </div>
+          </div>
         )}
 
         {status === "success" && (
@@ -136,7 +299,7 @@ export default function OAuthCallbackPage() {
               </svg>
             </div>
             <p className="text-lg font-semibold text-gray-900">{message}</p>
-            <p className="mt-2 text-sm text-gray-500">正在跳转到设置页面...</p>
+            <p className="mt-2 text-sm text-gray-500">Redirecting to settings page...</p>
           </>
         )}
 
@@ -157,10 +320,18 @@ export default function OAuthCallbackPage() {
             </div>
             <p className="text-lg font-semibold text-gray-900">{message}</p>
             <button
-              onClick={() => router.push("/settings")}
+              onClick={() => {
+                const returnPath = typeof window !== "undefined" 
+                  ? sessionStorage.getItem("oauth_return_path") || "/"
+                  : "/";
+                if (typeof window !== "undefined") {
+                  sessionStorage.removeItem("oauth_return_path");
+                }
+                router.push(`${returnPath}${returnPath === "/" ? "?" : "&"}openSettings=payout`);
+              }}
               className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
-              返回设置页面
+              Return to Settings
             </button>
           </>
         )}

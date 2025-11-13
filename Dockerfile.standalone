@@ -1,0 +1,38 @@
+# Multi-stage build - build phase
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package manifests
+COPY package*.json ./
+
+# Install all dependencies (including devDeps for build)
+RUN npm ci --no-audit --no-fund || npm install --legacy-peer-deps --no-audit --no-fund
+
+# Copy source code
+COPY . .
+
+# Build application (standalone mode outputs server in .next/standalone)
+RUN npm run build
+
+# Production stage - copy standalone output only
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Copy standalone output from builder
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+# Expose port
+EXPOSE 4001
+
+ENV PORT=4001
+ENV HOSTNAME="0.0.0.0"
+
+# Start standalone server
+CMD ["node", "server.js"]
+

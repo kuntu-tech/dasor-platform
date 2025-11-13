@@ -34,7 +34,7 @@ export function StripeAccountManager({ onAccountChange }: StripeAccountManagerPr
     success: false
   })
 
-  // 模拟从URL参数获取授权码（实际应用中从URL参数获取）
+  // Mock reading the authorization code from URL parameters (replace with real implementation)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     const authCode = urlParams.get('code')
@@ -56,13 +56,13 @@ export function StripeAccountManager({ onAccountChange }: StripeAccountManagerPr
     
     try {
       if (authCode) {
-        // 处理授权回调
+        // Handle the authorization callback
         const newAccount = await mockStripeAPI.connectAccount(authCode)
         setAccount(newAccount)
         setOauthState({ isConnecting: false, error: null, success: true })
         onAccountChange?.(newAccount)
       } else {
-        // 重定向到Stripe OAuth
+        // Redirect to Stripe OAuth
         window.location.href = 'https://connect.stripe.com/oauth/authorize?response_type=code&client_id=ca_test_1234567890&scope=read_write&redirect_uri=' + encodeURIComponent(window.location.origin + '/settings?tab=payment')
       }
     } catch (error) {
@@ -99,7 +99,7 @@ export function StripeAccountManager({ onAccountChange }: StripeAccountManagerPr
       setAccount(updatedAccount)
       onAccountChange?.(updatedAccount)
     } catch (error) {
-      console.error('Failed to update permissions:', error)
+      console.log('Failed to update permissions:', error)
     }
   }
 

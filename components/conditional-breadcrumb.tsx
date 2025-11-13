@@ -6,7 +6,7 @@ import { BreadcrumbNav } from "./breadcrumb-nav"
 export function ConditionalBreadcrumb() {
   const pathname = usePathname()
   
-  // 在首页和认证页面不显示面包屑导航
+  // Hide breadcrumbs on the homepage and auth routes
   if (pathname === "/" || pathname.startsWith("/auth/")) {
     return null
   }

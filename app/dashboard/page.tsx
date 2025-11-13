@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
 import { Plus, Database, Sparkles, ExternalLink, Settings, Calendar, Activity } from "lucide-react"
+import { CreateAppButton } from "@/components/create-app-button"
 
 export default function DashboardPage() {
   const apps = [
@@ -58,13 +59,12 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        <div className="mb-8 flex items-center justify-center">
-          <Button className="text-center" size="lg" asChild>
-            <Link href="/connect">
-              <Plus className="mr-2 size-4" />
-              Create Your App
-            </Link>
-          </Button>
+        <div className="mb-8 flex flex-col items-center justify-center gap-2">
+          <CreateAppButton size="lg" className="text-center">
+            <Plus className="mr-2 size-4" />
+            Create Your App
+          </CreateAppButton>
+          <p className="text-sm text-muted-foreground">Import from Supabase</p>
         </div>
 
         {hasApps ? (
@@ -138,13 +138,10 @@ s Yet</CardTitle>
                 Connect your Supabase database and let AI help you generate your first Applicationpp
 
               </CardDescription>
-              <Button asChild>
-                <Link href="/connect">
-                  <Plus className="mr-2 size-4" />
-                  Create First Applicationpp
-
-                </Link>
-              </Button>
+              <CreateAppButton>
+                <Plus className="mr-2 size-4" />
+                Create First Applicationpp
+              </CreateAppButton>
             </CardContent>
           </Card>
         )}

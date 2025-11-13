@@ -1,4 +1,3 @@
-"use client";
 import React from 'react';
 interface Question {
   id: string;
@@ -15,10 +14,10 @@ export function QuestionAccordion({
   index
 }: QuestionAccordionProps) {
   return <div className="bg-white rounded-xl overflow-hidden hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer">
-      <div className="px-6 py-3 flex items-center gap-4">
+      <div className="px-4 py-2 flex items-center gap-3">
         {/* Number Prefix */}
         <div className="flex-shrink-0">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{
+          <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{
           backgroundColor: '#6B7280'
         }}>
             <span className="text-white font-semibold text-sm">{index}</span>
@@ -26,7 +25,7 @@ export function QuestionAccordion({
         </div>
         {/* Question Content */}
         <div className="flex-1 min-w-0">
-          <p className="text-base font-medium text-gray-600 mb-2">
+          <p className="text-base font-medium text-gray-600 mb-1">
             {question.text}
           </p>
         </div>

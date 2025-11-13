@@ -1,4 +1,3 @@
-"use client";
 import React from 'react';
 import { InfoIcon } from 'lucide-react';
 interface CompactAnalysisCardProps {
@@ -18,17 +17,18 @@ export function CompactAnalysisCard({
     score,
     id
   } = analysis;
-  // Calculate circle progress
-  const circumference = 2 * Math.PI * 20;
+  const circumference = 2 * Math.PI * 14;
   const strokeDashoffset = circumference - score / 10 * circumference;
-  // Determine color based on score
   const getScoreColor = (score: number) => {
-    // Compact mode uses unified green brand color
-    return '#4D7327';
+    if (score >= 8.5) return '#10B981';
+    if (score >= 7.0) return '#10B981';
+    return '#c57d56';
   };
   const getStrokeColor = (score: number) => {
-    // Compact mode uses unified green brand color
-    return '#4D7327';
+    if (score >= 9.0) return '#10B981';
+    if (score >= 8.5) return '#10B981';
+    if (score >= 7.0) return '#10B981';
+    return '#c57d56';
   };
   // Get label based on card ID
   const getLabel = (id: string) => {
@@ -50,26 +50,26 @@ export function CompactAnalysisCard({
       e.preventDefault();
       onClick();
     }
-  }} tabIndex={0} role="button" aria-label={`${dimensionName}, score ${score} out of 10. Click for details.`} className="bg-white rounded-lg p-4 hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-100">
+  }} tabIndex={0} role="button" aria-label={`${dimensionName}, score ${score} out of 10. Click for details.`} className="bg-white rounded-lg p-2 hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-100">
       {/* Header with title and info icon */}
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-2">
         <h3 className="text-sm font-semibold text-gray-700 flex-1">
           {dimensionName}
         </h3>
         <InfoIcon className="w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 ml-2" />
       </div>
       {/* Score and Label */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {/* Compact Circular Progress */}
         <div className="relative flex-shrink-0">
-          <svg className="w-12 h-12 transform -rotate-90" aria-hidden="true">
+          <svg className="w-9 h-9 transform -rotate-90" aria-hidden="true">
             {/* Background circle */}
-            <circle cx="24" cy="24" r="20" stroke="#e5e7eb" strokeWidth="3" fill="none" />
+            <circle cx="18" cy="18" r="14" stroke="#e5e7eb" strokeWidth="3" fill="none" />
             {/* Progress circle */}
-            <circle cx="24" cy="24" r="20" stroke={getStrokeColor(score)} strokeWidth="3" fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" className="transition-all duration-1000" />
+            <circle cx="18" cy="18" r="14" stroke={getStrokeColor(score)} strokeWidth="3" fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" className="transition-all duration-1000" />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-lg font-semibold" style={{
+            <span className="text-sm font-semibold" style={{
             color: getScoreColor(score)
           }} aria-hidden="true">
               {score}
