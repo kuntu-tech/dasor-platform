@@ -164,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
   const SUBSCRIPTION_CACHE_KEY = (id: string) => `subscription_status_${id}`;
-  const SUBSCRIPTION_CACHE_EXPIRY = 5 * 60 * 1000;
+  const SUBSCRIPTION_CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 1 day
 
   const getCachedSubscription = useCallback((id: string) => {
     if (typeof window === "undefined") return null;
@@ -201,7 +201,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const cached = getCachedSubscription(id);
         if (cached) {
           setSubscriptionStatus(cached);
-          void checkSubscriptionStatus(id, false).catch(console.log);
+          // Only refresh in background if cache is about to expire (within 1 minute)
+          const cacheKey = SUBSCRIPTION_CACHE_KEY(id);
+          if (typeof window !== "undefined") {
+            try {
+              const raw = localStorage.getItem(cacheKey);
+              if (raw) {
+                const { timestamp } = JSON.parse(raw);
+                const timeUntilExpiry =
+                  SUBSCRIPTION_CACHE_EXPIRY - (Date.now() - timestamp);
+                // Only refresh if cache expires within 1 minute
+                if (timeUntilExpiry < 60 * 1000) {
+                  void checkSubscriptionStatus(id, false).catch(console.log);
+                }
+              }
+            } catch {
+              // If cache parsing fails, refresh anyway
+              void checkSubscriptionStatus(id, false).catch(console.log);
+            }
+          }
           return cached;
         }
       }

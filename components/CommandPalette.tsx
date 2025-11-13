@@ -36,43 +36,43 @@ export function CommandPalette({
     command: 'merge segments'
   }, {
     icon: 'https://img.icons8.com/fluency/48/market.png',
-    title: 'Edit Market Size to',
+    title: 'Adjust market size.',
     subtitle: 'Update D1 dimension',
     action: 'Command',
     command: 'edit d1'
   }, {
     icon: 'https://img.icons8.com/fluency/48/user.png',
-    title: 'Edit Persona to',
+    title: 'Adjust persona',
     subtitle: 'Update D2 dimension',
     action: 'Command',
     command: 'edit d2'
   }, {
     icon: 'https://img.icons8.com/fluency/48/conversion.png',
-    title: 'Adjust D3 Conversion Rhythm',
+    title: 'Adjust conversion rhythm',
     subtitle: 'Update D3 dimension',
     action: 'Command',
     command: 'edit d3'
   }, {
     icon: 'https://img.icons8.com/fluency/48/shield.png',
-    title: 'Adjust D4 Competitive Moat',
+    title: 'Adjust competitive moat',
     subtitle: 'Update D4 dimension',
     action: 'Command',
     command: 'edit d4'
   }, {
     icon: 'https://img.icons8.com/fluency/48/plus.png',
-    title: 'Add new Value Question',
+    title: 'Add value questions',
     subtitle: 'Create new question',
     action: 'Command',
     command: 'add question'
   }, {
     icon: 'https://img.icons8.com/fluency/48/delete.png',
-    title: 'Delete Value Question',
+    title: 'Delete value question',
     subtitle: 'Remove question',
     action: 'Command',
     command: 'delete question'
   }, {
     icon: 'https://img.icons8.com/fluency/48/edit.png',
-    title: 'Edit Value Question',
+    title: 'Adjust value question',
     subtitle: 'Modify question',
     action: 'Command',
     command: 'edit question'
@@ -111,7 +111,7 @@ export function CommandPalette({
         opacity: 1
       }} exit={{
         opacity: 0
-      }} onClick={onClose} className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50" />
+      }} onClick={onClose} className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[110]" />
           {/* Command Palette */}
           <motion.div initial={{
         opacity: 0,
@@ -127,7 +127,7 @@ export function CommandPalette({
         y: -20
       }} transition={{
         duration: 0.2
-      }} className="fixed top-24 left-1/2 transform -translate-x-1/2 w-full max-w-3xl bg-white rounded-2xl shadow-2xl z-50 overflow-hidden" style={{
+      }} className="fixed top-24 left-1/2 transform -translate-x-1/2 w-full max-w-3xl bg-white rounded-2xl shadow-2xl z-[120] overflow-hidden" style={{
         maxHeight: '80vh'
       }}>
             {/* Header with Search */}
