@@ -18,7 +18,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
   const [accountId, setAccountId] = useState("");
   const [errors, setErrors] = useState<{ publishable?: string; secret?: string; accountId?: string }>({});
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const loginEmail = user?.email || "";
   const userId = user?.id || "";
   const returnUrl = useMemo(() => `${window.location.origin}/oauth/callback`, []);
@@ -34,6 +34,31 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
     }
     try {
       setLoading(true);
+      
+      // Warm up Supabase connection before starting OAuth to prevent timeout
+      if (session?.access_token) {
+        console.log("🔥 [ConnectExisting] Warming up Supabase before OAuth...");
+        try {
+          await Promise.race([
+            fetch("/api/users/self", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({}),
+            }),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error("Warmup timeout")), 15000)
+            ),
+          ]);
+          console.log("✅ [ConnectExisting] Supabase warmed up");
+        } catch (warmupError: any) {
+          console.log("⚠️ [ConnectExisting] Warmup failed (continuing anyway):", warmupError.message);
+          // Continue with OAuth even if warmup fails
+        }
+      }
+      
       // Preserve current path so OAuth callback can redirect back
       if (typeof window !== "undefined") {
         sessionStorage.setItem("oauth_return_path", window.location.pathname);

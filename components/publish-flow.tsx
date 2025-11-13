@@ -883,10 +883,18 @@ export function PublishFlow() {
               <Label htmlFor="app-name">ChatApp Name *</Label>
               <Input
                 id="app-name"
-                placeholder="e.g., E-commerce Operations Assistant"
+                placeholder="e.g., my-app-name"
                 value={appName}
-                onChange={(e) => setAppName(e.target.value)}
+                onChange={(e) => {
+                  // Only allow letters, numbers, hyphens, and underscores
+                  const value = e.target.value;
+                  const filtered = value.replace(/[^a-zA-Z0-9\-_]/g, "");
+                  setAppName(filtered);
+                }}
               />
+              <p className="text-xs text-muted-foreground">
+                Only letters, numbers, hyphens (-), and underscores (_) are allowed
+              </p>
             </div>
 
             <div className="space-y-2">

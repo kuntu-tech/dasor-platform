@@ -585,16 +585,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
               disabled={!useCustomUsername || profileLoading}
             />
             <div className="flex items-center gap-2">
-              <input 
-                type="checkbox" 
-                id="custom-username" 
-                checked={useCustomUsername}
-                onChange={(event) => setUseCustomUsername(event.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label htmlFor="custom-username" className="text-sm text-gray-700">
-                Use custom email
-              </label>
+           
             </div>
           </div>
 
@@ -605,17 +596,18 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
   )
 
   const renderBillingContent = () => {
-    <div>
-    <h1 className="text-2xl font-bold">Billing</h1>
-  </div>
-
     // Show prompt when the user is not signed in
     if (!user?.id) {
       return (
-        
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <p className="text-muted-foreground">Please log in to view billing information</p>
+        <div className="space-y-6">
+          {/* Billing Header */}
+          <div>
+            <h1 className="text-2xl font-bold">Billing</h1>
+          </div>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <p className="text-muted-foreground">Please log in to view billing information</p>
+            </div>
           </div>
         </div>
       )
@@ -624,10 +616,16 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Display loading state while checking payment history
     if (checkingPaymentHistory) {
       return (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Checking payment history...</p>
+        <div className="space-y-6">
+          {/* Billing Header */}
+          <div>
+            <h1 className="text-2xl font-bold">Billing</h1>
+          </div>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Checking payment history...</p>
+            </div>
           </div>
         </div>
       )
@@ -636,27 +634,33 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Prompt when Stripe account is not linked
     if (paymentStatus === "no_vendor") {
       return (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center max-w-md px-6">
-            <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <svg
-                className="w-8 h-8 text-gray-400"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-              </svg>
+        <div className="space-y-6">
+          {/* Billing Header */}
+          <div>
+            <h1 className="text-2xl font-bold">Billing</h1>
+          </div>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center max-w-md px-6">
+              <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+              </div>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                Stripe account not connected
+              </h2>
+              <p className="text-gray-600 text-base leading-relaxed">
+                Please connect your Stripe account to view billing information and payment history.
+              </p>
             </div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-              Stripe account not connected
-            </h2>
-            <p className="text-gray-600 text-base leading-relaxed">
-              Please connect your Stripe account to view billing information and payment history.
-            </p>
           </div>
         </div>
       )
@@ -665,27 +669,33 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Prompt when no payment history exists
     if (paymentStatus === "no_payment_history") {
       return (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center max-w-md px-6">
-            <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <svg
-                className="w-8 h-8 text-gray-400"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-              </svg>
+        <div className="space-y-6">
+          {/* Billing Header */}
+          <div>
+            <h1 className="text-2xl font-bold">Billing</h1>
+          </div>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center max-w-md px-6">
+              <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+              </div>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                No payment history
+              </h2>
+              <p className="text-gray-600 text-base leading-relaxed">
+                You don't have any payment records yet. Once you receive payments, they will appear here.
+              </p>
             </div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-              No payment history
-            </h2>
-            <p className="text-gray-600 text-base leading-relaxed">
-              You don't have any payment records yet. Once you receive payments, they will appear here.
-            </p>
           </div>
         </div>
       )
@@ -694,10 +704,16 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Render loading state while data is fetching
     if (billingPortalLoading) {
       return (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading billing portal...</p>
+        <div className="space-y-6">
+          {/* Billing Header */}
+          <div>
+            <h1 className="text-2xl font-bold">Billing</h1>
+          </div>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading billing portal...</p>
+            </div>
           </div>
         </div>
       )
@@ -706,34 +722,40 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Show error message on load failure
     if (billingPortalError) {
       return (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <p className="text-red-600 mb-4">{billingPortalError}</p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setBillingPortalUrl(null)
-                setBillingPortalError(null)
-                setBillingPortalLoading(true)
-                getBillingPortalUrl(user.id, window.location.href)
-                  .then((url) => {
-                    if (url) {
-                      setBillingPortalUrl(url)
-                    } else {
-                      setBillingPortalError("Failed to load billing portal. Please try again later.")
-                    }
-                  })
-                  .catch((error) => {
-                    console.log("Failed to load Customer Portal:", error)
-                    setBillingPortalError("Network error. Please try again later.")
-                  })
-                  .finally(() => {
-                    setBillingPortalLoading(false)
-                  })
-              }}
-            >
-              Retry
-            </Button>
+        <div className="space-y-6">
+          {/* Billing Header */}
+          <div>
+            <h1 className="text-2xl font-bold">Billing</h1>
+          </div>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <p className="text-red-600 mb-4">{billingPortalError}</p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setBillingPortalUrl(null)
+                  setBillingPortalError(null)
+                  setBillingPortalLoading(true)
+                  getBillingPortalUrl(user.id, window.location.href)
+                    .then((url) => {
+                      if (url) {
+                        setBillingPortalUrl(url)
+                      } else {
+                        setBillingPortalError("Failed to load billing portal. Please try again later.")
+                      }
+                    })
+                    .catch((error) => {
+                      console.log("Failed to load Customer Portal:", error)
+                      setBillingPortalError("Network error. Please try again later.")
+                    })
+                    .finally(() => {
+                      setBillingPortalLoading(false)
+                    })
+                }}
+              >
+                Retry
+              </Button>
+            </div>
           </div>
         </div>
       )
@@ -743,29 +765,35 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Note: Stripe Customer Portal does not support embedding inside an iframe (CSP limitation)
     if (billingPortalUrl) {
       return (
-        <div className="h-full w-full flex flex-col items-center justify-center p-8 space-y-6">
-          <div className="text-center max-w-md">
-            <div className="mb-4">
-              <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <ExternalLink className="h-8 w-8 text-primary" />
+        <div className="flex flex-col h-full">
+          {/* Billing Header */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold">Billing</h1>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center max-w-md">
+              <div className="mb-4">
+                <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <ExternalLink className="h-8 w-8 text-primary" />
+                </div>
               </div>
+             
+              <Button
+                onClick={() => {
+                  if (billingPortalUrl) {
+                    window.open(billingPortalUrl, '_blank', 'noopener,noreferrer');
+                  }
+                }}
+                size="lg"
+                className="gap-2"
+              >
+                <ExternalLink className="size-4" />
+                Open Billing Portal
+              </Button>
+              <p className="text-xs text-muted-foreground mt-4">
+                Click the button to open the Stripe Customer Portal in a new tab.
+              </p>
             </div>
-           
-            <Button
-              onClick={() => {
-                if (billingPortalUrl) {
-                  window.open(billingPortalUrl, '_blank', 'noopener,noreferrer');
-                }
-              }}
-              size="lg"
-              className="gap-2"
-            >
-              <ExternalLink className="size-4" />
-              Open Billing Portal
-            </Button>
-            <p className="text-xs text-muted-foreground mt-4">
-              Click the button to open the Stripe Customer Portal in a new tab.
-            </p>
           </div>
         </div>
       )
@@ -773,9 +801,15 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
 
     // Default state (should be unreachable)
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <p className="text-muted-foreground">Loading...</p>
+      <div className="space-y-6">
+        {/* Billing Header */}
+        <div>
+          <h1 className="text-2xl font-bold">Billing</h1>
+        </div>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
         </div>
       </div>
     )
@@ -828,8 +862,8 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
         </div>
 
         {/* Main content area */}
-        <div className="flex-1 overflow-y-auto">
-          <div className={activeTab === "billing" ? "h-full" : "p-8"}>
+        <div className="flex-1 overflow-y-auto flex flex-col">
+          <div className={activeTab === "billing" ? "flex-1 flex flex-col p-8" : "p-8"}>
             {activeTab === "account" && renderAccountContent()}
             {activeTab === "billing" && renderBillingContent()}
             {activeTab === "payout" && <PaymentAccount />}

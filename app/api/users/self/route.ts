@@ -3,6 +3,7 @@ export const revalidate = 0;
 
 import { NextResponse, NextRequest } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { warmupSupabase } from "@/lib/supabase-warmup";
 
 const jsonResponse = (body: unknown, init?: ResponseInit) => {
   const response = NextResponse.json(body, init);
@@ -12,6 +13,12 @@ const jsonResponse = (body: unknown, init?: ResponseInit) => {
 
 export async function POST(request: NextRequest) {
   try {
+    // Warm up Supabase connection early to prevent cold start timeout
+    // Don't await - let it run in background while we process the request
+    warmupSupabase().catch(() => {
+      // Ignore warmup errors, continue with request
+    });
+
     const authHeader = request.headers.get("Authorization");
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -22,10 +29,28 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
+    
+    // Add timeout handling for Supabase getUser call to handle cold start
+    const getUserPromise = supabaseAdmin.auth.getUser(token);
+    const timeoutPromise = new Promise<{ data: { user: null }; error: { message: string } }>((_, reject) => {
+      setTimeout(() => reject(new Error("Supabase getUser timeout after 30 seconds")), 30000);
+    });
+    
+    let getUserResult;
+    try {
+      getUserResult = await Promise.race([getUserPromise, timeoutPromise]);
+    } catch (timeoutError: any) {
+      console.error("❌ [users/self] Supabase getUser timeout:", timeoutError.message);
+      return jsonResponse(
+        { error: "Authentication service timeout. Please try again." },
+        { status: 504 }
+      );
+    }
+    
     const {
       data: { user },
       error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
+    } = getUserResult;
 
     if (authError || !user) {
       return jsonResponse(

@@ -35,6 +35,12 @@ export function CommandPalette({
     action: 'Command',
     command: 'merge segments'
   }, {
+    icon: 'https://img.icons8.com/fluency/48/delete.png',
+    title: 'Delete segments',
+    subtitle: 'Remove multiple segments',
+    action: 'Command',
+    command: 'delete segments'
+  }, {
     icon: 'https://img.icons8.com/fluency/48/market.png',
     title: 'Adjust market size.',
     subtitle: 'Update D1 dimension',
