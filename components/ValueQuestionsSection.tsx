@@ -5,6 +5,7 @@ import { SparklesIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { QuestionAccordion } from "@/components/QuestionAccordion";
 import { AnalysisCard } from "@/components/AnalysisCard";
 import { CompactAnalysisCard } from "@/components/CompactAnalysisCard";
+import { LoadRipple } from "@/components/ui/load-ripple";
 interface Question {
   id: string;
   text: string;
@@ -81,8 +82,8 @@ interface ValueQuestionsSectionProps {
 
 const DIMENSION_CONFIG = [
   { id: "D1", key: "D1", name: "Market Opportunity" },
-  { id: "D2", key: "D2", name: "Customer Persona" },
   { id: "D3", key: "D3", name: "Conversion & Retention" },
+  { id: "D2", key: "D2", name: "Customer Persona" },
   { id: "D4", key: "D4", name: "Revenue Potential" },
 ];
 
@@ -574,24 +575,9 @@ export function ValueQuestionsSection({
               }}
               className="text-center"
             >
-              <motion.div
-                animate={{
-                  rotate: 360,
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "linear",
-                }}
-                className="inline-block mb-6"
-              >
-                <SparklesIcon
-                  className="w-16 h-16"
-                  style={{
-                    color: "#10B981",
-                  }}
-                />
-              </motion.div>
+              <div className="flex justify-center mb-6">
+                <LoadRipple />
+              </div>
               <h3 className="text-2xl font-semibold text-gray-900 mb-3">
                 {refreshType === "add-segment" || refreshType === "edit-d1"
                   ? "Adding New Segment"
@@ -599,30 +585,10 @@ export function ValueQuestionsSection({
                   ? "Merging Segments"
                   : refreshType === "switching-version"
                   ? "Switching to New Version"
-                  : "Generating New Version"}
+                  : "Generating..."}
               </h3>
-              <p className="text-gray-600 mb-6">
-                Creating your customized experience...
-              </p>
+             
               <div className="w-80 mx-auto">
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{
-                      width: "0%",
-                    }}
-                    animate={{
-                      width: `${generationProgress}%`,
-                    }}
-                    transition={{
-                      duration: 0.3,
-                      ease: "easeOut",
-                    }}
-                    className="h-full rounded-full"
-                    style={{
-                      backgroundColor: "#10B981",
-                    }}
-                  />
-                </div>
                 <p className="text-sm text-gray-500 mt-2">
                   {Math.round(generationProgress)}%
                 </p>
@@ -652,7 +618,7 @@ export function ValueQuestionsSection({
               className={`absolute left-8 z-30 p-1.5 rounded-full transition-all duration-200 ${
                 isGenerating
                   ? "text-gray-300 cursor-not-allowed"
-                  : "text-gray-600 hover:scale-125"
+                  : "text-gray-600 hover:scale-125 cursor-pointer"
               }`}
               aria-label="Previous segment"
               style={{
@@ -725,15 +691,21 @@ export function ValueQuestionsSection({
                     animate={{
                       opacity: 1,
                     }}
-                    className="absolute inset-0 rounded-2xl"
+                    className="absolute inset-0 rounded-2xl flex items-center justify-center"
                     style={{
-                      background:
-                        "radial-gradient(circle at center, rgba(0, 0, 0, 0.3) 0%, transparent 70%)",
-                      filter: "blur(20px)",
+                      background: "transparent",
                       zIndex: -1,
                       transform: "scaleY(2.5)",
                     }}
-                  />
+                  >
+                    <div
+                      className="w-32 h-32 rounded-full"
+                      style={{
+                        background: "radial-gradient(circle, rgba(16, 185, 129, 0.6) 0%, transparent 70%)",
+                        filter: "blur(20px)",
+                      }}
+                    />
+                  </motion.div>
                 )}
               </motion.button>
             );
@@ -753,7 +725,7 @@ export function ValueQuestionsSection({
               className={`absolute right-8 z-30 p-1.5 rounded-full transition-all duration-200 ${
                 isGenerating
                   ? "text-gray-300 cursor-not-allowed"
-                  : "text-gray-600 hover:scale-125"
+                  : "text-gray-600 hover:scale-125 cursor-pointer"
               }`}
               aria-label="Next segment"
               style={{
@@ -982,7 +954,7 @@ export function ValueQuestionsSection({
             </div>
             {/* Value Questions Section */}
             <div
-              className="pt-2 relative"
+              className="pt-2 relative overflow-x-hidden"
               onMouseEnter={() => setHasExpanded(true)}
             >
               <AnimatePresence>
@@ -1058,7 +1030,7 @@ export function ValueQuestionsSection({
               <h2 className="text-3xl font-semibold text-gray-900 mb-6">
                 Value Questions
               </h2>
-              <div className="space-y-1 max-h-[900px] overflow-y-auto">
+              <div className="space-y-1 max-h-[900px] overflow-y-auto overflow-x-hidden">
                 {activeSegment?.questions &&
                 activeSegment.questions.length > 0 ? (
                   activeSegment.questions.map(
