@@ -39,6 +39,9 @@ async function updateApisixRoute(
   mcpServerId: string
 ): Promise<boolean> {
   try {
+    // 确保 appName 是小写的
+    const normalizedAppName = appName.toLowerCase();
+
     // 先获取现有的路由配置
     const getUrl = `${APISIX_ADMIN_URL}/apisix/admin/routes/${APISIX_ROUTE_ID}`;
     const getResponse = await fetch(getUrl, {
@@ -58,10 +61,10 @@ async function updateApisixRoute(
       }
     }
 
-    // 合并新的映射
+    // 合并新的映射，使用小写的 appName
     const updatedMapping = {
       ...existingMapping,
-      [appName]: mcpServerId,
+      [normalizedAppName]: mcpServerId,
     };
 
     // 更新路由配置
@@ -91,7 +94,7 @@ async function updateApisixRoute(
     }
 
     console.log(
-      `Successfully updated APISIX route mapping: ${appName} -> ${mcpServerId}`
+      `Successfully updated APISIX route mapping: ${normalizedAppName} -> ${mcpServerId}`
     );
     return true;
   } catch (err) {
@@ -317,8 +320,12 @@ async function handleUpdate(
     ) {
       const subdomain = extractSubdomain(updatedMcpServerIds);
       if (subdomain) {
-        // 异步更新 APISIX 路由，不阻塞响应
-        updateApisixRoute(updatedName, subdomain).catch((err) => {
+        // 确保 appName 是小写的，然后异步更新 APISIX 路由，不阻塞响应
+        const normalizedName =
+          typeof updatedName === "string"
+            ? updatedName.trim().toLowerCase()
+            : updatedName;
+        updateApisixRoute(normalizedName, subdomain).catch((err) => {
           console.error("Failed to update APISIX route asynchronously:", err);
         });
       } else {
