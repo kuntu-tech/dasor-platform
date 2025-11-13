@@ -695,7 +695,8 @@ export function ValueQuestionsSection({
                   isGenerating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
                 }`}
                 style={{
-                  width: "480px",
+                  width: isActive ? "auto" : "680px",
+                  minWidth: isActive ? undefined : "680px",
                   transformStyle: "preserve-3d",
                   zIndex,
                   boxShadow: isActive
@@ -703,7 +704,7 @@ export function ValueQuestionsSection({
                     : "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
                 }}
               >
-                <div className="text-center">
+                <div className="text-center whitespace-nowrap">
                   <div
                     className={`font-bold transition-all duration-600 ${
                       isActive ? "text-lg" : "text-xs"

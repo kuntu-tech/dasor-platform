@@ -118,11 +118,11 @@ export function AnalysisCard({
                     Pain Points
                   </h3>
                   <div className="space-y-1 overflow-y-auto">
-                    {userPersona.painPoints.map((point, index) => <div key={index} className="flex items-start gap-2">
+                    {userPersona.painPoints.map((point, index) => <div key={index} className="flex items-start gap-2 min-w-0">
                         <span className="text-gray-600 mt-0.5 font-bold flex-shrink-0">
                           ✓
                         </span>
-                        <span className="text-sm text-gray-700 leading-relaxed line-clamp-2">
+                        <span className="text-sm text-gray-700 leading-relaxed line-clamp-1 flex-1 min-w-0 truncate">
                           {point}
                         </span>
                       </div>)}
@@ -145,7 +145,7 @@ export function AnalysisCard({
                   <h3 className="text-xs font-semibold text-gray-500 uppercase flex-shrink-0">
                     Retention Signal
                   </h3>
-                  <p className="text-sm text-gray-700 font-medium truncate">
+                  <p className="text-sm text-gray-700 font-medium truncate flex-1 min-w-0" title={retention_signal}>
                     {retention_signal}
                   </p>
                 </div>
@@ -153,7 +153,7 @@ export function AnalysisCard({
                   <h3 className="text-xs font-semibold text-gray-500 uppercase flex-shrink-0">
                     Conversion Rate
                   </h3>
-                  <p className="text-sm text-gray-700 font-medium truncate">
+                  <p className="text-sm text-gray-700 font-medium truncate flex-1 min-w-0">
                     {conversion_rate_est && `${(conversion_rate_est * 100).toFixed(0)}%`}
                   </p>
                 </div>
