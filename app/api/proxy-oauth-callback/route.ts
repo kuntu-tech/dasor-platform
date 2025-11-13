@@ -28,14 +28,36 @@ export async function GET(request: NextRequest) {
       "ngrok-skip-browser-warning": "any",
     });
     
-    const response = await fetch(targetUrl, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-        "User-Agent": "curl/7.68.0",
-        "ngrok-skip-browser-warning": "any",
-      },
-    });
+    // Add timeout for external API call (40 seconds to handle cold starts)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn("⏱️ Proxy fetch timeout after 40 seconds");
+      controller.abort();
+    }, 40000);
+    
+    let response: Response;
+    try {
+      response = await fetch(targetUrl, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "curl/7.68.0",
+          "ngrok-skip-browser-warning": "any",
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === "AbortError") {
+        console.error("❌ Proxy fetch timeout");
+        return NextResponse.json(
+          { success: false, error: "Request timeout. The service may be starting up. Please try again." },
+          { status: 504 }
+        );
+      }
+      throw fetchError;
+    }
 
     console.log("Proxy response status:", response.status, response.headers.get("content-type"));
 
