@@ -82,8 +82,8 @@ interface ValueQuestionsSectionProps {
 
 const DIMENSION_CONFIG = [
   { id: "D1", key: "D1", name: "Market Opportunity" },
-  { id: "D2", key: "D2", name: "Customer Persona" },
   { id: "D3", key: "D3", name: "Conversion & Retention" },
+  { id: "D2", key: "D2", name: "Customer Persona" },
   { id: "D4", key: "D4", name: "Revenue Potential" },
 ];
 
@@ -948,7 +948,7 @@ export function ValueQuestionsSection({
             </div>
             {/* Value Questions Section */}
             <div
-              className="pt-2 relative"
+              className="pt-2 relative overflow-x-hidden"
               onMouseEnter={() => setHasExpanded(true)}
             >
               <AnimatePresence>
@@ -1024,7 +1024,7 @@ export function ValueQuestionsSection({
               <h2 className="text-3xl font-semibold text-gray-900 mb-6">
                 Value Questions
               </h2>
-              <div className="space-y-1 max-h-[900px] overflow-y-auto">
+              <div className="space-y-1 max-h-[900px] overflow-y-auto overflow-x-hidden">
                 {activeSegment?.questions &&
                 activeSegment.questions.length > 0 ? (
                   activeSegment.questions.map(

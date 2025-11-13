@@ -50,7 +50,7 @@ export function CompactAnalysisCard({
       e.preventDefault();
       onClick();
     }
-  }} tabIndex={0} role="button" aria-label={`${dimensionName}, score ${score} out of 10. Click for details.`} className="bg-white rounded-lg p-2 hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-100">
+  }} tabIndex={0} role="button" aria-label={`${dimensionName}, score ${score} out of 10. Click for details.`} className="bg-white rounded-lg p-2 hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-300 border border-gray-100">
       {/* Header with title and info icon */}
       <div className="flex items-start justify-between mb-2">
         <h3 className="text-sm font-semibold text-gray-700 flex-1">

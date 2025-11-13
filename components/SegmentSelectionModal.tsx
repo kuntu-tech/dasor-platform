@@ -79,7 +79,7 @@ export function SegmentSelectionModal({
               opacity: 0
             }} 
             onClick={onClose} 
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50" 
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[110]" 
           />
           {/* Modal */}
           <motion.div 
@@ -103,7 +103,7 @@ export function SegmentSelectionModal({
               duration: 0.2
             }} 
             onClick={(e) => e.stopPropagation()}
-            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[80vh]">
+            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl z-[120] overflow-hidden flex flex-col max-h-[80vh]">
             {/* Header */}
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
               <h2 className="text-xl font-semibold text-gray-900">
@@ -113,7 +113,7 @@ export function SegmentSelectionModal({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  onClose();
+                  handleCancel(e);
                 }} 
                 type="button"
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer" 
@@ -142,18 +142,18 @@ export function SegmentSelectionModal({
                           onClick={() => toggleSegmentSelection(segment)}
                           className={`w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 cursor-pointer ${
                             isSelected
-                              ? 'bg-blue-50 border-2 border-blue-500'
+                              ? 'bg-gray-100 border-2 border-gray-300'
                               : 'hover:bg-gray-50 border border-gray-200'
                           }`}
                         >
                           <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center ${
                             isSelected 
-                              ? 'bg-blue-500 border-blue-500' 
+                              ? 'bg-gray-500 border-gray-500' 
                               : 'border-gray-300'
                           }`}>
                             {isSelected && <Check className="w-3 h-3 text-white" />}
                           </div>
-                          <span className="flex-1">{segment}</span>
+                          <span className="flex-1 min-w-0 truncate" title={segment}>{segment}</span>
                         </button>
                       );
                     })
@@ -175,8 +175,9 @@ export function SegmentSelectionModal({
                             ? 'bg-gray-100 border-2 border-gray-300'
                             : 'hover:bg-gray-50 border border-gray-200'
                         }`}
+                        title={segment}
                       >
-                        {segment}
+                        <span className="block truncate">{segment}</span>
                       </button>
                     ))
                   ) : (
@@ -218,8 +219,8 @@ export function SegmentSelectionModal({
                   {mode === 'multiSelect' 
                     ? `Merge ${selectedSegments.length} Segments`
                     : commandText === 'clipboard' || commandText === 'correct segment' || commandText === 'edit d1' || commandText === 'edit d2' || commandText === 'edit d3' || commandText === 'edit d4' || commandText === 'add question' 
-                    ? 'Use Segment' 
-                    : 'Create Segment'}
+                    ? 'Use' 
+                    : 'Use'}
                 </button>
               </div>
             </div>
