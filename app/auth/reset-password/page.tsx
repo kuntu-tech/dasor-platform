@@ -127,18 +127,6 @@ export default function ResetPasswordPage() {
       {/* Left Side - Reset Password Form */}
       <div className="w-1/2 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          {/* Logo */}
-          <div className="mb-8">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                <div className="w-3 h-3 bg-gray-600 rounded-full"></div>
-                <div className="w-3 h-3 bg-gray-600 rounded-full"></div>
-              </div>
-              <span className="text-2xl font-bold text-gray-900">Datail</span>
-            </div>
-          </div>
-
           {/* Main Content */}
           <div className="space-y-6">
             {/* Title */}
