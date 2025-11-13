@@ -79,11 +79,14 @@ const PaymentAccount = () => {
   };
 
   return (
-    <div>
+    <div className="space-y-6">
+      {/* Payout Account Header */}
+      <div>
+        <h1 className="text-2xl font-bold">Payout Account</h1>
+      </div>
       {currentStep !== "connected" ? (
         <>
-          <h2 className="mb-2 text-3xl font-semibold">Payout Account</h2>
-          <p className="mb-8 text-sm text-red-500">❗️Connect your Stripe account for receive payment from your users</p>
+          <p className="text-sm text-red-500">❗️Connect your Stripe account for receive payment from your users</p>
           {currentStep === "selection" && <PathSelection onSelect={handleSelection} />}
 
           {currentStep === "create" && <CreateAccount onBack={handleBack} onConnect={handleConnect} />}
