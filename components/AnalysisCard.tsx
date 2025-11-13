@@ -1,5 +1,4 @@
-"use client";
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React from 'react';
 interface AnalysisCardProps {
   analysis: {
     id: string;
@@ -7,190 +6,201 @@ interface AnalysisCardProps {
     score: number;
     summary: string;
     tags: string[];
+    // D1 fields
+    supportingIndicators?: string[];
+    // D2 fields
+    userPersona?: {
+      role: string;
+      companyType: string;
+      painPoints: string[];
+      goals: string[];
+    };
+    // D3 fields
+    revenue_band?: string;
+    retention_signal?: string;
+    conversion_rate_est?: number;
+    // D4 fields
+    moat_score?: number;
+    scalability_score?: number;
+    competitive_advantage?: string[];
   };
   onClick: () => void;
 }
-export function AnalysisCard({ analysis, onClick }: AnalysisCardProps) {
-  const { dimensionName, score, summary, tags, id } = analysis;
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [showExpandButton, setShowExpandButton] = useState(false);
-  const summaryRef = useRef<HTMLParagraphElement>(null);
-  // Calculate circle progress
-  const circumference = 2 * Math.PI * 45;
-  const strokeDashoffset = circumference - (score / 10) * circumference;
-  // Determine color based on score
+export function AnalysisCard({
+  analysis,
+  onClick
+}: AnalysisCardProps) {
+  const {
+    dimensionName,
+    score,
+    summary,
+    tags,
+    id,
+    supportingIndicators,
+    userPersona,
+    revenue_band,
+    retention_signal,
+    conversion_rate_est,
+    moat_score,
+    scalability_score,
+    competitive_advantage
+  } = analysis;
+  const circumference = 2 * Math.PI * 32;
+  const strokeDashoffset = circumference - score / 10 * circumference;
   const getScoreColor = (score: number) => {
-    // All four cards use unified green brand color
-    if (id === "D1" || id === "D2" || id === "D3" || id === "D4")
-      return "#4D7327";
-    if (score >= 8.5) return "#8F56BE";
-    if (score >= 7.0) return "#8F56BE";
-    return "#c57d56";
+    if (score >= 8.5) return '#10B981';
+    if (score >= 7.0) return '#10B981';
+    return '#c57d56';
   };
   const getStrokeColor = (score: number) => {
-    // All four cards use unified green brand color
-    if (id === "D1" || id === "D2" || id === "D3" || id === "D4")
-      return "#4D7327";
-    if (score >= 9.0) return "#8F56BE";
-    if (score >= 8.5) return "#8F56BE";
-    if (score >= 7.0) return "#8F56BE";
-    return "#c57d56";
+    if (score >= 9.0) return '#10B981';
+    if (score >= 8.5) return '#10B981';
+    if (score >= 7.0) return '#10B981';
+    return '#c57d56';
   };
-  // Get label based on card ID
-  const getLabel = (id: string) => {
-    switch (id) {
-      case "D1":
-        return "Huge Potential";
-      case "D2":
-        return "Clear Profile";
-      case "D3":
-        return "Strong Moat";
-      case "D4":
-        return "Low Retention";
-      default:
-        return "";
+  return <article onClick={onClick} onKeyDown={e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
     }
-  };
-  // Function to highlight specific numbers with larger font
-  const formatSummary = (text: string) => {
-    return text
-      .replace(/\$2\.4B/g, '<span class="text-3xl font-bold">$2.4B</span>')
-      .replace(/23%/g, '<span class="text-3xl font-bold">23%</span>')
-      .replace(/5\.2x/g, '<span class="text-5xl font-bold">5.2x</span>');
-  };
-
-  // Check if content is truncated
-  useLayoutEffect(() => {
-    if (summaryRef.current) {
-      const element = summaryRef.current;
-      if (!isExpanded) {
-        // Create a temporary element to measure full height
-        const tempElement = document.createElement("p");
-        tempElement.className = "text-gray-600 leading-relaxed";
-        tempElement.innerHTML = formatSummary(summary);
-        tempElement.style.position = "absolute";
-        tempElement.style.visibility = "hidden";
-        tempElement.style.width = element.offsetWidth + "px";
-        tempElement.style.padding = "0";
-        tempElement.style.margin = "0";
-        tempElement.style.top = "-9999px";
-        document.body.appendChild(tempElement);
-        const fullHeight = tempElement.scrollHeight;
-        document.body.removeChild(tempElement);
-
-        const clampedHeight = element.clientHeight;
-        // Check if content is actually truncated (with buffer for rounding errors)
-        const isTruncated = fullHeight > clampedHeight + 5;
-        setShowExpandButton(isTruncated);
-      } else {
-        // When expanded, always show collapse button if content exists
-        setShowExpandButton(summary.trim().length > 0);
-      }
-    }
-  }, [summary, isExpanded]);
-  return (
-    <article className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-      {/* Dimension Name - Moved to top */}
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="text-2xl font-semibold text-gray-600">
-          {dimensionName}
-        </h2>
+  }} tabIndex={0} role="button" aria-label={`${dimensionName}, score ${score} out of 10. Click for details.`} className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+      {/* Header: Dimension Name */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-gray-900">{dimensionName}</h2>
       </div>
-      {/* Circular Progress Score with Label */}
-      <div className="flex items-center justify-start gap-6 mb-6">
-        <div className="relative">
-          <svg className="w-24 h-24 transform -rotate-90" aria-hidden="true">
-            {/* Background circle */}
-            <circle
-              cx="48"
-              cy="48"
-              r="45"
-              stroke="#e5e7eb"
-              strokeWidth="6"
-              fill="none"
-            />
-            {/* Progress circle */}
-            <circle
-              cx="48"
-              cy="48"
-              r="45"
-              stroke={getStrokeColor(score)}
-              strokeWidth="6"
-              fill="none"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              className="transition-all duration-1000"
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex items-baseline gap-0.5">
-              <span
-                className="text-4xl font-semibold"
-                style={{
-                  color: getScoreColor(score),
-                }}
-                aria-hidden="true"
-              >
+      {/* Main Content: Split into left (score) and right (details) */}
+      <div className="flex items-center gap-6 mb-4">
+        {/* Left: Main Score Circle */}
+        <div className="flex-shrink-0">
+          <div className="relative">
+            <svg className="w-24 h-24 transform -rotate-90" aria-hidden="true">
+              <circle cx="48" cy="48" r="42" stroke="#e5e7eb" strokeWidth="8" fill="none" />
+              <circle cx="48" cy="48" r="42" stroke={getStrokeColor(score)} strokeWidth="8" fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" className="transition-all duration-1000" />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-3xl font-bold" style={{
+              color: getScoreColor(score)
+            }} aria-hidden="true">
                 {score}
               </span>
             </div>
           </div>
         </div>
-        <div
-          className="text-2xl font-semibold"
-          style={{
-            color: getScoreColor(score),
-          }}
-        >
-          {getLabel(id)}
+        {/* Right: Dimension-specific content */}
+        <div className="flex-1 flex flex-col gap-3">
+          {/* D1: Supporting Indicators */}
+          {id === 'D1' && supportingIndicators && <div className="rounded-xl p-3" style={{ backgroundColor: '#F5F6F8' }}>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                Key Indicators
+              </h3>
+              <div className="space-y-1">
+                {supportingIndicators.map((indicator, index) => <div key={index} className="flex items-start gap-2">
+                    <span className="text-gray-600 mt-0.5 font-bold">✓</span>
+                    <span className="text-sm text-gray-700 leading-relaxed">
+                      {indicator}
+                    </span>
+                  </div>)}
+              </div>
+            </div>}
+          {/* D2: User Persona */}
+          {id === 'D2' && userPersona && <div className="rounded-xl p-3" style={{ backgroundColor: '#F5F6F8' }}>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase">
+                    Role
+                  </h3>
+                  <p className="text-sm text-gray-700 font-medium">
+                    {userPersona.role}、{userPersona.companyType}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2"></div>
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                    Pain Points
+                  </h3>
+                  <div className="space-y-1">
+                    {userPersona.painPoints.map((point, index) => <div key={index} className="flex items-start gap-2">
+                        <span className="text-gray-600 mt-0.5 font-bold">
+                          ✓
+                        </span>
+                        <span className="text-sm text-gray-700 leading-relaxed">
+                          {point}
+                        </span>
+                      </div>)}
+                  </div>
+                </div>
+              </div>
+            </div>}
+          {/* D3: Conversion & Revenue Metrics */}
+          {id === 'D3' && <div className="rounded-xl p-3" style={{ backgroundColor: '#F5F6F8' }}>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase">
+                    Revenue Band
+                  </h3>
+                  <p className="text-sm text-gray-700 font-medium">
+                    {revenue_band}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase">
+                    Retention Signal
+                  </h3>
+                  <p className="text-sm text-gray-700 font-medium">
+                    {retention_signal}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase">
+                    Conversion Rate
+                  </h3>
+                  <p className="text-sm text-gray-700 font-medium">
+                    {conversion_rate_est && `${(conversion_rate_est * 100).toFixed(0)}%`}
+                  </p>
+                </div>
+              </div>
+            </div>}
+          {/* D4: Competitive Advantages with Sub-scores */}
+          {id === 'D4' && competitive_advantage && <div className="rounded-xl p-3" style={{ backgroundColor: '#F5F6F8' }}>
+              <div className="flex items-center gap-6 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase">
+                    Moat
+                  </span>
+                  <span className="text-lg font-bold" style={{
+                color: getScoreColor(moat_score || 0)
+              }}>
+                    {moat_score}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase">
+                    Scalability
+                  </span>
+                  <span className="text-lg font-bold" style={{
+                color: getScoreColor(scalability_score || 0)
+              }}>
+                    {scalability_score}
+                  </span>
+                </div>
+              </div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                Competitive Advantages
+              </h3>
+              <div className="space-y-1">
+                {competitive_advantage.map((advantage, index) => <div key={index} className="flex items-start gap-2">
+                    <span className="text-gray-600 mt-0.5 font-bold">✓</span>
+                    <span className="text-sm text-gray-700 leading-relaxed">
+                      {advantage}
+                    </span>
+                  </div>)}
+              </div>
+            </div>}
         </div>
       </div>
-      {/* Tags */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {tags.map((tag, index) => (
-          <span
-            key={index}
-            className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full font-medium"
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
       {/* Summary */}
-      <div className="relative">
-        <p
-          ref={summaryRef}
-          className={`text-gray-600 leading-relaxed ${
-            isExpanded ? "" : "line-clamp-3"
-          }`}
-          dangerouslySetInnerHTML={{
-            __html: formatSummary(summary),
-          }}
-        />
-        {showExpandButton && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsExpanded(!isExpanded);
-            }}
-            className="mt-2 text-sm text-gray-500 hover:text-gray-700 font-medium inline-flex items-center gap-1 transition-colors"
-            type="button"
-          >
-            {isExpanded ? (
-              <>
-                <span>collapse</span>
-                <span className="text-xs">▲</span>
-              </>
-            ) : (
-              <>
-                <span>expand</span>
-                <span className="text-xs">▼</span>
-              </>
-            )}
-          </button>
-        )}
+      <div className="pt-3 border-t border-gray-100">
+        <p className="text-gray-600 leading-relaxed text-sm">{summary}</p>
       </div>
-    </article>
-  );
+    </article>;
 }

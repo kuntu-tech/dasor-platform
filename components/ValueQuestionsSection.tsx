@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { SparklesIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { QuestionAccordion } from "@/components/QuestionAccordion";
 import { AnalysisCard } from "@/components/AnalysisCard";
 import { CompactAnalysisCard } from "@/components/CompactAnalysisCard";
@@ -17,113 +17,6 @@ interface Segment {
   subtitle: string;
   questions: Question[];
 }
-// const segments: Segment[] = [
-//   {
-//     id: "luxury-fashion",
-//     name: "Luxury Fashion Sellers EU",
-//     subtitle: "B2C Online Retailers",
-//     questions: [
-//       {
-//         id: "q1",
-//         text: "What is the average customer lifetime value by acquisition channel?",
-//         tags: ["Optimize marketing spend", "Metric by dimension"],
-//         status: "success",
-//       },
-//       {
-//         id: "q2",
-//         text: "Which product categories have the highest return rates and why?",
-//         tags: ["Reduce operational costs", "Ranked list with reasons"],
-//         status: "warning",
-//       },
-//       {
-//         id: "q3",
-//         text: "How does weather patterns correlate with luxury fashion purchases?",
-//         tags: ["Improve demand forecasting", "Correlation analysis"],
-//         status: "error",
-//       },
-//       {
-//         id: "q4",
-//         text: "What percentage of VIP customers engage with personalized recommendations?",
-//         tags: ["Enhance personalization", "Percentage with trend"],
-//         status: "success",
-//       },
-//       {
-//         id: "q5",
-//         text: "How do customer preferences vary across EU regions?",
-//         tags: ["Regional customization", "Comparative analysis"],
-//         status: "info",
-//       },
-//       {
-//         id: "q6",
-//         text: "What is the optimal inventory level for seasonal collections?",
-//         tags: ["Inventory optimization", "Predictive analysis"],
-//         status: "success",
-//       },
-//       {
-//         id: "q7",
-//         text: "Which customer segments show the highest conversion rates for new arrivals?",
-//         tags: ["Segment analysis", "Conversion optimization"],
-//         status: "info",
-//       },
-//       {
-//         id: "q8",
-//         text: "How do shipping costs impact purchase decisions across different price points?",
-//         tags: ["Pricing strategy", "Cost analysis"],
-//         status: "warning",
-//       },
-//       {
-//         id: "q9",
-//         text: "What is the relationship between social media engagement and sales?",
-//         tags: ["Marketing effectiveness", "Social commerce"],
-//         status: "success",
-//       },
-//       {
-//         id: "q10",
-//         text: "Which loyalty program features drive the most repeat purchases?",
-//         tags: ["Customer retention", "Program optimization"],
-//         status: "info",
-//       },
-//     ],
-//   },
-//   {
-//     id: "saas-startups",
-//     name: "SaaS Startups North America",
-//     subtitle: "B2B Software Companies",
-//     questions: [
-//       {
-//         id: "q11",
-//         text: "What is the average time to first value for new customers?",
-//         tags: ["Improve onboarding", "Time metric"],
-//         status: "success",
-//       },
-//       {
-//         id: "q12",
-//         text: "Which features correlate most strongly with customer retention?",
-//         tags: ["Product development", "Feature analysis"],
-//         status: "warning",
-//       },
-//     ],
-//   },
-//   {
-//     id: "healthcare-providers",
-//     name: "Healthcare Providers APAC",
-//     subtitle: "Medical Services",
-//     questions: [
-//       {
-//         id: "q13",
-//         text: "What is the patient satisfaction score by service type?",
-//         tags: ["Quality improvement", "Satisfaction metrics"],
-//         status: "success",
-//       },
-//       {
-//         id: "q14",
-//         text: "How do appointment no-show rates vary by demographics?",
-//         tags: ["Operational efficiency", "Demographic analysis"],
-//         status: "info",
-//       },
-//     ],
-//   },
-// ];
 interface AnalysisData {
   id: string;
   dimensionName: string;
@@ -137,83 +30,14 @@ interface AnalysisData {
     painPoints: string[];
     goals: string[];
   };
+  revenue_band?: string;
+  retention_signal?: string;
+  conversion_rate_est?: number;
+  moat_score?: number;
+  scalability_score?: number;
+  competitive_advantage?: string[];
   fullDetails: string;
 }
-const analysisData: AnalysisData[] = [
-  {
-    id: "D1",
-    dimensionName: "Market Opportunity",
-    score: 8.7,
-    summary:
-      "Strong market demand with growing TAM of $2.4B. High customer acquisition potential in enterprise segment.",
-    tags: ["High Growth", "Enterprise Focus", "B2B"],
-    supportingIndicators: [
-      "TAM growing at 23% CAGR",
-      "67% of target customers actively seeking solutions",
-      "Low market saturation in key verticals",
-    ],
-    fullDetails:
-      "Comprehensive market analysis shows exceptional opportunity. The total addressable market is expanding rapidly driven by digital transformation initiatives across Fortune 500 companies. Early adopter feedback indicates strong product-market fit with enterprise customers willing to pay premium pricing for comprehensive solutions.",
-  },
-  {
-    id: "D2",
-    dimensionName: "Customer Persona",
-    score: 9.2,
-    summary:
-      "Well-defined target persona with clear pain points. Decision makers show high intent and budget availability.",
-    tags: ["Decision Maker", "High Budget", "Tech-Forward"],
-    userPersona: {
-      role: "VP of Operations / CTO",
-      companyType: "Mid-market to Enterprise (500-5000 employees)",
-      painPoints: [
-        "Manual processes causing inefficiency",
-        "Lack of real-time visibility into operations",
-        "Difficulty scaling existing systems",
-        "High operational costs",
-      ],
-      goals: [
-        "Reduce operational costs by 30%",
-        "Improve process efficiency",
-        "Enable data-driven decision making",
-        "Scale operations without proportional headcount increase",
-      ],
-    },
-    fullDetails:
-      "Target customers are technology-forward leaders in mid-market to enterprise organizations. They have clear mandates to modernize operations and significant budgets allocated for digital transformation. Our solution directly addresses their top 3 pain points with measurable ROI within 6 months.",
-  },
-  {
-    id: "D3",
-    dimensionName: "Competitive Advantage",
-    score: 7.8,
-    summary:
-      "Differentiated positioning with proprietary technology. Strong moat through network effects and integrations.",
-    tags: ["Proprietary Tech", "Network Effects", "Integration Ecosystem"],
-    supportingIndicators: [
-      "Patent-pending AI algorithms",
-      "50+ pre-built integrations",
-      "Exclusive partnerships with key platforms",
-      "First-mover advantage in emerging category",
-    ],
-    fullDetails:
-      "Our competitive advantage stems from three core pillars: proprietary AI technology that delivers 10x faster processing, an extensive integration ecosystem that creates switching costs, and strategic partnerships that provide exclusive market access. Competitors are 18-24 months behind in core technology capabilities.",
-  },
-  {
-    id: "D4",
-    dimensionName: "Revenue Potential",
-    score: 8.5,
-    summary:
-      "Strong unit economics with LTV/CAC ratio of 5.2x. Multiple expansion opportunities through upsell and cross-sell.",
-    tags: ["High LTV", "Expansion Revenue", "Predictable"],
-    supportingIndicators: [
-      "Average ACV: $85K",
-      "Net Revenue Retention: 132%",
-      "Gross Margin: 78%",
-      "Payback Period: 11 months",
-    ],
-    fullDetails:
-      "Financial modeling shows exceptional unit economics with strong margins and rapid payback. Current customers demonstrate 132% net revenue retention through natural expansion and upsell opportunities. The land-and-expand model allows for efficient customer acquisition with significant lifetime value growth. Three-year revenue projection shows path to $50M ARR with sustainable growth rates.",
-  },
-];
 type RefreshType =
   | "none"
   | "domain"
@@ -251,130 +75,177 @@ interface ValueQuestionsSectionProps {
   generationProgress: number;
   refreshType: RefreshType;
   refreshKey: number;
-  segmentsData?: ExternalSegment[]; // Optional external segment data (from API)
+  segmentsData?: ExternalSegment[]; // New: External segment data (from API)
+  onSegmentChange?: (segmentName?: string) => void;
 }
-// Helper function to generate random question
-const generateRandomQuestion = (): string => {
-  const templates = [
-    "How can we optimize {metric} across {dimension}?",
-    "What factors influence {outcome} in {context}?",
-    "Which {category} shows the highest {performance}?",
-    "What is the correlation between {variable1} and {variable2}?",
-    "How do {segment} customers respond to {initiative}?",
-  ];
-  const metrics = [
-    "revenue",
-    "engagement",
-    "conversion",
-    "retention",
-    "satisfaction",
-  ];
-  const dimensions = [
-    "channels",
-    "regions",
-    "segments",
-    "time periods",
-    "product lines",
-  ];
-  const outcomes = [
-    "customer behavior",
-    "sales performance",
-    "user adoption",
-    "market share",
-  ];
-  const contexts = [
-    "different markets",
-    "seasonal trends",
-    "competitive landscape",
-    "economic conditions",
-  ];
-  const categories = [
-    "features",
-    "campaigns",
-    "products",
-    "services",
-    "initiatives",
-  ];
-  const performances = [
-    "ROI",
-    "growth rate",
-    "adoption",
-    "efficiency",
-    "impact",
-  ];
-  const template = templates[Math.floor(Math.random() * templates.length)];
-  return template
-    .replace("{metric}", metrics[Math.floor(Math.random() * metrics.length)])
-    .replace(
-      "{dimension}",
-      dimensions[Math.floor(Math.random() * dimensions.length)]
-    )
-    .replace("{outcome}", outcomes[Math.floor(Math.random() * outcomes.length)])
-    .replace("{context}", contexts[Math.floor(Math.random() * contexts.length)])
-    .replace(
-      "{category}",
-      categories[Math.floor(Math.random() * categories.length)]
-    )
-    .replace(
-      "{performance}",
-      performances[Math.floor(Math.random() * performances.length)]
-    )
-    .replace("{variable1}", metrics[Math.floor(Math.random() * metrics.length)])
-    .replace("{variable2}", metrics[Math.floor(Math.random() * metrics.length)])
-    .replace(
-      "{segment}",
-      ["VIP", "new", "enterprise", "SMB", "premium"][
-        Math.floor(Math.random() * 5)
-      ]
-    )
-    .replace(
-      "{initiative}",
-      [
-        "pricing changes",
-        "new features",
-        "marketing campaigns",
-        "loyalty programs",
-      ][Math.floor(Math.random() * 4)]
-    );
+
+const DIMENSION_CONFIG = [
+  { id: "D1", key: "D1", name: "Market Opportunity" },
+  { id: "D2", key: "D2", name: "Customer Persona" },
+  { id: "D3", key: "D3", name: "Conversion & Retention" },
+  { id: "D4", key: "D4", name: "Revenue Potential" },
+];
+
+const normalizeSegmentId = (segment?: ExternalSegment | null): string => {
+  if (!segment) return "";
+  const fallback =
+    (segment as any)?.segment_id ||
+    (segment as any)?.segmentID ||
+    (segment as any)?.id ||
+    (segment as any)?.uuid ||
+    "";
+  return (
+    segment.segmentId ||
+    fallback ||
+    segment.id ||
+    segment.name ||
+    (segment as any)?.title ||
+    ""
+  ).toString();
 };
-// Helper function to generate a new segment
-const generateNewSegment = (): Segment => {
-  const segmentTypes = [
-    {
-      name: "Tech Startups Asia",
-      subtitle: "B2B SaaS Companies",
-    },
-    {
-      name: "E-commerce Brands US",
-      subtitle: "D2C Retailers",
-    },
-    {
-      name: "Financial Services EMEA",
-      subtitle: "FinTech Companies",
-    },
-    {
-      name: "Manufacturing Companies",
-      subtitle: "Industrial B2B",
-    },
-  ];
-  const randomType =
-    segmentTypes[Math.floor(Math.random() * segmentTypes.length)];
+
+const normalizeSegmentName = (segment?: ExternalSegment | null): string => {
+  if (!segment) return "";
+  return (
+    segment.name ||
+    (segment as any)?.title ||
+    normalizeSegmentId(segment)
+  ).toString();
+};
+
+const mapQuestionStatus = (status?: string): Question["status"] => {
+  if (!status) return "info";
+  const normalized = status.toUpperCase();
+  if (normalized === "IMPOSSIBLE") return "error";
+  if (normalized === "NEEDS_TRANSFORM") return "warning";
+  if (normalized === "AMBIGUOUS") return "info";
+  return "success";
+};
+
+const transformExternalSegment = (segment: ExternalSegment): Segment | null => {
+  const id = normalizeSegmentId(segment);
+  const name = normalizeSegmentName(segment);
+  if (!id && !name) {
+    return null;
+  }
+
+  const questions = Array.isArray(segment.valueQuestions)
+    ? (segment.valueQuestions
+        .map((question) => {
+          const text = question?.question?.trim();
+          if (!text) return null;
+          const questionId =
+            question.id ||
+            (question as any)?.questionId ||
+            (question as any)?.question_id ||
+            text;
+          const tags = [
+            question.intent,
+            question.answerShape,
+          ].filter(Boolean) as string[];
+          return {
+            id: questionId.toString(),
+            text,
+            tags,
+            status: mapQuestionStatus(question.feasibility?.status),
+          } satisfies Question;
+        })
+        .filter(Boolean) as Question[])
+    : [];
+
   return {
-    id: `segment-${Date.now()}`,
-    name: randomType.name,
-    subtitle: randomType.subtitle,
-    questions: Array.from(
-      {
-        length: 5,
-      },
-      (_, i) => ({
-        id: `q-${Date.now()}-${i}`,
-        text: generateRandomQuestion(),
-        tags: ["New Question", "Analysis"],
-        status: "info" as const,
-      })
-    ),
+    id: id || name,
+    name: name || id,
+    subtitle:
+      segment.subtitle ||
+      (segment as any)?.sub_title ||
+      (segment as any)?.subtitle ||
+      "",
+    questions,
   };
+};
+
+const transformSegments = (
+  segmentsData?: ExternalSegment[]
+): Segment[] => {
+  if (!Array.isArray(segmentsData)) return [];
+  return segmentsData
+    .map((segment) => transformExternalSegment(segment))
+    .filter((segment): segment is Segment => Boolean(segment));
+};
+
+const buildAnalysisEntries = (analysis?: any): AnalysisData[] => {
+  if (!analysis) return [];
+
+  return DIMENSION_CONFIG.map((config) => {
+    const detail = analysis?.[config.key];
+    if (!detail) return null;
+
+    const hasContent =
+      detail.summary ||
+      typeof detail.score === "number" ||
+      (Array.isArray(detail.tags) && detail.tags.length > 0) ||
+      (Array.isArray(detail.supporting_indicators) &&
+        detail.supporting_indicators.length > 0);
+
+    if (!hasContent) return null;
+
+    const entry: AnalysisData = {
+      id: config.id,
+      dimensionName: config.name,
+      score: typeof detail.score === "number" ? detail.score : 0,
+      summary: detail.summary ?? "",
+      tags: Array.isArray(detail.tags) ? detail.tags : [],
+      supportingIndicators: Array.isArray(detail.supporting_indicators)
+        ? detail.supporting_indicators
+        : undefined,
+      fullDetails: detail.summary ?? "",
+    };
+
+    if (detail.user_persona) {
+      entry.userPersona = {
+        role: detail.user_persona.role,
+        companyType: detail.user_persona.company_type,
+        painPoints: Array.isArray(detail.user_persona.pain_points)
+          ? detail.user_persona.pain_points
+          : [],
+        goals: Array.isArray(detail.user_persona.goals)
+          ? detail.user_persona.goals
+          : [],
+      };
+    }
+
+    if (detail.revenue_band) entry.revenue_band = detail.revenue_band;
+    if (detail.retention_signal)
+      entry.retention_signal = detail.retention_signal;
+    if (detail.conversion_rate_est)
+      entry.conversion_rate_est = detail.conversion_rate_est;
+    if (detail.moat_score) entry.moat_score = detail.moat_score;
+    if (detail.scalability_score)
+      entry.scalability_score = detail.scalability_score;
+    if (Array.isArray(detail.competitive_advantage))
+      entry.competitive_advantage = detail.competitive_advantage;
+
+    return entry;
+  }).filter((entry): entry is AnalysisData => Boolean(entry));
+};
+
+const findMatchingExternalSegment = (
+  segmentsData: ExternalSegment[] | undefined,
+  targetId?: string,
+  targetName?: string
+): ExternalSegment | undefined => {
+  if (!Array.isArray(segmentsData) || (!targetId && !targetName)) {
+    return undefined;
+  }
+  return segmentsData.find((segment) => {
+    const id = normalizeSegmentId(segment);
+    const name = normalizeSegmentName(segment);
+    return (
+      (targetId && id === targetId) ||
+      (targetName && name === targetName)
+    );
+  });
 };
 export function ValueQuestionsSection({
   onAnalysisClick,
@@ -383,331 +254,89 @@ export function ValueQuestionsSection({
   refreshType,
   refreshKey,
   segmentsData,
+  onSegmentChange,
 }: ValueQuestionsSectionProps) {
-  const [activeTab, setActiveTab] = useState(segmentsData?.[0]?.id || "");
-  const [isCompact, setIsCompact] = useState(false);
-  const [currentSegments, setCurrentSegments] = useState(
-    segmentsData?.[0]?.valueQuestions || ([] as any)
+  const [currentSegments, setCurrentSegments] = useState<Segment[]>(() =>
+    transformSegments(segmentsData)
   );
-  const [currentAnalysisData, setCurrentAnalysisData] = useState(analysisData);
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const initialSegments = transformSegments(segmentsData);
+    return initialSegments[0]?.id || "";
+  });
+  const [hasExpanded, setHasExpanded] = useState(false);
+  const [currentAnalysisData, setCurrentAnalysisData] = useState<AnalysisData[]>(
+    () => {
+      const initialSegments = transformSegments(segmentsData);
+      if (!initialSegments.length) return [];
+      const firstSegment = initialSegments[0];
+      const rawSegment = findMatchingExternalSegment(
+        segmentsData,
+        firstSegment.id,
+        firstSegment.name
+      );
+      return buildAnalysisEntries(rawSegment?.analysis);
+    }
+  );
 
   // Transform external segmentsData into the required internal shape
   useEffect(() => {
     console.log("segmentsData", segmentsData);
-    if (!segmentsData || segmentsData.length === 0) return;
+    const mappedSegments = transformSegments(segmentsData);
+    setCurrentSegments(mappedSegments);
 
-    const mapStatus = (s?: string): Question["status"] => {
-      if (!s) return "info";
-      const v = s.toUpperCase();
-      if (v === "IMPOSSIBLE") return "error";
-      if (v === "NEEDS_TRANSFORM") return "warning";
-      if (v === "AMBIGUOUS") return "info";
-      return "success";
-    };
-
-    const mappedSegments: Segment[] = segmentsData.map((seg) => ({
-      id: seg.segmentId || seg.id || seg.name || (seg as any).title,
-      name: seg.name || (seg as any).title,
-      subtitle: seg.subtitle || "",
-      questions: (seg.valueQuestions || []).map((q) => ({
-        id: q.id,
-        text: q.question,
-        tags: [q.intent || "", q.answerShape || ""].filter(Boolean) as string[],
-        status: mapStatus(q.feasibility?.status),
-      })),
-    }));
-
-    // Build insights by extracting D1-D4 from the first segment with analysis
-    const firstWithAnalysis = segmentsData.find((s) => s.analysis);
-    const a = (firstWithAnalysis?.analysis || {}) as any;
-    const mappedAnalysis: AnalysisData[] = [
-      {
-        id: "D1",
-        dimensionName: "Market Opportunity",
-        score: a?.D1?.score ?? 0,
-        summary: a?.D1?.summary ?? "",
-        tags: a?.D1?.supporting_indicators ?? [],
-        fullDetails: a?.D1?.summary ?? "",
-      },
-      {
-        id: "D2",
-        dimensionName: "Customer Persona",
-        score: a?.D2?.score ?? 0,
-        summary: a?.D2?.summary ?? "",
-        tags: [],
-        userPersona: a?.D2?.user_persona
-          ? {
-              role: a.D2.user_persona.role,
-              companyType: a.D2.user_persona.company_type,
-              painPoints: a.D2.user_persona.pain_points || [],
-              goals: [],
-            }
-          : undefined,
-        fullDetails: a?.D2?.summary ?? "",
-      },
-      {
-        id: "D3",
-        dimensionName: "Competitive Advantage",
-        score: a?.D3?.score ?? 0,
-        summary: a?.D3?.summary ?? "",
-        tags: [a?.D3?.revenue_band, a?.D3?.retention_signal].filter(Boolean),
-        fullDetails: a?.D3?.summary ?? "",
-      },
-      {
-        id: "D4",
-        dimensionName: "Revenue Potential",
-        score: a?.D4?.score ?? 0,
-        summary: a?.D4?.summary ?? "",
-        tags: a?.D4?.competitive_advantage || [],
-        fullDetails: a?.D4?.summary ?? "",
-      },
-    ];
-
-    setCurrentSegments(
-      mappedSegments.length
-        ? mappedSegments
-        : segmentsData?.[0]?.valueQuestions || ([] as any)
-    );
-    setCurrentAnalysisData(mappedAnalysis);
-    setActiveTab(mappedSegments[0]?.id || segmentsData?.[0]?.id || "");
+    if (mappedSegments.length === 0) {
+      setActiveTab("");
+      setCurrentAnalysisData([]);
+      return;
+    }
+    setActiveTab((prev) => {
+      if (prev && mappedSegments.some((segment) => segment.id === prev)) {
+        return prev;
+      }
+      return mappedSegments[0].id;
+    });
   }, [segmentsData]);
 
   // Sync the analysis panel when switching tabs if external data contains per-segment analysis
   useEffect(() => {
-    if (!segmentsData || segmentsData.length === 0) return;
-    const active = currentSegments.find((s: Segment) => s.id === activeTab);
-    if (!active) return;
-
-    // Locate the corresponding segment in segmentsData (compatible with id/name/title/segmentId)
-    const raw = segmentsData.find((seg: any) => {
-      const segId = seg.segmentId || seg.id || seg.name || seg.title;
-      const segName = seg.name || seg.title;
-      return segId === active.id || segName === active.name;
-    });
-    const a = (raw?.analysis || {}) as any;
-    if (!a || Object.keys(a).length === 0) return;
-
-    const mappedAnalysis: AnalysisData[] = [
-      {
-        id: "D1",
-        dimensionName: "Market Opportunity",
-        score: a?.D1?.score ?? 0,
-        summary: a?.D1?.summary ?? "",
-        tags: a?.D1?.supporting_indicators ?? [],
-        fullDetails: a?.D1?.summary ?? "",
-      },
-      {
-        id: "D2",
-        dimensionName: "Customer Persona",
-        score: a?.D2?.score ?? 0,
-        summary: a?.D2?.summary ?? "",
-        tags: [],
-        userPersona: a?.D2?.user_persona
-          ? {
-              role: a.D2.user_persona.role,
-              companyType: a.D2.user_persona.company_type,
-              painPoints: a.D2.user_persona.pain_points || [],
-              goals: [],
-            }
-          : undefined,
-        fullDetails: a?.D2?.summary ?? "",
-      },
-      {
-        id: "D3",
-        dimensionName: "Competitive Advantage",
-        score: a?.D3?.score ?? 0,
-        summary: a?.D3?.summary ?? "",
-        tags: [a?.D3?.revenue_band, a?.D3?.retention_signal].filter(Boolean),
-        fullDetails: a?.D3?.summary ?? "",
-      },
-      {
-        id: "D4",
-        dimensionName: "Revenue Potential",
-        score: a?.D4?.score ?? 0,
-        summary: a?.D4?.summary ?? "",
-        tags: a?.D4?.competitive_advantage || [],
-        fullDetails: a?.D4?.summary ?? "",
-      },
-    ];
-    setCurrentAnalysisData(mappedAnalysis);
+    if (!segmentsData || segmentsData.length === 0 || !activeTab) {
+      setCurrentAnalysisData([]);
+      return;
+    }
+    const activeSegmentMeta = currentSegments.find(
+      (segment) => segment.id === activeTab
+    );
+    const rawSegment = findMatchingExternalSegment(
+      segmentsData,
+      activeTab,
+      activeSegmentMeta?.name
+    );
+    setCurrentAnalysisData(buildAnalysisEntries(rawSegment?.analysis));
   }, [activeTab, currentSegments, segmentsData]);
   // Handle segment refresh - switch to second tab
   useEffect(() => {
     if (refreshType === "segment" && !isGenerating) {
-      setActiveTab(segmentsData?.[1]?.id || "");
-    }
-  }, [refreshType, isGenerating]);
-  // Handle content refresh based on refresh type
-  useEffect(() => {
-    if (refreshKey > 0 && !isGenerating) {
-      const currentActive = activeTab;
-      // Add segment - insert new segment at the beginning
-      if (refreshType === "add-segment") {
-        const newSegment = generateNewSegment();
-        setCurrentSegments((prev: any) => [newSegment, ...prev]);
-        setActiveTab(newSegment.id);
-      }
-      // Merge segments - remove the last segment
-      else if (refreshType === "merge-segments") {
-        setCurrentSegments((prev: any) => {
-          if (prev.length > 1) {
-            const updated = prev.slice(0, -1);
-            setActiveTab(updated[0].id);
-            return updated;
-          }
-          return prev;
-        });
-      }
-      // Edit D1 - add new segment at beginning (same as add-segment)
-      else if (refreshType === "edit-d1") {
-        const newSegment = generateNewSegment();
-        setCurrentSegments((prev: any) => [newSegment, ...prev]);
-        setActiveTab(newSegment.id);
-      }
-      // Edit D2, D3, D4 - update analysis data
-      else if (
-        refreshType === "edit-d2" ||
-        refreshType === "edit-d3" ||
-        refreshType === "edit-d4"
-      ) {
-        const dimensionMap = {
-          "edit-d2": "D2",
-          "edit-d3": "D3",
-          "edit-d4": "D4",
-        };
-        const targetId = dimensionMap[refreshType];
-        setCurrentAnalysisData((prev) =>
-          prev.map((analysis) => {
-            if (analysis.id === targetId) {
-              return {
-                ...analysis,
-                score: Math.random() * 2 + 8,
-                summary: `Updated analysis for ${
-                  analysis.dimensionName
-                }. ${generateRandomQuestion()}`,
-              };
-            }
-            return analysis;
-          })
-        );
-      }
-      // Add question - add a new question to the active segment
-      else if (refreshType === "add-question") {
-        setCurrentSegments((prev: Segment[]) =>
-          prev.map((segment: Segment) => {
-            if (segment.id === currentActive) {
-              return {
-                ...segment,
-                questions: [
-                  ...segment.questions,
-                  {
-                    id: `q-${Date.now()}`,
-                    text: generateRandomQuestion(),
-                    tags: ["New Question", "Analysis"],
-                    status: "info" as const,
-                  },
-                ],
-              };
-            }
-            return segment;
-          })
-        );
-      }
-      // Edit question - update first question in active segment
-      else if (refreshType === "edit-question") {
-        setCurrentSegments((prev: Segment[]) =>
-          prev.map((segment: Segment) => {
-            if (segment.id === currentActive) {
-              return {
-                ...segment,
-                questions: segment.questions.map((q: Question, index: number) =>
-                  index === 0
-                    ? {
-                        ...q,
-                        text: generateRandomQuestion(),
-                      }
-                    : q
-                ),
-              };
-            }
-            return segment;
-          })
-        );
-      }
-      // Delete question - remove last question from active segment
-      else if (refreshType === "delete-question") {
-        setCurrentSegments((prev: Segment[]) =>
-          prev.map((segment: Segment) => {
-            if (segment.id === currentActive && segment.questions.length > 1) {
-              return {
-                ...segment,
-                questions: segment.questions.slice(0, -1),
-              };
-            }
-            return segment;
-          })
-        );
-      }
-      // Existing refresh types
-      else {
-        setCurrentSegments((prev: Segment[]) =>
-          prev.map((segment: Segment, segmentIndex: number) => {
-            // For domain refresh, update all segments
-            if (refreshType === "domain") {
-              return {
-                ...segment,
-                questions: segment.questions.map((q: Question) => ({
-                  ...q,
-                  text: generateRandomQuestion(),
-                })),
-              };
-            }
-            // For segment refresh, only update second segment
-            if (refreshType === "segment" && segmentIndex === 1) {
-              return {
-                ...segment,
-                questions: segment.questions.map((q: Question) => ({
-                  ...q,
-                  text: generateRandomQuestion(),
-                })),
-              };
-            }
-            // For question-list refresh, update all questions in first segment
-            if (refreshType === "question-list" && segmentIndex === 0) {
-              return {
-                ...segment,
-                questions: segment.questions.map((q: Question) => ({
-                  ...q,
-                  text: generateRandomQuestion(),
-                })),
-              };
-            }
-            // For single question refresh, update first question in first segment
-            if (refreshType === "question" && segmentIndex === 0) {
-              return {
-                ...segment,
-                questions: (segment as any).questions.map(
-                  (q: any, qIndex: number) =>
-                    qIndex === 0
-                      ? {
-                          ...q,
-                          text: generateRandomQuestion(),
-                        }
-                      : q
-                ),
-              };
-            }
-            return segment;
-          })
-        );
+      const secondSegment = segmentsData?.[1];
+      if (secondSegment) {
+        const nextActive =
+          normalizeSegmentId(secondSegment) || normalizeSegmentName(secondSegment);
+        if (nextActive) {
+          setActiveTab(nextActive);
+        }
       }
     }
-  }, [refreshKey, refreshType, isGenerating]);
+  }, [refreshType, isGenerating, segmentsData]);
   const activeSegment =
     currentSegments.find((s: Segment) => s.id === activeTab) ||
     currentSegments[0];
 
-  // Persist only the valueQuestions for the currently active tab
+  useEffect(() => {
+    if (onSegmentChange) {
+      onSegmentChange(activeSegment?.name);
+    }
+  }, [activeSegment?.id, activeSegment?.name, onSegmentChange]);
+
+  // Persist: Only store valueQuestions for the currently selected Tab
   useEffect(() => {
     console.log("activeSegment", activeSegment);
     console.log("activeTab", activeTab);
@@ -833,6 +462,7 @@ export function ValueQuestionsSection({
         return {
           query: q.question || q.text || "",
           sql: q.sql || "",
+          sample_data: q.sample_data || []
         };
       });
 
@@ -888,6 +518,23 @@ export function ValueQuestionsSection({
       refreshType === "edit-question" ||
       refreshType === "delete-question");
   const showSingleQuestionOverlay = isGenerating && refreshType === "question";
+  const activeIndex = currentSegments.findIndex(
+    (segment: Segment) => segment.id === activeTab
+  );
+  const resolvedActiveIndex =
+    currentSegments.length === 0
+      ? -1
+      : activeIndex === -1
+      ? 0
+      : activeIndex;
+
+  useEffect(() => {
+    if (!currentSegments.length) return;
+    const hasActive = currentSegments.some((segment) => segment.id === activeTab);
+    if (!hasActive) {
+      setActiveTab(currentSegments[0].id);
+    }
+  }, [currentSegments, activeTab]);
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden relative">
       {/* Full Page Generation Loading Overlay */}
@@ -938,10 +585,10 @@ export function ValueQuestionsSection({
                 }}
                 className="inline-block mb-6"
               >
-                <Sparkles
+                <SparklesIcon
                   className="w-16 h-16"
                   style={{
-                    color: "#000000",
+                    color: "#10B981",
                   }}
                 />
               </motion.div>
@@ -972,7 +619,7 @@ export function ValueQuestionsSection({
                     }}
                     className="h-full rounded-full"
                     style={{
-                      backgroundColor: "#000000",
+                      backgroundColor: "#10B981",
                     }}
                   />
                 </div>
@@ -984,30 +631,139 @@ export function ValueQuestionsSection({
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <div className="flex">
-          {currentSegments.map((segment: Segment) => (
+      {/* 3D Carousel-style Tabs */}
+      <div className="border-b border-gray-200 bg-gradient-to-b from-gray-50 to-white py-3 px-4 overflow-hidden relative">
+        <div
+          className="relative flex items-center justify-center"
+          style={{
+            perspective: "2000px",
+            perspectiveOrigin: "center center",
+            height: "60px",
+          }}
+        >
+          {resolvedActiveIndex > 0 && (
             <button
-              key={segment.id}
-              onClick={() => setActiveTab(segment.id)}
+              onClick={() => {
+                if (resolvedActiveIndex > 0) {
+                  setActiveTab(currentSegments[resolvedActiveIndex - 1].id);
+                }
+              }}
               disabled={isGenerating}
-              style={
-                activeTab === segment.id
-                  ? {
-                      backgroundColor: "#000000",
-                    }
-                  : {}
-              }
-              className={`flex-1 px-6 py-4 font-medium transition-all duration-300 ${
-                activeTab === segment.id
-                  ? "text-white text-2xl scale-105 shadow-lg"
-                  : "bg-white text-gray-600 hover:text-gray-900 text-sm hover:bg-gray-100"
-              } ${isGenerating ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`absolute left-8 z-30 p-1.5 rounded-full transition-all duration-200 ${
+                isGenerating
+                  ? "text-gray-300 cursor-not-allowed"
+                  : "text-gray-600 hover:scale-125"
+              }`}
+              aria-label="Previous segment"
+              style={{
+                top: "50%",
+                transform: "translateY(-50%)",
+              }}
             >
-              {(segment as any).name}
+              <ChevronLeftIcon className="w-5 h-5" />
             </button>
-          ))}
+          )}
+          {currentSegments.map((segment: Segment, index: number) => {
+            const isActive = activeTab === segment.id;
+            const distance = index - resolvedActiveIndex;
+            const translateX = distance * 350;
+            const translateZ = isActive ? 0 : -Math.abs(distance) * 150;
+            const rotateY = isActive ? 0 : distance * 25;
+            const scale = isActive
+              ? 1
+              : Math.max(0.6, 1 - Math.abs(distance) * 0.2);
+            const opacity = isActive
+              ? 1
+              : Math.max(0.3, 1 - Math.abs(distance) * 0.3);
+            const zIndex = isActive ? 20 : 10 - Math.abs(distance);
+            return (
+              <motion.button
+                key={segment.id}
+                onClick={() => setActiveTab(segment.id)}
+                disabled={isGenerating}
+                animate={{
+                  x: translateX,
+                  scale,
+                  opacity,
+                  rotateY,
+                  z: translateZ,
+                }}
+                transition={{
+                  duration: 0.35,
+                  ease: [0.4, 0, 0.2, 1],
+                }}
+                className={`absolute flex-shrink-0 px-6 py-1.5 rounded-2xl font-medium transition-all duration-600 ${
+                  isActive
+                    ? "bg-black text-white shadow-2xl"
+                    : "bg-white text-gray-600 hover:text-gray-900 shadow-lg"
+                } ${
+                  isGenerating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                }`}
+                style={{
+                  width: "480px",
+                  transformStyle: "preserve-3d",
+                  zIndex,
+                  boxShadow: isActive
+                    ? "0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(64, 64, 64, 0.2)"
+                    : "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+                }}
+              >
+                <div className="text-center">
+                  <div
+                    className={`font-bold transition-all duration-600 ${
+                      isActive ? "text-lg" : "text-xs"
+                    }`}
+                  >
+                    {(segment as any).name}
+                  </div>
+                </div>
+                {isActive && (
+                  <motion.div
+                    initial={{
+                      opacity: 0,
+                    }}
+                    animate={{
+                      opacity: 1,
+                    }}
+                    className="absolute inset-0 rounded-2xl"
+                    style={{
+                      background:
+                        "radial-gradient(circle at center, rgba(0, 0, 0, 0.3) 0%, transparent 70%)",
+                      filter: "blur(20px)",
+                      zIndex: -1,
+                      transform: "scaleY(2.5)",
+                    }}
+                  />
+                )}
+              </motion.button>
+            );
+          })}
+          {resolvedActiveIndex >= 0 &&
+            resolvedActiveIndex < currentSegments.length - 1 && (
+            <button
+              onClick={() => {
+                if (
+                  resolvedActiveIndex >= 0 &&
+                  resolvedActiveIndex < currentSegments.length - 1
+                ) {
+                  setActiveTab(currentSegments[resolvedActiveIndex + 1].id);
+                }
+              }}
+              disabled={isGenerating}
+              className={`absolute right-8 z-30 p-1.5 rounded-full transition-all duration-200 ${
+                isGenerating
+                  ? "text-gray-300 cursor-not-allowed"
+                  : "text-gray-600 hover:scale-125"
+              }`}
+              aria-label="Next segment"
+              style={{
+                top: "50%",
+                transform: "translateY(-50%)",
+              }}
+            >
+              <ChevronRightIcon className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
       {/* Content */}
@@ -1080,10 +836,10 @@ export function ValueQuestionsSection({
                     }}
                     className="inline-block mb-4"
                   >
-                    <Sparkles
+                    <SparklesIcon
                       className="w-12 h-12"
                       style={{
-                        color: "#8F56BE",
+                        color: "#10B981",
                       }}
                     />
                   </motion.div>
@@ -1147,10 +903,10 @@ export function ValueQuestionsSection({
                       }}
                       className="inline-block mb-4"
                     >
-                      <Sparkles
+                      <SparklesIcon
                         className="w-12 h-12"
                         style={{
-                          color: "#8F56BE",
+                          color: "#10B981",
                         }}
                       />
                     </motion.div>
@@ -1171,86 +927,63 @@ export function ValueQuestionsSection({
               )}
             </AnimatePresence>
             {/* 4D Market Analysis Section */}
-            <div className="mb-8" onMouseEnter={() => setIsCompact(false)}>
-              <div>
-                <AnimatePresence mode="wait">
-                  {!isCompact && (
+            <div className="mb-8">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`analysis-grid-${hasExpanded}`}
+                  initial={{
+                    opacity: 0,
+                  }}
+                  animate={{
+                    opacity: 1,
+                  }}
+                  exit={{
+                    opacity: 0,
+                  }}
+                  transition={{
+                    duration: 0.3,
+                  }}
+                  onMouseEnter={() => setHasExpanded(true)}
+                  className={`grid gap-3 transition-all duration-300 ${
+                    hasExpanded ? "grid-cols-2" : "grid-cols-4"
+                  }`}
+                >
+                  {currentAnalysisData.map((analysis, index) => (
                     <motion.div
+                      key={`${analysis.id}-${refreshKey}`}
                       initial={{
                         opacity: 0,
+                        scale: 0.95,
                       }}
                       animate={{
                         opacity: 1,
-                      }}
-                      exit={{
-                        opacity: 0,
+                        scale: 1,
                       }}
                       transition={{
                         duration: 0.3,
+                        delay: index * 0.1,
                       }}
-                      className="grid grid-cols-2 gap-6"
                     >
-                      {currentAnalysisData.map((analysis, index) => (
-                        <motion.div
-                          key={`${analysis.id}-${refreshKey}`}
-                          initial={{
-                            opacity: 0,
-                            scale: 0.95,
-                          }}
-                          animate={{
-                            opacity: 1,
-                            scale: 1,
-                          }}
-                          transition={{
-                            duration: 0.3,
-                            delay: index * 0.1,
-                          }}
-                        >
-                          <AnalysisCard
-                            analysis={analysis}
-                            onClick={() => {}}
-                          />
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <AnimatePresence mode="wait">
-                  {isCompact && (
-                    <motion.div
-                      initial={{
-                        opacity: 0,
-                        height: 0,
-                      }}
-                      animate={{
-                        opacity: 1,
-                        height: "auto",
-                      }}
-                      exit={{
-                        opacity: 0,
-                        height: 0,
-                      }}
-                      transition={{
-                        duration: 0.3,
-                      }}
-                      className="grid grid-cols-4 gap-4"
-                    >
-                      {currentAnalysisData.map((analysis) => (
-                        <CompactAnalysisCard
-                          key={`${analysis.id}-${refreshKey}`}
+                      {hasExpanded ? (
+                        <AnalysisCard
                           analysis={analysis}
-                          onClick={() => {}}
+                          onClick={() => onAnalysisClick(analysis)}
                         />
-                      ))}
+                      ) : (
+                        <CompactAnalysisCard
+                          analysis={analysis}
+                          onClick={() => onAnalysisClick(analysis)}
+                        />
+                      )}
                     </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                  ))}
+                </motion.div>
+              </AnimatePresence>
             </div>
             {/* Value Questions Section */}
             <div
               className="pt-2 relative"
-              onMouseEnter={() => setIsCompact(true)}
+              onMouseEnter={() => setHasExpanded(true)}
             >
               <AnimatePresence>
                 {showQuestionListOverlay && (
@@ -1299,10 +1032,10 @@ export function ValueQuestionsSection({
                         }}
                         className="inline-block mb-4"
                       >
-                        <Sparkles
+                      <SparklesIcon
                           className="w-12 h-12"
                           style={{
-                            color: "#8F56BE",
+                          color: "#10B981",
                           }}
                         />
                       </motion.div>
@@ -1325,7 +1058,7 @@ export function ValueQuestionsSection({
               <h2 className="text-3xl font-semibold text-gray-900 mb-6">
                 Value Questions
               </h2>
-              <div className="space-y-1.5">
+              <div className="space-y-1 max-h-[900px] overflow-y-auto">
                 {activeSegment?.questions &&
                 activeSegment.questions.length > 0 ? (
                   activeSegment.questions.map(
@@ -1373,10 +1106,10 @@ export function ValueQuestionsSection({
                                 ease: "linear",
                               }}
                             >
-                              <Sparkles
+                              <SparklesIcon
                                 className="w-8 h-8"
                                 style={{
-                                  color: "#8F56BE",
+                                  color: "#10B981",
                                 }}
                               />
                             </motion.div>

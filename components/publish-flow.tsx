@@ -242,7 +242,7 @@ export function PublishFlow() {
         if (appData) {
           setAppDataFromDb(appData);
           applyMetadataDefaults(appData);
-          // 如果应用已发布，自动显示成功页面
+          // If app is already published, automatically show success page
           if (appData.status === "published") {
             setIsPublished(true);
           }
@@ -466,7 +466,7 @@ export function PublishFlow() {
   useEffect(() => {
     if (!isPublished) return;
 
-    // 延迟一小段时间确保页面完全渲染后再触发烟花
+    // Delay briefly to ensure page is fully rendered before triggering fireworks
     let cleanup: (() => void) | undefined;
     const timer = setTimeout(() => {
       cleanup = triggerConfettiFireworks({
@@ -998,17 +998,17 @@ export function PublishFlow() {
                       value={paymentPrice}
                       onChange={(e) => {
                         const value = e.target.value;
-                        // 允许空字符串，这样用户可以删除所有内容
+                        // Allow empty string so users can delete all content
                         if (value === "") {
                           setPaymentPrice("");
                         } else {
-                          // 只允许数字和小数点
+                          // Only allow numbers and decimal point
                           const numValue = value.replace(/[^0-9.]/g, "");
                           setPaymentPrice(numValue);
                         }
                       }}
                       onBlur={(e) => {
-                        // 失去焦点时，如果为空或无效，设置为 "0"
+                        // When losing focus, if empty or invalid, set to "0"
                         const value = e.target.value;
                         if (
                           value === "" ||

@@ -1607,6 +1607,8 @@ export function ConnectFlow() {
               </span>
             </div>
           </div>
+        ) : status === "error" ? (
+          <XCircle className="size-9 text-red-600" />
         ) : isCompleted ? (
           <CheckCircle2 className="size-9 text-green-500" />
         ) : (
@@ -1646,7 +1648,12 @@ export function ConnectFlow() {
   const stepStatuses = {
     connecting: getStepStatus("connecting"),
     reading: getStepStatus("reading-schema"),
-    validating: getStepStatus("validating-data"),
+    validating:
+      dataValidationError
+        ? ("error" as StepVisualStatus)
+        : runError
+        ? ("waiting" as StepVisualStatus)
+        : getStepStatus("validating-data"),
     sampling:
       connectionError || dataValidationError
         ? ("error" as StepVisualStatus)
@@ -2055,18 +2062,10 @@ export function ConnectFlow() {
                 {!connectionError && (
                   <div className="flex items-start gap-4">
                     <div className="mt-1">
-                      {dataValidationError ? (
-                        <XCircle className="size-6 text-red-600" />
-                      ) : runError ? (
-                        // If reading-schema fails, keep validating-data in waiting state
-                        <Clock className="size-6 text-muted-foreground" />
-                      ) : getStepStatus("validating-data") === "completed" ? (
-                        <CheckCircle2 className="size-6 text-green-600" />
-                      ) : getStepStatus("validating-data") === "in-progress" ? (
-                        <Loader2 className="size-6 text-primary animate-spin" />
-                      ) : (
-                        <Clock className="size-6 text-muted-foreground" />
-                      )}
+                      <StepProgressIndicator
+                        step="validating-data"
+                        status={stepStatuses.validating}
+                      />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">

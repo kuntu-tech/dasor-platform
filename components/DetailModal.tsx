@@ -1,4 +1,3 @@
-"use client";
 import React, { useEffect, useRef } from 'react';
 import { XIcon } from 'lucide-react';
 interface DetailModalProps {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +29,6 @@ import {
   DollarSign,
   ShoppingCart,
   Trash2,
-  Eye,
-  LayoutDashboard,
 } from "lucide-react";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -761,14 +760,20 @@ export function PreviewEditor() {
             >
               <div className="h-20 flex items-center justify-center border-b border-gray-200/30">
                 <div className="flex items-center gap-2">
-                  <LayoutDashboard className="w-8 h-8 text-indigo-500" />
+                  <Image
+                    src="/qus.png"
+                    alt="Questions icon"
+                    width={32}
+                    height={32}
+                    className="w-8 h-8"
+                  />
                   <span className="text-xl font-bold text-gray-800">
                     Valued questions ({selectedProblems.length})
                   </span>
                 </div>
               </div>
               <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
-                {/* 调试信息 */}
+                {/* Debug info */}
                 {selectedProblems.length === 0 && (
                   <div className="p-4 text-center text-gray-500">
                     <p>No questions found in localStorage</p>
@@ -796,7 +801,13 @@ export function PreviewEditor() {
                             : "text-gray-600 hover:bg-white/50"
                         }`}
                       >
-                        <Eye className="w-5 h-5 flex-shrink-0" />
+                        <Image
+                          src="/questions.png"
+                          alt="Question icon"
+                          width={20}
+                          height={20}
+                          className="w-5 h-5 flex-shrink-0"
+                        />
                         <span className="text-sm font-medium truncate">
                           {problem}
                         </span>
