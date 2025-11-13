@@ -116,7 +116,7 @@ export function SegmentSelectionModal({
                   onClose();
                 }} 
                 type="button"
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors" 
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer" 
                 aria-label="Close modal"
               >
                 <XIcon className="w-5 h-5 text-gray-600" />
@@ -140,7 +140,7 @@ export function SegmentSelectionModal({
                         <button
                           key={segment}
                           onClick={() => toggleSegmentSelection(segment)}
-                          className={`w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 ${
+                          className={`w-full p-3 text-left rounded-lg transition-colors flex items-center gap-3 cursor-pointer ${
                             isSelected
                               ? 'bg-blue-50 border-2 border-blue-500'
                               : 'hover:bg-gray-50 border border-gray-200'
@@ -170,7 +170,7 @@ export function SegmentSelectionModal({
                       <button
                         key={segment}
                         onClick={() => setSelectedSegment(segment)}
-                        className={`w-full p-3 text-left rounded-lg transition-colors ${
+                        className={`w-full p-3 text-left rounded-lg transition-colors cursor-pointer ${
                           selectedSegment === segment
                             ? 'bg-gray-100 border-2 border-gray-300'
                             : 'hover:bg-gray-50 border border-gray-200'
@@ -199,7 +199,7 @@ export function SegmentSelectionModal({
                 <button 
                   onClick={handleCancel} 
                   type="button"
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -213,7 +213,7 @@ export function SegmentSelectionModal({
                       ? !selectedSegment 
                       : !inputValue.trim()
                   } 
-                  className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {mode === 'multiSelect' 
                     ? `Merge ${selectedSegments.length} Segments`
