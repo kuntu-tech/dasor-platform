@@ -5,6 +5,7 @@ import { SparklesIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { QuestionAccordion } from "@/components/QuestionAccordion";
 import { AnalysisCard } from "@/components/AnalysisCard";
 import { CompactAnalysisCard } from "@/components/CompactAnalysisCard";
+import { LoadRipple } from "@/components/ui/load-ripple";
 interface Question {
   id: string;
   text: string;
@@ -75,7 +76,7 @@ interface ValueQuestionsSectionProps {
   generationProgress: number;
   refreshType: RefreshType;
   refreshKey: number;
-  segmentsData?: ExternalSegment[]; // 新增：外部传入的段数据（来自接口）
+  segmentsData?: ExternalSegment[]; // New: External segment data (from API)
   onSegmentChange?: (segmentName?: string) => void;
 }
 
@@ -336,7 +337,7 @@ export function ValueQuestionsSection({
     }
   }, [activeSegment?.id, activeSegment?.name, onSegmentChange]);
 
-  // 持久化：仅存当前选中 Tab 的 valueQuestions
+  // Persist: Only store valueQuestions for the currently selected Tab
   useEffect(() => {
     console.log("activeSegment", activeSegment);
     console.log("activeTab", activeTab);
@@ -574,24 +575,9 @@ export function ValueQuestionsSection({
               }}
               className="text-center"
             >
-              <motion.div
-                animate={{
-                  rotate: 360,
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "linear",
-                }}
-                className="inline-block mb-6"
-              >
-                <SparklesIcon
-                  className="w-16 h-16"
-                  style={{
-                    color: "#10B981",
-                  }}
-                />
-              </motion.div>
+              <div className="flex justify-center mb-6">
+                <LoadRipple />
+              </div>
               <h3 className="text-2xl font-semibold text-gray-900 mb-3">
                 {refreshType === "add-segment" || refreshType === "edit-d1"
                   ? "Adding New Segment"
@@ -599,30 +585,10 @@ export function ValueQuestionsSection({
                   ? "Merging Segments"
                   : refreshType === "switching-version"
                   ? "Switching to New Version"
-                  : "Generating New Version"}
+                  : "Generating..."}
               </h3>
-              <p className="text-gray-600 mb-6">
-                Creating your customized experience...
-              </p>
+             
               <div className="w-80 mx-auto">
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{
-                      width: "0%",
-                    }}
-                    animate={{
-                      width: `${generationProgress}%`,
-                    }}
-                    transition={{
-                      duration: 0.3,
-                      ease: "easeOut",
-                    }}
-                    className="h-full rounded-full"
-                    style={{
-                      backgroundColor: "#10B981",
-                    }}
-                  />
-                </div>
                 <p className="text-sm text-gray-500 mt-2">
                   {Math.round(generationProgress)}%
                 </p>

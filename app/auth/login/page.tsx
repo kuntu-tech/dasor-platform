@@ -20,6 +20,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     setHydrated(true);
@@ -48,6 +50,7 @@ export default function LoginPage() {
       return;
     }
 
+    setEmailLoading(true);
     try {
       await signInWithEmail(email, trimmedPassword);
       toast({
@@ -56,9 +59,25 @@ export default function LoginPage() {
       });
     } catch (err: any) {
       console.log("Login failed:", err);
+      setEmailLoading(false);
       toast({
         title: "Login failed",
         description: err.message || "Please check your email and password.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (err: any) {
+      console.log("Google login failed:", err);
+      setGoogleLoading(false);
+      toast({
+        title: "Login failed",
+        description: err.message || "Failed to sign in with Google.",
         variant: "destructive",
       });
     }
@@ -134,9 +153,9 @@ export default function LoginPage() {
               <Button
                 onClick={handleEmailLogin}
                 className="w-full h-12 bg-black hover:bg-gray-900 text-white font-medium text-base"
-                disabled={loading}
+                disabled={emailLoading || googleLoading}
               >
-                {loading ? "Logging in..." : "Log In"}
+                {emailLoading ? "Logging in..." : "Log In"}
               </Button>
 
               {/* SSO Section */}
@@ -150,10 +169,10 @@ export default function LoginPage() {
                 <Button
                   variant="outline"
                   className="w-full h-12 border-gray-300 hover:bg-gray-50 text-gray-700 font-medium"
-                  onClick={signInWithGoogle}
-                  disabled={loading}
+                  onClick={handleGoogleLogin}
+                  disabled={emailLoading || googleLoading}
                 >
-                  {loading ? (
+                  {googleLoading ? (
                     "Signing in..."
                   ) : (
                     <div className="flex items-center gap-2">

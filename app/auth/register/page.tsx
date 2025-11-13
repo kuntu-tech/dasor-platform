@@ -50,13 +50,10 @@ export default function RegisterPage() {
           {success ? (
             /* Success Confirmation Modal */
             <div className="bg-white rounded-3xl shadow-xl p-8 relative max-w-md w-full">
-             
-
               {/* Success Content */}
               <div className="space-y-6 pt-2">
                 {/* Success Icon and Title */}
                 <div className="flex items-start gap-4">
-                  
                   <h1 className="text-2xl font-semibold text-gray-900 leading-tight pt-1">
                     Check your email
                   </h1>
@@ -64,12 +61,11 @@ export default function RegisterPage() {
 
                 {/* Message */}
                 <div className="space-y-2 text-gray-700 text-base leading-relaxed">
-                  <p>
-                    We've sent you a confirmation link to
-                  </p>
+                  <p>We've sent you a confirmation link to</p>
                   <p className="font-semibold text-gray-900">{email}</p>
                   <p>
-                    Please check your email and click the link to activate your account.
+                    Please check your email and click the link to activate your
+                    account.
                   </p>
                 </div>
 

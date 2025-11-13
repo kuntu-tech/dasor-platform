@@ -352,11 +352,11 @@ export function GenerateFlow() {
           throw new Error(payload?.error || `HTTP ${response.status}`);
         }
 
-        // 更新状态,包含所有文档中定义的字段
+        // Update status, including all fields defined in documentation
         setBatchStatus(payload);
         updateQuestionStatuses(payload);
 
-        // 根据文档: 当 status 变为 succeeded 或 failed 时停止轮询
+        // According to documentation: Stop polling when status becomes succeeded or failed
         if (payload?.status === "succeeded") {
           setJobState("succeeded");
           await hydrateAppRecord(payload.appId || appId);
@@ -366,7 +366,7 @@ export function GenerateFlow() {
 
         if (payload?.status === "failed") {
           setJobState("failed");
-          // 根据文档: 失败时查看 error 字段
+          // According to documentation: Check error field on failure
           setErrorMessage(
             payload?.error ||
               payload?.message ||
@@ -375,19 +375,19 @@ export function GenerateFlow() {
           return;
         }
 
-        // 根据文档: 建议 2-5 秒查询一次 (当前使用 4000ms,符合建议)
-        // 继续轮询直到状态变为 succeeded 或 failed
+        // According to documentation: Recommended to query every 2-5 seconds (currently using 4000ms, meets recommendation)
+        // Continue polling until status becomes succeeded or failed
         statusUpdateIntervalRef.current = setTimeout(() => {
           requestStatus(appId);
         }, POLL_INTERVAL_MS);
       } catch (error) {
         console.log("Failed to query job status", error);
-        // 仅在任务未完成时继续轮询
+        // Only continue polling if task is not completed
         if (
           jobStateRef.current !== "failed" &&
           jobStateRef.current !== "succeeded"
         ) {
-          // 错误时也继续轮询,避免网络临时问题导致状态丢失
+          // Continue polling even on error to avoid losing status due to temporary network issues
           statusUpdateIntervalRef.current = setTimeout(() => {
             requestStatus(appId);
           }, POLL_INTERVAL_MS);
@@ -569,7 +569,7 @@ export function GenerateFlow() {
         throw new Error("Batch generation service did not return appId");
       }
 
-      // 根据文档: 保留所有返回的字段,确保完整的状态信息
+      // According to documentation: Keep all returned fields to ensure complete status information
       const initialStatus: BatchJobStatus = {
         jobId: data?.jobId,
         appId: nextAppId,
