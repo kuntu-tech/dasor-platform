@@ -602,6 +602,7 @@ export default function MarketExplorationPage({
   const [versionMap, setVersionMap] = useState<Map<string, string>>(new Map()); // display -> runId mapping
   // task_id is only read from run_result, not saved in state, not updated
   const [selectedSegmentName, setSelectedSegmentName] = useState("");
+  const [targetSegmentNameForCarousel, setTargetSegmentNameForCarousel] = useState<string | undefined>(undefined);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isSegmentModalOpen, setIsSegmentModalOpen] = useState(false);
   const [segmentModalMode, setSegmentModalMode] =
@@ -854,6 +855,7 @@ export default function MarketExplorationPage({
     setSelectedSegmentTag("");
     setSelectedMergeSegments([]);
     setIsMergeSegmentsExpanded(false);
+    setTargetSegmentNameForCarousel(undefined);
     setSelectedCommandPayload((prev) => {
       if (!prev) return prev;
       if (!SEGMENT_SELECTION_COMMANDS.has(selectedCommand as SegmentSelectionCommand)) return prev;
@@ -1453,7 +1455,10 @@ export default function MarketExplorationPage({
 
         setSegmentsData(mapped);
         if (mapped.length > 0) {
-          setSelectedSegmentName(mapped[0]?.name || "");
+          // If targetSegmentNameForCarousel is set, keep it; otherwise use first segment
+          if (!targetSegmentNameForCarousel) {
+            setSelectedSegmentName(mapped[0]?.name || "");
+          }
         }
         localStorage.setItem("marketsData", JSON.stringify(mapped));
 
@@ -1545,6 +1550,10 @@ export default function MarketExplorationPage({
       } else {
         setGenerationProgress(100);
       }
+      
+      // Don't clear targetSegmentNameForCarousel immediately
+      // Keep it so the carousel maintains the selected segment after re-render
+      // It will be cleared when a new segment is selected from the modal
 
       const lowerInput = finalCommand.toLowerCase();
       const isVersionChange = lowerInput.includes("rename segment");
@@ -1705,7 +1714,8 @@ export default function MarketExplorationPage({
         
         // Close modal but don't auto-send, wait for user to click submit button
         setIsSegmentModalOpen(false);
-        setInputValue(""); // Clear input field
+        // Don't clear input field for merge segments, allow user to add additional text
+        // setInputValue(""); // Clear input field
         resetSegmentDropdown();
       } else {
         console.warn(
@@ -1730,6 +1740,8 @@ export default function MarketExplorationPage({
 
       setSelectedSegmentName(segmentName);
       setSelectedSegmentTag(segmentName);
+      // Save segment name to select in carousel after API response
+      setTargetSegmentNameForCarousel(segmentName);
 
       const currentCommandKey = SEGMENT_SELECTION_COMMANDS.has(selectedCommand as SegmentSelectionCommand)
         ? selectedCommand
@@ -1769,9 +1781,10 @@ export default function MarketExplorationPage({
         if (RENAME_SEGMENT_FLOW_COMMANDS.has(currentCommandKey)) {
           setRenameTargetSegmentName(segmentName);
           setRenameNewSegmentName(segmentName);
-          setTimeout(() => {
-            setIsRenameModalOpen(true);
-          }, 50);
+          // Don't open rename modal, allow user to type new name directly in input field
+          // setTimeout(() => {
+          //   setIsRenameModalOpen(true);
+          // }, 50);
         } else if (QUESTION_SELECTOR_COMMANDS.has(currentCommandKey)) {
           setQuestionModalCommand(currentCommandKey);
           setQuestionModalSegmentName(segmentName);
@@ -1810,6 +1823,7 @@ export default function MarketExplorationPage({
     setSelectedSegmentTag("");
     setSelectedMergeSegments([]);
     setIsMergeSegmentsExpanded(false);
+    // Don't clear targetSegmentNameForCarousel on cancel, keep the current selection
     setRenameTargetSegmentName("");
     setRenameNewSegmentName("");
     setInputValue("");
@@ -2428,6 +2442,7 @@ export default function MarketExplorationPage({
               onSegmentChange={(name) =>
                 setSelectedSegmentName(name ? String(name) : "")
               }
+              targetSegmentName={targetSegmentNameForCarousel}
             />
           </motion.div>
         </AnimatePresence>
@@ -2584,7 +2599,7 @@ export default function MarketExplorationPage({
           </AnimatePresence>
           <div className="bg-white border border-gray-300 rounded-3xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-visible">
             <div className="flex flex-col gap-3 p-4">
-              <div className="flex items-start gap-2">
+              <div className="flex flex-wrap items-start gap-2">
                 <AnimatePresence>
                   {selectedCommand && (
                     <motion.div
@@ -2639,7 +2654,7 @@ export default function MarketExplorationPage({
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
-                      className="flex-shrink-0 w-full flex flex-wrap items-center gap-2"
+                      className="flex-shrink-0 flex flex-wrap items-center gap-2"
                       style={{ marginTop: "10px" }}
                     >
                       {/* First segment with count */}
@@ -2773,11 +2788,7 @@ export default function MarketExplorationPage({
                   onChange={(e) => handleInputChange(e.target.value)}
                   onKeyDown={handleKeyDown}
                   disabled={isGenerating}
-                  placeholder={
-                    selectedCommand
-                      ? "Type @ to select a segment..."
-                      : "More thoughts? Type @ to select a segment..."
-                  }
+                  placeholder=""
                   rows={1}
                   className="flex-1 resize-none bg-transparent border-none outline-none text-gray-900 placeholder-gray-400 text-base px-2 py-2 max-h-48 overflow-y-auto disabled:opacity-50"
                   style={{ minHeight: "40px" }}

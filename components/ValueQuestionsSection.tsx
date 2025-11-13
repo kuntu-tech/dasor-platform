@@ -78,6 +78,7 @@ interface ValueQuestionsSectionProps {
   refreshKey: number;
   segmentsData?: ExternalSegment[]; // New: External segment data (from API)
   onSegmentChange?: (segmentName?: string) => void;
+  targetSegmentName?: string; // Segment name to select after data update
 }
 
 const DIMENSION_CONFIG = [
@@ -256,6 +257,7 @@ export function ValueQuestionsSection({
   refreshKey,
   segmentsData,
   onSegmentChange,
+  targetSegmentName,
 }: ValueQuestionsSectionProps) {
   const [currentSegments, setCurrentSegments] = useState<Segment[]>(() =>
     transformSegments(segmentsData)
@@ -290,13 +292,39 @@ export function ValueQuestionsSection({
       setCurrentAnalysisData([]);
       return;
     }
+    
+    // If targetSegmentName is provided, try to find and select that segment
+    if (targetSegmentName) {
+      // First try to find by name in mappedSegments
+      let targetSegment = mappedSegments.find(
+        (segment) => segment.name === targetSegmentName
+      );
+      
+      // If not found, try to find in segmentsData and match by ID
+      if (!targetSegment && segmentsData) {
+        const externalSegment = segmentsData.find(
+          (s: any) => s.name === targetSegmentName || (s as any)?.title === targetSegmentName
+        );
+        if (externalSegment) {
+          const targetId = normalizeSegmentId(externalSegment) || normalizeSegmentName(externalSegment);
+          targetSegment = mappedSegments.find((segment) => segment.id === targetId);
+        }
+      }
+      
+      if (targetSegment) {
+        setActiveTab(targetSegment.id);
+        return;
+      }
+    }
+    
+    // If no targetSegmentName but previous activeTab exists and is still valid, keep it
     setActiveTab((prev) => {
       if (prev && mappedSegments.some((segment) => segment.id === prev)) {
         return prev;
       }
-      return mappedSegments[0].id;
+      return mappedSegments[0]?.id || "";
     });
-  }, [segmentsData]);
+  }, [segmentsData, targetSegmentName]);
 
   // Sync the analysis panel when switching tabs if external data contains per-segment analysis
   useEffect(() => {
