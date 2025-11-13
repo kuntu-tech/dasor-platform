@@ -618,7 +618,7 @@ export function ValueQuestionsSection({
               className={`absolute left-8 z-30 p-1.5 rounded-full transition-all duration-200 ${
                 isGenerating
                   ? "text-gray-300 cursor-not-allowed"
-                  : "text-gray-600 hover:scale-125"
+                  : "text-gray-600 hover:scale-125 cursor-pointer"
               }`}
               aria-label="Previous segment"
               style={{
@@ -719,7 +719,7 @@ export function ValueQuestionsSection({
               className={`absolute right-8 z-30 p-1.5 rounded-full transition-all duration-200 ${
                 isGenerating
                   ? "text-gray-300 cursor-not-allowed"
-                  : "text-gray-600 hover:scale-125"
+                  : "text-gray-600 hover:scale-125 cursor-pointer"
               }`}
               aria-label="Next segment"
               style={{

@@ -60,7 +60,7 @@ export function DetailModal({
               {analysis.dimensionName}
             </h2>
           </div>
-          <button ref={closeButtonRef} onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close modal">
+          <button ref={closeButtonRef} onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer" aria-label="Close modal">
             <XIcon className="w-6 h-6 text-gray-600" />
           </button>
         </div>

@@ -5,7 +5,7 @@ interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
   onCommandSelect: (command: string) => void;
-  onSpecialCommand?: (command: 'correct segment' | 'add-segment') => void;
+  onSpecialCommand?: (command: 'Correct Segment' | 'add-segment') => void;
 }
 export function CommandPalette({
   isOpen,
@@ -16,14 +16,14 @@ export function CommandPalette({
   const [searchValue, setSearchValue] = useState('');
   const suggestions = [{
     icon: 'https://img.icons8.com/fluency/48/check.png',
-    title: 'Corrent segment',
+    title: 'Correct Segment',
     subtitle: 'Update segment settings',
     action: 'Command',
-    command: 'correct segment',
+    command: 'Correct Segment',
     isSpecial: true
   }, {
     icon: 'https://img.icons8.com/fluency/48/add.png',
-    title: 'Add new segment manually',
+    title: 'Add segments',
     subtitle: 'Create new segment',
     action: 'Command',
     command: 'add segment',
@@ -92,8 +92,8 @@ export function CommandPalette({
   }];
   const handleCommandClick = (command: string, isSpecial?: boolean) => {
     if (isSpecial && onSpecialCommand) {
-      if (command === 'correct segment') {
-        onSpecialCommand('correct segment');
+      if (command === 'Correct Segment') {
+        onSpecialCommand('Correct Segment');
       } else if (command === 'add segment') {
         onSpecialCommand('add-segment');
       }
@@ -152,7 +152,7 @@ export function CommandPalette({
                   Suggestions
                 </h3>
                 <div className="space-y-2 mb-6">
-                  {suggestions.map((item, index) => <button key={index} onClick={() => handleCommandClick(item.command, item.isSpecial)} className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 transition-colors group">
+                  {suggestions.map((item, index) => <button key={index} onClick={() => handleCommandClick(item.command, item.isSpecial)} className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 transition-colors group cursor-pointer">
                       <div className="flex items-center gap-3">
                         <img src={item.icon} alt={item.title} className="w-10 h-10 rounded-lg" />
                         <div className="text-left">
@@ -172,7 +172,7 @@ export function CommandPalette({
                 {/* Commands */}
 
                 <div className="space-y-2">
-                  {commands.map((item, index) => <button key={index} onClick={() => handleCommandClick(item.command)} className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 transition-colors group">
+                  {commands.map((item, index) => <button key={index} onClick={() => handleCommandClick(item.command)} className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 transition-colors group cursor-pointer">
                       <div className="flex items-center gap-3">
                         <img src={item.icon} alt={item.title} className="w-10 h-10 rounded-lg" />
                         <div className="text-left">

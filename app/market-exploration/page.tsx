@@ -90,7 +90,7 @@ type CommandItem = {
 };
 
 type SegmentSelectionCommand =
-  | "correct segment"
+  | "Correct Segment"
   | "edit d1"
   | "edit d2"
   | "edit d3"
@@ -101,7 +101,7 @@ type SegmentSelectionCommand =
   | "rename segment";
 
 const SEGMENT_SELECTION_COMMANDS = new Set<SegmentSelectionCommand>([
-  "correct segment",
+  "Correct Segment",
   "edit d1",
   "edit d2",
   "edit d3",
@@ -121,12 +121,9 @@ const RENAME_SEGMENT_FLOW_COMMANDS = new Set<string>(["rename segment"]);
 
 const deriveCommandKey = (item: CommandItem): string | null => {
   const normalized = item.label.toLowerCase();
-  if (
-    normalized.includes("corrent segment") ||
-    normalized.includes("correct segment")
-  )
-    return "correct segment";
-  if (normalized.includes("add new segment manually")) return "add segment";
+  if (normalized.includes("correct segment"))
+    return "Correct Segment";
+  if (normalized.includes("add segments") || normalized.includes("add new segment manually")) return "add segment";
   if (normalized.includes("merge segments")) return "merge segments";
   if (normalized.includes("market size")) return "edit d1";
   if (normalized.includes("persona")) return "edit d2";
@@ -141,7 +138,7 @@ const deriveCommandKey = (item: CommandItem): string | null => {
 
 const COMMAND_LIST: CommandItem[] = [
   {
-    label: "Corrent segment",
+    label: "Correct Segment",
     command: {
       intent: "segment_edit",
       selector: "segments[segmentId=xxx]",
@@ -150,7 +147,7 @@ const COMMAND_LIST: CommandItem[] = [
     },
   },
   {
-    label: "Add new segment manually",
+    label: "Add segments",
     command: {
       intent: "segment_add",
       target: "segments",
@@ -630,7 +627,7 @@ export default function MarketExplorationPage({
 
   const commandIconMap = useMemo(() => {
     return {
-      "correct segment": <CheckCircle2 className="h-4 w-4" />,
+      "Correct Segment": <CheckCircle2 className="h-4 w-4" />,
       "add segment": <Plus className="h-4 w-4" />,
       "merge segments": <GitMerge className="h-4 w-4" />,
       "edit d1": <BarChart3 className="h-4 w-4" />,
@@ -989,7 +986,7 @@ export default function MarketExplorationPage({
       }
       setSelectedCommand(commandKey);
       setSelectedCommandPayload(commandItem.command);
-      if (commandKey !== "correct segment") {
+      if (commandKey !== "Correct Segment") {
         setSelectedSegmentTag("");
       }
       console.log("[Command Selected]", commandItem.command);
@@ -1275,7 +1272,7 @@ export default function MarketExplorationPage({
             .trim();
         }
         const basePayload =
-          selectedCommand === "correct segment" && selectedCommandPayload
+          selectedCommand === "Correct Segment" && selectedCommandPayload
             ? selectedCommandPayload
             : {
                 intent: "segment_edit",
@@ -1706,7 +1703,7 @@ export default function MarketExplorationPage({
 
       const currentCommandKey = SEGMENT_SELECTION_COMMANDS.has(selectedCommand as SegmentSelectionCommand)
         ? selectedCommand
-        : "correct segment";
+        : "Correct Segment";
 
       const templatePayload =
         selectedCommandPayload ??
@@ -2322,7 +2319,7 @@ export default function MarketExplorationPage({
 
                           await loadVersionData(version.runId);
                         }}
-                        className={`w-full text-left px-4 py-2 text-sm ${
+                        className={`w-full text-left px-4 py-2 text-sm cursor-pointer ${
                           selectedVersion === version.display
                             ? "bg-gray-100 font-medium text-gray-900 hover:bg-gray-100"
                             : "text-gray-700 hover:bg-gray-50"
@@ -2343,7 +2340,7 @@ export default function MarketExplorationPage({
             <button
               onClick={handleGenerateApp}
               disabled={isGenerating}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white relative overflow-hidden"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white relative overflow-hidden"
             >
               <ArrowRight className="w-4 h-4" />
               <span className="whitespace-nowrap flex items-center gap-1">
@@ -2461,7 +2458,7 @@ export default function MarketExplorationPage({
                 </div>
                 <button
                   onClick={handleRenameModalCancel}
-                  className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  className="p-2 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
                   aria-label="Close rename modal"
                 >
                   <X className="w-4 h-4" />
@@ -2483,7 +2480,7 @@ export default function MarketExplorationPage({
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   onClick={handleRenameModalCancel}
-                  className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -2492,7 +2489,7 @@ export default function MarketExplorationPage({
                   disabled={!renameNewSegmentName.trim()}
                   className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
                     renameNewSegmentName.trim()
-                      ? "bg-black text-white hover:bg-gray-900"
+                      ? "bg-black text-white hover:bg-gray-900 cursor-pointer"
                       : "bg-gray-200 text-gray-500 cursor-not-allowed"
                   }`}
                 >
@@ -2525,7 +2522,7 @@ export default function MarketExplorationPage({
                       <button
                         key={segment}
                         onClick={() => handleSegmentSelect(segment)}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-900 font-medium text-sm"
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-900 font-medium text-sm cursor-pointer"
                       >
                         {segment}
                       </button>
@@ -2540,7 +2537,7 @@ export default function MarketExplorationPage({
                           setSegmentModalCommand("clipboard");
                           setIsSegmentModalOpen(true);
                         }}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600 font-medium text-sm flex items-center justify-between"
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600 font-medium text-sm flex items-center justify-between cursor-pointer"
                       >
                         <span>View all segments</span>
                         <ChevronDown className="w-4 h-4" />
@@ -2572,7 +2569,7 @@ export default function MarketExplorationPage({
                           setSelectedSegmentTag("");
                           setInputValue("");
                         }}
-                        className="hover:bg-gray-200 rounded p-0.5 transition-colors"
+                        className="hover:bg-gray-200 rounded p-0.5 transition-colors cursor-pointer"
                         aria-label="Clear command"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -2593,7 +2590,7 @@ export default function MarketExplorationPage({
                       <span>{selectedSegmentTag}</span>
                       <button
                         onClick={clearSelectedSegment}
-                        className="hover:bg-emerald-100 rounded p-0.5 transition-colors"
+                        className="hover:bg-emerald-100 rounded p-0.5 transition-colors cursor-pointer"
                         aria-label="Clear selected segment"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -2616,7 +2613,7 @@ export default function MarketExplorationPage({
                       </span>
                       <button
                         onClick={clearSelectedQuestion}
-                        className="hover:bg-blue-100 rounded p-0.5 transition-colors"
+                        className="hover:bg-blue-100 rounded p-0.5 transition-colors cursor-pointer"
                         aria-label="Change selected question"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -2655,7 +2652,7 @@ export default function MarketExplorationPage({
                     disabled={isGenerating || !selectedCommand}
                     className={`p-2 rounded-lg transition-all duration-200 ${
                       !isGenerating && selectedCommand
-                        ? "text-black hover:bg-gray-100"
+                        ? "text-black hover:bg-gray-100 cursor-pointer"
                         : "text-gray-300 cursor-not-allowed"
                     }`}
                     aria-label="Send message"
