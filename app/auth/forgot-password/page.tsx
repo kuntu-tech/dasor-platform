@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Prism from "@/components/Prism";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 
 export default function ForgotPasswordPage() {
@@ -48,18 +48,6 @@ export default function ForgotPasswordPage() {
       {/* Left Side - Forgot Password Form */}
       <div className="w-1/2 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          {/* Logo */}
-          <div className="mb-8">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                <div className="w-3 h-3 bg-gray-600 rounded-full"></div>
-                <div className="w-3 h-3 bg-gray-600 rounded-full"></div>
-              </div>
-              <span className="text-2xl font-bold text-gray-900">Datail</span>
-            </div>
-          </div>
-
           {/* Main Content */}
           <div className="space-y-6">
             {/* Title */}
@@ -67,10 +55,7 @@ export default function ForgotPasswordPage() {
               <h1 className="text-2xl font-semibold text-gray-900">
                 Reset your password
               </h1>
-              <p className="text-sm text-gray-600 mt-2">
-                Enter your email address and we'll send you a link to reset your
-                password.
-              </p>
+             
             </div>
 
             {/* Form */}
@@ -81,7 +66,7 @@ export default function ForgotPasswordPage() {
                   htmlFor="email"
                   className="text-sm font-medium text-gray-700"
                 >
-                  EMAIL ADDRESS
+                  Email Address
                 </Label>
                 <Input
                   id="email"
@@ -131,28 +116,23 @@ export default function ForgotPasswordPage() {
         </div>
       </div>
 
-      {/* Right Side - Text Display with Prism Background */}
+      {/* Right Side - Background Image */}
       <div className="w-1/2 relative">
-        <Prism
-          height={3.5}
-          baseWidth={5.5}
-          animationType="3drotate"
-          glow={1}
-          noise={0.3}
-          transparent={true}
-          scale={2.5}
-          hueShift={0}
-          colorFrequency={1}
-          hoverStrength={2}
-          inertia={0.05}
-          bloom={1}
-          suspendWhenOffscreen={true}
-          timeScale={0.8}
+        <Image
+          src="/blackwhitelight.png"
+          alt="Login background"
+          fill
+          className="object-cover"
+          priority
         />
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center px-6">
           <div className="text-center">
-            <h1 className="text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
-              Secure & <span className="text-blue-500">Reliable</span>
+            <h1
+              className="text-3xl md:text-4xl font-semibold italic leading-tight text-black animate-glow-wave"
+            >
+              Data to ChatAPP
+              <br />
+              <span className="text-[1.1em]">Fast!</span>
             </h1>
           </div>
         </div>
