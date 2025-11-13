@@ -67,6 +67,27 @@ export function PreviewEditor() {
   const searchParams = useSearchParams();
   const appId = searchParams.get("id");
 
+  // Prevent body scroll by setting fixed height (doesn't affect breadcrumb visibility)
+  useEffect(() => {
+    const originalBodyHeight = document.body.style.height;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlHeight = document.documentElement.style.height;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+
+    // Set fixed height to prevent scrollbar, but allow breadcrumb to be visible
+    document.body.style.height = "100vh";
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.height = "100vh";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.height = originalBodyHeight;
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.height = originalHtmlHeight;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+    };
+  }, []);
+
   const [isPreviewUpdating, setIsPreviewUpdating] = useState(false);
   const inputBarRef = useRef<HTMLDivElement | null>(null);
   const [inputBarHeight, setInputBarHeight] = useState<number>(140);
@@ -97,18 +118,29 @@ export function PreviewEditor() {
   // Predefined question texts for each feature
   const getQuestionText = (featureName: string) => {
     const questionMap: Record<string, string> = {
-      "Product Catalog and Inventory Display": "Please show the product catalog and inventory status",
-      "User Feedback Collection and Analysis": "Please analyze user feedback data",
-      "A/B Testing Results Analysis": "Please show A/B testing results analysis",
-      "Target User Segmentation": "Please perform target user segmentation analysis",
+      "Product Catalog and Inventory Display":
+        "Please show the product catalog and inventory status",
+      "User Feedback Collection and Analysis":
+        "Please analyze user feedback data",
+      "A/B Testing Results Analysis":
+        "Please show A/B testing results analysis",
+      "Target User Segmentation":
+        "Please perform target user segmentation analysis",
       "User Journey Visualization": "Please show user journey visualization",
-      "User Churn Early Warning System": "Please analyze user churn early warning",
+      "User Churn Early Warning System":
+        "Please analyze user churn early warning",
       "Feature Usage Statistics": "Please show feature usage statistics",
-      "Competitor Feature Comparison Analysis": "Please perform competitor feature comparison analysis",
-      "Product Roadmap Priority Ranking": "Please show product roadmap priority ranking",
-      "New Feature Adoption Rate Prediction": "Please predict new feature adoption rate",
+      "Competitor Feature Comparison Analysis":
+        "Please perform competitor feature comparison analysis",
+      "Product Roadmap Priority Ranking":
+        "Please show product roadmap priority ranking",
+      "New Feature Adoption Rate Prediction":
+        "Please predict new feature adoption rate",
     };
-    return questionMap[featureName] || `Please provide information about ${featureName}`;
+    return (
+      questionMap[featureName] ||
+      `Please provide information about ${featureName}`
+    );
   };
 
   // Helper to post messages to the iframe
@@ -434,7 +466,10 @@ export function PreviewEditor() {
                   Data Analysis Insights
                 </h2>
                 <p className="text-lg text-gray-600 leading-relaxed">
-                  Based on your data, we have discovered important business trends and growth opportunities. Through intelligent analysis, we provide actionable insights to help you make better decisions.
+                  Based on your data, we have discovered important business
+                  trends and growth opportunities. Through intelligent analysis,
+                  we provide actionable insights to help you make better
+                  decisions.
                 </p>
               </div>
 
@@ -467,7 +502,9 @@ export function PreviewEditor() {
           <div className="grid grid-cols-2 gap-8">
             {/* Pie chart area */}
             <div className="space-y-6">
-              <h3 className="text-lg font-semibold">Data Distribution Analysis</h3>
+              <h3 className="text-lg font-semibold">
+                Data Distribution Analysis
+              </h3>
               <div className="relative w-64 h-64 mx-auto">
                 {/* Mock pie chart visualization */}
                 <div className="relative w-full h-full">
@@ -558,8 +595,9 @@ export function PreviewEditor() {
 
               <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="text-sm text-blue-800">
-                  <strong>Key Insight:</strong>{" "}
-                  Product A holds the largest market share. It is recommended to focus on its growth strategy.
+                  <strong>Key Insight:</strong> Product A holds the largest
+                  market share. It is recommended to focus on its growth
+                  strategy.
                 </div>
               </div>
             </div>
@@ -681,7 +719,7 @@ export function PreviewEditor() {
   }
 
   return (
-    <div className="relative min-h-screen w-full flex bg-white">
+    <div className="relative h-screen w-full flex bg-white overflow-hidden">
       <div className="shape-1"></div>
       <div className="shape-2"></div>
       <div
@@ -703,7 +741,10 @@ export function PreviewEditor() {
             onLayout={(sizes) => {
               setPanelLayout(sizes);
               try {
-                localStorage.setItem("previewSplitLayout", JSON.stringify(sizes));
+                localStorage.setItem(
+                  "previewSplitLayout",
+                  JSON.stringify(sizes)
+                );
               } catch {}
               if (rightPanelRef.current) {
                 const rect = rightPanelRef.current.getBoundingClientRect();
@@ -761,81 +802,81 @@ export function PreviewEditor() {
                         </span>
                       </button>
 
-                    <Popover
-                      open={contextMenuFeatureId === problem}
-                      onOpenChange={(open) =>
-                        !open && setContextMenuFeatureId(null)
-                      }
-                    >
-                      <PopoverTrigger asChild>
-                        <div className="absolute inset-0 pointer-events-none" />
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-48 p-2"
-                        side="right"
-                        align="start"
+                      <Popover
+                        open={contextMenuFeatureId === problem}
+                        onOpenChange={(open) =>
+                          !open && setContextMenuFeatureId(null)
+                        }
                       >
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => {
-                            // Remove the question from selectedProblems
-                            const updatedProblems = selectedProblems.filter(
-                              (p) => p !== problem
-                            );
-                            setSelectedProblems(updatedProblems);
-                            localStorage.setItem(
-                              "selectedProblems",
-                              JSON.stringify(updatedProblems)
-                            );
-                            setContextMenuFeatureId(null);
-
-                            // If the removed item was selected, move selection to the next
-                            if (problem === selectedFeatureId) {
-                              setSelectedFeatureId(updatedProblems[0] || "");
-                            }
-                          }}
+                        <PopoverTrigger asChild>
+                          <div className="absolute inset-0 pointer-events-none" />
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-48 p-2"
+                          side="right"
+                          align="start"
                         >
-                          <Trash2 className="size-4 mr-2" />
-                          Delete Question
-                        </Button>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                );
-              })}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              // Remove the question from selectedProblems
+                              const updatedProblems = selectedProblems.filter(
+                                (p) => p !== problem
+                              );
+                              setSelectedProblems(updatedProblems);
+                              localStorage.setItem(
+                                "selectedProblems",
+                                JSON.stringify(updatedProblems)
+                              );
+                              setContextMenuFeatureId(null);
+
+                              // If the removed item was selected, move selection to the next
+                              if (problem === selectedFeatureId) {
+                                setSelectedFeatureId(updatedProblems[0] || "");
+                              }
+                            }}
+                          >
+                            <Trash2 className="size-4 mr-2" />
+                            Delete Question
+                          </Button>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  );
+                })}
               </nav>
             </ResizablePanel>
-          <ResizableHandle
-            withHandle
-            className="bg-transparent after:bg-transparent hover:after:bg-transparent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 opacity-0"
-          />
-          <ResizablePanel
-            defaultSize={(panelLayout && panelLayout[1]) || 76}
-            minSize={40}
-            className="relative"
-          >
-            <div
-              ref={rightPanelRef}
-              className="h-full bg-muted/30 overflow-hidden relative"
-              style={{
-                width: "calc(100% - 20px)",
-              }}
+            <ResizableHandle
+              withHandle
+              className="bg-transparent after:bg-transparent hover:after:bg-transparent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 opacity-0"
+            />
+            <ResizablePanel
+              defaultSize={(panelLayout && panelLayout[1]) || 76}
+              minSize={40}
+              className="relative"
             >
-              <iframe
-                ref={iframeRef}
-                src={iframeSrc}
-                // "https://app-preview.datail.ai/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
-                // src="http://192.168.30.153:5174/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
-                className="w-full h-full border-0"
-                title="Embedded Chat Interface"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-                loading="lazy"
-              />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+              <div
+                ref={rightPanelRef}
+                className="h-full bg-muted/30 overflow-hidden relative"
+                style={{
+                  width: "calc(100% - 20px)",
+                }}
+              >
+                <iframe
+                  ref={iframeRef}
+                  src={iframeSrc}
+                  // "https://app-preview.datail.ai/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
+                  // src="http://192.168.30.153:5174/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
+                  className="w-full h-full border-0"
+                  title="Embedded Chat Interface"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                  loading="lazy"
+                />
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </div>
 
         {/* Save Dialog */}
@@ -844,7 +885,8 @@ export function PreviewEditor() {
             <DialogHeader>
               <DialogTitle>Save Your App</DialogTitle>
               <DialogDescription>
-                Please provide a name and description for your app before saving.
+                Please provide a name and description for your app before
+                saving.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -857,12 +899,18 @@ export function PreviewEditor() {
                   placeholder="Enter your app name"
                   value={saveFormData.name}
                   onChange={(e) =>
-                    setSaveFormData((prev) => ({ ...prev, name: e.target.value }))
+                    setSaveFormData((prev) => ({
+                      ...prev,
+                      name: e.target.value,
+                    }))
                   }
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="app-description" className="text-sm font-medium">
+                <label
+                  htmlFor="app-description"
+                  className="text-sm font-medium"
+                >
                   Description
                 </label>
                 <Textarea
