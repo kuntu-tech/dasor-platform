@@ -227,7 +227,7 @@ const COMMAND_LIST: CommandItem[] = [
     command: {
       intent: "value_question_remove",
       target: "valueQuestions",
-      selector: "segments[segmentId=xxx].valueQuestions[questionId=xxx]",
+      selector: "segments[segmentId=xxx].valueQuestions[id=xxx]",
       user_prompt: "",
     },
   },
@@ -236,7 +236,7 @@ const COMMAND_LIST: CommandItem[] = [
     command: {
       intent: "value_question_edit",
       target: "valueQuestions",
-      selector: "segments[segmentId=xxx].valueQuestions[questionId=xxx]",
+      selector: "segments[segmentId=xxx].valueQuestions[id=xxx]",
       user_prompt: "",
     },
   },
@@ -1926,29 +1926,49 @@ export default function MarketExplorationPage({
   };
 
   const handleQuestionModalConfirm = useCallback(
-    (question: QuestionOption) => {
-      setSelectedQuestionOption(question);
-      setIsQuestionModalOpen(false);
-      setSelectedCommandPayload((prev) => {
-        if (!prev) return prev;
-        const selectorWithFallback =
-          prev.selector && /valueQuestions/.test(prev.selector)
-            ? prev.selector
-            : `segments[segmentId=${
-                questionModalSegmentId || "xxx"
-              }].valueQuestions[questionId=${question.id}]`;
-        const updatedSelector = selectorWithFallback.replace(
-          /questionId=[^\]\s]*/i,
-          `questionId=${question.id}`
-        );
-        return {
-          ...prev,
-          selector: updatedSelector,
-          user_prompt: question.text || prev.user_prompt,
-        };
-      });
+    (question: QuestionOption | QuestionOption[]) => {
+      const questions = Array.isArray(question) ? question : [question];
+      if (questions.length === 0) return;
+
+      // For delete question command, always set questionIds (even for single selection)
+      if (selectedCommand === "delete question") {
+        // Store question IDs for deletion (single or multiple)
+        setSelectedQuestionOption(questions[0]); // Keep first one for compatibility
+        setIsQuestionModalOpen(false);
+        // Store all question IDs for deletion
+        setSelectedCommandPayload((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            questionIds: questions.map((q) => q.id),
+            user_prompt: prev.user_prompt,
+          };
+        });
+      } else {
+        // Single selection (edit question)
+        setSelectedQuestionOption(questions[0]);
+        setIsQuestionModalOpen(false);
+        setSelectedCommandPayload((prev) => {
+          if (!prev) return prev;
+          const selectorWithFallback =
+            prev.selector && /valueQuestions/.test(prev.selector)
+              ? prev.selector
+              : `segments[segmentId=${
+                  questionModalSegmentId || "xxx"
+                }].valueQuestions[id=${questions[0].id}]`;
+          const updatedSelector = selectorWithFallback.replace(
+            /id=[^\]\s]*/i,
+            `id=${questions[0].id}`
+          );
+          return {
+            ...prev,
+            selector: updatedSelector,
+            user_prompt: questions[0].text || prev.user_prompt,
+          };
+        });
+      }
     },
-    [questionModalSegmentId]
+    [questionModalSegmentId, selectedCommand]
   );
 
   const handleQuestionModalCancel = useCallback(() => {
@@ -1982,25 +2002,42 @@ export default function MarketExplorationPage({
       setSelectedQuestionOption(null);
       return;
     }
-    setSelectedQuestionOption(null);
-    setSelectedCommandPayload((prev) => {
-      if (!prev) return prev;
-      const withPlaceholder = prev.selector
-        ? prev.selector.replace(/questionId=[^\]\s]*/i, "questionId=xxx")
-        : prev.selector;
-      return {
-        ...prev,
-        selector:
-          withPlaceholder ??
-          (questionModalSegmentId
-            ? `segments[segmentId=${questionModalSegmentId}].valueQuestions[questionId=xxx]`
-            : prev.selector),
-      };
-    });
-    const commandKey = selectedCommand || "delete question";
-    setQuestionModalCommand(commandKey);
-    setIsQuestionModalOpen(true);
-  }, [questionModalSegmentId, selectedCommand]);
+
+    // Check if there are multiple questions selected
+    const questionIds = (selectedCommandPayload as any)?.questionIds;
+    if (questionIds && Array.isArray(questionIds) && questionIds.length > 1) {
+      // Remove the last question from the array
+      const updatedQuestionIds = questionIds.slice(0, -1);
+      setSelectedCommandPayload((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          questionIds: updatedQuestionIds,
+        };
+      });
+      // Update selectedQuestionOption to the first question in the remaining list
+      const remainingQuestion = questionOptions.find(
+        (q) => q.id === updatedQuestionIds[0]
+      );
+      if (remainingQuestion) {
+        setSelectedQuestionOption(remainingQuestion);
+      } else {
+        // If question not found, clear everything
+        setSelectedQuestionOption(null);
+        setSelectedCommand("");
+        setSelectedCommandPayload(null);
+        setSelectedSegmentTag("");
+        setInputValue("");
+      }
+    } else {
+      // Only one question or no questionIds, clear everything
+      setSelectedQuestionOption(null);
+      setSelectedCommand("");
+      setSelectedCommandPayload(null);
+      setSelectedSegmentTag("");
+      setInputValue("");
+    }
+  }, [selectedCommand, selectedCommandPayload, questionOptions]);
 
   const handleSend = async () => {
     if (isGenerating) return;
@@ -2015,7 +2052,8 @@ export default function MarketExplorationPage({
     if (
       QUESTION_SELECTOR_COMMANDS.has(selectedCommand) &&
       (!selectedQuestionOption ||
-        selectedCommandPayload.selector?.includes("questionId=xxx"))
+        selectedCommandPayload.selector?.includes("id=xxx")) &&
+      !(selectedCommandPayload as any).questionIds
     ) {
       if (!isQuestionModalOpen) {
         openQuestionModal();
@@ -2075,6 +2113,32 @@ export default function MarketExplorationPage({
             target: "segments",
             selector: `segments[segmentId=${segmentId}]`,
             prompt: "删除这个细分市场",
+            policy: {
+              propagation: "standard",
+              strict_scope: true,
+              downgrade_shapes: true,
+            },
+          };
+        });
+
+        return {
+          feedback_text: updatedPayload.user_prompt,
+          base_run_id: baseRunId,
+          user_id: userId,
+          task_id: taskId,
+          changeset: changeset,
+        };
+      }
+
+      // Handle delete questions: generate one changeEntry per question
+      if (updatedPayload.intent === "value_question_remove" && (updatedPayload as any).questionIds && Array.isArray((updatedPayload as any).questionIds) && (updatedPayload as any).questionIds.length > 0) {
+        const segmentId = questionModalSegmentId || (updatedPayload.selector?.match(/segmentId=([^\]]+)/)?.[1]) || "xxx";
+        const changeset = (updatedPayload as any).questionIds.map((questionId: string) => {
+          return {
+            intent: "value_question_remove",
+            target: "valueQuestions",
+            selector: `segments[segmentId=${segmentId}].valueQuestions[id=${questionId}]`,
+            prompt: "删除这个问题",
             policy: {
               propagation: "standard",
               strict_scope: true,
@@ -2489,7 +2553,8 @@ export default function MarketExplorationPage({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="text-green-400 inline-block"
+                    className="text-green-400 inline-block max-w-[50vw] truncate"
+                    title={displayedSegmentName}
                   >
                     {displayedSegmentName}
                   </motion.span>
@@ -2571,6 +2636,12 @@ export default function MarketExplorationPage({
         commandText={questionModalCommand || selectedCommand}
         defaultSelectedQuestionId={selectedQuestionOption?.id}
       />
+      {selectedAnalysis && (
+        <DetailModal
+          analysis={selectedAnalysis}
+          onClose={() => setSelectedAnalysis(null)}
+        />
+      )}
       <AnimatePresence>
         {isRenameModalOpen && (
           <motion.div
@@ -2705,6 +2776,9 @@ export default function MarketExplorationPage({
                           setSelectedCommand("");
                           setSelectedCommandPayload(null);
                           setSelectedSegmentTag("");
+                          setSelectedMergeSegments([]);
+                          setIsMergeSegmentsExpanded(false);
+                          setSelectedQuestionOption(null);
                           setInputValue("");
                         }}
                         className="hover:bg-gray-200 rounded p-0.5 transition-colors cursor-pointer"
@@ -2725,10 +2799,12 @@ export default function MarketExplorationPage({
                       className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium"
                       style={{ marginTop: "10px" }}
                     >
-                      <span>{selectedSegmentTag}</span>
+                      <span className="max-w-[200px] truncate" title={selectedSegmentTag}>
+                        {selectedSegmentTag}
+                      </span>
                       <button
                         onClick={clearSelectedSegment}
-                        className="hover:bg-emerald-100 rounded p-0.5 transition-colors cursor-pointer"
+                        className="hover:bg-emerald-100 rounded p-0.5 transition-colors cursor-pointer flex-shrink-0"
                         aria-label="Clear selected segment"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -2759,14 +2835,16 @@ export default function MarketExplorationPage({
                           }
                         }}
                       >
-                        <span className="truncate max-w-[180px]" title={selectedMergeSegments[0]}>
-                          {selectedMergeSegments[0]}
-                        </span>
-                        {selectedMergeSegments.length > 1 && (
-                          <span className="text-emerald-600 font-semibold">
-                            (+{selectedMergeSegments.length - 1})
+                        <div className="flex items-center gap-1 min-w-0">
+                          <span className="truncate max-w-[180px]" title={selectedMergeSegments[0]}>
+                            {selectedMergeSegments[0]}
                           </span>
-                        )}
+                          {selectedMergeSegments.length > 1 && (
+                            <span className="text-emerald-600 font-semibold flex-shrink-0">
+                              ({selectedMergeSegments.length})
+                            </span>
+                          )}
+                        </div>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -2782,6 +2860,8 @@ export default function MarketExplorationPage({
                               setSelectedCommandPayload(null);
                               setSelectedMergeSegments([]);
                               setIsMergeSegmentsExpanded(false);
+                              setSelectedSegmentTag("");
+                              setSelectedQuestionOption(null);
                             } else {
                               const segmentIds = updated.map((segmentName) => {
                                 return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
@@ -2859,12 +2939,19 @@ export default function MarketExplorationPage({
                       className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium"
                       style={{ marginTop: "10px" }}
                     >
-                      <span className="max-w-[220px] truncate">
-                        {selectedQuestionOption.text}
-                      </span>
+                      <div className="flex items-center gap-1 min-w-0 max-w-[220px]">
+                        <span className="truncate" title={selectedQuestionOption.text}>
+                          {selectedQuestionOption.text}
+                        </span>
+                        {selectedCommandPayload && (selectedCommandPayload as any).questionIds && (selectedCommandPayload as any).questionIds.length > 1 && (
+                          <span className="text-blue-600 font-semibold flex-shrink-0">
+                            ({(selectedCommandPayload as any).questionIds.length})
+                          </span>
+                        )}
+                      </div>
                       <button
                         onClick={clearSelectedQuestion}
-                        className="hover:bg-blue-100 rounded p-0.5 transition-colors cursor-pointer"
+                        className="hover:bg-blue-100 rounded p-0.5 transition-colors cursor-pointer flex-shrink-0"
                         aria-label="Change selected question"
                       >
                         <X className="w-3.5 h-3.5" />
