@@ -123,7 +123,7 @@ const deriveCommandKey = (item: CommandItem): string | null => {
   const normalized = item.label.toLowerCase();
   if (normalized.includes("correct segment"))
     return "Correct Segment";
-  if (normalized.includes("add new segment manually")) return "add segment";
+  if (normalized.includes("add segments") || normalized.includes("add new segment manually")) return "add segment";
   if (normalized.includes("merge segments")) return "merge segments";
   if (normalized.includes("market size")) return "edit d1";
   if (normalized.includes("persona")) return "edit d2";
@@ -147,7 +147,7 @@ const COMMAND_LIST: CommandItem[] = [
     },
   },
   {
-    label: "Add new segment manually",
+    label: "Add segments",
     command: {
       intent: "segment_add",
       target: "segments",

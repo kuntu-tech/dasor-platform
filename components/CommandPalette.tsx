@@ -23,7 +23,7 @@ export function CommandPalette({
     isSpecial: true
   }, {
     icon: 'https://img.icons8.com/fluency/48/add.png',
-    title: 'Add new segment manually',
+    title: 'Add segments',
     subtitle: 'Create new segment',
     action: 'Command',
     command: 'add segment',
