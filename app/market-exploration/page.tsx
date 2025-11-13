@@ -135,10 +135,20 @@ const deriveCommandKey = (item: CommandItem): string | null => {
   if (normalized.includes("delete value question")) return "delete question";
   if (normalized.includes("adjust value question")) return "edit question";
   if (normalized.includes("rename segment")) return "rename segment";
+  if (normalized.includes("reanalyse") || normalized.includes("re-analyse") || normalized.includes("reanalyze")) return "reanalyse";
   return null;
 };
 
 const COMMAND_LIST: CommandItem[] = [
+  {
+    label: "Reanalyse",
+    command: {
+      intent: "domain_correction",
+      target: "domain",
+      selector: "domain",
+      user_prompt: "",
+    },
+  },
   {
     label: "Correct Segment",
     command: {
@@ -654,6 +664,7 @@ export default function MarketExplorationPage({
       "delete question": <Trash2 className="h-4 w-4" />,
       "edit question": <Edit className="h-4 w-4" />,
       "rename segment": <Tag className="h-4 w-4" />,
+      "reanalyse": <RotateCcw className="h-4 w-4" />,
     } as Record<string, React.ReactNode>;
   }, []);
 
