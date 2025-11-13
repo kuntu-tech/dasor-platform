@@ -66,7 +66,8 @@ export function CreateAppButton({
       // This ensures we have the latest status before making decisions
       if (subscriptionLoading) {
         let waitCount = 0;
-        while (subscriptionLoading && waitCount < 30) {
+        const maxWait = 50; // Wait up to 5 seconds
+        while (subscriptionLoading && waitCount < maxWait) {
           await new Promise((resolve) => setTimeout(resolve, 100));
           waitCount++;
         }
@@ -74,6 +75,13 @@ export function CreateAppButton({
         const latestStatus = subscriptionStatus;
         if (latestStatus) {
           setCurrentSubscriptionStatus(latestStatus);
+        }
+        // If still loading after max wait, don't show popup, just return
+        if (subscriptionLoading) {
+          console.log(
+            "Subscription check is taking too long, please try again later"
+          );
+          return;
         }
       }
 
@@ -97,23 +105,52 @@ export function CreateAppButton({
       // If subscription was already checked in this session, use cached status from AuthProvider
       // Don't make another API call
       if (hasCheckedInSession) {
-        // Status should be available from cache, but if not, show popup
-        // This should not happen if cache is working correctly
-        if (typeof onRequireSubscription === "function") {
-          onRequireSubscription();
-        } else {
-          alert("Unable to verify your subscription. Please try again later.");
+        // Wait a bit for status to be available if it's still loading
+        if (subscriptionLoading) {
+          let waitCount = 0;
+          const maxWait = 30;
+          while (subscriptionLoading && waitCount < maxWait) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            waitCount++;
+          }
         }
+        // Check status again after waiting
+        const finalStatusAfterWait = (currentSubscriptionStatus ||
+          subscriptionStatus) as SubscriptionCheckResponse | null;
+        if (finalStatusAfterWait) {
+          if (finalStatusAfterWait.hasActiveSubscription) {
+            router.push(successHref);
+            return;
+          } else {
+            // No active subscription - show popup
+            if (typeof onRequireSubscription === "function") {
+              onRequireSubscription();
+            } else {
+              alert("You need an active subscription to continue.");
+            }
+            return;
+          }
+        }
+        // If status is still not available after waiting, don't show popup
+        // User should wait for the check to complete
         return;
       }
 
       // Wait for subscription status to load when missing (only if not checked in session)
       if (!hasCheckedInSession && subscriptionLoading) {
-        // Await up to 3 seconds for subscription status resolution
+        // Await up to 5 seconds for subscription status resolution
         let waitCount = 0;
-        while (subscriptionLoading && waitCount < 30) {
+        const maxWait = 50;
+        while (subscriptionLoading && waitCount < maxWait) {
           await new Promise((resolve) => setTimeout(resolve, 100));
           waitCount++;
+        }
+        // If still loading after max wait, don't show popup, just return
+        if (subscriptionLoading) {
+          console.log(
+            "Subscription check is taking too long, please try again later"
+          );
+          return;
         }
       }
 
@@ -121,7 +158,8 @@ export function CreateAppButton({
       if (
         !hasCheckedInSession &&
         !currentSubscriptionStatus &&
-        !subscriptionStatus
+        !subscriptionStatus &&
+        !subscriptionLoading
       ) {
         await refreshSubscriptionStatus();
         // Allow time for React state updates and useEffect execution
