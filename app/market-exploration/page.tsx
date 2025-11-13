@@ -1,9 +1,34 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, RotateCcw, ChevronDown, ArrowRight } from "lucide-react";
+import {
+  Send,
+  RotateCcw,
+  ChevronDown,
+  ArrowRight,
+  X,
+  CheckCircle2,
+  Plus,
+  GitMerge,
+  BarChart3,
+  User,
+  TrendingUp,
+  Shield,
+  FileQuestion,
+  Trash2,
+  Edit,
+  Tag,
+} from "lucide-react";
 import { DetailModal } from "@/components/DetailModal";
 import { ValueQuestionsSection } from "@/components/ValueQuestionsSection";
+import { CommandPalette } from "@/components/CommandPalette";
+import { FloatingCommandButton } from "@/components/FloatingCommandButton";
+import { SegmentSelectionModal } from "@/components/SegmentSelectionModal";
+import {
+  QuestionSelectionModal,
+  QuestionOption,
+} from "@/components/QuestionSelectionModal";
+import { AnimatedDropdownMenu } from "@/components/ui/animated-dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 interface MarketSegment {
@@ -49,6 +74,175 @@ type RefreshType =
   | "edit-question"
   | "delete-question"
   | "switching-version";
+
+type CommandPayload = {
+  intent: string;
+  selector: string;
+  user_prompt: string;
+  new_name?: string;
+  target?: string;
+  segments?: string[];
+};
+
+type CommandItem = {
+  label: string;
+  command: CommandPayload;
+};
+
+type SegmentSelectionCommand =
+  | "correct segment"
+  | "edit d1"
+  | "edit d2"
+  | "edit d3"
+  | "edit d4"
+  | "add question"
+  | "delete question"
+  | "edit question"
+  | "rename segment";
+
+const SEGMENT_SELECTION_COMMANDS = new Set<SegmentSelectionCommand>([
+  "correct segment",
+  "edit d1",
+  "edit d2",
+  "edit d3",
+  "edit d4",
+  "add question",
+  "delete question",
+  "edit question",
+  "rename segment",
+]);
+
+const QUESTION_SELECTOR_COMMANDS = new Set<string>([
+  "delete question",
+  "edit question",
+]);
+
+const RENAME_SEGMENT_FLOW_COMMANDS = new Set<string>(["rename segment"]);
+
+const deriveCommandKey = (item: CommandItem): string | null => {
+  const normalized = item.label.toLowerCase();
+  if (
+    normalized.includes("corrent segment") ||
+    normalized.includes("correct segment")
+  )
+    return "correct segment";
+  if (normalized.includes("add new segment manually")) return "add segment";
+  if (normalized.includes("merge segments")) return "merge segments";
+  if (normalized.includes("market size")) return "edit d1";
+  if (normalized.includes("persona")) return "edit d2";
+  if (normalized.includes("conversion")) return "edit d3";
+  if (normalized.includes("competitive")) return "edit d4";
+  if (normalized.includes("add new value question")) return "add question";
+  if (normalized.includes("delete value question")) return "delete question";
+  if (normalized.includes("adjust value question")) return "edit question";
+  if (normalized.includes("rename segment")) return "rename segment";
+  return null;
+};
+
+const COMMAND_LIST: CommandItem[] = [
+  {
+    label: "Corrent segment",
+    command: {
+      intent: "segment_edit",
+      selector: "segments[segmentId=xxx]",
+      user_prompt: "",
+      target: "segments",
+    },
+  },
+  {
+    label: "Add new segment manually",
+    command: {
+      intent: "segment_add",
+      target: "segments",
+      selector: "segments",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Merge segments",
+    command: {
+      intent: "segment_merge",
+      target: "segments",
+      selector: "segments",
+      segments: ["seg_01", "seg_xx"],
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Edit Market Size to",
+    command: {
+      intent: "analysis_edit",
+      selector: "segments[segmentId=xxx].analysis.D1",
+      user_prompt: "",
+      target: "analysis",
+    },
+  },
+  {
+    label: "Edit Persona to",
+    command: {
+      intent: "analysis_edit",
+      target: "analysis",
+      selector: "",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Adjust D3 Conversion Rhythm",
+    command: {
+      intent: "analysis_edit",
+      target: "analysis",
+      selector: "segments[segmentId=xxx].analysis.D3",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Adjust D4 Competitive Moat",
+    command: {
+      intent: "analysis_edit",
+      target: "analysis",
+      selector: "segments[segmentId=xxx].analysis.D4",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Add new Value Question",
+    command: {
+      intent: "value_question_add",
+      target: "valueQuestions",
+      selector: "segments[segmentId=xxx].valueQuestions",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Delete Value Question",
+    command: {
+      intent: "value_question_remove",
+      target: "valueQuestions",
+      selector: "segments[segmentId=xxx].valueQuestions[questionId=xxx]",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Adjust Value Question",
+    command: {
+      intent: "value_question_edit",
+      target: "valueQuestions",
+      selector: "segments[segmentId=xxx].valueQuestions[questionId=xxx]",
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Rename segment",
+    command: {
+      intent: "segment_rename",
+      target: "segments",
+      selector: "segments[segmentId=xxx]",
+      user_prompt: "",
+      new_name: "",
+    },
+  },
+];
+
 export default function MarketExplorationPage({
   marketsData,
 }: MarketExplorationPageProps) {
@@ -143,6 +337,9 @@ export default function MarketExplorationPage({
         }));
 
         setSegmentsData(mapped);
+        if (mapped.length > 0) {
+          setSelectedSegmentName(mapped[0]?.name || "");
+        }
         localStorage.setItem("marketsData", JSON.stringify(mapped));
       }
 
@@ -172,7 +369,59 @@ export default function MarketExplorationPage({
     }
   };
 
-  // Fetch the list of available versions
+  // 切换到最新版本的辅助函数
+  const switchToLatestVersion = async () => {
+    try {
+      const runResultStr = localStorage.getItem("run_result");
+      let taskId = "";
+      if (runResultStr) {
+        try {
+          const runResult = JSON.parse(runResultStr);
+          taskId = runResult.task_id || "";
+        } catch (e) {
+          console.log("Failed to parse run_result:", e);
+        }
+      }
+      
+      if (taskId && user?.id) {
+        const apiUrl = `/api/run-results?user_id=${user.id}&task_id=${taskId}`;
+        const response = await fetch(apiUrl, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          const runResults = result.data || [];
+          if (runResults.length > 0) {
+            // 按 run_id 降序排列（最新的在前）
+            runResults.sort((a: any, b: any) => {
+              const numA = parseInt(a.run_id?.match(/r_(\d+)/)?.[1] || "0");
+              const numB = parseInt(b.run_id?.match(/r_(\d+)/)?.[1] || "0");
+              return numB - numA;
+            });
+            
+            const latestRunId = runResults[0].run_id;
+            const match = latestRunId.match(/r_(\d+)/);
+            const number = match ? match[1] : "";
+            const latestVersionDisplay = number ? `v${number}` : latestRunId;
+            
+            // 切换到最新版本并加载数据
+            setSelectedVersion(latestVersionDisplay);
+            await loadVersionData(latestRunId);
+            console.log("[Switch Version] Switched to latest version:", latestVersionDisplay);
+            return true;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("[Switch Version] Failed to switch to latest version:", error);
+    }
+    return false;
+  };
+
+  // 获取版本列表的函数
   const fetchVersions = async (shouldLoadData = true) => {
     if (!user?.id) {
       console.warn("No user ID, cannot fetch versions");
@@ -353,8 +602,193 @@ export default function MarketExplorationPage({
   const [versions, setVersions] = useState<
     Array<{ display: string; runId: string }>
   >([]);
-  const [versionMap, setVersionMap] = useState<Map<string, string>>(new Map()); // display -> runId mapping
-  // task_id is read only from run_result; do not store or update separately
+  const [versionMap, setVersionMap] = useState<Map<string, string>>(new Map()); // display -> runId 映射
+  // task_id 只从 run_result 中读取，不保存状态，不更新
+  const [selectedSegmentName, setSelectedSegmentName] = useState("");
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isSegmentModalOpen, setIsSegmentModalOpen] = useState(false);
+  const [segmentModalMode, setSegmentModalMode] =
+    useState<"select" | "input" | "multiSelect">("select");
+  const [segmentModalCommand, setSegmentModalCommand] = useState("");
+  const [selectedCommand, setSelectedCommand] = useState("");
+  const [selectedCommandPayload, setSelectedCommandPayload] =
+    useState<CommandPayload | null>(null);
+  const [selectedSegmentTag, setSelectedSegmentTag] = useState("");
+  const [isSegmentDropdownOpen, setIsSegmentDropdownOpen] = useState(false);
+  const [segmentSearchQuery, setSegmentSearchQuery] = useState("");
+  const [isSendButtonHovered, setIsSendButtonHovered] = useState(false);
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [renameTargetSegmentName, setRenameTargetSegmentName] = useState("");
+  const [renameNewSegmentName, setRenameNewSegmentName] = useState("");
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+  const [questionModalCommand, setQuestionModalCommand] = useState("");
+  const [questionModalSegmentName, setQuestionModalSegmentName] = useState("");
+  const [questionModalSegmentId, setQuestionModalSegmentId] = useState("");
+  const [questionOptions, setQuestionOptions] = useState<QuestionOption[]>([]);
+  const [selectedQuestionOption, setSelectedQuestionOption] =
+    useState<QuestionOption | null>(null);
+
+  const commandIconMap = useMemo(() => {
+    return {
+      "correct segment": <CheckCircle2 className="h-4 w-4" />,
+      "add segment": <Plus className="h-4 w-4" />,
+      "merge segments": <GitMerge className="h-4 w-4" />,
+      "edit d1": <BarChart3 className="h-4 w-4" />,
+      "edit d2": <User className="h-4 w-4" />,
+      "edit d3": <TrendingUp className="h-4 w-4" />,
+      "edit d4": <Shield className="h-4 w-4" />,
+      "add question": <FileQuestion className="h-4 w-4" />,
+      "delete question": <Trash2 className="h-4 w-4" />,
+      "edit question": <Edit className="h-4 w-4" />,
+      "rename segment": <Tag className="h-4 w-4" />,
+    } as Record<string, React.ReactNode>;
+  }, []);
+
+  const buildQuestionOptions = useCallback(
+    (segmentId: string, segmentName?: string): QuestionOption[] => {
+      if (!Array.isArray(segmentsData) || segmentsData.length === 0) {
+        return [];
+      }
+
+      const target = segmentsData.find((seg: any) => {
+        const id =
+          seg?.segmentId || seg?.segment_id || seg?.id || seg?.name || seg?.title;
+        const name = seg?.name || seg?.title;
+        return (
+          (segmentId && id === segmentId) ||
+          (segmentName && name === segmentName) ||
+          false
+        );
+      });
+
+      const valueQuestions = Array.isArray(target?.valueQuestions)
+        ? target?.valueQuestions
+        : [];
+
+      return valueQuestions
+        .map((q: any, index: number): QuestionOption | null => {
+          const rawId =
+            q?.id ??
+            q?.questionId ??
+            q?.question_id ??
+            (q?.question ? `${segmentId || segmentName || "segment"}-${index}` : null);
+          const text = q?.question ?? q?.text ?? "";
+          if (!rawId || !text) return null;
+
+          const tags: string[] = [];
+          if (Array.isArray(q?.tags)) {
+            tags.push(
+              ...q.tags.filter(
+                (tag: unknown): tag is string =>
+                  typeof tag === "string" && tag.trim().length > 0
+              )
+            );
+          }
+          if (q?.intent) tags.push(String(q.intent));
+          if (q?.answerShape) tags.push(String(q.answerShape));
+
+          return {
+            id: String(rawId),
+            text: String(text),
+            tags,
+          } as QuestionOption;
+        })
+        .filter(
+          (item: QuestionOption | null): item is QuestionOption => item !== null
+        );
+    },
+    [segmentsData]
+  );
+
+  const getCommandLabel = useCallback((command: string) => {
+    const matched = COMMAND_LIST.find(
+      (item) => deriveCommandKey(item) === command
+    );
+    return matched?.label || command;
+  }, []);
+
+  const availableSegments = useMemo(() => {
+    if (!Array.isArray(segmentsData)) return [];
+    const dynamicSegments = segmentsData
+      .map((segment: any) => segment?.name || segment?.title)
+      .filter((name: string | undefined): name is string => !!name);
+    return Array.from(new Set(dynamicSegments));
+  }, [segmentsData]);
+
+  const filteredSegments = useMemo(() => {
+    const query = segmentSearchQuery.toLowerCase();
+    return availableSegments.filter((segment) =>
+      segment.toLowerCase().includes(query)
+    );
+  }, [availableSegments, segmentSearchQuery]);
+  const topSegments = useMemo(
+    () => filteredSegments.slice(0, 3),
+    [filteredSegments]
+  );
+  const hasMoreSegments = filteredSegments.length > 3;
+  const displayedSegmentName =
+    selectedSegmentName || availableSegments[0] || "";
+
+  const segmentIdMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (Array.isArray(segmentsData)) {
+      segmentsData.forEach((segment: any) => {
+        const name = segment?.name || segment?.title;
+        const rawId =
+          segment?.segmentId ||
+          segment?.segment_id ||
+          segment?.id ||
+          segment?.segment_id ||
+          "";
+        if (name && rawId) {
+          map.set(String(name), String(rawId));
+        }
+      });
+    }
+    return map;
+  }, [segmentsData]);
+
+  useEffect(() => {
+    if (!questionModalSegmentId && !questionModalSegmentName) {
+      return;
+    }
+    const options = buildQuestionOptions(
+      questionModalSegmentId,
+      questionModalSegmentName
+    );
+    setQuestionOptions(options);
+  }, [
+    buildQuestionOptions,
+    questionModalSegmentId,
+    questionModalSegmentName,
+  ]);
+
+  const sanitizeUserPrompt = useCallback((value: string) => {
+    return value
+      .split(/\s+/)
+      .filter((token) => token && !token.startsWith("@"))
+      .join(" ")
+      .trim();
+  }, []);
+
+  const resolveTargetFromSelector = useCallback((selector: string) => {
+    if (!selector) return selectedCommand || "general";
+    if (selector.includes(".analysis")) return "analysis";
+    if (selector.includes("valueQuestions")) return "valueQuestions";
+    if (selector.includes("domain")) return "domain";
+    if (selector.includes("segments")) return "segment";
+    return selectedCommand || "general";
+  }, [selectedCommand]);
+
+  useEffect(() => {
+    if (segmentsData && segmentsData.length > 0 && !selectedSegmentName) {
+      const firstName =
+        segmentsData[0]?.name || (segmentsData[0] as any)?.title || "";
+      if (firstName) {
+        setSelectedSegmentName(firstName);
+      }
+    }
+  }, [segmentsData, selectedSegmentName]);
 
   const pollJobProgress = useCallback(
     async (
@@ -400,6 +834,182 @@ export default function MarketExplorationPage({
       return { ...last, status: "timeout", error: "Polling timed out" };
     },
     []
+  );
+
+  const resetSegmentDropdown = useCallback(() => {
+    setIsSegmentDropdownOpen(false);
+    setSegmentSearchQuery("");
+  }, []);
+
+  const resetQuestionSelection = useCallback(() => {
+    setIsQuestionModalOpen(false);
+    setQuestionModalCommand("");
+    setQuestionModalSegmentName("");
+    setQuestionModalSegmentId("");
+    setQuestionOptions([]);
+    setSelectedQuestionOption(null);
+  }, []);
+
+  const clearSelectedSegment = useCallback(() => {
+    resetQuestionSelection();
+    setSelectedSegmentTag("");
+    setSelectedCommandPayload((prev) => {
+      if (!prev) return prev;
+      if (!SEGMENT_SELECTION_COMMANDS.has(selectedCommand as SegmentSelectionCommand)) return prev;
+
+      const templatePayload =
+        COMMAND_LIST.find(
+          (item) => deriveCommandKey(item) === selectedCommand
+        )?.command;
+
+      if (templatePayload) {
+        return { ...templatePayload };
+      }
+
+      const fallbackSelector = prev.selector
+        ? prev.selector.replace(/segmentId=[^\]\s]*/i, "segmentId=xxx")
+        : prev.selector;
+
+      return {
+        ...prev,
+        selector: fallbackSelector ?? "segments[segmentId=xxx]",
+      };
+    });
+    setInputValue((prev) => sanitizeUserPrompt(prev));
+  }, [resetQuestionSelection, selectedCommand, sanitizeUserPrompt]);
+
+  const handleInputChange = (value: string) => {
+    setInputValue(value);
+    const lastAtIndex = value.lastIndexOf("@");
+    if (lastAtIndex !== -1) {
+      const textAfterAt = value.substring(lastAtIndex + 1);
+      if (lastAtIndex === value.length - 1 || !textAfterAt.includes(" ")) {
+        setSegmentSearchQuery(textAfterAt);
+        setIsSegmentDropdownOpen(true);
+      } else {
+        resetSegmentDropdown();
+      }
+    } else {
+      resetSegmentDropdown();
+    }
+  };
+
+  const handleSegmentSelect = (segment: string) => {
+    setSelectedSegmentTag(segment);
+    setInputValue((prev) => {
+      const sanitized = sanitizeUserPrompt(prev);
+      return sanitized ? `${sanitized} ` : "";
+    });
+    resetSegmentDropdown();
+  };
+
+  const handleSpecialCommand = useCallback(
+    (command: SegmentSelectionCommand | "add-segment") => {
+      if (SEGMENT_SELECTION_COMMANDS.has(command as SegmentSelectionCommand)) {
+        const segmentCommand = COMMAND_LIST.find(
+          (item) => deriveCommandKey(item) === command
+        );
+        if (!segmentCommand) {
+          console.warn(
+            `[Command] ${command} configuration missing`
+          );
+          return;
+        }
+        resetQuestionSelection();
+        setSelectedCommand(command);
+        setSelectedCommandPayload({ ...segmentCommand.command });
+        setSelectedSegmentTag("");
+        setInputValue("");
+        if (command === "rename segment") {
+          setRenameTargetSegmentName("");
+          setRenameNewSegmentName("");
+        }
+        console.log("[Command Selected]", segmentCommand.command);
+        resetSegmentDropdown();
+        setSegmentModalMode("select");
+        setSegmentModalCommand(command);
+        setIsSegmentModalOpen(true);
+        return;
+      }
+
+      if (command === "add-segment") {
+        const addSegmentCommand = COMMAND_LIST.find(
+          (item) => deriveCommandKey(item) === "add segment"
+        );
+        if (!addSegmentCommand) {
+          console.warn("[Command] Add segment command configuration missing");
+          return;
+        }
+        setSelectedCommand("add segment");
+        setSelectedCommandPayload(addSegmentCommand.command);
+        setSelectedSegmentTag("");
+        setInputValue("");
+        console.log("[Command Selected]", addSegmentCommand.command);
+        setSegmentModalMode("select");
+        setSegmentModalCommand("");
+        setIsSegmentModalOpen(false);
+      }
+    },
+    [resetQuestionSelection, resetSegmentDropdown]
+  );
+
+  const handleCommandListSelect = useCallback(
+    (commandItem: CommandItem) => {
+      const commandKey = deriveCommandKey(commandItem);
+      if (!commandKey) {
+        console.warn("[Command] Unsupported command mapping:", commandItem);
+        return;
+      }
+      resetQuestionSelection();
+      
+      // Handle merge segments command with multi-select
+      if (commandKey === "merge segments") {
+        const mergeCommand = COMMAND_LIST.find(
+          (item) => deriveCommandKey(item) === "merge segments"
+        );
+        if (!mergeCommand) {
+          console.warn("[Command] Merge segments command configuration missing");
+          return;
+        }
+        setSelectedCommand("merge segments");
+        setSelectedCommandPayload({ ...mergeCommand.command });
+        setSelectedSegmentTag("");
+        setInputValue("");
+        console.log("[Command Selected]", mergeCommand.command);
+        resetSegmentDropdown();
+        setSegmentModalMode("multiSelect");
+        setSegmentModalCommand("merge segments");
+        setIsSegmentModalOpen(true);
+        return;
+      }
+      
+      if (SEGMENT_SELECTION_COMMANDS.has(commandKey as SegmentSelectionCommand)) {
+        handleSpecialCommand(commandKey as SegmentSelectionCommand);
+        return;
+      }
+      setSelectedCommand(commandKey);
+      setSelectedCommandPayload(commandItem.command);
+      if (commandKey !== "correct segment") {
+        setSelectedSegmentTag("");
+      }
+      console.log("[Command Selected]", commandItem.command);
+      setInputValue("");
+      resetSegmentDropdown();
+    },
+    [handleSpecialCommand, resetQuestionSelection, resetSegmentDropdown]
+  );
+
+  const commandOptions = useMemo(
+    () =>
+      COMMAND_LIST.map((item) => {
+        const key = deriveCommandKey(item);
+        return {
+          label: item.label,
+          Icon: key ? commandIconMap[key] : undefined,
+          onClick: () => handleCommandListSelect(item),
+        };
+      }),
+    [commandIconMap, handleCommandListSelect]
   );
 
   const runFullRegeneration = useCallback(async () => {
@@ -594,8 +1204,18 @@ export default function MarketExplorationPage({
     return pollingResult;
   }, [pollJobProgress, user?.id]);
 
-  const handleSend = async () => {
-    if (!inputValue.trim()) return;
+  const executeSend = async (overrideCommand?: string) => {
+    const composedInput =
+      overrideCommand ??
+      (selectedCommand ? `${selectedCommand} ${inputValue}` : inputValue);
+    const finalCommand = composedInput.trim();
+
+    if (!finalCommand) {
+      return;
+    }
+
+    resetSegmentDropdown();
+    setIsCommandPaletteOpen(false);
 
     // Invoke the feedback-mrf/process endpoint
     try {
@@ -632,7 +1252,6 @@ export default function MarketExplorationPage({
       const taskId = runResult?.task_id || "";
 
       if (!taskId) {
-        // alert("Unable to retrieve task_id. Please reconnect the database");
         return;
       }
 
@@ -641,9 +1260,36 @@ export default function MarketExplorationPage({
         taskId
       );
 
-      // Assemble request payload
+      // 准备请求参数
+      const lowerCommand = finalCommand.toLowerCase();
+      let feedbackText:
+        | string
+        | { intent: string; selector: string; user_prompt: string } =
+        finalCommand;
+
+      if (lowerCommand.startsWith("correct segment")) {
+        let userPromptText = sanitizeUserPrompt(inputValue);
+        if (!userPromptText) {
+          userPromptText = finalCommand
+            .replace(/^correct segment\s*/i, "")
+            .trim();
+        }
+        const basePayload =
+          selectedCommand === "correct segment" && selectedCommandPayload
+            ? selectedCommandPayload
+            : {
+                intent: "segment_edit",
+                selector: "segments[segmentId=xxx]",
+                user_prompt: "",
+              };
+        feedbackText = {
+          ...basePayload,
+          user_prompt: userPromptText,
+        };
+      }
+
       const requestBody = {
-        feedback_text: inputValue.trim(),
+        feedback_text: feedbackText,
         base_run_id: baseRunId,
         policy: "standard",
         user_id: user?.id,
@@ -656,13 +1302,11 @@ export default function MarketExplorationPage({
 
       setIsGenerating(true);
       setGenerationProgress(0);
-      // Close the version dropdown while generation runs
       setIsVersionDropdownOpen(false);
 
       // Step 1: call feedback-mrf/process (0% → 30%)
       setGenerationProgress(10);
       const response = await fetch(
-        // "http://localhost:8000/api/v1/feedback-mrf/process",
         "https://business-insight.datail.ai/api/v1/feedback-mrf/process",
         {
           method: "POST",
@@ -675,9 +1319,9 @@ export default function MarketExplorationPage({
 
       if (!response.ok) {
         const errorText = await response.text();
-        // throw new Error(`API call failed: ${response.status} - ${errorText}`);
         console.log("Clarify your prompt so the system can continue");
         alert("Clarify your prompt so the system can continue");
+        console.log("feedback-mrf/process error payload:", errorText);
       }
 
       setGenerationProgress(30); // feedback-mrf/process complete, progress 30%
@@ -689,6 +1333,9 @@ export default function MarketExplorationPage({
         alert("Clarify your prompt so the system can continue");
         setIsGenerating(false);
         setGenerationProgress(0);
+        setSelectedCommand("");
+        setSelectedCommandPayload(null);
+        setSelectedSegmentTag("");
         return;
       }
 
@@ -705,7 +1352,6 @@ export default function MarketExplorationPage({
         }
       }
 
-      // Ensure run_results exists in the response
       if (!runResultsPayload) {
         console.warn(
           "No run_results available for standal_sql request",
@@ -714,18 +1360,20 @@ export default function MarketExplorationPage({
         alert("Clarify your prompt so the system can continue");
         setIsGenerating(false);
         setGenerationProgress(0);
+        setSelectedCommand("");
+        setSelectedCommandPayload(null);
+        setSelectedSegmentTag("");
         return;
       }
 
       // Step 2: call standal_sql (30% → 70%)
       console.log("Calling standal_sql with run_results...");
-      setGenerationProgress((prev) => Math.max(prev, 40)); // standal_sql invocation starts, progress 40%
+      setGenerationProgress((prev) => Math.max(prev, 40));
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 600_000); // 10 minute timeout
+      const timeout = setTimeout(() => controller.abort(), 600_000);
 
       const standalRes = await fetch(
         "https://business-insight.datail.ai/api/v1/standal_sql",
-        // "http://192.168.30.159:8900/api/v1/standal_sql",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -735,7 +1383,7 @@ export default function MarketExplorationPage({
       );
 
       clearTimeout(timeout);
-      setGenerationProgress(70); // standal_sql completed, progress 70%
+      setGenerationProgress(70);
       const standalText = await standalRes.text();
       console.log("standal_sql response:", standalText);
 
@@ -768,11 +1416,9 @@ export default function MarketExplorationPage({
           })
         );
 
-        // Update run_result (must happen before calling fetchVersions)
         const updatedRunResult = standalJson.run_results.run_result;
         localStorage.setItem("run_result", JSON.stringify(updatedRunResult));
 
-        // Refresh segmentsData so the UI updates immediately
         setGenerationProgress(85);
         const segments = updatedRunResult.segments || [];
         const mapped = segments.map((seg: any) => ({
@@ -784,24 +1430,22 @@ export default function MarketExplorationPage({
         }));
 
         setSegmentsData(mapped);
+        if (mapped.length > 0) {
+          setSelectedSegmentName(mapped[0]?.name || "");
+        }
         localStorage.setItem("marketsData", JSON.stringify(mapped));
 
-        // Step 4: refresh version list (90% → 100%)
         setGenerationProgress(90);
-        // Ensure localStorage is updated before fetching; add delay for DB writes
-        // Use a retry loop to guarantee the latest version is retrieved
         const refreshVersionsWithRetry = async (
           retries = 5,
           delay = 1000,
           initialDelay = 2000
         ) => {
-          // Record version count before refresh
           const previousVersionCount = versions.length;
           console.log(
             `Previous version count: ${previousVersionCount}, waiting ${initialDelay}ms for database write...`
           );
 
-          // Wait the initial delay to give the database time to persist
           await new Promise((resolve) => setTimeout(resolve, initialDelay));
 
           for (let i = 0; i < retries; i++) {
@@ -810,9 +1454,6 @@ export default function MarketExplorationPage({
                 `Refreshing versions (attempt ${i + 1}/${retries})...`
               );
 
-              // Fetch the newest version list
-              // Note: do not call fetchVersions directly—it will trigger loadVersionData
-              // Instead manually fetch and compare the list size
               const taskId =
                 localStorage.getItem("originalTaskId") ||
                 JSON.parse(localStorage.getItem("run_result") || "{}")
@@ -838,31 +1479,27 @@ export default function MarketExplorationPage({
                 throw new Error(`HTTP ${response.status}`);
               }
 
-              const result = await response.json();
-              const runResults = result.data || [];
+              const refreshedResult = await response.json();
+              const runResults = refreshedResult.data || [];
               const currentVersionCount = runResults.length;
 
               console.log(
                 `Current version count: ${currentVersionCount}, previous: ${previousVersionCount}`
               );
 
-              // If the count increases, a new version has been persisted
               if (currentVersionCount > previousVersionCount) {
                 console.log(
                   `New version detected! Count increased from ${previousVersionCount} to ${currentVersionCount}`
                 );
-                // New version detected: run fetchVersions to refresh UI (and load data)
                 await fetchVersions(true);
-                setGenerationProgress(100); // All done, progress 100%
+                setGenerationProgress(100);
                 return;
               } else if (i < retries - 1) {
-                // No new version yet—wait and retry
                 console.log(
                   `Version count not increased yet, waiting ${delay}ms before retry...`
                 );
                 await new Promise((resolve) => setTimeout(resolve, delay));
               } else {
-                // Final retry: refresh anyway (database might still be syncing)
                 console.log("Max retries reached, updating versions anyway...");
                 await fetchVersions(true);
                 setGenerationProgress(100);
@@ -873,10 +1510,8 @@ export default function MarketExplorationPage({
                 error
               );
               if (i < retries - 1) {
-                // Not the final retry yet; wait and retry
                 await new Promise((resolve) => setTimeout(resolve, delay));
               } else {
-                // Final retry failed; mark progress complete regardless
                 console.log("Failed to refresh versions after all retries");
                 setGenerationProgress(100);
               }
@@ -884,16 +1519,13 @@ export default function MarketExplorationPage({
           }
         };
 
-        // Kick off the refresh workflow (internally waits for initial delay)
         refreshVersionsWithRetry();
       } else {
-        // No data returned; finish immediately
         setGenerationProgress(100);
       }
 
-      // Legacy refresh logic retained for UI updates
-      const lowerInput = inputValue.toLowerCase();
-      const isVersionChange = lowerInput.includes("change segment");
+      const lowerInput = finalCommand.toLowerCase();
+      const isVersionChange = lowerInput.includes("rename segment");
       let detectedRefreshType: RefreshType = "none";
       if (lowerInput.includes("add segment")) {
         detectedRefreshType = "add-segment";
@@ -913,8 +1545,8 @@ export default function MarketExplorationPage({
         detectedRefreshType = "delete-question";
       } else if (lowerInput.includes("edit question")) {
         detectedRefreshType = "edit-question";
-      } else if (lowerInput.includes("domain")) {
-        detectedRefreshType = "domain";
+      } else if (lowerInput.includes("correct segment")) {
+        detectedRefreshType = "segment";
       } else if (lowerInput.includes("segment")) {
         detectedRefreshType = "segment";
       } else if (lowerInput.includes("question list")) {
@@ -924,7 +1556,6 @@ export default function MarketExplorationPage({
       }
       setRefreshType(detectedRefreshType);
 
-      // Reset state after a short delay
       setTimeout(() => {
         if (isVersionChange) {
           const currentVersionNumber = parseInt(
@@ -943,18 +1574,653 @@ export default function MarketExplorationPage({
           setTimeout(() => {
             setIsGenerating(false);
             setInputValue("");
+            setSelectedCommand("");
+            setSelectedCommandPayload(null);
+            setSelectedSegmentTag("");
             setGenerationProgress(0);
             setRefreshType("none");
           }, 1000);
         } else {
           setIsGenerating(false);
           setInputValue("");
+          setSelectedCommand("");
+          setSelectedCommandPayload(null);
+          setSelectedSegmentTag("");
           setGenerationProgress(0);
           setRefreshType("none");
           setRefreshKey((prev) => prev + 1);
         }
       }, 500);
     } catch (error) {
+      console.log("handleSend error:", error);
+      setIsGenerating(false);
+      setGenerationProgress(0);
+      setSelectedCommand("");
+      setSelectedCommandPayload(null);
+      setSelectedSegmentTag("");
+    }
+  };
+
+  const handleCommandSelect = (command: string) => {
+    setIsCommandPaletteOpen(false);
+    const normalized = command.toLowerCase();
+    resetQuestionSelection();
+    const matched =
+      COMMAND_LIST.find((item) => deriveCommandKey(item) === normalized) ||
+      null;
+
+    if (matched) {
+      if (normalized === "add segment") {
+        handleSpecialCommand("add-segment");
+        return;
+      }
+      if (SEGMENT_SELECTION_COMMANDS.has(normalized as SegmentSelectionCommand)) {
+        handleSpecialCommand(normalized as SegmentSelectionCommand);
+        return;
+      }
+      setSelectedCommand(normalized);
+      setSelectedCommandPayload(matched.command);
+      setSelectedSegmentTag("");
+      setInputValue("");
+      console.log("[Command Selected]", matched.command);
+      resetSegmentDropdown();
+      setTimeout(() => {
+        void executeSend(command);
+      }, 100);
+      return;
+    }
+
+    setSelectedCommand("");
+    setSelectedCommandPayload(null);
+    setSelectedSegmentTag("");
+    setInputValue(command);
+    console.log("[Command Selected]", command);
+    resetSegmentDropdown();
+    setTimeout(() => {
+      void executeSend(command);
+    }, 100);
+  };
+
+  const handleSegmentModalConfirm = (value: string | string[]) => {
+    // Handle multi-select mode for merge segments
+    if (segmentModalMode === "multiSelect") {
+      if (!Array.isArray(value) || value.length < 2) {
+        setIsSegmentModalOpen(false);
+        return;
+      }
+
+      // Convert segment names to segment IDs
+      const segmentIds = value.map((segmentName) => {
+        return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
+      });
+
+      const currentCommandKey = "merge segments";
+      const templatePayload =
+        selectedCommandPayload ??
+        COMMAND_LIST.find(
+          (item) => deriveCommandKey(item) === currentCommandKey
+        )?.command;
+
+      if (templatePayload) {
+        const updatedPayload: CommandPayload = {
+          ...templatePayload,
+          segments: segmentIds,
+        };
+
+        setSelectedCommand(currentCommandKey);
+        setSelectedCommandPayload(updatedPayload);
+        console.log("[Command Segments Selected for Merge]", {
+          command: currentCommandKey,
+          segmentNames: value,
+          segmentIds,
+          payload: updatedPayload,
+        });
+        
+        // 关闭弹窗，但不自动发送，等待用户点击提交按钮
+        setIsSegmentModalOpen(false);
+        setInputValue(""); // 清空输入框
+        resetSegmentDropdown();
+      } else {
+        console.warn(
+          `[Command Segments Selected] Missing template payload for ${currentCommandKey}`
+        );
+        setIsSegmentModalOpen(false);
+      }
+
+      return;
+    }
+
+    const trimmedValue = typeof value === 'string' ? value.trim() : '';
+    if (!trimmedValue) {
+      setIsSegmentModalOpen(false);
+      return;
+    }
+
+    if (segmentModalMode === "select") {
+      const segmentName = trimmedValue;
+      const segmentId =
+        segmentIdMap.get(segmentName) || segmentIdMap.get(trimmedValue) || segmentName;
+
+      setSelectedSegmentName(segmentName);
+      setSelectedSegmentTag(segmentName);
+
+      const currentCommandKey = SEGMENT_SELECTION_COMMANDS.has(selectedCommand as SegmentSelectionCommand)
+        ? selectedCommand
+        : "correct segment";
+
+      const templatePayload =
+        selectedCommandPayload ??
+        COMMAND_LIST.find(
+          (item) => deriveCommandKey(item) === currentCommandKey
+        )?.command;
+
+      if (templatePayload) {
+        if (QUESTION_SELECTOR_COMMANDS.has(currentCommandKey)) {
+          resetQuestionSelection();
+        }
+        const updatedSelector = templatePayload.selector
+          ? templatePayload.selector.replace(
+              /segmentId=[^\]\s]*/i,
+              `segmentId=${segmentId}`
+            )
+          : templatePayload.selector;
+
+        const updatedPayload: CommandPayload = {
+          ...templatePayload,
+          selector: updatedSelector ?? `segments[segmentId=${segmentId}]`,
+        };
+
+        setSelectedCommand(currentCommandKey);
+        setSelectedCommandPayload(updatedPayload);
+        console.log("[Command Segment Selected]", {
+          command: currentCommandKey,
+          segmentName,
+          segmentId,
+          payload: updatedPayload,
+        });
+
+        if (RENAME_SEGMENT_FLOW_COMMANDS.has(currentCommandKey)) {
+          setRenameTargetSegmentName(segmentName);
+          setRenameNewSegmentName(segmentName);
+          setTimeout(() => {
+            setIsRenameModalOpen(true);
+          }, 50);
+        } else if (QUESTION_SELECTOR_COMMANDS.has(currentCommandKey)) {
+          setQuestionModalCommand(currentCommandKey);
+          setQuestionModalSegmentName(segmentName);
+          setQuestionModalSegmentId(segmentId);
+          const options = buildQuestionOptions(segmentId, segmentName);
+          setQuestionOptions(options);
+          setIsQuestionModalOpen(true);
+        }
+      } else {
+        console.warn(
+          `[Command Segment Selected] Missing template payload for ${currentCommandKey}`
+        );
+      }
+
+      resetSegmentDropdown();
+      setIsSegmentModalOpen(false);
+      return;
+    }
+
+    const fullCommand = `add segment ${trimmedValue}`;
+    setIsSegmentModalOpen(false);
+    setSelectedCommand("");
+    setSelectedCommandPayload(null);
+    setSelectedSegmentTag("");
+    setInputValue("");
+    resetSegmentDropdown();
+    setTimeout(() => {
+      void executeSend(fullCommand);
+    }, 50);
+  };
+
+  const handleSegmentModalCancel = () => {
+    resetQuestionSelection();
+    setSelectedCommand("");
+    setSelectedCommandPayload(null);
+    setSelectedSegmentTag("");
+    setRenameTargetSegmentName("");
+    setRenameNewSegmentName("");
+    setInputValue("");
+    setIsSegmentModalOpen(false);
+  };
+
+  const handleRenameModalConfirm = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    setIsRenameModalOpen(false);
+
+    const basePayload =
+      selectedCommandPayload ??
+      COMMAND_LIST.find(
+        (item) => deriveCommandKey(item) === "rename segment"
+      )?.command;
+
+    const updatedPayload = basePayload
+      ? { ...basePayload, new_name: trimmed }
+      : {
+          intent: "segment_rename",
+          selector: "segments[segmentId=xxx]",
+          user_prompt: "",
+          new_name: trimmed,
+          target: "segments",
+        };
+
+    setRenameNewSegmentName(trimmed);
+    setSelectedCommandPayload(updatedPayload);
+    setInputValue(trimmed);
+
+    const payload = {
+      intent: updatedPayload.intent,
+      selector: updatedPayload.selector,
+      new_name: trimmed,
+      target: updatedPayload.target,
+      segment: renameTargetSegmentName || selectedSegmentTag,
+    };
+
+    console.log("[Rename Segment Preview]", payload);
+  };
+
+  const handleRenameModalCancel = () => {
+    setIsRenameModalOpen(false);
+    setSelectedCommand("");
+    setSelectedCommandPayload(null);
+    setSelectedSegmentTag("");
+    setRenameTargetSegmentName("");
+    setRenameNewSegmentName("");
+    setInputValue("");
+  };
+
+  const handleQuestionModalConfirm = useCallback(
+    (question: QuestionOption) => {
+      setSelectedQuestionOption(question);
+      setIsQuestionModalOpen(false);
+      setSelectedCommandPayload((prev) => {
+        if (!prev) return prev;
+        const selectorWithFallback =
+          prev.selector && /valueQuestions/.test(prev.selector)
+            ? prev.selector
+            : `segments[segmentId=${
+                questionModalSegmentId || "xxx"
+              }].valueQuestions[questionId=${question.id}]`;
+        const updatedSelector = selectorWithFallback.replace(
+          /questionId=[^\]\s]*/i,
+          `questionId=${question.id}`
+        );
+        return {
+          ...prev,
+          selector: updatedSelector,
+          user_prompt: question.text || prev.user_prompt,
+        };
+      });
+    },
+    [questionModalSegmentId]
+  );
+
+  const handleQuestionModalCancel = useCallback(() => {
+    resetQuestionSelection();
+    if (QUESTION_SELECTOR_COMMANDS.has(selectedCommand)) {
+      setSelectedCommand("");
+      setSelectedCommandPayload(null);
+      setSelectedSegmentTag("");
+    }
+  }, [resetQuestionSelection, selectedCommand]);
+
+  const openQuestionModal = useCallback(() => {
+    if (!QUESTION_SELECTOR_COMMANDS.has(selectedCommand)) {
+      return;
+    }
+    if (!questionModalSegmentId && !questionModalSegmentName && !selectedSegmentTag) {
+      return;
+    }
+    const commandKey = selectedCommand || "delete question";
+    setQuestionModalCommand(commandKey);
+    setIsQuestionModalOpen(true);
+  }, [
+    questionModalSegmentId,
+    questionModalSegmentName,
+    selectedCommand,
+    selectedSegmentTag,
+  ]);
+
+  const clearSelectedQuestion = useCallback(() => {
+    if (!QUESTION_SELECTOR_COMMANDS.has(selectedCommand)) {
+      setSelectedQuestionOption(null);
+      return;
+    }
+    setSelectedQuestionOption(null);
+    setSelectedCommandPayload((prev) => {
+      if (!prev) return prev;
+      const withPlaceholder = prev.selector
+        ? prev.selector.replace(/questionId=[^\]\s]*/i, "questionId=xxx")
+        : prev.selector;
+      return {
+        ...prev,
+        selector:
+          withPlaceholder ??
+          (questionModalSegmentId
+            ? `segments[segmentId=${questionModalSegmentId}].valueQuestions[questionId=xxx]`
+            : prev.selector),
+      };
+    });
+    const commandKey = selectedCommand || "delete question";
+    setQuestionModalCommand(commandKey);
+    setIsQuestionModalOpen(true);
+  }, [questionModalSegmentId, selectedCommand]);
+
+  const handleSend = async () => {
+    if (isGenerating) return;
+    if (!selectedCommandPayload) {
+      console.warn(
+        "[Command Submit Blocked] Missing command payload for:",
+        selectedCommand
+      );
+      console.log("[Command Submit Blocked] Input value:", inputValue);
+      return;
+    }
+    if (
+      QUESTION_SELECTOR_COMMANDS.has(selectedCommand) &&
+      (!selectedQuestionOption ||
+        selectedCommandPayload.selector?.includes("questionId=xxx"))
+    ) {
+      if (!isQuestionModalOpen) {
+        openQuestionModal();
+      }
+      return;
+    }
+
+    const userPromptText = sanitizeUserPrompt(inputValue);
+    const updatedPayload: CommandPayload = {
+      ...selectedCommandPayload,
+      user_prompt: userPromptText,
+    };
+
+    if (selectedCommand === "rename segment" && userPromptText) {
+      updatedPayload.new_name = userPromptText;
+    }
+
+    setSelectedCommandPayload(updatedPayload);
+    const requestBody = (() => {
+      if (typeof window === "undefined") {
+        return null;
+      }
+
+      const runResultStr = localStorage.getItem("run_result");
+      let runResult: any = null;
+      let baseRunId =
+        versionMap.get(selectedVersion) ||
+        selectedVersion ||
+        "";
+      let taskId = "";
+      let storedUserId = "";
+
+      if (runResultStr) {
+        try {
+          runResult = JSON.parse(runResultStr);
+          if (!baseRunId) {
+            baseRunId = runResult?.run_id || "r_1";
+          }
+          taskId = runResult?.task_id || "";
+          storedUserId = runResult?.user_id || "";
+        } catch (error) {
+          console.warn("Failed to parse run_result for request body:", error);
+        }
+      }
+
+      if (!baseRunId) {
+        baseRunId = "r_1";
+      }
+
+      const userId = user?.id || storedUserId || "";
+
+      const changeEntry: Record<string, any> = {
+        intent: updatedPayload.intent,
+        target:
+          updatedPayload.target ??
+          resolveTargetFromSelector(updatedPayload.selector || ""),
+        selector: updatedPayload.selector,
+        prompt: updatedPayload.user_prompt,
+        policy: {
+          propagation: "standard",
+          strict_scope: true,
+          downgrade_shapes: true,
+        },
+      };
+      if (updatedPayload.new_name) {
+        changeEntry.new_name = updatedPayload.new_name;
+      }
+      if (updatedPayload.intent === "segment_merge" && updatedPayload.segments) {
+        changeEntry.segments = updatedPayload.segments;
+      }
+
+      return {
+        feedback_text: updatedPayload.user_prompt,
+        base_run_id: baseRunId,
+        user_id: userId,
+        task_id: taskId,
+        changeset: [changeEntry],
+      };
+    })();
+
+    console.log("[Command Submit] Selected command:", {
+      key: selectedCommand,
+      payload: updatedPayload,
+    });
+
+    if (!requestBody) {
+      console.warn("[Command Submit] Request body unavailable");
+      return;
+    }
+
+    console.log("[Command Submit] Sending changeset:", requestBody);
+
+    try {
+      setIsGenerating(true);
+      setGenerationProgress(10);
+
+      const response = await fetch(
+        "https://business-insight.datail.ai/api/v1/user-feedback/changeset",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      const text = await response.text();
+      let json: any = null;
+      try {
+        json = text ? JSON.parse(text) : {};
+      } catch (error) {
+        console.warn("[Command Submit] Failed to parse response JSON", text);
+      }
+
+      if (!response.ok) {
+        console.error("[Command Submit] API error", response.status, text);
+        alert(
+          json?.message ||
+            "Failed to submit feedback. Please review your instruction."
+        );
+        setIsGenerating(false);
+        setGenerationProgress(0);
+        return;
+      }
+
+      console.log("[Command Submit] Response:", json ?? text);
+      setGenerationProgress(50);
+
+      // delete-question 和 rename segment 命令不需要调用 standal_sql
+      const shouldSkipStandalSql = selectedCommand === "delete question" || selectedCommand === "rename segment";
+
+      // changeset执行完成后，更新版本列表
+      // 如果不需要执行standal_sql，立即更新版本列表并切换版本
+      // 如果需要执行standal_sql，不调用run-results获取版本数据，等standal_sql完成后再调用
+      if (shouldSkipStandalSql) {
+        try {
+          await fetchVersions(false); // 更新版本列表
+          await switchToLatestVersion(); // 切换到最新版本
+          console.log("[Command Submit] Version list updated and switched after changeset (no standal_sql)");
+        } catch (error) {
+          console.warn("[Command Submit] Failed to update version list:", error);
+          // 版本列表更新失败不影响主流程，只记录警告
+        }
+      } else {
+        // 需要执行standal_sql的命令，不调用run-results，等standal_sql完成后再调用
+        console.log("[Command Submit] Changeset completed, will update version list after standal_sql");
+      }
+      
+      // changeset接口执行完成后，调用standal_sql接口（某些命令除外）
+      let runResultsPayload = json?.run_results;
+      
+      // 只有需要调用 standal_sql 的命令才构建 runResultsPayload
+      if (!shouldSkipStandalSql) {
+        // 从localStorage获取基础信息，用于补充run_results
+        const runResultStr = localStorage.getItem("run_result");
+        let runResult: any = null;
+        if (runResultStr) {
+          try {
+            runResult = JSON.parse(runResultStr);
+          } catch (error) {
+            console.warn("[Command Submit] Failed to parse run_result from localStorage:", error);
+          }
+        }
+        
+        const connectionId = localStorage.getItem("connection_id") || "";
+        const userId = user?.id || runResult?.user_id || "";
+        const taskId = runResult?.task_id || requestBody?.task_id || "";
+        const baseRunId = requestBody?.base_run_id || runResult?.run_id || "r_1";
+        const runId = runResult?.run_id || baseRunId;
+        
+        // 如果没有从changeset响应中获取到run_results，或者run_results不完整，从localStorage构建
+        if (!runResultsPayload || !runResultsPayload.run_result) {
+          if (runResult) {
+            // 构建完整的run_results对象
+            runResultsPayload = {
+              user_id: runResultsPayload?.user_id || userId,
+              connection_id: runResultsPayload?.connection_id || connectionId,
+              task_id: runResultsPayload?.task_id || taskId,
+              run_id: runResultsPayload?.run_id || runId,
+              parent_run_id: runResultsPayload?.parent_run_id || runResult?.parent_run_id || null,
+              run_result: runResultsPayload?.run_result || runResult,
+              run_status: runResultsPayload?.run_status || "completed",
+              created_at: runResultsPayload?.created_at || new Date().toISOString(),
+            };
+          }
+        } else {
+          // 如果changeset返回了run_results，但缺少必要字段，补充这些字段
+          if (!runResultsPayload.user_id) runResultsPayload.user_id = userId;
+          if (!runResultsPayload.connection_id) runResultsPayload.connection_id = connectionId;
+          if (!runResultsPayload.task_id) runResultsPayload.task_id = taskId;
+          if (!runResultsPayload.run_id) runResultsPayload.run_id = runId;
+          if (!runResultsPayload.run_status) runResultsPayload.run_status = "completed";
+          if (!runResultsPayload.created_at) runResultsPayload.created_at = new Date().toISOString();
+        }
+      }
+
+      // 只有非 delete-question 和 rename segment 命令才调用 standal_sql
+      if (runResultsPayload && !shouldSkipStandalSql) {
+        console.log("[Command Submit] Calling standal_sql with run_results...");
+        setGenerationProgress(60);
+        
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 600_000); // 10分钟超时
+
+          const standalRes = await fetch(
+            "https://business-insight.datail.ai/api/v1/standal_sql",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ run_results: runResultsPayload }),
+              signal: controller.signal,
+            }
+          );
+
+          clearTimeout(timeout);
+          setGenerationProgress(90);
+          const standalText = await standalRes.text();
+          console.log("[Command Submit] standal_sql response:", standalText);
+
+          let standalJson: any = null;
+          try {
+            standalJson = JSON.parse(standalText);
+          } catch (e) {
+            console.log("[Command Submit] Failed to parse standal_sql response:", e);
+            throw new Error("Invalid JSON response from standal_sql");
+          }
+
+          if (!standalRes.ok) {
+            throw new Error(
+              typeof standalJson === "string"
+                ? standalJson.slice(0, 200)
+                : standalJson?.error || `standal_sql HTTP ${standalRes.status}`
+            );
+          }
+
+          console.log("[Command Submit] standal_sql completed successfully:", standalJson);
+
+          // 处理standal_sql返回的数据
+          if (standalJson?.run_results?.run_result) {
+            localStorage.setItem(
+              "standalJson",
+              JSON.stringify({
+                anchIndex: standalJson.run_results?.run_result?.anchIndex,
+                segments: standalJson.run_results.run_result.segments,
+              })
+            );
+
+            const updatedRunResult = standalJson.run_results.run_result;
+            localStorage.setItem("run_result", JSON.stringify(updatedRunResult));
+
+            // 更新segments数据
+            const segments = updatedRunResult.segments || [];
+            const mapped = segments.map((seg: any) => ({
+              id: seg.segmentId || seg.id || seg.name,
+              name: seg.name,
+              segmentId: seg.segmentId || seg.id,
+              analysis: seg.analysis,
+              valueQuestions: seg.valueQuestions || [],
+            }));
+
+            setSegmentsData(mapped);
+            
+            // standal_sql执行完成后，更新版本列表并切换到最新版本
+            try {
+              await fetchVersions(false); // 先更新版本列表
+              await switchToLatestVersion(); // 切换到最新版本
+              console.log("[Command Submit] Version list updated after standal_sql");
+            } catch (error) {
+              console.warn("[Command Submit] Failed to update version list after standal_sql:", error);
+            }
+          }
+        } catch (standalError) {
+          console.error("[Command Submit] standal_sql request failed", standalError);
+          // standal_sql失败不影响changeset的成功，只记录错误
+        }
+      } else if (!shouldSkipStandalSql) {
+        console.warn("[Command Submit] No run_results available for standal_sql");
+      } else {
+        console.log("[Command Submit] Skipping standal_sql for command:", selectedCommand);
+      }
+
+      setGenerationProgress(100);
+
+      setSelectedCommand("");
+      setSelectedCommandPayload(null);
+      setSelectedSegmentTag("");
+      setRenameTargetSegmentName("");
+      setRenameNewSegmentName("");
+      setInputValue("");
+      resetQuestionSelection();
+    } catch (error) {
+      console.error("[Command Submit] Request failed", error);
+      alert("Request failed. Please try again later.");
+    } finally {
       setIsGenerating(false);
       setGenerationProgress(0);
     }
@@ -969,12 +2235,29 @@ export default function MarketExplorationPage({
       e.preventDefault();
       handleSend();
     }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      if (isSegmentDropdownOpen) {
+        resetSegmentDropdown();
+        return;
+      }
+      if (selectedCommand) {
+        setSelectedCommand("");
+        setSelectedCommandPayload(null);
+        setSelectedSegmentTag("");
+        setInputValue("");
+        return;
+      }
+      if (inputValue) {
+        setInputValue("");
+      }
+    }
   };
   return (
     <div className="w-full min-h-screen bg-white pb-32">
       <div className="max-w-7xl mx-auto p-8">
-        <div className="mb-8 flex items-center justify-between">
-          <h1 className="text-5xl font-bold text-gray-900">Business Insight</h1>
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-gray-900">Business Insight</h1>
           {/* Right side controls */}
           <div className="flex items-center gap-4">
             {/* Version Selector */}
@@ -1030,28 +2313,17 @@ export default function MarketExplorationPage({
                           console.log("Version switch clicked:", {
                             display: version.display,
                             runId: version.runId,
-                            currentVersion: selectedVersion,
                           });
 
-                          // Close dropdown to prevent repeated clicks
+                          setSelectedVersion(version.display);
                           setIsVersionDropdownOpen(false);
+                          setIsGenerating(true);
+                          setGenerationProgress(0);
 
-                          // Load the corresponding data for the selected version
-                          // loadVersionData performs its own isGenerating guard
-                          try {
-                            await loadVersionData(version.runId);
-                            // Update selection only after data loads successfully
-                            setSelectedVersion(version.display);
-                          } catch (error) {
-                            console.log("Failed to load version data:", error);
-                            // On failure keep the previous version selection
-                          }
+                          await loadVersionData(version.runId);
                         }}
-                        disabled={isGenerating}
-                        className={`w-full px-4 py-2 text-left text-sm first:rounded-t-lg last:rounded-b-lg transition-colors ${
-                          isGenerating
-                            ? "opacity-50 cursor-not-allowed"
-                            : version.display === selectedVersion
+                        className={`w-full text-left px-4 py-2 text-sm ${
+                          selectedVersion === version.display
                             ? "bg-gray-100 font-medium text-gray-900 hover:bg-gray-100"
                             : "text-gray-700 hover:bg-gray-50"
                         }`}
@@ -1071,10 +2343,24 @@ export default function MarketExplorationPage({
             <button
               onClick={handleGenerateApp}
               disabled={isGenerating}
-              className="flex items-center gap-2 px-4 py-2 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white relative overflow-hidden"
             >
               <ArrowRight className="w-4 h-4" />
-              <span className="whitespace-nowrap">Generate</span>
+              <span className="whitespace-nowrap flex items-center gap-1">
+                Generate{" "}
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={displayedSegmentName}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="text-green-400 inline-block"
+                  >
+                    {displayedSegmentName}
+                  </motion.span>
+                </AnimatePresence>
+              </span>
             </button>
           </div>
         </div>
@@ -1108,52 +2394,286 @@ export default function MarketExplorationPage({
               refreshType={refreshType}
               refreshKey={refreshKey}
               segmentsData={segmentsData as any}
+              onSegmentChange={(name) =>
+                setSelectedSegmentName(name ? String(name) : "")
+              }
             />
           </motion.div>
         </AnimatePresence>
       </div>
+      <div className="hidden">
+        <FloatingCommandButton
+          onClick={() => setIsCommandPaletteOpen(true)}
+        />
+      </div>
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onCommandSelect={handleCommandSelect}
+        onSpecialCommand={handleSpecialCommand}
+      />
+      <SegmentSelectionModal
+        isOpen={isSegmentModalOpen}
+        onClose={() => setIsSegmentModalOpen(false)}
+        mode={segmentModalMode}
+        commandText={segmentModalCommand}
+        onConfirm={handleSegmentModalConfirm}
+        segments={availableSegments}
+        defaultSelectedSegment={
+          renameTargetSegmentName || selectedSegmentName || displayedSegmentName
+        }
+        onCancel={handleSegmentModalCancel}
+      />
+      <QuestionSelectionModal
+        isOpen={isQuestionModalOpen}
+        onClose={handleQuestionModalCancel}
+        onCancel={handleQuestionModalCancel}
+        onConfirm={handleQuestionModalConfirm}
+        questions={questionOptions}
+        segmentName={
+          questionModalSegmentName || selectedSegmentTag || questionModalSegmentId
+        }
+        commandText={questionModalCommand || selectedCommand}
+        defaultSelectedQuestionId={selectedQuestionOption?.id}
+      />
+      <AnimatePresence>
+        {isRenameModalOpen && (
+          <motion.div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    Rename Segment
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Selected: {renameTargetSegmentName || selectedSegmentTag}
+                  </p>
+                </div>
+                <button
+                  onClick={handleRenameModalCancel}
+                  className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  aria-label="Close rename modal"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <label className="block text-sm font-medium text-gray-700">
+                  New segment name
+                </label>
+                <input
+                  type="text"
+                  value={renameNewSegmentName}
+                  onChange={(e) => setRenameNewSegmentName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  placeholder="Enter new segment name"
+                  autoFocus
+                />
+              </div>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={handleRenameModalCancel}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleRenameModalConfirm(renameNewSegmentName)}
+                  disabled={!renameNewSegmentName.trim()}
+                  className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                    renameNewSegmentName.trim()
+                      ? "bg-black text-white hover:bg-gray-900"
+                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  Rename
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Bottom Input Box */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-6 pb-6 px-8 z-50">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white border border-gray-300 rounded-3xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden">
-            <div className="flex items-end gap-3 p-4">
-              {/* Text Input */}
-              <textarea
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={isGenerating}
-                placeholder="Any thoughts or suggestions?"
-                rows={1}
-                className="flex-1 resize-none bg-transparent border-none outline-none text-gray-900 placeholder-gray-400 text-base py-2 max-h-48 overflow-y-auto disabled:opacity-50"
-                style={{
-                  minHeight: "24px",
-                }}
-              />
-              {/* Send Button */}
-              <button
-                type="button"
-                onClick={handleSend}
-                disabled={!inputValue.trim() || isGenerating}
-                className={`flex-shrink-0 p-2 rounded-lg transition-all duration-200 ${
-                  inputValue.trim() && !isGenerating
-                    ? "text-black hover:bg-gray-100"
-                    : "text-gray-300 cursor-not-allowed"
-                }`}
-                aria-label="Send message"
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-6 pb-6 z-50">
+        <div className="max-w-7xl mx-auto px-8 relative">
+          <AnimatePresence>
+            {isSegmentDropdownOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.2 }}
+                className="absolute bottom-full mb-2 left-4 bg-white border border-gray-300 rounded-2xl shadow-xl overflow-hidden"
+                style={{ width: "auto", minWidth: "300px", maxWidth: "400px" }}
               >
-                <Send className="w-5 h-5 fill-current" />
-              </button>
+                <div className="p-2">
+                  <div className="mb-2">
+                    <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase">
+                      Quick Select
+                    </div>
+                    {topSegments.map((segment) => (
+                      <button
+                        key={segment}
+                        onClick={() => handleSegmentSelect(segment)}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-900 font-medium text-sm"
+                      >
+                        {segment}
+                      </button>
+                    ))}
+                  </div>
+                  {hasMoreSegments && (
+                    <div className="border-t border-gray-200 pt-2">
+                      <button
+                        onClick={() => {
+                          setIsSegmentDropdownOpen(false);
+                          setSegmentModalMode("select");
+                          setSegmentModalCommand("clipboard");
+                          setIsSegmentModalOpen(true);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600 font-medium text-sm flex items-center justify-between"
+                      >
+                        <span>View all segments</span>
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <div className="bg-white border border-gray-300 rounded-3xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-visible">
+            <div className="flex flex-col gap-3 p-4">
+              <div className="flex items-start gap-2">
+                <AnimatePresence>
+                  {selectedCommand && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium"
+                      style={{ marginTop: "10px" }}
+                    >
+                      <span>{getCommandLabel(selectedCommand)}</span>
+                      <button
+                        onClick={() => {
+                          setSelectedCommand("");
+                          setSelectedCommandPayload(null);
+                          setSelectedSegmentTag("");
+                          setInputValue("");
+                        }}
+                        className="hover:bg-gray-200 rounded p-0.5 transition-colors"
+                        aria-label="Clear command"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <AnimatePresence>
+                  {selectedSegmentTag && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium"
+                      style={{ marginTop: "10px" }}
+                    >
+                      <span>{selectedSegmentTag}</span>
+                      <button
+                        onClick={clearSelectedSegment}
+                        className="hover:bg-emerald-100 rounded p-0.5 transition-colors"
+                        aria-label="Clear selected segment"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <AnimatePresence>
+                  {selectedQuestionOption && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium"
+                      style={{ marginTop: "10px" }}
+                    >
+                      <span className="max-w-[220px] truncate">
+                        {selectedQuestionOption.text}
+                      </span>
+                      <button
+                        onClick={clearSelectedQuestion}
+                        className="hover:bg-blue-100 rounded p-0.5 transition-colors"
+                        aria-label="Change selected question"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <textarea
+                  value={inputValue}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={isGenerating}
+                  placeholder={
+                    selectedCommand
+                      ? "Type @ to select a segment..."
+                      : "More thoughts? Type @ to select a segment..."
+                  }
+                  rows={1}
+                  className="flex-1 resize-none bg-transparent border-none outline-none text-gray-900 placeholder-gray-400 text-base px-2 py-2 max-h-48 overflow-y-auto disabled:opacity-50"
+                  style={{ minHeight: "40px" }}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <AnimatedDropdownMenu options={commandOptions}>
+                  <span className="text-xl">➕</span>
+                </AnimatedDropdownMenu>
+                <div className="flex-1" />
+                <div
+                  className="relative flex-shrink-0"
+                  onMouseEnter={() => setIsSendButtonHovered(true)}
+                  onMouseLeave={() => setIsSendButtonHovered(false)}
+                >
+                  <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={isGenerating || !selectedCommand}
+                    className={`p-2 rounded-lg transition-all duration-200 ${
+                      !isGenerating && selectedCommand
+                        ? "text-black hover:bg-gray-100"
+                        : "text-gray-300 cursor-not-allowed"
+                    }`}
+                    aria-label="Send message"
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
+                  {!selectedCommand && isSendButtonHovered && !isGenerating && (
+                    <div className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50">
+                      Please select a command first
+                      <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      {selectedAnalysis && (
-        <DetailModal
-          analysis={selectedAnalysis}
-          onClose={() => setSelectedAnalysis(null)}
-        />
-      )}
     </div>
   );
 }
