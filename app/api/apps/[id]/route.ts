@@ -272,11 +272,14 @@ async function handleUpdate(
     if (!body.app_web_link) {
       const finalName = payload.name || currentApp.name;
       if (finalName && typeof finalName === "string") {
-        const appName = finalName.trim();
+        const appName = finalName.trim().toLowerCase();
         if (appName) {
           payload.app_web_link = `https://${appName}.datail.ai`;
         }
       }
+    } else if (body.app_web_link && typeof body.app_web_link === "string") {
+      // 如果用户提供了 app_web_link，确保转换为小写
+      payload.app_web_link = body.app_web_link.toLowerCase();
     }
 
     if (Object.keys(payload).length === 0) {
