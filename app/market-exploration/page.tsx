@@ -869,30 +869,11 @@ export default function MarketExplorationPage({
     setSelectedMergeSegments([]);
     setIsMergeSegmentsExpanded(false);
     setTargetSegmentNameForCarousel(undefined);
-    setSelectedCommandPayload((prev) => {
-      if (!prev) return prev;
-      if (!SEGMENT_SELECTION_COMMANDS.has(selectedCommand as SegmentSelectionCommand)) return prev;
-
-      const templatePayload =
-        COMMAND_LIST.find(
-          (item) => deriveCommandKey(item) === selectedCommand
-        )?.command;
-
-      if (templatePayload) {
-        return { ...templatePayload };
-      }
-
-      const fallbackSelector = prev.selector
-        ? prev.selector.replace(/segmentId=[^\]\s]*/i, "segmentId=xxx")
-        : prev.selector;
-
-      return {
-        ...prev,
-        selector: fallbackSelector ?? "segments[segmentId=xxx]",
-      };
-    });
+    // Clear the command when segment tag is removed
+    setSelectedCommand("");
+    setSelectedCommandPayload(null);
     setInputValue((prev) => sanitizeUserPrompt(prev));
-  }, [resetQuestionSelection, selectedCommand, sanitizeUserPrompt]);
+  }, [resetQuestionSelection, sanitizeUserPrompt]);
 
   const handleInputChange = (value: string) => {
     setInputValue(value);
@@ -912,6 +893,9 @@ export default function MarketExplorationPage({
 
   const handleSegmentSelect = (segment: string) => {
     setSelectedSegmentTag(segment);
+    // Sync with 3D carousel: update selectedSegmentName and targetSegmentNameForCarousel
+    setSelectedSegmentName(segment);
+    setTargetSegmentNameForCarousel(segment);
     
     // If no command is selected, set "Correct Segment" command
     if (!selectedCommand) {
@@ -2322,6 +2306,21 @@ export default function MarketExplorationPage({
 
             setSegmentsData(mapped);
             
+            // Preserve selected segment after data update
+            if (mapped.length > 0 && targetSegmentNameForCarousel) {
+              // Keep the selected segment name if targetSegmentNameForCarousel is set
+              const targetSegment = mapped.find((seg: any) => seg.name === targetSegmentNameForCarousel);
+              if (targetSegment) {
+                setSelectedSegmentName(targetSegmentNameForCarousel);
+              } else if (!selectedSegmentName) {
+                // If target segment not found, fallback to first segment
+                setSelectedSegmentName(mapped[0]?.name || "");
+              }
+            } else if (mapped.length > 0 && !targetSegmentNameForCarousel && !selectedSegmentName) {
+              // If no target set, use first segment
+              setSelectedSegmentName(mapped[0]?.name || "");
+            }
+            
             // After standal_sql execution completes, update version list and switch to latest version
             try {
               await fetchVersions(false); // Update version list first
@@ -2773,9 +2772,15 @@ export default function MarketExplorationPage({
                             e.stopPropagation();
                             const updated = selectedMergeSegments.filter((_, i) => i !== 0);
                             setSelectedMergeSegments(updated);
-                            if (updated.length === 0) {
+                            // Check command type to determine minimum required segments
+                            const isDeleteCommand = selectedCommand === "delete segments";
+                            const minRequired = isDeleteCommand ? 1 : 2;
+                            
+                            // If less than required segments remain, clear all tags and command
+                            if (updated.length < minRequired) {
                               setSelectedCommand("");
                               setSelectedCommandPayload(null);
+                              setSelectedMergeSegments([]);
                               setIsMergeSegmentsExpanded(false);
                             } else {
                               const segmentIds = updated.map((segmentName) => {
@@ -2811,22 +2816,16 @@ export default function MarketExplorationPage({
                             onClick={() => {
                               const updated = selectedMergeSegments.filter(s => s !== segment);
                               setSelectedMergeSegments(updated);
-                              if (updated.length === 0) {
+                              // Check command type to determine minimum required segments
+                              const isDeleteCommand = selectedCommand === "delete segments";
+                              const minRequired = isDeleteCommand ? 1 : 2;
+                              
+                              // If less than required segments remain, clear all tags and command
+                              if (updated.length < minRequired) {
                                 setSelectedCommand("");
                                 setSelectedCommandPayload(null);
+                                setSelectedMergeSegments([]);
                                 setIsMergeSegmentsExpanded(false);
-                              } else if (updated.length === 1) {
-                                setIsMergeSegmentsExpanded(false);
-                                const segmentIds = updated.map((segmentName) => {
-                                  return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
-                                });
-                                setSelectedCommandPayload((prev) => {
-                                  if (!prev) return prev;
-                                  return {
-                                    ...prev,
-                                    segments: segmentIds,
-                                  };
-                                });
                               } else {
                                 const segmentIds = updated.map((segmentName) => {
                                   return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
@@ -2878,7 +2877,7 @@ export default function MarketExplorationPage({
                   onChange={(e) => handleInputChange(e.target.value)}
                   onKeyDown={handleKeyDown}
                   disabled={isGenerating}
-                  placeholder=""
+                  placeholder="Use @ to get started quickly and submit your changes."
                   rows={1}
                   className="flex-1 resize-none bg-transparent border-none outline-none text-gray-900 placeholder-gray-400 text-base px-2 py-2 max-h-48 overflow-y-auto disabled:opacity-50"
                   style={{ minHeight: "40px" }}
