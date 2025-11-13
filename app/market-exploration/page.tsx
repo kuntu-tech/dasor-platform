@@ -66,6 +66,7 @@ type RefreshType =
   | "question"
   | "add-segment"
   | "merge-segments"
+  | "delete-segments"
   | "edit-d1"
   | "edit-d2"
   | "edit-d3"
@@ -125,6 +126,7 @@ const deriveCommandKey = (item: CommandItem): string | null => {
     return "Correct Segment";
   if (normalized.includes("add segments") || normalized.includes("add new segment manually")) return "add segment";
   if (normalized.includes("merge segments")) return "merge segments";
+  if (normalized.includes("delete segments")) return "delete segments";
   if (normalized.includes("market size") || normalized.includes("adjust market size")) return "edit d1";
   if (normalized.includes("persona") || normalized.includes("adjust persona")) return "edit d2";
   if (normalized.includes("conversion") || normalized.includes("adjust conversion rhythm")) return "edit d3";
@@ -162,6 +164,16 @@ const COMMAND_LIST: CommandItem[] = [
       target: "segments",
       selector: "segments",
       segments: ["seg_01", "seg_xx"],
+      user_prompt: "",
+    },
+  },
+  {
+    label: "Delete segments",
+    command: {
+      intent: "segment_remove",
+      target: "segments",
+      selector: "segments",
+      segments: [],
       user_prompt: "",
     },
   },
@@ -633,6 +645,7 @@ export default function MarketExplorationPage({
       "Correct Segment": <CheckCircle2 className="h-4 w-4" />,
       "add segment": <Plus className="h-4 w-4" />,
       "merge segments": <GitMerge className="h-4 w-4" />,
+      "delete segments": <Trash2 className="h-4 w-4" />,
       "edit d1": <BarChart3 className="h-4 w-4" />,
       "edit d2": <User className="h-4 w-4" />,
       "edit d3": <TrendingUp className="h-4 w-4" />,
@@ -1003,6 +1016,27 @@ export default function MarketExplorationPage({
         resetSegmentDropdown();
         setSegmentModalMode("multiSelect");
         setSegmentModalCommand("merge segments");
+        setIsSegmentModalOpen(true);
+        return;
+      }
+      
+      // Handle delete segments command with multi-select
+      if (commandKey === "delete segments") {
+        const deleteCommand = COMMAND_LIST.find(
+          (item) => deriveCommandKey(item) === "delete segments"
+        );
+        if (!deleteCommand) {
+          console.warn("[Command] Delete segments command configuration missing");
+          return;
+        }
+        setSelectedCommand("delete segments");
+        setSelectedCommandPayload({ ...deleteCommand.command });
+        setSelectedSegmentTag("");
+        setInputValue("");
+        console.log("[Command Selected]", deleteCommand.command);
+        resetSegmentDropdown();
+        setSegmentModalMode("multiSelect");
+        setSegmentModalCommand("delete segments");
         setIsSegmentModalOpen(true);
         return;
       }
@@ -1562,6 +1596,8 @@ export default function MarketExplorationPage({
         detectedRefreshType = "add-segment";
       } else if (lowerInput.includes("merge segments")) {
         detectedRefreshType = "merge-segments";
+      } else if (lowerInput.includes("delete segments")) {
+        detectedRefreshType = "delete-segments";
       } else if (lowerInput.includes("edit d1")) {
         detectedRefreshType = "edit-d1";
       } else if (lowerInput.includes("edit d2")) {
@@ -1677,11 +1713,34 @@ export default function MarketExplorationPage({
   };
 
   const handleSegmentModalConfirm = (value: string | string[]) => {
-    // Handle multi-select mode for merge segments
+    // Handle multi-select mode for merge segments and delete segments
     if (segmentModalMode === "multiSelect") {
-      if (!Array.isArray(value) || value.length < 2) {
+      if (!Array.isArray(value)) {
         setIsSegmentModalOpen(false);
         return;
+      }
+
+      // For merge segments, need at least 2 segments
+      // For delete segments, need at least 1 segment and must leave at least 1 segment
+      const isDeleteCommand = segmentModalCommand === "delete segments";
+      const totalSegments = availableSegments.length;
+      
+      if (isDeleteCommand) {
+        // For delete: must select at least 1, and must leave at least 1
+        if (value.length < 1) {
+          setIsSegmentModalOpen(false);
+          return;
+        }
+        if (value.length >= totalSegments) {
+          alert("至少需要保留1个segment，无法删除所有segments");
+          return;
+        }
+      } else {
+        // For merge: need at least 2 segments
+        if (value.length < 2) {
+          setIsSegmentModalOpen(false);
+          return;
+        }
       }
 
       // Convert segment names to segment IDs
@@ -1689,7 +1748,7 @@ export default function MarketExplorationPage({
         return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
       });
 
-      const currentCommandKey = "merge segments";
+      const currentCommandKey = isDeleteCommand ? "delete segments" : "merge segments";
       const templatePayload =
         selectedCommandPayload ??
         COMMAND_LIST.find(
@@ -1704,8 +1763,13 @@ export default function MarketExplorationPage({
 
         setSelectedCommand(currentCommandKey);
         setSelectedCommandPayload(updatedPayload);
-        setSelectedMergeSegments(value); // Store selected segments for display
-        console.log("[Command Segments Selected for Merge]", {
+        if (isDeleteCommand) {
+          // Store selected segments for delete (similar to merge)
+          setSelectedMergeSegments(value);
+        } else {
+          setSelectedMergeSegments(value); // Store selected segments for display
+        }
+        console.log(`[Command Segments Selected for ${isDeleteCommand ? 'Delete' : 'Merge'}]`, {
           command: currentCommandKey,
           segmentNames: value,
           segmentIds,
@@ -1714,7 +1778,7 @@ export default function MarketExplorationPage({
         
         // Close modal but don't auto-send, wait for user to click submit button
         setIsSegmentModalOpen(false);
-        // Don't clear input field for merge segments, allow user to add additional text
+        // Don't clear input field, allow user to add additional text
         // setInputValue(""); // Clear input field
         resetSegmentDropdown();
       } else {
@@ -2019,6 +2083,32 @@ export default function MarketExplorationPage({
 
       const userId = user?.id || storedUserId || "";
 
+      // Handle delete segments: generate one changeEntry per segment
+      if (updatedPayload.intent === "segment_remove" && updatedPayload.segments && Array.isArray(updatedPayload.segments) && updatedPayload.segments.length > 0) {
+        const changeset = updatedPayload.segments.map((segmentId: string) => {
+          return {
+            intent: "segment_remove",
+            target: "segments",
+            selector: `segments[segmentId=${segmentId}]`,
+            prompt: "删除这个细分市场",
+            policy: {
+              propagation: "standard",
+              strict_scope: true,
+              downgrade_shapes: true,
+            },
+          };
+        });
+
+        return {
+          feedback_text: updatedPayload.user_prompt,
+          base_run_id: baseRunId,
+          user_id: userId,
+          task_id: taskId,
+          changeset: changeset,
+        };
+      }
+
+      // Handle other commands (merge, edit, etc.)
       const changeEntry: Record<string, any> = {
         intent: updatedPayload.intent,
         target:
@@ -2097,8 +2187,8 @@ export default function MarketExplorationPage({
       console.log("[Command Submit] Response:", json ?? text);
       setGenerationProgress(50);
 
-      // delete-question and rename segment commands don't need to call standal_sql
-      const shouldSkipStandalSql = selectedCommand === "delete question" || selectedCommand === "rename segment";
+      // delete-question, rename segment, and delete segments commands don't need to call standal_sql
+      const shouldSkipStandalSql = selectedCommand === "delete question" || selectedCommand === "rename segment" || selectedCommand === "delete segments";
 
       // After changeset execution completes, update version list
       // If standal_sql is not needed, immediately update version list and switch version

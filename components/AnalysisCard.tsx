@@ -199,7 +199,7 @@ export function AnalysisCard({
       </div>
       {/* Summary */}
       <div className="pt-3 border-t border-gray-100">
-        <p className="text-gray-600 leading-relaxed text-sm line-clamp-3">{summary}</p>
+        <p className="text-gray-600 leading-relaxed text-sm line-clamp-3 h-[4.5rem]">{summary}</p>
       </div>
     </article>;
 }

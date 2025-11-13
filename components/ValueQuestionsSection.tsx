@@ -47,6 +47,7 @@ type RefreshType =
   | "question"
   | "add-segment"
   | "merge-segments"
+  | "delete-segments"
   | "edit-d1"
   | "edit-d2"
   | "edit-d3"
