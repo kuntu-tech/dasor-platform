@@ -81,6 +81,7 @@ type CommandPayload = {
   user_prompt: string;
   new_name?: string;
   target?: string;
+  segments?: string[];
 };
 
 type CommandItem = {
@@ -163,6 +164,7 @@ const COMMAND_LIST: CommandItem[] = [
       intent: "segment_merge",
       target: "segments",
       selector: "segments",
+      segments: ["seg_01", "seg_xx"],
       user_prompt: "",
     },
   },
@@ -367,6 +369,58 @@ export default function MarketExplorationPage({
     }
   };
 
+  // 切换到最新版本的辅助函数
+  const switchToLatestVersion = async () => {
+    try {
+      const runResultStr = localStorage.getItem("run_result");
+      let taskId = "";
+      if (runResultStr) {
+        try {
+          const runResult = JSON.parse(runResultStr);
+          taskId = runResult.task_id || "";
+        } catch (e) {
+          console.log("Failed to parse run_result:", e);
+        }
+      }
+      
+      if (taskId && user?.id) {
+        const apiUrl = `/api/run-results?user_id=${user.id}&task_id=${taskId}`;
+        const response = await fetch(apiUrl, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          const runResults = result.data || [];
+          if (runResults.length > 0) {
+            // 按 run_id 降序排列（最新的在前）
+            runResults.sort((a: any, b: any) => {
+              const numA = parseInt(a.run_id?.match(/r_(\d+)/)?.[1] || "0");
+              const numB = parseInt(b.run_id?.match(/r_(\d+)/)?.[1] || "0");
+              return numB - numA;
+            });
+            
+            const latestRunId = runResults[0].run_id;
+            const match = latestRunId.match(/r_(\d+)/);
+            const number = match ? match[1] : "";
+            const latestVersionDisplay = number ? `v${number}` : latestRunId;
+            
+            // 切换到最新版本并加载数据
+            setSelectedVersion(latestVersionDisplay);
+            await loadVersionData(latestRunId);
+            console.log("[Switch Version] Switched to latest version:", latestVersionDisplay);
+            return true;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("[Switch Version] Failed to switch to latest version:", error);
+    }
+    return false;
+  };
+
   // 获取版本列表的函数
   const fetchVersions = async (shouldLoadData = true) => {
     if (!user?.id) {
@@ -555,7 +609,7 @@ export default function MarketExplorationPage({
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isSegmentModalOpen, setIsSegmentModalOpen] = useState(false);
   const [segmentModalMode, setSegmentModalMode] =
-    useState<"select" | "input">("select");
+    useState<"select" | "input" | "multiSelect">("select");
   const [segmentModalCommand, setSegmentModalCommand] = useState("");
   const [selectedCommand, setSelectedCommand] = useState("");
   const [selectedCommandPayload, setSelectedCommandPayload] =
@@ -908,6 +962,28 @@ export default function MarketExplorationPage({
         return;
       }
       resetQuestionSelection();
+      
+      // Handle merge segments command with multi-select
+      if (commandKey === "merge segments") {
+        const mergeCommand = COMMAND_LIST.find(
+          (item) => deriveCommandKey(item) === "merge segments"
+        );
+        if (!mergeCommand) {
+          console.warn("[Command] Merge segments command configuration missing");
+          return;
+        }
+        setSelectedCommand("merge segments");
+        setSelectedCommandPayload({ ...mergeCommand.command });
+        setSelectedSegmentTag("");
+        setInputValue("");
+        console.log("[Command Selected]", mergeCommand.command);
+        resetSegmentDropdown();
+        setSegmentModalMode("multiSelect");
+        setSegmentModalCommand("merge segments");
+        setIsSegmentModalOpen(true);
+        return;
+      }
+      
       if (SEGMENT_SELECTION_COMMANDS.has(commandKey as SegmentSelectionCommand)) {
         handleSpecialCommand(commandKey as SegmentSelectionCommand);
         return;
@@ -1563,9 +1639,51 @@ export default function MarketExplorationPage({
     }, 100);
   };
 
-  const handleSegmentModalConfirm = (value: string) => {
-    const trimmedValue = value.trim();
+  const handleSegmentModalConfirm = (value: string | string[]) => {
+    // Handle multi-select mode for merge segments
+    if (segmentModalMode === "multiSelect") {
+      if (!Array.isArray(value) || value.length < 2) {
+        setIsSegmentModalOpen(false);
+        return;
+      }
 
+      // Convert segment names to segment IDs
+      const segmentIds = value.map((segmentName) => {
+        return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
+      });
+
+      const currentCommandKey = "merge segments";
+      const templatePayload =
+        selectedCommandPayload ??
+        COMMAND_LIST.find(
+          (item) => deriveCommandKey(item) === currentCommandKey
+        )?.command;
+
+      if (templatePayload) {
+        const updatedPayload: CommandPayload = {
+          ...templatePayload,
+          segments: segmentIds,
+        };
+
+        setSelectedCommand(currentCommandKey);
+        setSelectedCommandPayload(updatedPayload);
+        console.log("[Command Segments Selected for Merge]", {
+          command: currentCommandKey,
+          segmentNames: value,
+          segmentIds,
+          payload: updatedPayload,
+        });
+      } else {
+        console.warn(
+          `[Command Segments Selected] Missing template payload for ${currentCommandKey}`
+        );
+      }
+
+      setIsSegmentModalOpen(false);
+      return;
+    }
+
+    const trimmedValue = typeof value === 'string' ? value.trim() : '';
     if (!trimmedValue) {
       setIsSegmentModalOpen(false);
       return;
@@ -1574,7 +1692,7 @@ export default function MarketExplorationPage({
     if (segmentModalMode === "select") {
       const segmentName = trimmedValue;
       const segmentId =
-        segmentIdMap.get(segmentName) || segmentIdMap.get(value) || segmentName;
+        segmentIdMap.get(segmentName) || segmentIdMap.get(trimmedValue) || segmentName;
 
       setSelectedSegmentName(segmentName);
       setSelectedSegmentTag(segmentName);
@@ -1867,6 +1985,9 @@ export default function MarketExplorationPage({
       if (updatedPayload.new_name) {
         changeEntry.new_name = updatedPayload.new_name;
       }
+      if (updatedPayload.intent === "segment_merge" && updatedPayload.segments) {
+        changeEntry.segments = updatedPayload.segments;
+      }
 
       return {
         feedback_text: updatedPayload.user_prompt,
@@ -1924,6 +2045,162 @@ export default function MarketExplorationPage({
       }
 
       console.log("[Command Submit] Response:", json ?? text);
+      setGenerationProgress(50);
+
+      // delete-question 和 rename segment 命令不需要调用 standal_sql
+      const shouldSkipStandalSql = selectedCommand === "delete question" || selectedCommand === "rename segment";
+
+      // changeset执行完成后，更新版本列表
+      // 如果不需要执行standal_sql，立即更新版本列表并切换版本
+      // 如果需要执行standal_sql，不调用run-results获取版本数据，等standal_sql完成后再调用
+      if (shouldSkipStandalSql) {
+        try {
+          await fetchVersions(false); // 更新版本列表
+          await switchToLatestVersion(); // 切换到最新版本
+          console.log("[Command Submit] Version list updated and switched after changeset (no standal_sql)");
+        } catch (error) {
+          console.warn("[Command Submit] Failed to update version list:", error);
+          // 版本列表更新失败不影响主流程，只记录警告
+        }
+      } else {
+        // 需要执行standal_sql的命令，不调用run-results，等standal_sql完成后再调用
+        console.log("[Command Submit] Changeset completed, will update version list after standal_sql");
+      }
+      
+      // changeset接口执行完成后，调用standal_sql接口（某些命令除外）
+      let runResultsPayload = json?.run_results;
+      
+      // 只有需要调用 standal_sql 的命令才构建 runResultsPayload
+      if (!shouldSkipStandalSql) {
+        // 从localStorage获取基础信息，用于补充run_results
+        const runResultStr = localStorage.getItem("run_result");
+        let runResult: any = null;
+        if (runResultStr) {
+          try {
+            runResult = JSON.parse(runResultStr);
+          } catch (error) {
+            console.warn("[Command Submit] Failed to parse run_result from localStorage:", error);
+          }
+        }
+        
+        const connectionId = localStorage.getItem("connection_id") || "";
+        const userId = user?.id || runResult?.user_id || "";
+        const taskId = runResult?.task_id || requestBody?.task_id || "";
+        const baseRunId = requestBody?.base_run_id || runResult?.run_id || "r_1";
+        const runId = runResult?.run_id || baseRunId;
+        
+        // 如果没有从changeset响应中获取到run_results，或者run_results不完整，从localStorage构建
+        if (!runResultsPayload || !runResultsPayload.run_result) {
+          if (runResult) {
+            // 构建完整的run_results对象
+            runResultsPayload = {
+              user_id: runResultsPayload?.user_id || userId,
+              connection_id: runResultsPayload?.connection_id || connectionId,
+              task_id: runResultsPayload?.task_id || taskId,
+              run_id: runResultsPayload?.run_id || runId,
+              parent_run_id: runResultsPayload?.parent_run_id || runResult?.parent_run_id || null,
+              run_result: runResultsPayload?.run_result || runResult,
+              run_status: runResultsPayload?.run_status || "completed",
+              created_at: runResultsPayload?.created_at || new Date().toISOString(),
+            };
+          }
+        } else {
+          // 如果changeset返回了run_results，但缺少必要字段，补充这些字段
+          if (!runResultsPayload.user_id) runResultsPayload.user_id = userId;
+          if (!runResultsPayload.connection_id) runResultsPayload.connection_id = connectionId;
+          if (!runResultsPayload.task_id) runResultsPayload.task_id = taskId;
+          if (!runResultsPayload.run_id) runResultsPayload.run_id = runId;
+          if (!runResultsPayload.run_status) runResultsPayload.run_status = "completed";
+          if (!runResultsPayload.created_at) runResultsPayload.created_at = new Date().toISOString();
+        }
+      }
+
+      // 只有非 delete-question 和 rename segment 命令才调用 standal_sql
+      if (runResultsPayload && !shouldSkipStandalSql) {
+        console.log("[Command Submit] Calling standal_sql with run_results...");
+        setGenerationProgress(60);
+        
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 600_000); // 10分钟超时
+
+          const standalRes = await fetch(
+            "https://business-insight.datail.ai/api/v1/standal_sql",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ run_results: runResultsPayload }),
+              signal: controller.signal,
+            }
+          );
+
+          clearTimeout(timeout);
+          setGenerationProgress(90);
+          const standalText = await standalRes.text();
+          console.log("[Command Submit] standal_sql response:", standalText);
+
+          let standalJson: any = null;
+          try {
+            standalJson = JSON.parse(standalText);
+          } catch (e) {
+            console.log("[Command Submit] Failed to parse standal_sql response:", e);
+            throw new Error("Invalid JSON response from standal_sql");
+          }
+
+          if (!standalRes.ok) {
+            throw new Error(
+              typeof standalJson === "string"
+                ? standalJson.slice(0, 200)
+                : standalJson?.error || `standal_sql HTTP ${standalRes.status}`
+            );
+          }
+
+          console.log("[Command Submit] standal_sql completed successfully:", standalJson);
+
+          // 处理standal_sql返回的数据
+          if (standalJson?.run_results?.run_result) {
+            localStorage.setItem(
+              "standalJson",
+              JSON.stringify({
+                anchIndex: standalJson.run_results?.run_result?.anchIndex,
+                segments: standalJson.run_results.run_result.segments,
+              })
+            );
+
+            const updatedRunResult = standalJson.run_results.run_result;
+            localStorage.setItem("run_result", JSON.stringify(updatedRunResult));
+
+            // 更新segments数据
+            const segments = updatedRunResult.segments || [];
+            const mapped = segments.map((seg: any) => ({
+              id: seg.segmentId || seg.id || seg.name,
+              name: seg.name,
+              segmentId: seg.segmentId || seg.id,
+              analysis: seg.analysis,
+              valueQuestions: seg.valueQuestions || [],
+            }));
+
+            setSegmentsData(mapped);
+            
+            // standal_sql执行完成后，更新版本列表并切换到最新版本
+            try {
+              await fetchVersions(false); // 先更新版本列表
+              await switchToLatestVersion(); // 切换到最新版本
+              console.log("[Command Submit] Version list updated after standal_sql");
+            } catch (error) {
+              console.warn("[Command Submit] Failed to update version list after standal_sql:", error);
+            }
+          }
+        } catch (standalError) {
+          console.error("[Command Submit] standal_sql request failed", standalError);
+          // standal_sql失败不影响changeset的成功，只记录错误
+        }
+      } else if (!shouldSkipStandalSql) {
+        console.warn("[Command Submit] No run_results available for standal_sql");
+      } else {
+        console.log("[Command Submit] Skipping standal_sql for command:", selectedCommand);
+      }
+
       setGenerationProgress(100);
 
       setSelectedCommand("");
