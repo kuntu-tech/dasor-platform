@@ -30,7 +30,7 @@ import { useSearchParams } from "next/navigation"
 
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
-  { id: "billing", label: "Usage & Billing", icon: CreditCard },
+  { id: "billing", label: "Billing", icon: CreditCard },
   { id: "payout", label: "Payout Account", icon: Wallet },
 ]
 
@@ -590,24 +590,17 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Bio */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Bio</label>
-            <textarea 
-              placeholder="Tell us about yourself"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
-              value={bio}
-              onChange={(event) => setBio(event.target.value)}
-              disabled={profileLoading}
-            />
-            <p className="text-sm text-muted-foreground">180 characters remaining</p>
-          </div>
+      
         </CardContent>
       </Card>
     </div>
   )
 
   const renderBillingContent = () => {
+    <div>
+    <h1 className="text-2xl font-bold">Billing</h1>
+  </div>
+
     // Show prompt when user is not logged in
     if (!user?.id) {
       return (
@@ -741,17 +734,17 @@ export default function SettingsPage() {
     // Note: Stripe Customer Portal does not support embedding inside an iframe (CSP limitation)
     if (billingPortalUrl) {
       return (
+          
         <div className="h-full w-full flex flex-col items-center justify-center p-8 space-y-6" style={{ minHeight: '600px' }}>
           <div className="text-center max-w-md">
+          <h2 className="text-2xl font-semibold mb-2">Billing Portal</h2>
+
             <div className="mb-4">
               <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
                 <ExternalLink className="h-8 w-8 text-primary" />
               </div>
             </div>
-            <h2 className="text-2xl font-semibold mb-2">Billing Portal</h2>
-            <p className="text-muted-foreground mb-6">
-              The Stripe Customer Portal must open in a new window so you can view and manage your subscription information.
-            </p>
+            
             <Button
               onClick={() => {
                 if (billingPortalUrl) {

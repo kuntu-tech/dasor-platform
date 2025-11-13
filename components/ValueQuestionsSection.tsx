@@ -691,15 +691,21 @@ export function ValueQuestionsSection({
                     animate={{
                       opacity: 1,
                     }}
-                    className="absolute inset-0 rounded-2xl"
+                    className="absolute inset-0 rounded-2xl flex items-center justify-center"
                     style={{
-                      background:
-                        "radial-gradient(circle at center, rgba(0, 0, 0, 0.3) 0%, transparent 70%)",
-                      filter: "blur(20px)",
+                      background: "transparent",
                       zIndex: -1,
                       transform: "scaleY(2.5)",
                     }}
-                  />
+                  >
+                    <div
+                      className="w-32 h-32 rounded-full"
+                      style={{
+                        background: "radial-gradient(circle, rgba(16, 185, 129, 0.6) 0%, transparent 70%)",
+                        filter: "blur(20px)",
+                      }}
+                    />
+                  </motion.div>
                 )}
               </motion.button>
             );
