@@ -103,7 +103,7 @@ export function QuestionSelectionModal({
               </div>
               <button
                 onClick={handleCancel}
-                className="rounded-full p-2 transition-colors hover:bg-gray-100"
+                className="rounded-full p-2 transition-colors hover:bg-gray-100 cursor-pointer"
                 aria-label="Close modal"
               >
                 <XIcon className="h-5 w-5 text-gray-600" />
@@ -129,7 +129,7 @@ export function QuestionSelectionModal({
                         <button
                           key={question.id}
                           onClick={() => setSelectedQuestionId(question.id)}
-                          className={`w-full rounded-2xl border px-4 py-3 text-left transition-colors ${
+                          className={`w-full rounded-2xl border px-4 py-3 text-left transition-colors cursor-pointer ${
                             isActive
                               ? "border-gray-900 bg-gray-900/5"
                               : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
@@ -184,14 +184,14 @@ export function QuestionSelectionModal({
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   onClick={handleCancel}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirm}
                   disabled={!selectedQuestionId}
-                  className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-900 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
+                  className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-900 cursor-pointer disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
                 >
                   {commandText === "edit question" ? "Choose Question" : "Confirm Delete"}
                 </button>
