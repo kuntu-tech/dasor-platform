@@ -283,12 +283,12 @@ export default function OAuthCallbackPage() {
             
             const callbackController = new AbortController();
             abortControllers.current.callback = callbackController;
-            // Increased timeout to 35 seconds to account for service initialization
+            // Increased timeout to 45 seconds to account for service initialization and network delays
             const callbackTimeout = window.setTimeout(() => {
               const elapsed = Date.now() - startTime;
               console.warn("⏱️ OAuth callback timeout after", elapsed, "ms");
               callbackController.abort();
-            }, 35000);
+            }, 45000);
 
             let response: Response;
             try {
