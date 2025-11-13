@@ -43,7 +43,7 @@ const Settings = ({ open, onOpenChange }: SettingsProps) => {
                 }`}
               >
                 <CreditCard className="h-4 w-4" />
-                Usage & Billing
+                Billing
               </button>
 
               <button
@@ -68,7 +68,7 @@ const Settings = ({ open, onOpenChange }: SettingsProps) => {
 
             {activeSection === "usage" && (
               <div>
-                <h2 className="mb-2 text-3xl font-semibold">Usage & Billing</h2>
+                <h2 className="mb-2 text-3xl font-semibold">Billing</h2>
                 {usageMode === "overview" && (
                   <p className="text-muted-foreground">View your usage statistics and manage billing</p>
                 )}

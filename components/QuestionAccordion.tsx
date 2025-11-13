@@ -24,8 +24,8 @@ export function QuestionAccordion({
           </div>
         </div>
         {/* Question Content */}
-        <div className="flex-1 min-w-0">
-          <p className="text-base font-medium text-gray-600 mb-1">
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <p className="text-base font-medium text-gray-600 mb-1 break-words">
             {question.text}
           </p>
         </div>

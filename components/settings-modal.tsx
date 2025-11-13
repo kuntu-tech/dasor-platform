@@ -29,7 +29,7 @@ import { supabase } from "@/lib/supabase"
 
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
-  { id: "billing", label: "Usage & Billing", icon: CreditCard },
+  { id: "billing", label: "Billing", icon: CreditCard },
   { id: "payout", label: "Payout Account", icon: Wallet },
 ]
 
@@ -598,27 +598,21 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
             </div>
           </div>
 
-          {/* Bio */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Bio</label>
-            <textarea 
-              placeholder="Tell us about yourself"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
-              value={bio}
-              onChange={(event) => setBio(event.target.value)}
-              disabled={profileLoading}
-            />
-            <p className="text-sm text-muted-foreground">180 characters remaining</p>
-          </div>
+          
         </CardContent>
       </Card>
     </div>
   )
 
   const renderBillingContent = () => {
+    <div>
+    <h1 className="text-2xl font-bold">Billing</h1>
+  </div>
+
     // Show prompt when the user is not signed in
     if (!user?.id) {
       return (
+        
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <p className="text-muted-foreground">Please log in to view billing information</p>
@@ -756,10 +750,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
                 <ExternalLink className="h-8 w-8 text-primary" />
               </div>
             </div>
-            <h2 className="text-2xl font-semibold mb-2">Billing Portal</h2>
-            <p className="text-muted-foreground mb-6">
-              The Stripe Customer Portal must open in a new window so you can view and manage your subscription information.
-            </p>
+           
             <Button
               onClick={() => {
                 if (billingPortalUrl) {

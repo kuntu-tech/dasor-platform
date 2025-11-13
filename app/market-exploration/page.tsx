@@ -90,7 +90,7 @@ type CommandItem = {
 };
 
 type SegmentSelectionCommand =
-  | "correct segment"
+  | "Correct Segment"
   | "edit d1"
   | "edit d2"
   | "edit d3"
@@ -101,7 +101,7 @@ type SegmentSelectionCommand =
   | "rename segment";
 
 const SEGMENT_SELECTION_COMMANDS = new Set<SegmentSelectionCommand>([
-  "correct segment",
+  "Correct Segment",
   "edit d1",
   "edit d2",
   "edit d3",
@@ -121,18 +121,15 @@ const RENAME_SEGMENT_FLOW_COMMANDS = new Set<string>(["rename segment"]);
 
 const deriveCommandKey = (item: CommandItem): string | null => {
   const normalized = item.label.toLowerCase();
-  if (
-    normalized.includes("corrent segment") ||
-    normalized.includes("correct segment")
-  )
-    return "correct segment";
-  if (normalized.includes("add new segment manually")) return "add segment";
+  if (normalized.includes("correct segment"))
+    return "Correct Segment";
+  if (normalized.includes("add segments") || normalized.includes("add new segment manually")) return "add segment";
   if (normalized.includes("merge segments")) return "merge segments";
-  if (normalized.includes("market size")) return "edit d1";
-  if (normalized.includes("persona")) return "edit d2";
-  if (normalized.includes("conversion")) return "edit d3";
-  if (normalized.includes("competitive")) return "edit d4";
-  if (normalized.includes("add new value question")) return "add question";
+  if (normalized.includes("market size") || normalized.includes("adjust market size")) return "edit d1";
+  if (normalized.includes("persona") || normalized.includes("adjust persona")) return "edit d2";
+  if (normalized.includes("conversion") || normalized.includes("adjust conversion rhythm")) return "edit d3";
+  if (normalized.includes("competitive") || normalized.includes("adjust competitive moat")) return "edit d4";
+  if (normalized.includes("add new value question") || normalized.includes("add value questions")) return "add question";
   if (normalized.includes("delete value question")) return "delete question";
   if (normalized.includes("adjust value question")) return "edit question";
   if (normalized.includes("rename segment")) return "rename segment";
@@ -141,7 +138,7 @@ const deriveCommandKey = (item: CommandItem): string | null => {
 
 const COMMAND_LIST: CommandItem[] = [
   {
-    label: "Corrent segment",
+    label: "Correct Segment",
     command: {
       intent: "segment_edit",
       selector: "segments[segmentId=xxx]",
@@ -150,7 +147,7 @@ const COMMAND_LIST: CommandItem[] = [
     },
   },
   {
-    label: "Add new segment manually",
+    label: "Add segments",
     command: {
       intent: "segment_add",
       target: "segments",
@@ -169,7 +166,7 @@ const COMMAND_LIST: CommandItem[] = [
     },
   },
   {
-    label: "Edit Market Size to",
+    label: "Adjust market size.",
     command: {
       intent: "analysis_edit",
       selector: "segments[segmentId=xxx].analysis.D1",
@@ -178,7 +175,7 @@ const COMMAND_LIST: CommandItem[] = [
     },
   },
   {
-    label: "Edit Persona to",
+    label: "Adjust persona",
     command: {
       intent: "analysis_edit",
       target: "analysis",
@@ -187,7 +184,7 @@ const COMMAND_LIST: CommandItem[] = [
     },
   },
   {
-    label: "Adjust D3 Conversion Rhythm",
+    label: "Adjust conversion rhythm",
     command: {
       intent: "analysis_edit",
       target: "analysis",
@@ -196,7 +193,7 @@ const COMMAND_LIST: CommandItem[] = [
     },
   },
   {
-    label: "Adjust D4 Competitive Moat",
+    label: "Adjust competitive moat",
     command: {
       intent: "analysis_edit",
       target: "analysis",
@@ -205,7 +202,7 @@ const COMMAND_LIST: CommandItem[] = [
     },
   },
   {
-    label: "Add new Value Question",
+    label: "Add value questions",
     command: {
       intent: "value_question_add",
       target: "valueQuestions",
@@ -214,7 +211,7 @@ const COMMAND_LIST: CommandItem[] = [
     },
   },
   {
-    label: "Delete Value Question",
+    label: "Delete value question",
     command: {
       intent: "value_question_remove",
       target: "valueQuestions",
@@ -223,7 +220,7 @@ const COMMAND_LIST: CommandItem[] = [
     },
   },
   {
-    label: "Adjust Value Question",
+    label: "Adjust value question",
     command: {
       intent: "value_question_edit",
       target: "valueQuestions",
@@ -614,6 +611,8 @@ export default function MarketExplorationPage({
   const [selectedCommandPayload, setSelectedCommandPayload] =
     useState<CommandPayload | null>(null);
   const [selectedSegmentTag, setSelectedSegmentTag] = useState("");
+  const [selectedMergeSegments, setSelectedMergeSegments] = useState<string[]>([]);
+  const [isMergeSegmentsExpanded, setIsMergeSegmentsExpanded] = useState(false);
   const [isSegmentDropdownOpen, setIsSegmentDropdownOpen] = useState(false);
   const [segmentSearchQuery, setSegmentSearchQuery] = useState("");
   const [isSendButtonHovered, setIsSendButtonHovered] = useState(false);
@@ -630,7 +629,7 @@ export default function MarketExplorationPage({
 
   const commandIconMap = useMemo(() => {
     return {
-      "correct segment": <CheckCircle2 className="h-4 w-4" />,
+      "Correct Segment": <CheckCircle2 className="h-4 w-4" />,
       "add segment": <Plus className="h-4 w-4" />,
       "merge segments": <GitMerge className="h-4 w-4" />,
       "edit d1": <BarChart3 className="h-4 w-4" />,
@@ -853,6 +852,8 @@ export default function MarketExplorationPage({
   const clearSelectedSegment = useCallback(() => {
     resetQuestionSelection();
     setSelectedSegmentTag("");
+    setSelectedMergeSegments([]);
+    setIsMergeSegmentsExpanded(false);
     setSelectedCommandPayload((prev) => {
       if (!prev) return prev;
       if (!SEGMENT_SELECTION_COMMANDS.has(selectedCommand as SegmentSelectionCommand)) return prev;
@@ -896,9 +897,30 @@ export default function MarketExplorationPage({
 
   const handleSegmentSelect = (segment: string) => {
     setSelectedSegmentTag(segment);
+    
+    // If no command is selected, set "Correct Segment" command
+    if (!selectedCommand) {
+      const correctSegmentCommand = COMMAND_LIST.find(
+        (item) => deriveCommandKey(item) === "Correct Segment"
+      );
+      if (correctSegmentCommand) {
+        setSelectedCommand("Correct Segment");
+        setSelectedCommandPayload({ ...correctSegmentCommand.command });
+      }
+    }
+    
+    // Remove @ symbol and everything after it from input, since segment is shown as a tag
     setInputValue((prev) => {
       const sanitized = sanitizeUserPrompt(prev);
-      return sanitized ? `${sanitized} ` : "";
+      const lastAtIndex = sanitized?.lastIndexOf("@") ?? -1;
+      
+      if (lastAtIndex >= 0) {
+        // Remove @ and everything after it
+        const beforeAt = sanitized.substring(0, lastAtIndex).trim();
+        return beforeAt;
+      }
+      // If no @ exists, return empty or keep existing content
+      return sanitized || "";
     });
     resetSegmentDropdown();
   };
@@ -989,7 +1011,7 @@ export default function MarketExplorationPage({
       }
       setSelectedCommand(commandKey);
       setSelectedCommandPayload(commandItem.command);
-      if (commandKey !== "correct segment") {
+      if (commandKey !== "Correct Segment") {
         setSelectedSegmentTag("");
       }
       console.log("[Command Selected]", commandItem.command);
@@ -1275,7 +1297,7 @@ export default function MarketExplorationPage({
             .trim();
         }
         const basePayload =
-          selectedCommand === "correct segment" && selectedCommandPayload
+          selectedCommand === "Correct Segment" && selectedCommandPayload
             ? selectedCommandPayload
             : {
                 intent: "segment_edit",
@@ -1577,6 +1599,8 @@ export default function MarketExplorationPage({
             setSelectedCommand("");
             setSelectedCommandPayload(null);
             setSelectedSegmentTag("");
+            setSelectedMergeSegments([]);
+            setIsMergeSegmentsExpanded(false);
             setGenerationProgress(0);
             setRefreshType("none");
           }, 1000);
@@ -1586,6 +1610,8 @@ export default function MarketExplorationPage({
           setSelectedCommand("");
           setSelectedCommandPayload(null);
           setSelectedSegmentTag("");
+          setSelectedMergeSegments([]);
+          setIsMergeSegmentsExpanded(false);
           setGenerationProgress(0);
           setRefreshType("none");
           setRefreshKey((prev) => prev + 1);
@@ -1669,6 +1695,7 @@ export default function MarketExplorationPage({
 
         setSelectedCommand(currentCommandKey);
         setSelectedCommandPayload(updatedPayload);
+        setSelectedMergeSegments(value); // Store selected segments for display
         console.log("[Command Segments Selected for Merge]", {
           command: currentCommandKey,
           segmentNames: value,
@@ -1706,7 +1733,7 @@ export default function MarketExplorationPage({
 
       const currentCommandKey = SEGMENT_SELECTION_COMMANDS.has(selectedCommand as SegmentSelectionCommand)
         ? selectedCommand
-        : "correct segment";
+        : "Correct Segment";
 
       const templatePayload =
         selectedCommandPayload ??
@@ -1781,6 +1808,8 @@ export default function MarketExplorationPage({
     setSelectedCommand("");
     setSelectedCommandPayload(null);
     setSelectedSegmentTag("");
+    setSelectedMergeSegments([]);
+    setIsMergeSegmentsExpanded(false);
     setRenameTargetSegmentName("");
     setRenameNewSegmentName("");
     setInputValue("");
@@ -2213,6 +2242,8 @@ export default function MarketExplorationPage({
       setSelectedCommand("");
       setSelectedCommandPayload(null);
       setSelectedSegmentTag("");
+      setSelectedMergeSegments([]);
+      setIsMergeSegmentsExpanded(false);
       setRenameTargetSegmentName("");
       setRenameNewSegmentName("");
       setInputValue("");
@@ -2322,7 +2353,7 @@ export default function MarketExplorationPage({
 
                           await loadVersionData(version.runId);
                         }}
-                        className={`w-full text-left px-4 py-2 text-sm ${
+                        className={`w-full text-left px-4 py-2 text-sm cursor-pointer ${
                           selectedVersion === version.display
                             ? "bg-gray-100 font-medium text-gray-900 hover:bg-gray-100"
                             : "text-gray-700 hover:bg-gray-50"
@@ -2343,7 +2374,7 @@ export default function MarketExplorationPage({
             <button
               onClick={handleGenerateApp}
               disabled={isGenerating}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white relative overflow-hidden"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white relative overflow-hidden"
             >
               <ArrowRight className="w-4 h-4" />
               <span className="whitespace-nowrap flex items-center gap-1">
@@ -2461,7 +2492,7 @@ export default function MarketExplorationPage({
                 </div>
                 <button
                   onClick={handleRenameModalCancel}
-                  className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  className="p-2 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
                   aria-label="Close rename modal"
                 >
                   <X className="w-4 h-4" />
@@ -2483,7 +2514,7 @@ export default function MarketExplorationPage({
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   onClick={handleRenameModalCancel}
-                  className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -2492,7 +2523,7 @@ export default function MarketExplorationPage({
                   disabled={!renameNewSegmentName.trim()}
                   className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
                     renameNewSegmentName.trim()
-                      ? "bg-black text-white hover:bg-gray-900"
+                      ? "bg-black text-white hover:bg-gray-900 cursor-pointer"
                       : "bg-gray-200 text-gray-500 cursor-not-allowed"
                   }`}
                 >
@@ -2525,7 +2556,7 @@ export default function MarketExplorationPage({
                       <button
                         key={segment}
                         onClick={() => handleSegmentSelect(segment)}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-900 font-medium text-sm"
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-900 font-medium text-sm cursor-pointer"
                       >
                         {segment}
                       </button>
@@ -2540,7 +2571,7 @@ export default function MarketExplorationPage({
                           setSegmentModalCommand("clipboard");
                           setIsSegmentModalOpen(true);
                         }}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600 font-medium text-sm flex items-center justify-between"
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600 font-medium text-sm flex items-center justify-between cursor-pointer"
                       >
                         <span>View all segments</span>
                         <ChevronDown className="w-4 h-4" />
@@ -2572,7 +2603,7 @@ export default function MarketExplorationPage({
                           setSelectedSegmentTag("");
                           setInputValue("");
                         }}
-                        className="hover:bg-gray-200 rounded p-0.5 transition-colors"
+                        className="hover:bg-gray-200 rounded p-0.5 transition-colors cursor-pointer"
                         aria-label="Clear command"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -2593,11 +2624,124 @@ export default function MarketExplorationPage({
                       <span>{selectedSegmentTag}</span>
                       <button
                         onClick={clearSelectedSegment}
-                        className="hover:bg-emerald-100 rounded p-0.5 transition-colors"
+                        className="hover:bg-emerald-100 rounded p-0.5 transition-colors cursor-pointer"
                         aria-label="Clear selected segment"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <AnimatePresence>
+                  {selectedMergeSegments.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex-shrink-0 w-full flex flex-wrap items-center gap-2"
+                      style={{ marginTop: "10px" }}
+                    >
+                      {/* First segment with count */}
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium flex-shrink-0 cursor-pointer hover:bg-emerald-100 transition-colors"
+                        onClick={() => {
+                          if (selectedMergeSegments.length > 1) {
+                            setIsMergeSegmentsExpanded(!isMergeSegmentsExpanded);
+                          }
+                        }}
+                      >
+                        <span className="truncate max-w-[180px]" title={selectedMergeSegments[0]}>
+                          {selectedMergeSegments[0]}
+                        </span>
+                        {selectedMergeSegments.length > 1 && (
+                          <span className="text-emerald-600 font-semibold">
+                            (+{selectedMergeSegments.length - 1})
+                          </span>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updated = selectedMergeSegments.filter((_, i) => i !== 0);
+                            setSelectedMergeSegments(updated);
+                            if (updated.length === 0) {
+                              setSelectedCommand("");
+                              setSelectedCommandPayload(null);
+                              setIsMergeSegmentsExpanded(false);
+                            } else {
+                              const segmentIds = updated.map((segmentName) => {
+                                return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
+                              });
+                              setSelectedCommandPayload((prev) => {
+                                if (!prev) return prev;
+                                return {
+                                  ...prev,
+                                  segments: segmentIds,
+                                };
+                              });
+                            }
+                          }}
+                          className="hover:bg-emerald-200 rounded p-0.5 transition-colors cursor-pointer"
+                          aria-label="Remove segment"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </motion.div>
+                      {/* Additional segments (shown when expanded) */}
+                      {isMergeSegmentsExpanded && selectedMergeSegments.slice(1).map((segment, index) => (
+                        <motion.div
+                          key={segment}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.2, delay: index * 0.05 }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium flex-shrink-0"
+                        >
+                          <span className="truncate max-w-[180px]" title={segment}>{segment}</span>
+                          <button
+                            onClick={() => {
+                              const updated = selectedMergeSegments.filter(s => s !== segment);
+                              setSelectedMergeSegments(updated);
+                              if (updated.length === 0) {
+                                setSelectedCommand("");
+                                setSelectedCommandPayload(null);
+                                setIsMergeSegmentsExpanded(false);
+                              } else if (updated.length === 1) {
+                                setIsMergeSegmentsExpanded(false);
+                                const segmentIds = updated.map((segmentName) => {
+                                  return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
+                                });
+                                setSelectedCommandPayload((prev) => {
+                                  if (!prev) return prev;
+                                  return {
+                                    ...prev,
+                                    segments: segmentIds,
+                                  };
+                                });
+                              } else {
+                                const segmentIds = updated.map((segmentName) => {
+                                  return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
+                                });
+                                setSelectedCommandPayload((prev) => {
+                                  if (!prev) return prev;
+                                  return {
+                                    ...prev,
+                                    segments: segmentIds,
+                                  };
+                                });
+                              }
+                            }}
+                            className="hover:bg-emerald-100 rounded p-0.5 transition-colors cursor-pointer"
+                            aria-label="Remove segment"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </motion.div>
+                      ))}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -2616,7 +2760,7 @@ export default function MarketExplorationPage({
                       </span>
                       <button
                         onClick={clearSelectedQuestion}
-                        className="hover:bg-blue-100 rounded p-0.5 transition-colors"
+                        className="hover:bg-blue-100 rounded p-0.5 transition-colors cursor-pointer"
                         aria-label="Change selected question"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -2655,7 +2799,7 @@ export default function MarketExplorationPage({
                     disabled={isGenerating || !selectedCommand}
                     className={`p-2 rounded-lg transition-all duration-200 ${
                       !isGenerating && selectedCommand
-                        ? "text-black hover:bg-gray-100"
+                        ? "text-black hover:bg-gray-100 cursor-pointer"
                         : "text-gray-300 cursor-not-allowed"
                     }`}
                     aria-label="Send message"

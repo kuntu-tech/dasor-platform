@@ -11,7 +11,7 @@ const PathSelection = ({ onSelect }: PathSelectionProps) => {
         <div className="grid gap-8 md:grid-cols-2">
           <button
             onClick={() => onSelect(true)}
-            className="group relative overflow-hidden rounded-xl border-2 border-border bg-card p-6 text-left transition-all hover:scale-[1.02] hover:border-blue-400 hover:shadow-lg active:scale-[0.98]"
+            className="group relative overflow-hidden rounded-xl border-2 border-border bg-card p-6 text-left transition-all hover:scale-[1.02] hover:border-primary hover:shadow-lg active:scale-[0.98]"
           >
             <div className="mb-3 flex items-center gap-3">
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
