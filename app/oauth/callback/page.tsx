@@ -359,6 +359,8 @@ export default function OAuthCallbackPage() {
                     ? sessionStorage.getItem("oauth_return_path") || "/"
                     : "/";
                 if (typeof window !== "undefined") {
+                  // Remember to show connected state once we return to settings
+                  sessionStorage.setItem("payout_show_connected", "true");
                   sessionStorage.removeItem("oauth_return_path");
                 }
                 // Navigate back with query parameter to open the payout tab
