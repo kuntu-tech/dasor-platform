@@ -413,7 +413,7 @@ export default function OAuthCallbackPage() {
       abortControllers.current = {};
       setStatus("error");
       setMessage("Authorization timed out, please try again.");
-    }, 15000);
+    }, 50000);
 
     return () => {
       window.clearTimeout(timeoutId);
