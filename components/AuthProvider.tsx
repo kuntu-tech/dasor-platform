@@ -315,7 +315,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data: { session: null };
           error: Error;
         }>((_, reject) =>
-          setTimeout(() => reject(new Error("getSession timeout")), 30000)
+          setTimeout(() => reject(new Error("getSession timeout")), 25000)
         );
 
         let sessionResult;
@@ -327,31 +327,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (timeoutError: any) {
           if (timeoutError.message === "getSession timeout") {
             console.warn("⚠️ [AuthProvider] getSession timeout, retrying...");
-            // Retry once with a fresh attempt and longer timeout
+            // Retry once with a fresh attempt
             try {
               sessionResult = (await Promise.race([
                 supabase.auth.getSession(),
-                new Promise<{ data: { session: null }; error: Error }>(
-                  (_, reject) =>
-                    setTimeout(
-                      () => reject(new Error("getSession retry timeout")),
-                      40000
-                    )
-                ),
+                // new Promise<{ data: { session: null }; error: Error }>(
+                //   (_, reject) =>
+                //     setTimeout(
+                //       () => reject(new Error("getSession retry timeout")),
+                //       25000
+                //     )
+                // ),
               ])) as any;
-            } catch (retryError: any) {
-              console.log(
+            } catch (retryError) {
+              console.error(
                 "❌ [AuthProvider] getSession retry also failed:",
                 retryError
               );
-              // Graceful degradation: set session to null and continue
-              console.warn(
-                "⚠️ [AuthProvider] Continuing without session due to timeout"
-              );
-              setSession(null);
-              setUser(null);
-              setLoading(false);
-              return;
+              throw retryError;
             }
           } else {
             throw timeoutError;
