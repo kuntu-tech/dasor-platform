@@ -8,8 +8,7 @@ const APISIX_ADMIN_URL =
   process.env.APISIX_ADMIN_URL || "http://172.31.8.49:9261";
 const APISIX_API_KEY =
   process.env.APISIX_API_KEY || "edd1c9f034335f136f87ad84b625c8f1";
-const APISIX_ROUTE_ID =
-  process.env.APISIX_ROUTE_ID || "593055411876135622";
+const APISIX_ROUTE_ID = process.env.APISIX_ROUTE_ID || "593055411876135622";
 
 /**
  * 从 MCP URL 中提取三级域名
@@ -86,7 +85,7 @@ async function updateApisixRoute(
 
     if (!patchResponse.ok) {
       const errorText = await patchResponse.text();
-      console.error(
+      console.log(
         `Failed to update APISIX route: ${patchResponse.status}`,
         errorText
       );
@@ -98,7 +97,7 @@ async function updateApisixRoute(
     );
     return true;
   } catch (err) {
-    console.error("Error updating APISIX route:", err);
+    console.log("Error updating APISIX route:", err);
     return false;
   }
 }
@@ -128,10 +127,7 @@ export async function GET(
     }
 
     if (!data) {
-      return NextResponse.json(
-        { error: "App not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "App not found" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, data });
@@ -303,7 +299,10 @@ async function handleUpdate(
     if (error) {
       console.log("Failed to update app:", error);
       return NextResponse.json(
-        { error: "Failed to update app", details: error.message || String(error) },
+        {
+          error: "Failed to update app",
+          details: error.message || String(error),
+        },
         { status: 500 }
       );
     }
@@ -326,7 +325,7 @@ async function handleUpdate(
             ? updatedName.trim().toLowerCase()
             : updatedName;
         updateApisixRoute(normalizedName, subdomain).catch((err) => {
-          console.error("Failed to update APISIX route asynchronously:", err);
+          console.log("Failed to update APISIX route asynchronously:", err);
         });
       } else {
         console.warn(

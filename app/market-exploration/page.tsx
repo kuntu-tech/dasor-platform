@@ -122,20 +122,45 @@ const RENAME_SEGMENT_FLOW_COMMANDS = new Set<string>(["rename segment"]);
 
 const deriveCommandKey = (item: CommandItem): string | null => {
   const normalized = item.label.toLowerCase();
-  if (normalized.includes("correct segment"))
-    return "Correct Segment";
-  if (normalized.includes("add segments") || normalized.includes("add new segment manually")) return "add segment";
+  if (normalized.includes("correct segment")) return "Correct Segment";
+  if (
+    normalized.includes("add segments") ||
+    normalized.includes("add new segment manually")
+  )
+    return "add segment";
   if (normalized.includes("merge segments")) return "merge segments";
   if (normalized.includes("delete segments")) return "delete segments";
-  if (normalized.includes("market size") || normalized.includes("adjust market size")) return "edit d1";
-  if (normalized.includes("persona") || normalized.includes("adjust persona")) return "edit d2";
-  if (normalized.includes("conversion") || normalized.includes("adjust conversion rhythm")) return "edit d3";
-  if (normalized.includes("competitive") || normalized.includes("adjust competitive moat")) return "edit d4";
-  if (normalized.includes("add new value question") || normalized.includes("add value questions")) return "add question";
+  if (
+    normalized.includes("market size") ||
+    normalized.includes("adjust market size")
+  )
+    return "edit d1";
+  if (normalized.includes("persona") || normalized.includes("adjust persona"))
+    return "edit d2";
+  if (
+    normalized.includes("conversion") ||
+    normalized.includes("adjust conversion rhythm")
+  )
+    return "edit d3";
+  if (
+    normalized.includes("competitive") ||
+    normalized.includes("adjust competitive moat")
+  )
+    return "edit d4";
+  if (
+    normalized.includes("add new value question") ||
+    normalized.includes("add value questions")
+  )
+    return "add question";
   if (normalized.includes("delete value question")) return "delete question";
   if (normalized.includes("adjust value question")) return "edit question";
   if (normalized.includes("rename segment")) return "rename segment";
-  if (normalized.includes("reanalyse") || normalized.includes("re-analyse") || normalized.includes("reanalyze")) return "reanalyse";
+  if (
+    normalized.includes("reanalyse") ||
+    normalized.includes("re-analyse") ||
+    normalized.includes("reanalyze")
+  )
+    return "reanalyse";
   return null;
 };
 
@@ -401,7 +426,7 @@ export default function MarketExplorationPage({
           console.log("Failed to parse run_result:", e);
         }
       }
-      
+
       if (taskId && user?.id) {
         const apiUrl = `/api/run-results?user_id=${user.id}&task_id=${taskId}`;
         const response = await fetch(apiUrl, {
@@ -409,7 +434,7 @@ export default function MarketExplorationPage({
           headers: { "Content-Type": "application/json" },
           cache: "no-store",
         });
-        
+
         if (response.ok) {
           const result = await response.json();
           const runResults = result.data || [];
@@ -420,22 +445,28 @@ export default function MarketExplorationPage({
               const numB = parseInt(b.run_id?.match(/r_(\d+)/)?.[1] || "0");
               return numB - numA;
             });
-            
+
             const latestRunId = runResults[0].run_id;
             const match = latestRunId.match(/r_(\d+)/);
             const number = match ? match[1] : "";
             const latestVersionDisplay = number ? `v${number}` : latestRunId;
-            
+
             // Switch to the latest version and load data
             setSelectedVersion(latestVersionDisplay);
             await loadVersionData(latestRunId);
-            console.log("[Switch Version] Switched to latest version:", latestVersionDisplay);
+            console.log(
+              "[Switch Version] Switched to latest version:",
+              latestVersionDisplay
+            );
             return true;
           }
         }
       }
     } catch (error) {
-      console.warn("[Switch Version] Failed to switch to latest version:", error);
+      console.warn(
+        "[Switch Version] Failed to switch to latest version:",
+        error
+      );
     }
     return false;
   };
@@ -577,7 +608,9 @@ export default function MarketExplorationPage({
 
     // If data already exists, treat as first-time entry and skip API call
     if (runResultStr && marketsDataStr) {
-      console.log("First-time generation entry detected, skip version list API call");
+      console.log(
+        "First-time generation entry detected, skip version list API call"
+      );
 
       // Pull version info from localStorage when possible
       try {
@@ -624,17 +657,21 @@ export default function MarketExplorationPage({
   const [versionMap, setVersionMap] = useState<Map<string, string>>(new Map()); // display -> runId mapping
   // task_id is only read from run_result, not saved in state, not updated
   const [selectedSegmentName, setSelectedSegmentName] = useState("");
-  const [targetSegmentNameForCarousel, setTargetSegmentNameForCarousel] = useState<string | undefined>(undefined);
+  const [targetSegmentNameForCarousel, setTargetSegmentNameForCarousel] =
+    useState<string | undefined>(undefined);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isSegmentModalOpen, setIsSegmentModalOpen] = useState(false);
-  const [segmentModalMode, setSegmentModalMode] =
-    useState<"select" | "input" | "multiSelect">("select");
+  const [segmentModalMode, setSegmentModalMode] = useState<
+    "select" | "input" | "multiSelect"
+  >("select");
   const [segmentModalCommand, setSegmentModalCommand] = useState("");
   const [selectedCommand, setSelectedCommand] = useState("");
   const [selectedCommandPayload, setSelectedCommandPayload] =
     useState<CommandPayload | null>(null);
   const [selectedSegmentTag, setSelectedSegmentTag] = useState("");
-  const [selectedMergeSegments, setSelectedMergeSegments] = useState<string[]>([]);
+  const [selectedMergeSegments, setSelectedMergeSegments] = useState<string[]>(
+    []
+  );
   const [isMergeSegmentsExpanded, setIsMergeSegmentsExpanded] = useState(false);
   const [isSegmentDropdownOpen, setIsSegmentDropdownOpen] = useState(false);
   const [segmentSearchQuery, setSegmentSearchQuery] = useState("");
@@ -664,7 +701,7 @@ export default function MarketExplorationPage({
       "delete question": <Trash2 className="h-4 w-4" />,
       "edit question": <Edit className="h-4 w-4" />,
       "rename segment": <Tag className="h-4 w-4" />,
-      "reanalyse": <RotateCcw className="h-4 w-4" />,
+      reanalyse: <RotateCcw className="h-4 w-4" />,
     } as Record<string, React.ReactNode>;
   }, []);
 
@@ -676,7 +713,11 @@ export default function MarketExplorationPage({
 
       const target = segmentsData.find((seg: any) => {
         const id =
-          seg?.segmentId || seg?.segment_id || seg?.id || seg?.name || seg?.title;
+          seg?.segmentId ||
+          seg?.segment_id ||
+          seg?.id ||
+          seg?.name ||
+          seg?.title;
         const name = seg?.name || seg?.title;
         return (
           (segmentId && id === segmentId) ||
@@ -695,7 +736,9 @@ export default function MarketExplorationPage({
             q?.id ??
             q?.questionId ??
             q?.question_id ??
-            (q?.question ? `${segmentId || segmentName || "segment"}-${index}` : null);
+            (q?.question
+              ? `${segmentId || segmentName || "segment"}-${index}`
+              : null);
           const text = q?.question ?? q?.text ?? "";
           if (!rawId || !text) return null;
 
@@ -781,11 +824,7 @@ export default function MarketExplorationPage({
       questionModalSegmentName
     );
     setQuestionOptions(options);
-  }, [
-    buildQuestionOptions,
-    questionModalSegmentId,
-    questionModalSegmentName,
-  ]);
+  }, [buildQuestionOptions, questionModalSegmentId, questionModalSegmentName]);
 
   const sanitizeUserPrompt = useCallback((value: string) => {
     return value
@@ -795,14 +834,17 @@ export default function MarketExplorationPage({
       .trim();
   }, []);
 
-  const resolveTargetFromSelector = useCallback((selector: string) => {
-    if (!selector) return selectedCommand || "general";
-    if (selector.includes(".analysis")) return "analysis";
-    if (selector.includes("valueQuestions")) return "valueQuestions";
-    if (selector.includes("domain")) return "domain";
-    if (selector.includes("segments")) return "segment";
-    return selectedCommand || "general";
-  }, [selectedCommand]);
+  const resolveTargetFromSelector = useCallback(
+    (selector: string) => {
+      if (!selector) return selectedCommand || "general";
+      if (selector.includes(".analysis")) return "analysis";
+      if (selector.includes("valueQuestions")) return "valueQuestions";
+      if (selector.includes("domain")) return "domain";
+      if (selector.includes("segments")) return "segment";
+      return selectedCommand || "general";
+    },
+    [selectedCommand]
+  );
 
   useEffect(() => {
     if (segmentsData && segmentsData.length > 0 && !selectedSegmentName) {
@@ -907,7 +949,7 @@ export default function MarketExplorationPage({
     // Sync with 3D carousel: update selectedSegmentName and targetSegmentNameForCarousel
     setSelectedSegmentName(segment);
     setTargetSegmentNameForCarousel(segment);
-    
+
     // If no command is selected, set "Correct Segment" command
     if (!selectedCommand) {
       const correctSegmentCommand = COMMAND_LIST.find(
@@ -918,12 +960,12 @@ export default function MarketExplorationPage({
         setSelectedCommandPayload({ ...correctSegmentCommand.command });
       }
     }
-    
+
     // Remove @ symbol and everything after it from input, since segment is shown as a tag
     setInputValue((prev) => {
       const sanitized = sanitizeUserPrompt(prev);
       const lastAtIndex = sanitized?.lastIndexOf("@") ?? -1;
-      
+
       if (lastAtIndex >= 0) {
         // Remove @ and everything after it
         const beforeAt = sanitized.substring(0, lastAtIndex).trim();
@@ -942,9 +984,7 @@ export default function MarketExplorationPage({
           (item) => deriveCommandKey(item) === command
         );
         if (!segmentCommand) {
-          console.warn(
-            `[Command] ${command} configuration missing`
-          );
+          console.warn(`[Command] ${command} configuration missing`);
           return;
         }
         resetQuestionSelection();
@@ -993,14 +1033,16 @@ export default function MarketExplorationPage({
         return;
       }
       resetQuestionSelection();
-      
+
       // Handle merge segments command with multi-select
       if (commandKey === "merge segments") {
         const mergeCommand = COMMAND_LIST.find(
           (item) => deriveCommandKey(item) === "merge segments"
         );
         if (!mergeCommand) {
-          console.warn("[Command] Merge segments command configuration missing");
+          console.warn(
+            "[Command] Merge segments command configuration missing"
+          );
           return;
         }
         setSelectedCommand("merge segments");
@@ -1014,14 +1056,16 @@ export default function MarketExplorationPage({
         setIsSegmentModalOpen(true);
         return;
       }
-      
+
       // Handle delete segments command with multi-select
       if (commandKey === "delete segments") {
         const deleteCommand = COMMAND_LIST.find(
           (item) => deriveCommandKey(item) === "delete segments"
         );
         if (!deleteCommand) {
-          console.warn("[Command] Delete segments command configuration missing");
+          console.warn(
+            "[Command] Delete segments command configuration missing"
+          );
           return;
         }
         setSelectedCommand("delete segments");
@@ -1035,8 +1079,10 @@ export default function MarketExplorationPage({
         setIsSegmentModalOpen(true);
         return;
       }
-      
-      if (SEGMENT_SELECTION_COMMANDS.has(commandKey as SegmentSelectionCommand)) {
+
+      if (
+        SEGMENT_SELECTION_COMMANDS.has(commandKey as SegmentSelectionCommand)
+      ) {
         handleSpecialCommand(commandKey as SegmentSelectionCommand);
         return;
       }
@@ -1299,10 +1345,12 @@ export default function MarketExplorationPage({
 
       // Determine run_id based on the selected version
       let baseRunId = versionMap.get(selectedVersion) || "";
-      
+
       // If not found in versionMap, try to find it in versions array
       if (!baseRunId && selectedVersion) {
-        const matchedVersion = versions.find(v => v.display === selectedVersion);
+        const matchedVersion = versions.find(
+          (v) => v.display === selectedVersion
+        );
         if (matchedVersion) {
           baseRunId = matchedVersion.runId;
         } else {
@@ -1313,7 +1361,7 @@ export default function MarketExplorationPage({
           }
         }
       }
-      
+
       // If still empty, use runResult or default
       if (!baseRunId) {
         baseRunId = runResult?.run_id || "r_1";
@@ -1597,7 +1645,7 @@ export default function MarketExplorationPage({
       } else {
         setGenerationProgress(100);
       }
-      
+
       // Don't clear targetSegmentNameForCarousel immediately
       // Keep it so the carousel maintains the selected segment after re-render
       // It will be cleared when a new segment is selected from the modal
@@ -1698,7 +1746,9 @@ export default function MarketExplorationPage({
         handleSpecialCommand("add-segment");
         return;
       }
-      if (SEGMENT_SELECTION_COMMANDS.has(normalized as SegmentSelectionCommand)) {
+      if (
+        SEGMENT_SELECTION_COMMANDS.has(normalized as SegmentSelectionCommand)
+      ) {
         handleSpecialCommand(normalized as SegmentSelectionCommand);
         return;
       }
@@ -1737,7 +1787,7 @@ export default function MarketExplorationPage({
       // For delete segments, need at least 1 segment and must leave at least 1 segment
       const isDeleteCommand = segmentModalCommand === "delete segments";
       const totalSegments = availableSegments.length;
-      
+
       if (isDeleteCommand) {
         // For delete: must select at least 1, and must leave at least 1
         if (value.length < 1) {
@@ -1758,10 +1808,16 @@ export default function MarketExplorationPage({
 
       // Convert segment names to segment IDs
       const segmentIds = value.map((segmentName) => {
-        return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
+        return (
+          segmentIdMap.get(segmentName) ||
+          segmentIdMap.get(segmentName.trim()) ||
+          segmentName
+        );
       });
 
-      const currentCommandKey = isDeleteCommand ? "delete segments" : "merge segments";
+      const currentCommandKey = isDeleteCommand
+        ? "delete segments"
+        : "merge segments";
       const templatePayload =
         selectedCommandPayload ??
         COMMAND_LIST.find(
@@ -1782,13 +1838,18 @@ export default function MarketExplorationPage({
         } else {
           setSelectedMergeSegments(value); // Store selected segments for display
         }
-        console.log(`[Command Segments Selected for ${isDeleteCommand ? 'Delete' : 'Merge'}]`, {
-          command: currentCommandKey,
-          segmentNames: value,
-          segmentIds,
-          payload: updatedPayload,
-        });
-        
+        console.log(
+          `[Command Segments Selected for ${
+            isDeleteCommand ? "Delete" : "Merge"
+          }]`,
+          {
+            command: currentCommandKey,
+            segmentNames: value,
+            segmentIds,
+            payload: updatedPayload,
+          }
+        );
+
         // Close modal but don't auto-send, wait for user to click submit button
         setIsSegmentModalOpen(false);
         // Don't clear input field, allow user to add additional text
@@ -1804,7 +1865,7 @@ export default function MarketExplorationPage({
       return;
     }
 
-    const trimmedValue = typeof value === 'string' ? value.trim() : '';
+    const trimmedValue = typeof value === "string" ? value.trim() : "";
     if (!trimmedValue) {
       setIsSegmentModalOpen(false);
       return;
@@ -1813,14 +1874,18 @@ export default function MarketExplorationPage({
     if (segmentModalMode === "select") {
       const segmentName = trimmedValue;
       const segmentId =
-        segmentIdMap.get(segmentName) || segmentIdMap.get(trimmedValue) || segmentName;
+        segmentIdMap.get(segmentName) ||
+        segmentIdMap.get(trimmedValue) ||
+        segmentName;
 
       setSelectedSegmentName(segmentName);
       setSelectedSegmentTag(segmentName);
       // Save segment name to select in carousel after API response
       setTargetSegmentNameForCarousel(segmentName);
 
-      const currentCommandKey = SEGMENT_SELECTION_COMMANDS.has(selectedCommand as SegmentSelectionCommand)
+      const currentCommandKey = SEGMENT_SELECTION_COMMANDS.has(
+        selectedCommand as SegmentSelectionCommand
+      )
         ? selectedCommand
         : "Correct Segment";
 
@@ -1915,9 +1980,8 @@ export default function MarketExplorationPage({
 
     const basePayload =
       selectedCommandPayload ??
-      COMMAND_LIST.find(
-        (item) => deriveCommandKey(item) === "rename segment"
-      )?.command;
+      COMMAND_LIST.find((item) => deriveCommandKey(item) === "rename segment")
+        ?.command;
 
     const updatedPayload = basePayload
       ? { ...basePayload, new_name: trimmed }
@@ -2013,7 +2077,11 @@ export default function MarketExplorationPage({
     if (!QUESTION_SELECTOR_COMMANDS.has(selectedCommand)) {
       return;
     }
-    if (!questionModalSegmentId && !questionModalSegmentName && !selectedSegmentTag) {
+    if (
+      !questionModalSegmentId &&
+      !questionModalSegmentName &&
+      !selectedSegmentTag
+    ) {
       return;
     }
     const commandKey = selectedCommand || "delete question";
@@ -2110,10 +2178,12 @@ export default function MarketExplorationPage({
       let runResult: any = null;
       // Get baseRunId from versionMap first
       let baseRunId = versionMap.get(selectedVersion) || "";
-      
+
       // If not found in versionMap, try to find it in versions array
       if (!baseRunId && selectedVersion) {
-        const matchedVersion = versions.find(v => v.display === selectedVersion);
+        const matchedVersion = versions.find(
+          (v) => v.display === selectedVersion
+        );
         if (matchedVersion) {
           baseRunId = matchedVersion.runId;
         } else {
@@ -2124,7 +2194,7 @@ export default function MarketExplorationPage({
           }
         }
       }
-      
+
       let taskId = "";
       let storedUserId = "";
 
@@ -2150,7 +2220,12 @@ export default function MarketExplorationPage({
       const userId = user?.id || storedUserId || "";
 
       // Handle delete segments: generate one changeEntry per segment
-      if (updatedPayload.intent === "segment_remove" && updatedPayload.segments && Array.isArray(updatedPayload.segments) && updatedPayload.segments.length > 0) {
+      if (
+        updatedPayload.intent === "segment_remove" &&
+        updatedPayload.segments &&
+        Array.isArray(updatedPayload.segments) &&
+        updatedPayload.segments.length > 0
+      ) {
         const changeset = updatedPayload.segments.map((segmentId: string) => {
           return {
             intent: "segment_remove",
@@ -2175,21 +2250,31 @@ export default function MarketExplorationPage({
       }
 
       // Handle delete questions: generate one changeEntry per question
-      if (updatedPayload.intent === "value_question_remove" && (updatedPayload as any).questionIds && Array.isArray((updatedPayload as any).questionIds) && (updatedPayload as any).questionIds.length > 0) {
-        const segmentId = questionModalSegmentId || (updatedPayload.selector?.match(/segmentId=([^\]]+)/)?.[1]) || "xxx";
-        const changeset = (updatedPayload as any).questionIds.map((questionId: string) => {
-          return {
-            intent: "value_question_remove",
-            target: "valueQuestions",
-            selector: `segments[segmentId=${segmentId}].valueQuestions[id=${questionId}]`,
-            prompt: "删除这个问题",
-            policy: {
-              propagation: "standard",
-              strict_scope: true,
-              downgrade_shapes: true,
-            },
-          };
-        });
+      if (
+        updatedPayload.intent === "value_question_remove" &&
+        (updatedPayload as any).questionIds &&
+        Array.isArray((updatedPayload as any).questionIds) &&
+        (updatedPayload as any).questionIds.length > 0
+      ) {
+        const segmentId =
+          questionModalSegmentId ||
+          updatedPayload.selector?.match(/segmentId=([^\]]+)/)?.[1] ||
+          "xxx";
+        const changeset = (updatedPayload as any).questionIds.map(
+          (questionId: string) => {
+            return {
+              intent: "value_question_remove",
+              target: "valueQuestions",
+              selector: `segments[segmentId=${segmentId}].valueQuestions[id=${questionId}]`,
+              prompt: "删除这个问题",
+              policy: {
+                propagation: "standard",
+                strict_scope: true,
+                downgrade_shapes: true,
+              },
+            };
+          }
+        );
 
         return {
           feedback_text: updatedPayload.user_prompt,
@@ -2217,7 +2302,10 @@ export default function MarketExplorationPage({
       if (updatedPayload.new_name) {
         changeEntry.new_name = updatedPayload.new_name;
       }
-      if (updatedPayload.intent === "segment_merge" && updatedPayload.segments) {
+      if (
+        updatedPayload.intent === "segment_merge" &&
+        updatedPayload.segments
+      ) {
         changeEntry.segments = updatedPayload.segments;
       }
 
@@ -2266,7 +2354,7 @@ export default function MarketExplorationPage({
       }
 
       if (!response.ok) {
-        console.error("[Command Submit] API error", response.status, text);
+        console.log("[Command Submit] API error", response.status, text);
         alert(
           json?.message ||
             "Failed to submit feedback. Please review your instruction."
@@ -2280,7 +2368,12 @@ export default function MarketExplorationPage({
       setGenerationProgress(50);
 
       // delete-question, rename segment, delete segments, and segment_merge commands don't need to call standal_sql
-      const shouldSkipStandalSql = selectedCommand === "delete question" || selectedCommand === "rename segment" || selectedCommand === "delete segments" || selectedCommand === "merge segments" || updatedPayload.intent === "segment_merge";
+      const shouldSkipStandalSql =
+        selectedCommand === "delete question" ||
+        selectedCommand === "rename segment" ||
+        selectedCommand === "delete segments" ||
+        selectedCommand === "merge segments" ||
+        updatedPayload.intent === "segment_merge";
 
       // After changeset execution completes, update version list
       // If standal_sql is not needed, immediately update version list and switch version
@@ -2289,19 +2382,26 @@ export default function MarketExplorationPage({
         try {
           await fetchVersions(false); // Update version list
           await switchToLatestVersion(); // Switch to latest version
-          console.log("[Command Submit] Version list updated and switched after changeset (no standal_sql)");
+          console.log(
+            "[Command Submit] Version list updated and switched after changeset (no standal_sql)"
+          );
         } catch (error) {
-          console.warn("[Command Submit] Failed to update version list:", error);
+          console.warn(
+            "[Command Submit] Failed to update version list:",
+            error
+          );
           // Version list update failure doesn't affect main flow, only log warning
         }
       } else {
         // Commands that need standal_sql, don't call run-results, wait until standal_sql completes
-        console.log("[Command Submit] Changeset completed, will update version list after standal_sql");
+        console.log(
+          "[Command Submit] Changeset completed, will update version list after standal_sql"
+        );
       }
-      
+
       // After changeset API execution completes, call standal_sql API (except for certain commands)
       let runResultsPayload = json?.run_results;
-      
+
       // Only build runResultsPayload for commands that need to call standal_sql
       if (!shouldSkipStandalSql) {
         // Get basic info from localStorage to supplement run_results
@@ -2311,16 +2411,20 @@ export default function MarketExplorationPage({
           try {
             runResult = JSON.parse(runResultStr);
           } catch (error) {
-            console.warn("[Command Submit] Failed to parse run_result from localStorage:", error);
+            console.warn(
+              "[Command Submit] Failed to parse run_result from localStorage:",
+              error
+            );
           }
         }
-        
+
         const connectionId = localStorage.getItem("connection_id") || "";
         const userId = user?.id || runResult?.user_id || "";
         const taskId = runResult?.task_id || requestBody?.task_id || "";
-        const baseRunId = requestBody?.base_run_id || runResult?.run_id || "r_1";
+        const baseRunId =
+          requestBody?.base_run_id || runResult?.run_id || "r_1";
         const runId = runResult?.run_id || baseRunId;
-        
+
         // If run_results not obtained from changeset response or incomplete, build from localStorage
         if (!runResultsPayload || !runResultsPayload.run_result) {
           if (runResult) {
@@ -2330,20 +2434,27 @@ export default function MarketExplorationPage({
               connection_id: runResultsPayload?.connection_id || connectionId,
               task_id: runResultsPayload?.task_id || taskId,
               run_id: runResultsPayload?.run_id || runId,
-              parent_run_id: runResultsPayload?.parent_run_id || runResult?.parent_run_id || null,
+              parent_run_id:
+                runResultsPayload?.parent_run_id ||
+                runResult?.parent_run_id ||
+                null,
               run_result: runResultsPayload?.run_result || runResult,
               run_status: runResultsPayload?.run_status || "completed",
-              created_at: runResultsPayload?.created_at || new Date().toISOString(),
+              created_at:
+                runResultsPayload?.created_at || new Date().toISOString(),
             };
           }
         } else {
           // If changeset returned run_results but missing required fields, supplement them
           if (!runResultsPayload.user_id) runResultsPayload.user_id = userId;
-          if (!runResultsPayload.connection_id) runResultsPayload.connection_id = connectionId;
+          if (!runResultsPayload.connection_id)
+            runResultsPayload.connection_id = connectionId;
           if (!runResultsPayload.task_id) runResultsPayload.task_id = taskId;
           if (!runResultsPayload.run_id) runResultsPayload.run_id = runId;
-          if (!runResultsPayload.run_status) runResultsPayload.run_status = "completed";
-          if (!runResultsPayload.created_at) runResultsPayload.created_at = new Date().toISOString();
+          if (!runResultsPayload.run_status)
+            runResultsPayload.run_status = "completed";
+          if (!runResultsPayload.created_at)
+            runResultsPayload.created_at = new Date().toISOString();
         }
       }
 
@@ -2351,7 +2462,7 @@ export default function MarketExplorationPage({
       if (runResultsPayload && !shouldSkipStandalSql) {
         console.log("[Command Submit] Calling standal_sql with run_results...");
         setGenerationProgress(60);
-        
+
         try {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 600_000); // 10 minute timeout
@@ -2375,7 +2486,10 @@ export default function MarketExplorationPage({
           try {
             standalJson = JSON.parse(standalText);
           } catch (e) {
-            console.log("[Command Submit] Failed to parse standal_sql response:", e);
+            console.log(
+              "[Command Submit] Failed to parse standal_sql response:",
+              e
+            );
             throw new Error("Invalid JSON response from standal_sql");
           }
 
@@ -2387,7 +2501,10 @@ export default function MarketExplorationPage({
             );
           }
 
-          console.log("[Command Submit] standal_sql completed successfully:", standalJson);
+          console.log(
+            "[Command Submit] standal_sql completed successfully:",
+            standalJson
+          );
 
           // Process data returned from standal_sql
           if (standalJson?.run_results?.run_result) {
@@ -2400,7 +2517,10 @@ export default function MarketExplorationPage({
             );
 
             const updatedRunResult = standalJson.run_results.run_result;
-            localStorage.setItem("run_result", JSON.stringify(updatedRunResult));
+            localStorage.setItem(
+              "run_result",
+              JSON.stringify(updatedRunResult)
+            );
 
             // Update segments data
             const segments = updatedRunResult.segments || [];
@@ -2413,39 +2533,58 @@ export default function MarketExplorationPage({
             }));
 
             setSegmentsData(mapped);
-            
+
             // Preserve selected segment after data update
             if (mapped.length > 0 && targetSegmentNameForCarousel) {
               // Keep the selected segment name if targetSegmentNameForCarousel is set
-              const targetSegment = mapped.find((seg: any) => seg.name === targetSegmentNameForCarousel);
+              const targetSegment = mapped.find(
+                (seg: any) => seg.name === targetSegmentNameForCarousel
+              );
               if (targetSegment) {
                 setSelectedSegmentName(targetSegmentNameForCarousel);
               } else if (!selectedSegmentName) {
                 // If target segment not found, fallback to first segment
                 setSelectedSegmentName(mapped[0]?.name || "");
               }
-            } else if (mapped.length > 0 && !targetSegmentNameForCarousel && !selectedSegmentName) {
+            } else if (
+              mapped.length > 0 &&
+              !targetSegmentNameForCarousel &&
+              !selectedSegmentName
+            ) {
               // If no target set, use first segment
               setSelectedSegmentName(mapped[0]?.name || "");
             }
-            
+
             // After standal_sql execution completes, switch to latest version
             // switchToLatestVersion already calls /api/run-results internally, no need to call fetchVersions separately
             try {
               await switchToLatestVersion(); // Switch to latest version (this will fetch version list and load data)
-              console.log("[Command Submit] Version list updated after standal_sql");
+              console.log(
+                "[Command Submit] Version list updated after standal_sql"
+              );
             } catch (error) {
-              console.warn("[Command Submit] Failed to update version list after standal_sql:", error);
+              console.warn(
+                "[Command Submit] Failed to update version list after standal_sql:",
+                error
+              );
             }
           }
         } catch (standalError) {
-          console.error("[Command Submit] standal_sql request failed", standalError);
+          console.log(
+            "[Command Submit] standal_sql request failed",
+            standalError
+          );
           // standal_sql failure doesn't affect changeset success, only log error
         }
       } else if (!shouldSkipStandalSql) {
-        console.warn("[Command Submit] No run_results available for standal_sql");
+        console.warn(
+          "[Command Submit] No run_results available for standal_sql"
+        );
       } else {
-        console.log("[Command Submit] Skipping standal_sql for command:", selectedCommand);
+        console.log(
+          "[Command Submit] Skipping standal_sql for command:",
+          selectedCommand
+        );
       }
 
       setGenerationProgress(100);
@@ -2460,7 +2599,7 @@ export default function MarketExplorationPage({
       setInputValue("");
       resetQuestionSelection();
     } catch (error) {
-      console.error("[Command Submit] Request failed", error);
+      console.log("[Command Submit] Request failed", error);
       alert("Request failed. Please try again later.");
     } finally {
       setIsGenerating(false);
@@ -2646,9 +2785,7 @@ export default function MarketExplorationPage({
         </AnimatePresence>
       </div>
       <div className="hidden">
-        <FloatingCommandButton
-          onClick={() => setIsCommandPaletteOpen(true)}
-        />
+        <FloatingCommandButton onClick={() => setIsCommandPaletteOpen(true)} />
       </div>
       <CommandPalette
         isOpen={isCommandPaletteOpen}
@@ -2675,7 +2812,9 @@ export default function MarketExplorationPage({
         onConfirm={handleQuestionModalConfirm}
         questions={questionOptions}
         segmentName={
-          questionModalSegmentName || selectedSegmentTag || questionModalSegmentId
+          questionModalSegmentName ||
+          selectedSegmentTag ||
+          questionModalSegmentId
         }
         commandText={questionModalCommand || selectedCommand}
         defaultSelectedQuestionId={selectedQuestionOption?.id}
@@ -2843,7 +2982,10 @@ export default function MarketExplorationPage({
                       className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium"
                       style={{ marginTop: "10px" }}
                     >
-                      <span className="max-w-[200px] truncate" title={selectedSegmentTag}>
+                      <span
+                        className="max-w-[200px] truncate"
+                        title={selectedSegmentTag}
+                      >
                         {selectedSegmentTag}
                       </span>
                       <button
@@ -2875,12 +3017,17 @@ export default function MarketExplorationPage({
                         className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium flex-shrink-0 cursor-pointer hover:bg-emerald-100 transition-colors"
                         onClick={() => {
                           if (selectedMergeSegments.length > 1) {
-                            setIsMergeSegmentsExpanded(!isMergeSegmentsExpanded);
+                            setIsMergeSegmentsExpanded(
+                              !isMergeSegmentsExpanded
+                            );
                           }
                         }}
                       >
                         <div className="flex items-center gap-1 min-w-0">
-                          <span className="truncate max-w-[180px]" title={selectedMergeSegments[0]}>
+                          <span
+                            className="truncate max-w-[180px]"
+                            title={selectedMergeSegments[0]}
+                          >
                             {selectedMergeSegments[0]}
                           </span>
                           {selectedMergeSegments.length > 1 && (
@@ -2892,12 +3039,15 @@ export default function MarketExplorationPage({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            const updated = selectedMergeSegments.filter((_, i) => i !== 0);
+                            const updated = selectedMergeSegments.filter(
+                              (_, i) => i !== 0
+                            );
                             setSelectedMergeSegments(updated);
                             // Check command type to determine minimum required segments
-                            const isDeleteCommand = selectedCommand === "delete segments";
+                            const isDeleteCommand =
+                              selectedCommand === "delete segments";
                             const minRequired = isDeleteCommand ? 1 : 2;
-                            
+
                             // If less than required segments remain, clear all tags and command
                             if (updated.length < minRequired) {
                               setSelectedCommand("");
@@ -2908,7 +3058,11 @@ export default function MarketExplorationPage({
                               setSelectedQuestionOption(null);
                             } else {
                               const segmentIds = updated.map((segmentName) => {
-                                return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
+                                return (
+                                  segmentIdMap.get(segmentName) ||
+                                  segmentIdMap.get(segmentName.trim()) ||
+                                  segmentName
+                                );
                               });
                               setSelectedCommandPayload((prev) => {
                                 if (!prev) return prev;
@@ -2926,50 +3080,65 @@ export default function MarketExplorationPage({
                         </button>
                       </motion.div>
                       {/* Additional segments (shown when expanded) */}
-                      {isMergeSegmentsExpanded && selectedMergeSegments.slice(1).map((segment, index) => (
-                        <motion.div
-                          key={segment}
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ duration: 0.2, delay: index * 0.05 }}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium flex-shrink-0"
-                        >
-                          <span className="truncate max-w-[180px]" title={segment}>{segment}</span>
-                          <button
-                            onClick={() => {
-                              const updated = selectedMergeSegments.filter(s => s !== segment);
-                              setSelectedMergeSegments(updated);
-                              // Check command type to determine minimum required segments
-                              const isDeleteCommand = selectedCommand === "delete segments";
-                              const minRequired = isDeleteCommand ? 1 : 2;
-                              
-                              // If less than required segments remain, clear all tags and command
-                              if (updated.length < minRequired) {
-                                setSelectedCommand("");
-                                setSelectedCommandPayload(null);
-                                setSelectedMergeSegments([]);
-                                setIsMergeSegmentsExpanded(false);
-                              } else {
-                                const segmentIds = updated.map((segmentName) => {
-                                  return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
-                                });
-                                setSelectedCommandPayload((prev) => {
-                                  if (!prev) return prev;
-                                  return {
-                                    ...prev,
-                                    segments: segmentIds,
-                                  };
-                                });
-                              }
-                            }}
-                            className="hover:bg-emerald-100 rounded p-0.5 transition-colors cursor-pointer"
-                            aria-label="Remove segment"
+                      {isMergeSegmentsExpanded &&
+                        selectedMergeSegments.slice(1).map((segment, index) => (
+                          <motion.div
+                            key={segment}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.2, delay: index * 0.05 }}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium flex-shrink-0"
                           >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </motion.div>
-                      ))}
+                            <span
+                              className="truncate max-w-[180px]"
+                              title={segment}
+                            >
+                              {segment}
+                            </span>
+                            <button
+                              onClick={() => {
+                                const updated = selectedMergeSegments.filter(
+                                  (s) => s !== segment
+                                );
+                                setSelectedMergeSegments(updated);
+                                // Check command type to determine minimum required segments
+                                const isDeleteCommand =
+                                  selectedCommand === "delete segments";
+                                const minRequired = isDeleteCommand ? 1 : 2;
+
+                                // If less than required segments remain, clear all tags and command
+                                if (updated.length < minRequired) {
+                                  setSelectedCommand("");
+                                  setSelectedCommandPayload(null);
+                                  setSelectedMergeSegments([]);
+                                  setIsMergeSegmentsExpanded(false);
+                                } else {
+                                  const segmentIds = updated.map(
+                                    (segmentName) => {
+                                      return (
+                                        segmentIdMap.get(segmentName) ||
+                                        segmentIdMap.get(segmentName.trim()) ||
+                                        segmentName
+                                      );
+                                    }
+                                  );
+                                  setSelectedCommandPayload((prev) => {
+                                    if (!prev) return prev;
+                                    return {
+                                      ...prev,
+                                      segments: segmentIds,
+                                    };
+                                  });
+                                }
+                              }}
+                              className="hover:bg-emerald-100 rounded p-0.5 transition-colors cursor-pointer"
+                              aria-label="Remove segment"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </motion.div>
+                        ))}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -2984,14 +3153,25 @@ export default function MarketExplorationPage({
                       style={{ marginTop: "10px" }}
                     >
                       <div className="flex items-center gap-1 min-w-0 max-w-[220px]">
-                        <span className="truncate" title={selectedQuestionOption.text}>
+                        <span
+                          className="truncate"
+                          title={selectedQuestionOption.text}
+                        >
                           {selectedQuestionOption.text}
                         </span>
-                        {selectedCommandPayload && (selectedCommandPayload as any).questionIds && (selectedCommandPayload as any).questionIds.length > 1 && (
-                          <span className="text-blue-600 font-semibold flex-shrink-0">
-                            ({(selectedCommandPayload as any).questionIds.length})
-                          </span>
-                        )}
+                        {selectedCommandPayload &&
+                          (selectedCommandPayload as any).questionIds &&
+                          (selectedCommandPayload as any).questionIds.length >
+                            1 && (
+                            <span className="text-blue-600 font-semibold flex-shrink-0">
+                              (
+                              {
+                                (selectedCommandPayload as any).questionIds
+                                  .length
+                              }
+                              )
+                            </span>
+                          )}
                       </div>
                       <button
                         onClick={clearSelectedQuestion}

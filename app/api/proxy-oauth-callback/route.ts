@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get("state");
 
     if (!code || !state) {
-      return NextResponse.json({ success: false, error: "Missing code or state" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Missing code or state" },
+        { status: 400 }
+      );
     }
 
     // Forward request server-side to bypass browser restrictions
@@ -31,14 +34,14 @@ export async function GET(request: NextRequest) {
       "ngrok-skip-browser-warning": "any",
       ...(SERVICE_API_TOKEN ? { Authorization: "Bearer ***" } : {}),
     });
-    
+
     // Add timeout for external API call (40 seconds to handle cold starts)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       console.warn("⏱️ Proxy fetch timeout after 40 seconds");
       controller.abort();
     }, 40000);
-    
+
     let response: Response;
     try {
       response = await fetch(targetUrl, {
@@ -57,20 +60,28 @@ export async function GET(request: NextRequest) {
     } catch (fetchError: any) {
       clearTimeout(timeoutId);
       if (fetchError.name === "AbortError") {
-        console.error("❌ Proxy fetch timeout");
+        console.log("❌ Proxy fetch timeout");
         return NextResponse.json(
-          { success: false, error: "Request timeout. The service may be starting up. Please try again." },
+          {
+            success: false,
+            error:
+              "Request timeout. The service may be starting up. Please try again.",
+          },
           { status: 504 }
         );
       }
       throw fetchError;
     }
 
-    console.log("Proxy response status:", response.status, response.headers.get("content-type"));
+    console.log(
+      "Proxy response status:",
+      response.status,
+      response.headers.get("content-type")
+    );
 
     const contentType = response.headers.get("content-type");
     let data;
-    
+
     if (contentType && contentType.includes("application/json")) {
       data = await response.json();
     } else {
@@ -91,4 +102,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
