@@ -213,7 +213,7 @@ const COMMAND_LIST: CommandItem[] = [
     },
   },
   {
-    label: "Adjust market size.",
+    label: "Adjust market size",
     command: {
       intent: "analysis_edit",
       selector: "segments[segmentId=xxx].analysis.D1",
@@ -2043,16 +2043,24 @@ export default function MarketExplorationPage({
         setIsQuestionModalOpen(false);
         setSelectedCommandPayload((prev) => {
           if (!prev) return prev;
+          // Get actual segmentId: prefer questionModalSegmentId, fallback to extracting from selector, or use "xxx" as last resort
+          const actualSegmentId = 
+            questionModalSegmentId || 
+            prev.selector?.match(/segmentId=([^\]]+)/)?.[1] || 
+            "xxx";
+          
           const selectorWithFallback =
             prev.selector && /valueQuestions/.test(prev.selector)
               ? prev.selector
-              : `segments[segmentId=${
-                  questionModalSegmentId || "xxx"
-                }].valueQuestions[id=${questions[0].id}]`;
-          const updatedSelector = selectorWithFallback.replace(
-            /id=[^\]\s]*/i,
-            `id=${questions[0].id}`
-          );
+              : `segments[segmentId=${actualSegmentId}].valueQuestions[id=${questions[0].id}]`;
+          
+          // Replace both segmentId=xxx and valueQuestions[id=xxx] to ensure no "xxx" remains in valueQuestions id
+          let updatedSelector = selectorWithFallback
+            // First replace segmentId=xxx if it exists
+            .replace(/segmentId=xxx/gi, `segmentId=${actualSegmentId}`)
+            // Then replace valueQuestions[id=xxx] or valueQuestions[id=any] with the actual question id
+            .replace(/valueQuestions\[id=[^\]\s]*\]/i, `valueQuestions[id=${questions[0].id}]`);
+          
           return {
             ...prev,
             selector: updatedSelector,
@@ -2149,7 +2157,7 @@ export default function MarketExplorationPage({
     if (
       QUESTION_SELECTOR_COMMANDS.has(selectedCommand) &&
       (!selectedQuestionOption ||
-        selectedCommandPayload.selector?.includes("id=xxx")) &&
+        (selectedCommandPayload.selector && /valueQuestions\[id=xxx\]/i.test(selectedCommandPayload.selector))) &&
       !(selectedCommandPayload as any).questionIds
     ) {
       if (!isQuestionModalOpen) {
