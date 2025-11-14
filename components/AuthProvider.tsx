@@ -335,13 +335,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
               sessionResult = (await Promise.race([
                 supabase.auth.getSession(),
-                // new Promise<{ data: { session: null }; error: Error }>(
-                //   (_, reject) =>
-                //     setTimeout(
-                //       () => reject(new Error("getSession retry timeout")),
-                //       25000
-                //     )
-                // ),
+                new Promise<{ data: { session: null }; error: Error }>(
+                  (_, reject) =>
+                    setTimeout(
+                      () => reject(new Error("getSession retry timeout")),
+                      25000
+                    )
+                ),
               ])) as any;
             } catch (retryError) {
               console.error(
@@ -417,10 +417,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, 30000);
 
-    getInitialSession().then(() => {
-      loadingFinished = true;
-      clearTimeout(timeoutId);
-    });
+    // getInitialSession().then(() => {
+    //   loadingFinished = true;
+    //   clearTimeout(timeoutId);
+    // });
 
     const {
       data: { subscription },
@@ -484,10 +484,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (nextSession?.user) processedUsers.add(nextSession.user.id);
     });
 
-    window.addEventListener("storage", (e) => {
-      const authKey = resolveAuthStorageKey();
-      if (e.key === authKey) getInitialSession();
-    });
+    // window.addEventListener("storage", (e) => {
+    //   const authKey = resolveAuthStorageKey();
+    //   if (e.key === authKey) getInitialSession();
+    // });
 
     return () => {
       clearTimeout(timeoutId);
