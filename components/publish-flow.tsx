@@ -862,7 +862,9 @@ export function PublishFlow() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleCopy(appWebLink ?? "", "website")}
+                          onClick={() =>
+                            handleCopy(appWebLink ?? "", "website")
+                          }
                           className="flex items-center gap-1"
                         >
                           {copyFeedback?.item === "website" ? (
@@ -903,7 +905,11 @@ export function PublishFlow() {
                   Continue To Generate
                 </Button>
                 <Button>
-                  <Link href="https://chatgpt.com/#settings/Connectors">
+                  <Link
+                    href="https://chatgpt.com/#settings/Connectors"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     Go to ChatGPT
                   </Link>
                 </Button>
@@ -954,7 +960,8 @@ export function PublishFlow() {
                 }}
               />
               <p className="text-xs text-muted-foreground">
-                Only letters, numbers, hyphens (-), and underscores (_) are allowed
+                Only letters, numbers, hyphens (-), and underscores (_) are
+                allowed
               </p>
             </div>
 
