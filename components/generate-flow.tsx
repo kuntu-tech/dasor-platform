@@ -148,46 +148,46 @@ export function GenerateFlow() {
     }
   }, []);
 
-  // 将原始错误转换为友好的错误消息
+  // Convert raw errors to user-friendly error messages
   const formatErrorMessage = useCallback((error: string | null | undefined): string => {
     if (!error) {
-      return "生成过程中遇到了问题，请稍后重试。如果问题持续存在，请联系管理员。";
+      return "An issue occurred during generation. Please try again later.";
     }
 
     const errorLower = error.toLowerCase();
     
-    // 网络相关错误
+    // Network-related errors
     if (errorLower.includes("timeout") || errorLower.includes("aborted")) {
-      return "请求超时，可能是网络连接不稳定。请检查网络后重试。";
+      return "Request timeout. The network connection may be unstable. Please check your network and try again.";
     }
     
-    // 服务器错误
+    // Server errors
     if (errorLower.includes("500") || errorLower.includes("internal server error")) {
-      return "服务器暂时无法处理请求，请稍后重试。如果问题持续存在，请联系管理员。";
+      return "The server is temporarily unable to process your request. Please try again later.";
     }
     
-    // 认证相关错误
+    // Authentication-related errors
     if (errorLower.includes("401") || errorLower.includes("unauthorized") || errorLower.includes("403") || errorLower.includes("forbidden")) {
-      return "权限验证失败，请刷新页面后重试。如果问题持续存在，请联系管理员。";
+      return "Authentication failed. Please refresh the page and try again.";
     }
     
-    // 资源不存在
+    // Resource not found
     if (errorLower.includes("404") || errorLower.includes("not found")) {
-      return "请求的资源不存在，请返回重新开始生成流程。";
+      return "The requested resource does not exist. Please go back and restart the generation process.";
     }
     
-    // 数据库连接相关
+    // Database connection related
     if (errorLower.includes("connection") || errorLower.includes("database") || errorLower.includes("sql")) {
-      return "数据库连接出现问题，请检查连接配置后重试。如果问题持续存在，请联系管理员。";
+      return "Database connection issue. Please check your connection configuration and try again.";
     }
     
-    // 生成失败（但不显示具体技术错误）
+    // Generation failed (without showing specific technical errors)
     if (errorLower.includes("generation failed") || errorLower.includes("generate")) {
-      return "生成任务失败，可能是数据或配置问题。请检查输入数据后重试，或联系管理员获取帮助。";
+      return "Generation task failed. This may be due to data or configuration issues. Please check your input data and try again.";
     }
     
-    // 默认友好消息
-    return "生成过程中遇到了问题，请稍后重试。如果问题持续存在，请联系管理员协助处理。";
+    // Default friendly message
+    return "An issue occurred during generation. Please try again later.";
   }, []);
 
   const buildMetadataPayload = useCallback(() => {
@@ -957,16 +957,13 @@ export function GenerateFlow() {
                     {errorMessage && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                         <p className="text-sm text-red-800 font-medium mb-2">
-                          生成失败
+                          Generation Failed
                         </p>
                         <p className="text-sm text-red-700 leading-relaxed">
                           {errorMessage}
                         </p>
                       </div>
                     )}
-                    <p className="text-xs text-muted-foreground mt-3">
-                      提示：如果问题持续存在，请联系管理员获取帮助
-                    </p>
                   </div>
                   <div className="flex gap-3 justify-center">
                     {isStatusTrackingOnly ? (
@@ -981,7 +978,7 @@ export function GenerateFlow() {
                         }}
                         variant="default"
                       >
-                        刷新状态
+                        Refresh Status
                       </Button>
                     ) : (
                       <Button 
@@ -992,15 +989,9 @@ export function GenerateFlow() {
                         }}
                         variant="default"
                       >
-                        重新尝试
+                        Try Again
                       </Button>
                     )}
-                    <Button
-                      variant="outline"
-                      onClick={() => router.push("/")}
-                    >
-                      返回首页
-                    </Button>
                   </div>
                 </div>
               ) : (
