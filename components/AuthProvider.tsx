@@ -72,6 +72,7 @@ const CLEAR_CACHE_KEYS_BASE = [
   "selectedQuestionsWithSql",
   "dbConnectionData",
   "originalTaskId",
+  "apps_cache_anonymous",
 ];
 
 function resolveAuthStorageKey() {
@@ -95,7 +96,10 @@ function clearLocalAuthArtifacts(userId?: string) {
   if (typeof window === "undefined") return;
   try {
     const keysToRemove = [...CLEAR_CACHE_KEYS_BASE];
-    if (userId) keysToRemove.push(`cached_avatar_${userId}`);
+    if (userId) {
+      keysToRemove.push(`cached_avatar_${userId}`);
+      keysToRemove.push(`apps_cache_${userId}`);
+    }
     keysToRemove.forEach((k) => localStorage.removeItem(k));
   } catch (e) {
     console.warn("Failed to clear local cache", e);
@@ -331,13 +335,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
               sessionResult = (await Promise.race([
                 supabase.auth.getSession(),
-                // new Promise<{ data: { session: null }; error: Error }>(
-                //   (_, reject) =>
-                //     setTimeout(
-                //       () => reject(new Error("getSession retry timeout")),
-                //       25000
-                //     )
-                // ),
+                new Promise<{ data: { session: null }; error: Error }>(
+                  (_, reject) =>
+                    setTimeout(
+                      () => reject(new Error("getSession retry timeout")),
+                      25000
+                    )
+                ),
               ])) as any;
             } catch (retryError) {
               console.error(
@@ -413,10 +417,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, 30000);
 
-    getInitialSession().then(() => {
-      loadingFinished = true;
-      clearTimeout(timeoutId);
-    });
+    // getInitialSession().then(() => {
+    //   loadingFinished = true;
+    //   clearTimeout(timeoutId);
+    // });
 
     const {
       data: { subscription },
@@ -480,10 +484,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (nextSession?.user) processedUsers.add(nextSession.user.id);
     });
 
-    window.addEventListener("storage", (e) => {
-      const authKey = resolveAuthStorageKey();
-      if (e.key === authKey) getInitialSession();
-    });
+    // window.addEventListener("storage", (e) => {
+    //   const authKey = resolveAuthStorageKey();
+    //   if (e.key === authKey) getInitialSession();
+    // });
 
     return () => {
       clearTimeout(timeoutId);
