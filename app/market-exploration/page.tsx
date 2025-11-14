@@ -2942,7 +2942,7 @@ export default function MarketExplorationPage({
           </AnimatePresence>
           <div className="bg-white border border-gray-300 rounded-3xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-visible">
             <div className="flex flex-col gap-3 p-4">
-              <div className="flex flex-wrap items-start gap-2">
+              <div className="flex flex-wrap items-start gap-2 min-w-0 w-full">
                 <AnimatePresence>
                   {selectedCommand && (
                     <motion.div
@@ -2979,13 +2979,10 @@ export default function MarketExplorationPage({
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
-                      className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium max-w-full"
                       style={{ marginTop: "10px" }}
                     >
-                      <span
-                        className="max-w-[200px] truncate"
-                        title={selectedSegmentTag}
-                      >
+                      <span className="whitespace-normal break-words" title={selectedSegmentTag}>
                         {selectedSegmentTag}
                       </span>
                       <button
@@ -3005,140 +3002,65 @@ export default function MarketExplorationPage({
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
-                      className="flex-shrink-0 flex flex-wrap items-center gap-2"
+                      className="flex flex-wrap items-center gap-2 w-full min-w-0"
                       style={{ marginTop: "10px" }}
                     >
-                      {/* First segment with count */}
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium flex-shrink-0 cursor-pointer hover:bg-emerald-100 transition-colors"
-                        onClick={() => {
-                          if (selectedMergeSegments.length > 1) {
-                            setIsMergeSegmentsExpanded(
-                              !isMergeSegmentsExpanded
-                            );
-                          }
-                        }}
-                      >
-                        <div className="flex items-center gap-1 min-w-0">
-                          <span
-                            className="truncate max-w-[180px]"
-                            title={selectedMergeSegments[0]}
-                          >
-                            {selectedMergeSegments[0]}
-                          </span>
-                          {selectedMergeSegments.length > 1 && (
-                            <span className="text-emerald-600 font-semibold flex-shrink-0">
-                              ({selectedMergeSegments.length})
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const updated = selectedMergeSegments.filter(
-                              (_, i) => i !== 0
-                            );
-                            setSelectedMergeSegments(updated);
-                            // Check command type to determine minimum required segments
-                            const isDeleteCommand =
-                              selectedCommand === "delete segments";
-                            const minRequired = isDeleteCommand ? 1 : 2;
-
-                            // If less than required segments remain, clear all tags and command
-                            if (updated.length < minRequired) {
-                              setSelectedCommand("");
-                              setSelectedCommandPayload(null);
-                              setSelectedMergeSegments([]);
-                              setIsMergeSegmentsExpanded(false);
-                              setSelectedSegmentTag("");
-                              setSelectedQuestionOption(null);
-                            } else {
-                              const segmentIds = updated.map((segmentName) => {
-                                return (
-                                  segmentIdMap.get(segmentName) ||
-                                  segmentIdMap.get(segmentName.trim()) ||
-                                  segmentName
-                                );
-                              });
-                              setSelectedCommandPayload((prev) => {
-                                if (!prev) return prev;
-                                return {
-                                  ...prev,
-                                  segments: segmentIds,
-                                };
-                              });
-                            }
-                          }}
-                          className="hover:bg-emerald-200 rounded p-0.5 transition-colors cursor-pointer"
-                          aria-label="Remove segment"
+                      {/* All segments displayed, no collapse */}
+                      {selectedMergeSegments.map((segment, index) => (
+                        <motion.div
+                          key={segment}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.2, delay: index * 0.05 }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium max-w-full"
                         >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </motion.div>
-                      {/* Additional segments (shown when expanded) */}
-                      {isMergeSegmentsExpanded &&
-                        selectedMergeSegments.slice(1).map((segment, index) => (
-                          <motion.div
-                            key={segment}
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.2, delay: index * 0.05 }}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium flex-shrink-0"
-                          >
-                            <span
-                              className="truncate max-w-[180px]"
-                              title={segment}
-                            >
-                              {segment}
-                            </span>
-                            <button
-                              onClick={() => {
-                                const updated = selectedMergeSegments.filter(
-                                  (s) => s !== segment
-                                );
-                                setSelectedMergeSegments(updated);
-                                // Check command type to determine minimum required segments
-                                const isDeleteCommand =
-                                  selectedCommand === "delete segments";
-                                const minRequired = isDeleteCommand ? 1 : 2;
+                          <span className="whitespace-normal break-words" title={segment}>
+                            {segment}
+                          </span>
+                          <button
+                            onClick={() => {
+                              const updated = selectedMergeSegments.filter(
+                                (s) => s !== segment
+                              );
+                              setSelectedMergeSegments(updated);
+                              // Check command type to determine minimum required segments
+                              const isDeleteCommand =
+                                selectedCommand === "delete segments";
+                              const minRequired = isDeleteCommand ? 1 : 2;
 
-                                // If less than required segments remain, clear all tags and command
-                                if (updated.length < minRequired) {
-                                  setSelectedCommand("");
-                                  setSelectedCommandPayload(null);
-                                  setSelectedMergeSegments([]);
-                                  setIsMergeSegmentsExpanded(false);
-                                } else {
-                                  const segmentIds = updated.map(
-                                    (segmentName) => {
-                                      return (
-                                        segmentIdMap.get(segmentName) ||
-                                        segmentIdMap.get(segmentName.trim()) ||
-                                        segmentName
-                                      );
-                                    }
+                              // If less than required segments remain, clear all tags and command
+                              if (updated.length < minRequired) {
+                                setSelectedCommand("");
+                                setSelectedCommandPayload(null);
+                                setSelectedMergeSegments([]);
+                                setIsMergeSegmentsExpanded(false);
+                                setSelectedSegmentTag("");
+                                setSelectedQuestionOption(null);
+                              } else {
+                                const segmentIds = updated.map((segmentName) => {
+                                  return (
+                                    segmentIdMap.get(segmentName) ||
+                                    segmentIdMap.get(segmentName.trim()) ||
+                                    segmentName
                                   );
-                                  setSelectedCommandPayload((prev) => {
-                                    if (!prev) return prev;
-                                    return {
-                                      ...prev,
-                                      segments: segmentIds,
-                                    };
-                                  });
-                                }
-                              }}
-                              className="hover:bg-emerald-100 rounded p-0.5 transition-colors cursor-pointer"
-                              aria-label="Remove segment"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </motion.div>
-                        ))}
+                                });
+                                setSelectedCommandPayload((prev) => {
+                                  if (!prev) return prev;
+                                  return {
+                                    ...prev,
+                                    segments: segmentIds,
+                                  };
+                                });
+                              }
+                            }}
+                            className="hover:bg-emerald-100 rounded p-0.5 transition-colors cursor-pointer flex-shrink-0"
+                            aria-label="Remove segment"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </motion.div>
+                      ))}
                     </motion.div>
                   )}
                 </AnimatePresence>
