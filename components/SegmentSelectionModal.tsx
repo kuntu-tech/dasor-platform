@@ -120,10 +120,10 @@ export function SegmentSelectionModal({
             onClick={(e) => e.stopPropagation()}
             className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl z-[120] overflow-hidden flex flex-col max-h-[80vh]">
             {/* Header */}
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+            <div className="px-6 py-4 flex items-center justify-between flex-shrink-0">
               <h2 className="text-xl font-semibold text-gray-900">
                 {mode === 'multiSelect' 
-                  ? (isDeleteCommand ? 'Select Segments to Delete' : 'Select Segments to Merge')
+                  ? (isDeleteCommand ? 'Select Segments to Delete' : 'Select Segments')
                   : mode === 'select' 
                   ? 'Select Segment' 
                   : 'Add New Segment'}
@@ -143,15 +143,13 @@ export function SegmentSelectionModal({
             </div>
             {/* Content */}
             <div className="px-6 py-4 flex flex-col flex-1 min-h-0 overflow-hidden">
-              <p className="text-gray-600 mb-4 flex-shrink-0 text-sm">
-                {mode === 'multiSelect' 
-                  ? (isDeleteCommand 
-                      ? `Select segments to delete (${selectedSegments.length} selected, at least 1 must remain):`
-                      : `Select multiple segments to merge (${selectedSegments.length} selected):`)
-                  : mode === 'select' 
-                  ? 'Choose a segment to use for this command:' 
-                  : 'Enter a name for the new segment:'}
-              </p>
+              {mode === 'select' || mode === 'input' ? (
+                <p className="text-gray-600 mb-4 flex-shrink-0 text-sm">
+                  {mode === 'select' 
+                    ? 'Choose a segment to use for this command:' 
+                    : 'Enter a name for the new segment:'}
+                </p>
+              ) : null}
               {mode === 'multiSelect' ? (
                 <div className="space-y-2 flex-1 overflow-y-auto pr-2 min-h-0 max-h-[50vh]">
                   {segments.length > 0 ? (
@@ -217,7 +215,7 @@ export function SegmentSelectionModal({
                   autoFocus
                 />
               )}
-              <div className="flex justify-end gap-3 flex-shrink-0 mt-4 pt-4 border-t border-gray-200">
+              <div className="flex justify-end gap-3 flex-shrink-0 mt-4 pt-4">
                 <button 
                   onClick={handleCancel} 
                   type="button"

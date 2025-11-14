@@ -2279,8 +2279,8 @@ export default function MarketExplorationPage({
       console.log("[Command Submit] Response:", json ?? text);
       setGenerationProgress(50);
 
-      // delete-question, rename segment, and delete segments commands don't need to call standal_sql
-      const shouldSkipStandalSql = selectedCommand === "delete question" || selectedCommand === "rename segment" || selectedCommand === "delete segments";
+      // delete-question, rename segment, delete segments, and segment_merge commands don't need to call standal_sql
+      const shouldSkipStandalSql = selectedCommand === "delete question" || selectedCommand === "rename segment" || selectedCommand === "delete segments" || selectedCommand === "merge segments" || updatedPayload.intent === "segment_merge";
 
       // After changeset execution completes, update version list
       // If standal_sql is not needed, immediately update version list and switch version
@@ -2585,7 +2585,7 @@ export default function MarketExplorationPage({
             <button
               onClick={handleGenerateApp}
               disabled={isGenerating}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white relative overflow-hidden"
+              className="flex items-center gap-1.5 px-4 py-2 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white relative overflow-hidden"
             >
               <ArrowRight className="w-4 h-4" />
               <span className="whitespace-nowrap flex items-center gap-1">
@@ -3008,7 +3008,7 @@ export default function MarketExplorationPage({
                   onChange={(e) => handleInputChange(e.target.value)}
                   onKeyDown={handleKeyDown}
                   disabled={isGenerating}
-                  placeholder="Use @ to get started quickly and submit your changes."
+                  placeholder="Use + to get started quickly and submit your changes."
                   rows={1}
                   className="flex-1 resize-none bg-transparent border-none outline-none text-gray-900 placeholder-gray-400 text-base px-2 py-2 max-h-48 overflow-y-auto disabled:opacity-50"
                   style={{ minHeight: "40px" }}

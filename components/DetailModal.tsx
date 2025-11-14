@@ -57,9 +57,7 @@ export function DetailModal({
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 flex items-center justify-between rounded-t-3xl">
           <div className="flex items-center gap-4">
-            <span className="text-4xl font-semibold" style={{
-            color: getScoreColor(analysis.score)
-          }} aria-label={`Score: ${analysis.score} out of 10`}>
+            <span className="text-4xl font-semibold" style={{ color: 'rgb(16, 185, 129)' }} aria-label={`Score: ${analysis.score} out of 10`}>
               {analysis.score}
             </span>
             <h2 id="modal-title" className="text-2xl font-semibold text-gray-900">
@@ -113,7 +111,7 @@ export function DetailModal({
                     <span className="text-sm font-semibold text-gray-700">
                       Conversion Rate:
                     </span>
-                    <span className="text-gray-700">
+                    <span className="font-medium" style={{ color: 'rgb(16, 185, 129)' }}>
                       {(analysis.conversion_rate_est * 100).toFixed(0)}%
                     </span>
                   </div>
@@ -133,9 +131,7 @@ export function DetailModal({
                     <span className="text-sm font-semibold text-gray-700">
                       Moat:
                     </span>
-                    <span className="text-gray-700" style={{
-                      color: getScoreColor(analysis.moat_score)
-                    }}>
+                    <span className="font-medium" style={{ color: 'rgb(16, 185, 129)' }}>
                       {analysis.moat_score}
                     </span>
                   </div>
@@ -145,9 +141,7 @@ export function DetailModal({
                     <span className="text-sm font-semibold text-gray-700">
                       Scalability:
                     </span>
-                    <span className="text-gray-700" style={{
-                      color: getScoreColor(analysis.scalability_score)
-                    }}>
+                    <span className="font-medium" style={{ color: 'rgb(16, 185, 129)' }}>
                       {analysis.scalability_score}
                     </span>
                   </div>
