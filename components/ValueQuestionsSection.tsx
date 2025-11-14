@@ -193,6 +193,35 @@ const buildAnalysisEntries = (analysis?: any): AnalysisData[] => {
 
     if (!hasContent) return null;
 
+    // Build fullDetails for different dimensions
+    let fullDetails = "";
+    if (config.id === "D1" && Array.isArray(detail.supporting_indicators) && detail.supporting_indicators.length > 0) {
+      // D1: combine summary and supporting indicators
+      const indicatorsText = detail.supporting_indicators
+        .map((ind: string) => `• ${ind}`)
+        .join("\n");
+      fullDetails = detail.summary 
+        ? `${detail.summary}\n\n关键指标:\n${indicatorsText}`
+        : indicatorsText;
+    } else if (config.id === "D3") {
+      // D3: use detailed_analysis if available, otherwise use full_details, avoid duplicating summary
+      if (detail.detailed_analysis) {
+        fullDetails = detail.detailed_analysis;
+      } else if (detail.full_details) {
+        fullDetails = detail.full_details;
+      } else {
+        // If no detailed content, leave empty to avoid duplication with summary
+        fullDetails = "";
+      }
+    } else if (detail.detailed_analysis) {
+      fullDetails = detail.detailed_analysis;
+    } else if (detail.full_details) {
+      fullDetails = detail.full_details;
+    } else {
+      // Default: use summary only if no other detailed content available
+      fullDetails = detail.summary ?? "";
+    }
+
     const entry: AnalysisData = {
       id: config.id,
       dimensionName: config.name,
@@ -202,7 +231,7 @@ const buildAnalysisEntries = (analysis?: any): AnalysisData[] => {
       supportingIndicators: Array.isArray(detail.supporting_indicators)
         ? detail.supporting_indicators
         : undefined,
-      fullDetails: detail.summary ?? "",
+      fullDetails: fullDetails,
     };
 
     if (detail.user_persona) {
@@ -695,7 +724,8 @@ export function ValueQuestionsSection({
                   isGenerating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
                 }`}
                 style={{
-                  width: "480px",
+                  width: isActive ? "auto" : "680px",
+                  minWidth: isActive ? undefined : "680px",
                   transformStyle: "preserve-3d",
                   zIndex,
                   boxShadow: isActive
@@ -703,7 +733,7 @@ export function ValueQuestionsSection({
                     : "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
                 }}
               >
-                <div className="text-center">
+                <div className="text-center whitespace-nowrap">
                   <div
                     className={`font-bold transition-all duration-600 ${
                       isActive ? "text-lg" : "text-xs"

@@ -38,6 +38,7 @@ type AppData = {
   payment_model?: string | null;
   mcp_server_ids?: string | string[] | null;
   url?: string | null;
+  app_web_link?: string | null;
   app_meta_info?: {
     chatAppMeta?: {
       name?: string;
@@ -407,6 +408,55 @@ export default function AppVersionsPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Web Site */}
+              {appData.app_web_link && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Globe className="size-4" />
+                    Web Site
+                  </label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <code className="text-sm bg-muted px-2 py-1 rounded flex-1 font-mono">
+                      {appData.app_web_link}
+                    </code>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          handleCopy(appData.app_web_link || "", "website")
+                        }
+                        className="flex items-center gap-1"
+                      >
+                        {copyFeedback?.item === "website" ? (
+                          copyFeedback.status === "success" ? (
+                            <Check className="size-3 text-emerald-600" />
+                          ) : (
+                            <AlertCircle className="size-3 text-destructive" />
+                          )
+                        ) : (
+                          <Copy className="size-3" />
+                        )}
+                        <span className="sr-only">Copy web site</span>
+                      </Button>
+                      {copyFeedback?.item === "website" && (
+                        <span
+                          className={`text-xs font-medium transition-opacity duration-150 ${
+                            copyFeedback.status === "success"
+                              ? "text-emerald-600"
+                              : "text-destructive"
+                          }`}
+                        >
+                          {copyFeedback.status === "success"
+                            ? "Copied!"
+                            : "Copy failed"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* MCP Server IDs - If available */}
               {/* {appData.mcp_server_ids && ( */}

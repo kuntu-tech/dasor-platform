@@ -22,6 +22,7 @@ export default function LoginPage() {
   const [hydrated, setHydrated] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     setHydrated(true);
@@ -42,6 +43,7 @@ export default function LoginPage() {
   const handleEmailLogin = async () => {
     const trimmedPassword = password.replace(/\s/g, "");
     if (!email || !trimmedPassword) {
+      setError("Please enter both email and password.");
       toast({
         title: "Login failed",
         description: "Please enter both email and password.",
@@ -51,15 +53,18 @@ export default function LoginPage() {
     }
 
     setEmailLoading(true);
+    setError("");
     try {
       await signInWithEmail(email, trimmedPassword);
       toast({
         title: "Signing in...",
         description: "Please wait while we log you in.",
       });
+      setEmailLoading(false);
     } catch (err: any) {
       console.log("Login failed:", err);
       setEmailLoading(false);
+      setError(err.message || "Please check your email and password.");
       toast({
         title: "Login failed",
         description: err.message || "Please check your email and password.",
@@ -148,6 +153,12 @@ export default function LoginPage() {
                   </Button>
                 </div>
               </div>
+
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-600">{error}</p>
+                </div>
+              )}
 
               {/* Login Button */}
               <Button

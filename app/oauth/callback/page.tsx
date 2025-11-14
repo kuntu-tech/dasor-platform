@@ -283,12 +283,12 @@ export default function OAuthCallbackPage() {
             
             const callbackController = new AbortController();
             abortControllers.current.callback = callbackController;
-            // Increased timeout to 35 seconds to account for service initialization
+            // Increased timeout to 45 seconds to account for service initialization and network delays
             const callbackTimeout = window.setTimeout(() => {
               const elapsed = Date.now() - startTime;
               console.warn("⏱️ OAuth callback timeout after", elapsed, "ms");
               callbackController.abort();
-            }, 35000);
+            }, 45000);
 
             let response: Response;
             try {
@@ -359,6 +359,8 @@ export default function OAuthCallbackPage() {
                     ? sessionStorage.getItem("oauth_return_path") || "/"
                     : "/";
                 if (typeof window !== "undefined") {
+                  // Remember to show connected state once we return to settings
+                  sessionStorage.setItem("payout_show_connected", "true");
                   sessionStorage.removeItem("oauth_return_path");
                 }
                 // Navigate back with query parameter to open the payout tab
@@ -411,7 +413,7 @@ export default function OAuthCallbackPage() {
       abortControllers.current = {};
       setStatus("error");
       setMessage("Authorization timed out, please try again.");
-    }, 15000);
+    }, 50000);
 
     return () => {
       window.clearTimeout(timeoutId);
