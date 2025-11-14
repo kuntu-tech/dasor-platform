@@ -195,14 +195,17 @@ const buildAnalysisEntries = (analysis?: any): AnalysisData[] => {
 
     // Build fullDetails for different dimensions
     let fullDetails = "";
-    if (config.id === "D1" && Array.isArray(detail.supporting_indicators) && detail.supporting_indicators.length > 0) {
-      // D1: combine summary and supporting indicators
-      const indicatorsText = detail.supporting_indicators
-        .map((ind: string) => `• ${ind}`)
-        .join("\n");
-      fullDetails = detail.summary 
-        ? `${detail.summary}\n\n关键指标:\n${indicatorsText}`
-        : indicatorsText;
+    if (config.id === "D1") {
+      // D1: use detailed_analysis if available, otherwise use full_details, avoid duplicating summary and indicators
+      // supportingIndicators will be displayed separately in DetailModal
+      if (detail.detailed_analysis) {
+        fullDetails = detail.detailed_analysis;
+      } else if (detail.full_details) {
+        fullDetails = detail.full_details;
+      } else {
+        // If no detailed content, leave empty to avoid duplication with summary
+        fullDetails = "";
+      }
     } else if (config.id === "D3") {
       // D3: use detailed_analysis if available, otherwise use full_details, avoid duplicating summary
       if (detail.detailed_analysis) {

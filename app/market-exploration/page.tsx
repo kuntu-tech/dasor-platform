@@ -1344,8 +1344,28 @@ export default function MarketExplorationPage({
       }
 
       // Determine run_id based on the selected version
-      const baseRunId =
-        versionMap.get(selectedVersion) || runResult?.run_id || "r_1";
+      let baseRunId = versionMap.get(selectedVersion) || "";
+
+      // If not found in versionMap, try to find it in versions array
+      if (!baseRunId && selectedVersion) {
+        const matchedVersion = versions.find(
+          (v) => v.display === selectedVersion
+        );
+        if (matchedVersion) {
+          baseRunId = matchedVersion.runId;
+        } else {
+          // If still not found, try to convert selectedVersion format (v1 -> r_1, v2 -> r_2, etc.)
+          const versionMatch = selectedVersion.match(/^v(\d+)$/);
+          if (versionMatch) {
+            baseRunId = `r_${versionMatch[1]}`;
+          }
+        }
+      }
+
+      // If still empty, use runResult or default
+      if (!baseRunId) {
+        baseRunId = runResult?.run_id || "r_1";
+      }
 
       // Read task_id from run_result only; do not overwrite it
       const taskId = runResult?.task_id || "";
@@ -2156,13 +2176,32 @@ export default function MarketExplorationPage({
 
       const runResultStr = localStorage.getItem("run_result");
       let runResult: any = null;
-      let baseRunId = versionMap.get(selectedVersion) || selectedVersion || "";
+      // Get baseRunId from versionMap first
+      let baseRunId = versionMap.get(selectedVersion) || "";
+
+      // If not found in versionMap, try to find it in versions array
+      if (!baseRunId && selectedVersion) {
+        const matchedVersion = versions.find(
+          (v) => v.display === selectedVersion
+        );
+        if (matchedVersion) {
+          baseRunId = matchedVersion.runId;
+        } else {
+          // If still not found, try to convert selectedVersion format (v1 -> r_1, v2 -> r_2, etc.)
+          const versionMatch = selectedVersion.match(/^v(\d+)$/);
+          if (versionMatch) {
+            baseRunId = `r_${versionMatch[1]}`;
+          }
+        }
+      }
+
       let taskId = "";
       let storedUserId = "";
 
       if (runResultStr) {
         try {
           runResult = JSON.parse(runResultStr);
+          // If baseRunId is still empty after all attempts, use runResult
           if (!baseRunId) {
             baseRunId = runResult?.run_id || "r_1";
           }
@@ -2173,6 +2212,7 @@ export default function MarketExplorationPage({
         }
       }
 
+      // Final fallback
       if (!baseRunId) {
         baseRunId = "r_1";
       }
@@ -2327,11 +2367,13 @@ export default function MarketExplorationPage({
       console.log("[Command Submit] Response:", json ?? text);
       setGenerationProgress(50);
 
-      // delete-question, rename segment, and delete segments commands don't need to call standal_sql
+      // delete-question, rename segment, delete segments, and segment_merge commands don't need to call standal_sql
       const shouldSkipStandalSql =
         selectedCommand === "delete question" ||
         selectedCommand === "rename segment" ||
-        selectedCommand === "delete segments";
+        selectedCommand === "delete segments" ||
+        selectedCommand === "merge segments" ||
+        updatedPayload.intent === "segment_merge";
 
       // After changeset execution completes, update version list
       // If standal_sql is not needed, immediately update version list and switch version
@@ -2682,7 +2724,7 @@ export default function MarketExplorationPage({
             <button
               onClick={handleGenerateApp}
               disabled={isGenerating}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white relative overflow-hidden"
+              className="flex items-center gap-1.5 px-4 py-2 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white relative overflow-hidden"
             >
               <ArrowRight className="w-4 h-4" />
               <span className="whitespace-nowrap flex items-center gap-1">
@@ -3146,7 +3188,7 @@ export default function MarketExplorationPage({
                   onChange={(e) => handleInputChange(e.target.value)}
                   onKeyDown={handleKeyDown}
                   disabled={isGenerating}
-                  placeholder="Use @ to get started quickly and submit your changes."
+                  placeholder="Use + to get started quickly and submit your changes."
                   rows={1}
                   className="flex-1 resize-none bg-transparent border-none outline-none text-gray-900 placeholder-gray-400 text-base px-2 py-2 max-h-48 overflow-y-auto disabled:opacity-50"
                   style={{ minHeight: "40px" }}
