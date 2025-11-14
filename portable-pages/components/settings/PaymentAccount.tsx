@@ -78,6 +78,22 @@ const PaymentAccount = () => {
     notifyStripeStatusChange();
   };
 
+  // When returning from OAuth success, show the connected state once
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (loading) return;
+
+    const shouldShowConnected = sessionStorage.getItem("payout_show_connected");
+    if (shouldShowConnected) {
+      sessionStorage.removeItem("payout_show_connected");
+      setConnectedEmail(user?.email || "");
+      setCurrentStep("connected");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("stripe-connection-updated"));
+      }
+    }
+  }, [loading, user?.email]);
+
   return (
     <div className="space-y-6">
       {/* Payout Account Header */}
