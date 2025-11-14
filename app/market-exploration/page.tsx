@@ -1298,8 +1298,26 @@ export default function MarketExplorationPage({
       }
 
       // Determine run_id based on the selected version
-      const baseRunId =
-        versionMap.get(selectedVersion) || runResult?.run_id || "r_1";
+      let baseRunId = versionMap.get(selectedVersion) || "";
+      
+      // If not found in versionMap, try to find it in versions array
+      if (!baseRunId && selectedVersion) {
+        const matchedVersion = versions.find(v => v.display === selectedVersion);
+        if (matchedVersion) {
+          baseRunId = matchedVersion.runId;
+        } else {
+          // If still not found, try to convert selectedVersion format (v1 -> r_1, v2 -> r_2, etc.)
+          const versionMatch = selectedVersion.match(/^v(\d+)$/);
+          if (versionMatch) {
+            baseRunId = `r_${versionMatch[1]}`;
+          }
+        }
+      }
+      
+      // If still empty, use runResult or default
+      if (!baseRunId) {
+        baseRunId = runResult?.run_id || "r_1";
+      }
 
       // Read task_id from run_result only; do not overwrite it
       const taskId = runResult?.task_id || "";
@@ -2090,16 +2108,30 @@ export default function MarketExplorationPage({
 
       const runResultStr = localStorage.getItem("run_result");
       let runResult: any = null;
-      let baseRunId =
-        versionMap.get(selectedVersion) ||
-        selectedVersion ||
-        "";
+      // Get baseRunId from versionMap first
+      let baseRunId = versionMap.get(selectedVersion) || "";
+      
+      // If not found in versionMap, try to find it in versions array
+      if (!baseRunId && selectedVersion) {
+        const matchedVersion = versions.find(v => v.display === selectedVersion);
+        if (matchedVersion) {
+          baseRunId = matchedVersion.runId;
+        } else {
+          // If still not found, try to convert selectedVersion format (v1 -> r_1, v2 -> r_2, etc.)
+          const versionMatch = selectedVersion.match(/^v(\d+)$/);
+          if (versionMatch) {
+            baseRunId = `r_${versionMatch[1]}`;
+          }
+        }
+      }
+      
       let taskId = "";
       let storedUserId = "";
 
       if (runResultStr) {
         try {
           runResult = JSON.parse(runResultStr);
+          // If baseRunId is still empty after all attempts, use runResult
           if (!baseRunId) {
             baseRunId = runResult?.run_id || "r_1";
           }
@@ -2110,6 +2142,7 @@ export default function MarketExplorationPage({
         }
       }
 
+      // Final fallback
       if (!baseRunId) {
         baseRunId = "r_1";
       }
