@@ -796,7 +796,16 @@ const ClaudeChatInput: React.FC<ChatInputProps> = ({
             <Button
               size="icon"
               variant="ghost"
-              className="h-9 w-9 p-0 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 flex-shrink-0"
+              className="h-9 w-9 p-0 text-zinc-400 !hover:text-zinc-200 !hover:bg-zinc-700 flex-shrink-0 transition-all duration-200 !hover:scale-110"
+              style={{
+                transform: 'scale(1)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled || files.length >= maxFiles}
               title={
