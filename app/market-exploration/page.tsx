@@ -2561,10 +2561,10 @@ export default function MarketExplorationPage({
               disabled={isGenerating}
               className="flex items-center gap-1.5 px-4 py-2 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white relative overflow-hidden"
             >
-              <ArrowRight className="w-4 h-4" />
+              {/* <ArrowRight className="w-4 h-4" /> */}
               <span className="whitespace-nowrap flex items-center gap-1">
-                Generate{" "}
-                <AnimatePresence mode="wait">
+                Preview
+                {/* <AnimatePresence mode="wait">
                   <motion.span
                     key={displayedSegmentName}
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -2576,7 +2576,7 @@ export default function MarketExplorationPage({
                   >
                     {displayedSegmentName}
                   </motion.span>
-                </AnimatePresence>
+                </AnimatePresence> */}
               </span>
             </button>
           </div>
