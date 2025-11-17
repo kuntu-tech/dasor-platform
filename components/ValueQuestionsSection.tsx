@@ -293,7 +293,6 @@ export function ValueQuestionsSection({
     const initialSegments = transformSegments(segmentsData);
     return initialSegments[0]?.id || "";
   });
-  const [hasExpanded, setHasExpanded] = useState(false);
   const [currentAnalysisData, setCurrentAnalysisData] = useState<
     AnalysisData[]
   >(() => {
@@ -966,7 +965,7 @@ export function ValueQuestionsSection({
             <div className="mb-8">
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={`analysis-grid-${hasExpanded}`}
+                  key={`analysis-grid-${refreshKey}`}
                   initial={{
                     opacity: 0,
                   }}
@@ -979,10 +978,7 @@ export function ValueQuestionsSection({
                   transition={{
                     duration: 0.3,
                   }}
-                  onMouseEnter={() => setHasExpanded(true)}
-                  className={`grid gap-3 transition-all duration-300 ${
-                    hasExpanded ? "grid-cols-2" : "grid-cols-4"
-                  }`}
+                  className="grid gap-3 transition-all duration-300 grid-cols-2"
                 >
                   {currentAnalysisData.map((analysis, index) => (
                     <motion.div
@@ -1000,17 +996,10 @@ export function ValueQuestionsSection({
                         delay: index * 0.1,
                       }}
                     >
-                      {hasExpanded ? (
-                        <AnalysisCard
-                          analysis={analysis}
-                          onClick={() => onAnalysisClick(analysis)}
-                        />
-                      ) : (
-                        <CompactAnalysisCard
-                          analysis={analysis}
-                          onClick={() => onAnalysisClick(analysis)}
-                        />
-                      )}
+                      <AnalysisCard
+                        analysis={analysis}
+                        onClick={() => onAnalysisClick(analysis)}
+                      />
                     </motion.div>
                   ))}
                 </motion.div>
