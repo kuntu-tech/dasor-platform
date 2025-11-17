@@ -142,10 +142,9 @@ const transformExternalSegment = (segment: ExternalSegment): Segment | null => {
             (question as any)?.questionId ||
             (question as any)?.question_id ||
             text;
-          const tags = [
-            question.intent,
-            question.answerShape,
-          ].filter(Boolean) as string[];
+          const tags = [question.intent, question.answerShape].filter(
+            Boolean
+          ) as string[];
           return {
             id: questionId.toString(),
             text,
@@ -168,9 +167,7 @@ const transformExternalSegment = (segment: ExternalSegment): Segment | null => {
   };
 };
 
-const transformSegments = (
-  segmentsData?: ExternalSegment[]
-): Segment[] => {
+const transformSegments = (segmentsData?: ExternalSegment[]): Segment[] => {
   if (!Array.isArray(segmentsData)) return [];
   return segmentsData
     .map((segment) => transformExternalSegment(segment))
@@ -276,10 +273,7 @@ const findMatchingExternalSegment = (
   return segmentsData.find((segment) => {
     const id = normalizeSegmentId(segment);
     const name = normalizeSegmentName(segment);
-    return (
-      (targetId && id === targetId) ||
-      (targetName && name === targetName)
-    );
+    return (targetId && id === targetId) || (targetName && name === targetName);
   });
 };
 export function ValueQuestionsSection({
@@ -300,19 +294,19 @@ export function ValueQuestionsSection({
     return initialSegments[0]?.id || "";
   });
   const [hasExpanded, setHasExpanded] = useState(false);
-  const [currentAnalysisData, setCurrentAnalysisData] = useState<AnalysisData[]>(
-    () => {
-      const initialSegments = transformSegments(segmentsData);
-      if (!initialSegments.length) return [];
-      const firstSegment = initialSegments[0];
-      const rawSegment = findMatchingExternalSegment(
-        segmentsData,
-        firstSegment.id,
-        firstSegment.name
-      );
-      return buildAnalysisEntries(rawSegment?.analysis);
-    }
-  );
+  const [currentAnalysisData, setCurrentAnalysisData] = useState<
+    AnalysisData[]
+  >(() => {
+    const initialSegments = transformSegments(segmentsData);
+    if (!initialSegments.length) return [];
+    const firstSegment = initialSegments[0];
+    const rawSegment = findMatchingExternalSegment(
+      segmentsData,
+      firstSegment.id,
+      firstSegment.name
+    );
+    return buildAnalysisEntries(rawSegment?.analysis);
+  });
 
   // Transform external segmentsData into the required internal shape
   useEffect(() => {
@@ -325,31 +319,37 @@ export function ValueQuestionsSection({
       setCurrentAnalysisData([]);
       return;
     }
-    
+
     // If targetSegmentName is provided, try to find and select that segment
     if (targetSegmentName) {
       // First try to find by name in mappedSegments
       let targetSegment = mappedSegments.find(
         (segment) => segment.name === targetSegmentName
       );
-      
+
       // If not found, try to find in segmentsData and match by ID
       if (!targetSegment && segmentsData) {
         const externalSegment = segmentsData.find(
-          (s: any) => s.name === targetSegmentName || (s as any)?.title === targetSegmentName
+          (s: any) =>
+            s.name === targetSegmentName ||
+            (s as any)?.title === targetSegmentName
         );
         if (externalSegment) {
-          const targetId = normalizeSegmentId(externalSegment) || normalizeSegmentName(externalSegment);
-          targetSegment = mappedSegments.find((segment) => segment.id === targetId);
+          const targetId =
+            normalizeSegmentId(externalSegment) ||
+            normalizeSegmentName(externalSegment);
+          targetSegment = mappedSegments.find(
+            (segment) => segment.id === targetId
+          );
         }
       }
-      
+
       if (targetSegment) {
         setActiveTab(targetSegment.id);
         return;
       }
     }
-    
+
     // If no targetSegmentName but previous activeTab exists and is still valid, keep it
     setActiveTab((prev) => {
       if (prev && mappedSegments.some((segment) => segment.id === prev)) {
@@ -381,7 +381,8 @@ export function ValueQuestionsSection({
       const secondSegment = segmentsData?.[1];
       if (secondSegment) {
         const nextActive =
-          normalizeSegmentId(secondSegment) || normalizeSegmentName(secondSegment);
+          normalizeSegmentId(secondSegment) ||
+          normalizeSegmentName(secondSegment);
         if (nextActive) {
           setActiveTab(nextActive);
         }
@@ -524,7 +525,7 @@ export function ValueQuestionsSection({
         return {
           query: q.question || q.text || "",
           sql: q.sql || "",
-          sample_data: q.sample_data || []
+          sample_data: q.sample_data || [],
         };
       });
 
@@ -584,15 +585,13 @@ export function ValueQuestionsSection({
     (segment: Segment) => segment.id === activeTab
   );
   const resolvedActiveIndex =
-    currentSegments.length === 0
-      ? -1
-      : activeIndex === -1
-      ? 0
-      : activeIndex;
+    currentSegments.length === 0 ? -1 : activeIndex === -1 ? 0 : activeIndex;
 
   useEffect(() => {
     if (!currentSegments.length) return;
-    const hasActive = currentSegments.some((segment) => segment.id === activeTab);
+    const hasActive = currentSegments.some(
+      (segment) => segment.id === activeTab
+    );
     if (!hasActive) {
       setActiveTab(currentSegments[0].id);
     }
@@ -648,7 +647,7 @@ export function ValueQuestionsSection({
                   ? "Switching to New Version"
                   : "Generating..."}
               </h3>
-             
+
               <div className="w-80 mx-auto">
                 <p className="text-sm text-gray-500 mt-2">
                   {Math.round(generationProgress)}%
@@ -724,7 +723,9 @@ export function ValueQuestionsSection({
                     ? "bg-black text-white shadow-2xl"
                     : "bg-white text-gray-600 hover:text-gray-900 shadow-lg"
                 } ${
-                  isGenerating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                  isGenerating
+                    ? "opacity-50 cursor-not-allowed"
+                    : "cursor-pointer"
                 }`}
                 style={{
                   width: isActive ? "auto" : "680px",
@@ -763,7 +764,8 @@ export function ValueQuestionsSection({
                     <div
                       className="w-32 h-32 rounded-full"
                       style={{
-                        background: "radial-gradient(circle, rgba(16, 185, 129, 0.6) 0%, transparent 70%)",
+                        background:
+                          "radial-gradient(circle, rgba(16, 185, 129, 0.6) 0%, transparent 70%)",
                         filter: "blur(20px)",
                       }}
                     />
@@ -774,30 +776,30 @@ export function ValueQuestionsSection({
           })}
           {resolvedActiveIndex >= 0 &&
             resolvedActiveIndex < currentSegments.length - 1 && (
-            <button
-              onClick={() => {
-                if (
-                  resolvedActiveIndex >= 0 &&
-                  resolvedActiveIndex < currentSegments.length - 1
-                ) {
-                  setActiveTab(currentSegments[resolvedActiveIndex + 1].id);
-                }
-              }}
-              disabled={isGenerating}
-              className={`absolute right-8 z-30 p-1.5 rounded-full transition-all duration-200 ${
-                isGenerating
-                  ? "text-gray-300 cursor-not-allowed"
-                  : "text-gray-600 hover:scale-125 cursor-pointer"
-              }`}
-              aria-label="Next segment"
-              style={{
-                top: "50%",
-                transform: "translateY(-50%)",
-              }}
-            >
-              <ChevronRightIcon className="w-5 h-5" />
-            </button>
-          )}
+              <button
+                onClick={() => {
+                  if (
+                    resolvedActiveIndex >= 0 &&
+                    resolvedActiveIndex < currentSegments.length - 1
+                  ) {
+                    setActiveTab(currentSegments[resolvedActiveIndex + 1].id);
+                  }
+                }}
+                disabled={isGenerating}
+                className={`absolute right-8 z-30 p-1.5 rounded-full transition-all duration-200 ${
+                  isGenerating
+                    ? "text-gray-300 cursor-not-allowed"
+                    : "text-gray-600 hover:scale-125 cursor-pointer"
+                }`}
+                aria-label="Next segment"
+                style={{
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                }}
+              >
+                <ChevronRightIcon className="w-5 h-5" />
+              </button>
+            )}
         </div>
       </div>
       {/* Content */}
@@ -1013,155 +1015,6 @@ export function ValueQuestionsSection({
                   ))}
                 </motion.div>
               </AnimatePresence>
-            </div>
-            {/* Value Questions Section */}
-            <div
-              className="pt-2 relative overflow-x-hidden"
-              onMouseEnter={() => setHasExpanded(true)}
-            >
-              <AnimatePresence>
-                {showQuestionListOverlay && (
-                  <motion.div
-                    initial={{
-                      opacity: 0,
-                    }}
-                    animate={{
-                      opacity: 1,
-                    }}
-                    exit={{
-                      opacity: 0,
-                    }}
-                    transition={{
-                      duration: 0.3,
-                    }}
-                    className="absolute inset-0 z-30 flex items-center justify-center bg-white/95 backdrop-blur-sm rounded-xl"
-                  >
-                    <motion.div
-                      initial={{
-                        scale: 0.9,
-                        opacity: 0,
-                      }}
-                      animate={{
-                        scale: 1,
-                        opacity: 1,
-                      }}
-                      exit={{
-                        scale: 0.9,
-                        opacity: 0,
-                      }}
-                      transition={{
-                        duration: 0.3,
-                        ease: "easeOut",
-                      }}
-                      className="text-center"
-                    >
-                      <motion.div
-                        animate={{
-                          rotate: 360,
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: "linear",
-                        }}
-                        className="inline-block mb-4"
-                      >
-                      <SparklesIcon
-                          className="w-12 h-12"
-                          style={{
-                          color: "#10B981",
-                          }}
-                        />
-                      </motion.div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                        {refreshType === "add-question"
-                          ? "Adding Question"
-                          : refreshType === "delete-question"
-                          ? "Deleting Question"
-                          : refreshType === "edit-question"
-                          ? "Editing Question"
-                          : "Refreshing Questions"}
-                      </h3>
-                      <p className="text-gray-600 text-sm">
-                        Updating question list...
-                      </p>
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <h2 className="text-3xl font-semibold text-gray-900 mb-6">
-                Value Questions
-              </h2>
-              <div className="space-y-1 max-h-[900px] overflow-y-auto overflow-x-hidden">
-                {activeSegment?.questions &&
-                activeSegment.questions.length > 0 ? (
-                  activeSegment.questions.map(
-                    (question: Question, index: number) => (
-                      <motion.div
-                        key={`${question.id}-${refreshKey}`}
-                        initial={{
-                          opacity: 0,
-                          x: -20,
-                        }}
-                        animate={{
-                          opacity: 1,
-                          x: 0,
-                        }}
-                        transition={{
-                          duration: 0.3,
-                          delay: index * 0.05,
-                        }}
-                        className="relative"
-                      >
-                        {/* Single question overlay - only on first question */}
-                        {index === 0 && showSingleQuestionOverlay && (
-                          <motion.div
-                            initial={{
-                              opacity: 0,
-                            }}
-                            animate={{
-                              opacity: 1,
-                            }}
-                            exit={{
-                              opacity: 0,
-                            }}
-                            transition={{
-                              duration: 0.3,
-                            }}
-                            className="absolute inset-0 z-20 flex items-center justify-center bg-white/95 backdrop-blur-sm rounded-xl"
-                          >
-                            <motion.div
-                              animate={{
-                                rotate: 360,
-                              }}
-                              transition={{
-                                duration: 2,
-                                repeat: Infinity,
-                                ease: "linear",
-                              }}
-                            >
-                              <SparklesIcon
-                                className="w-8 h-8"
-                                style={{
-                                  color: "#10B981",
-                                }}
-                              />
-                            </motion.div>
-                          </motion.div>
-                        )}
-                        <QuestionAccordion
-                          question={question}
-                          index={index + 1}
-                        />
-                      </motion.div>
-                    )
-                  )
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <p>No value questions data</p>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </motion.div>

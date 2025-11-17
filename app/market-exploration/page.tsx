@@ -147,13 +147,6 @@ const deriveCommandKey = (item: CommandItem): string | null => {
     normalized.includes("adjust competitive moat")
   )
     return "edit d4";
-  if (
-    normalized.includes("add new value question") ||
-    normalized.includes("add value questions")
-  )
-    return "add question";
-  if (normalized.includes("delete value question")) return "delete question";
-  if (normalized.includes("adjust value question")) return "edit question";
   if (normalized.includes("rename segment")) return "rename segment";
   if (
     normalized.includes("reanalyse") ||
@@ -245,33 +238,6 @@ const COMMAND_LIST: CommandItem[] = [
       intent: "analysis_edit",
       target: "analysis",
       selector: "segments[segmentId=xxx].analysis.D4",
-      user_prompt: "",
-    },
-  },
-  {
-    label: "Add value questions",
-    command: {
-      intent: "value_question_add",
-      target: "valueQuestions",
-      selector: "segments[segmentId=xxx].valueQuestions",
-      user_prompt: "",
-    },
-  },
-  {
-    label: "Delete value question",
-    command: {
-      intent: "value_question_remove",
-      target: "valueQuestions",
-      selector: "segments[segmentId=xxx].valueQuestions[id=xxx]",
-      user_prompt: "",
-    },
-  },
-  {
-    label: "Adjust value question",
-    command: {
-      intent: "value_question_edit",
-      target: "valueQuestions",
-      selector: "segments[segmentId=xxx].valueQuestions[id=xxx]",
       user_prompt: "",
     },
   },
@@ -838,7 +804,6 @@ export default function MarketExplorationPage({
     (selector: string) => {
       if (!selector) return selectedCommand || "general";
       if (selector.includes(".analysis")) return "analysis";
-      if (selector.includes("valueQuestions")) return "valueQuestions";
       if (selector.includes("domain")) return "domain";
       if (selector.includes("segments")) return "segment";
       return selectedCommand || "general";
@@ -2041,32 +2006,7 @@ export default function MarketExplorationPage({
         // Single selection (edit question)
         setSelectedQuestionOption(questions[0]);
         setIsQuestionModalOpen(false);
-        setSelectedCommandPayload((prev) => {
-          if (!prev) return prev;
-          // Get actual segmentId: prefer questionModalSegmentId, fallback to extracting from selector, or use "xxx" as last resort
-          const actualSegmentId = 
-            questionModalSegmentId || 
-            prev.selector?.match(/segmentId=([^\]]+)/)?.[1] || 
-            "xxx";
-          
-          const selectorWithFallback =
-            prev.selector && /valueQuestions/.test(prev.selector)
-              ? prev.selector
-              : `segments[segmentId=${actualSegmentId}].valueQuestions[id=${questions[0].id}]`;
-          
-          // Replace both segmentId=xxx and valueQuestions[id=xxx] to ensure no "xxx" remains in valueQuestions id
-          let updatedSelector = selectorWithFallback
-            // First replace segmentId=xxx if it exists
-            .replace(/segmentId=xxx/gi, `segmentId=${actualSegmentId}`)
-            // Then replace valueQuestions[id=xxx] or valueQuestions[id=any] with the actual question id
-            .replace(/valueQuestions\[id=[^\]\s]*\]/i, `valueQuestions[id=${questions[0].id}]`);
-          
-          return {
-            ...prev,
-            selector: updatedSelector,
-            user_prompt: questions[0].text || prev.user_prompt,
-          };
-        });
+        // Question selection logic removed (Value Questions feature disabled)
       }
     },
     [questionModalSegmentId, selectedCommand]
@@ -2157,7 +2097,8 @@ export default function MarketExplorationPage({
     if (
       QUESTION_SELECTOR_COMMANDS.has(selectedCommand) &&
       (!selectedQuestionOption ||
-        (selectedCommandPayload.selector && /valueQuestions\[id=xxx\]/i.test(selectedCommandPayload.selector))) &&
+        (selectedCommandPayload.selector &&
+          /valueQuestions\[id=xxx\]/i.test(selectedCommandPayload.selector))) &&
       !(selectedCommandPayload as any).questionIds
     ) {
       if (!isQuestionModalOpen) {
@@ -2257,41 +2198,7 @@ export default function MarketExplorationPage({
         };
       }
 
-      // Handle delete questions: generate one changeEntry per question
-      if (
-        updatedPayload.intent === "value_question_remove" &&
-        (updatedPayload as any).questionIds &&
-        Array.isArray((updatedPayload as any).questionIds) &&
-        (updatedPayload as any).questionIds.length > 0
-      ) {
-        const segmentId =
-          questionModalSegmentId ||
-          updatedPayload.selector?.match(/segmentId=([^\]]+)/)?.[1] ||
-          "xxx";
-        const changeset = (updatedPayload as any).questionIds.map(
-          (questionId: string) => {
-            return {
-              intent: "value_question_remove",
-              target: "valueQuestions",
-              selector: `segments[segmentId=${segmentId}].valueQuestions[id=${questionId}]`,
-              prompt: "删除这个问题",
-              policy: {
-                propagation: "standard",
-                strict_scope: true,
-                downgrade_shapes: true,
-              },
-            };
-          }
-        );
-
-        return {
-          feedback_text: updatedPayload.user_prompt,
-          base_run_id: baseRunId,
-          user_id: userId,
-          task_id: taskId,
-          changeset: changeset,
-        };
-      }
+      // Value question remove handling removed (Value Questions feature disabled)
 
       // Handle other commands (merge, edit, etc.)
       const changeEntry: Record<string, any> = {
@@ -2616,7 +2523,6 @@ export default function MarketExplorationPage({
   };
   const handleGenerateApp = () => {
     console.log("Generating ChatApp");
-    // Preserve selectedProblems saved by ValueQuestionsSection (current tab only)
     router.push("/generate");
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -2643,91 +2549,12 @@ export default function MarketExplorationPage({
     }
   };
   return (
-    <div className="w-full min-h-screen bg-white pb-32">
+    <div className="w-full min-h-screen bg-white">
       <div className="max-w-7xl mx-auto p-8">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-900">Business Insight</h1>
           {/* Right side controls */}
           <div className="flex items-center gap-4">
-            {/* Version Selector */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  // Disable dropdown while generation is running
-                  if (isGenerating) {
-                    return;
-                  }
-                  setIsVersionDropdownOpen(!isVersionDropdownOpen);
-                }}
-                disabled={isGenerating}
-                className={`flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg transition-colors ${
-                  isGenerating
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-gray-50 cursor-pointer"
-                }`}
-              >
-                <RotateCcw className="w-4 h-4 text-gray-600" />
-                <span className="text-sm font-medium text-gray-700">
-                  {selectedVersion ||
-                    (versions.length > 0 ? versions[0].display : "v1")}
-                </span>
-                <ChevronDown className="w-4 h-4 text-gray-600" />
-              </button>
-              {/* Dropdown Menu */}
-              {isVersionDropdownOpen && !isGenerating && (
-                <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                  {versions.length > 0 ? (
-                    versions.map((version) => (
-                      <button
-                        key={version.display}
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-
-                          // Double-check: disallow version switching while generating
-                          if (isGenerating) {
-                            console.warn(
-                              "Cannot switch version while generating"
-                            );
-                            setIsVersionDropdownOpen(false);
-                            return;
-                          }
-
-                          // Skip reload if user selects the current version
-                          if (version.display === selectedVersion) {
-                            setIsVersionDropdownOpen(false);
-                            return;
-                          }
-
-                          console.log("Version switch clicked:", {
-                            display: version.display,
-                            runId: version.runId,
-                          });
-
-                          setSelectedVersion(version.display);
-                          setIsVersionDropdownOpen(false);
-                          setIsGenerating(true);
-                          setGenerationProgress(0);
-
-                          await loadVersionData(version.runId);
-                        }}
-                        className={`w-full text-left px-4 py-2 text-sm cursor-pointer ${
-                          selectedVersion === version.display
-                            ? "bg-gray-100 font-medium text-gray-900 hover:bg-gray-100"
-                            : "text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        {version.display}
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-4 py-2 text-sm text-gray-500">
-                      No versions available
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
             {/* Generate ChatApp Button */}
             <button
               onClick={handleGenerateApp}
@@ -2754,7 +2581,7 @@ export default function MarketExplorationPage({
             </button>
           </div>
         </div>
-        {/* ValueQuestionsSection with version-based animation */}
+        {/* Business Insight Cards Section */}
         <AnimatePresence mode="wait">
           <motion.div
             key={selectedVersion}
@@ -2900,265 +2727,6 @@ export default function MarketExplorationPage({
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Bottom Input Box */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-6 pb-6 z-50">
-        <div className="max-w-7xl mx-auto px-8 relative">
-          <AnimatePresence>
-            {isSegmentDropdownOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.2 }}
-                className="absolute bottom-full mb-2 left-4 bg-white border border-gray-300 rounded-2xl shadow-xl overflow-hidden"
-                style={{ width: "auto", minWidth: "300px", maxWidth: "400px" }}
-              >
-                <div className="p-2">
-                  <div className="mb-2">
-                    <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase">
-                      Quick Select
-                    </div>
-                    {topSegments.map((segment) => (
-                      <button
-                        key={segment}
-                        onClick={() => handleSegmentSelect(segment)}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-900 font-medium text-sm cursor-pointer"
-                      >
-                        {segment}
-                      </button>
-                    ))}
-                  </div>
-                  {hasMoreSegments && (
-                    <div className="border-t border-gray-200 pt-2">
-                      <button
-                        onClick={() => {
-                          setIsSegmentDropdownOpen(false);
-                          setSegmentModalMode("select");
-                          setSegmentModalCommand("clipboard");
-                          setIsSegmentModalOpen(true);
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600 font-medium text-sm flex items-center justify-between cursor-pointer"
-                      >
-                        <span>View all segments</span>
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <div className="bg-white border border-gray-300 rounded-3xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-visible">
-            <div className="flex flex-col gap-3 p-4">
-              <div className="flex flex-wrap items-start gap-2 min-w-0 w-full">
-                <AnimatePresence>
-                  {selectedCommand && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium"
-                      style={{ marginTop: "10px" }}
-                    >
-                      <span>{getCommandLabel(selectedCommand)}</span>
-                      <button
-                        onClick={() => {
-                          setSelectedCommand("");
-                          setSelectedCommandPayload(null);
-                          setSelectedSegmentTag("");
-                          setSelectedMergeSegments([]);
-                          setIsMergeSegmentsExpanded(false);
-                          setSelectedQuestionOption(null);
-                          setInputValue("");
-                        }}
-                        className="hover:bg-gray-200 rounded p-0.5 transition-colors cursor-pointer"
-                        aria-label="Clear command"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <AnimatePresence>
-                  {selectedSegmentTag && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium max-w-full"
-                      style={{ marginTop: "10px" }}
-                    >
-                      <span className="whitespace-normal break-words" title={selectedSegmentTag}>
-                        {selectedSegmentTag}
-                      </span>
-                      <button
-                        onClick={clearSelectedSegment}
-                        className="hover:bg-emerald-100 rounded p-0.5 transition-colors cursor-pointer flex-shrink-0"
-                        aria-label="Clear selected segment"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <AnimatePresence>
-                  {selectedMergeSegments.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="flex flex-wrap items-center gap-2 w-full min-w-0"
-                      style={{ marginTop: "10px" }}
-                    >
-                      {/* All segments displayed, no collapse */}
-                      {selectedMergeSegments.map((segment, index) => (
-                        <motion.div
-                          key={segment}
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ duration: 0.2, delay: index * 0.05 }}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium max-w-full"
-                        >
-                          <span className="whitespace-normal break-words" title={segment}>
-                            {segment}
-                          </span>
-                          <button
-                            onClick={() => {
-                              const updated = selectedMergeSegments.filter(
-                                (s) => s !== segment
-                              );
-                              setSelectedMergeSegments(updated);
-                              // Check command type to determine minimum required segments
-                              const isDeleteCommand =
-                                selectedCommand === "delete segments";
-                              const minRequired = isDeleteCommand ? 1 : 2;
-
-                              // If less than required segments remain, clear all tags and command
-                              if (updated.length < minRequired) {
-                                setSelectedCommand("");
-                                setSelectedCommandPayload(null);
-                                setSelectedMergeSegments([]);
-                                setIsMergeSegmentsExpanded(false);
-                                setSelectedSegmentTag("");
-                                setSelectedQuestionOption(null);
-                              } else {
-                                const segmentIds = updated.map((segmentName) => {
-                                  return (
-                                    segmentIdMap.get(segmentName) ||
-                                    segmentIdMap.get(segmentName.trim()) ||
-                                    segmentName
-                                  );
-                                });
-                                setSelectedCommandPayload((prev) => {
-                                  if (!prev) return prev;
-                                  return {
-                                    ...prev,
-                                    segments: segmentIds,
-                                  };
-                                });
-                              }
-                            }}
-                            className="hover:bg-emerald-100 rounded p-0.5 transition-colors cursor-pointer flex-shrink-0"
-                            aria-label="Remove segment"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <AnimatePresence>
-                  {selectedQuestionOption && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium"
-                      style={{ marginTop: "10px" }}
-                    >
-                      <div className="flex items-center gap-1 min-w-0 max-w-[220px]">
-                        <span
-                          className="truncate"
-                          title={selectedQuestionOption.text}
-                        >
-                          {selectedQuestionOption.text}
-                        </span>
-                        {selectedCommandPayload &&
-                          (selectedCommandPayload as any).questionIds &&
-                          (selectedCommandPayload as any).questionIds.length >
-                            1 && (
-                            <span className="text-blue-600 font-semibold flex-shrink-0">
-                              (
-                              {
-                                (selectedCommandPayload as any).questionIds
-                                  .length
-                              }
-                              )
-                            </span>
-                          )}
-                      </div>
-                      <button
-                        onClick={clearSelectedQuestion}
-                        className="hover:bg-blue-100 rounded p-0.5 transition-colors cursor-pointer flex-shrink-0"
-                        aria-label="Change selected question"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <textarea
-                  value={inputValue}
-                  onChange={(e) => handleInputChange(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  disabled={isGenerating}
-                  placeholder="Use + to get started quickly and submit your changes."
-                  rows={1}
-                  className="flex-1 resize-none bg-transparent border-none outline-none text-gray-900 placeholder-gray-400 text-base px-2 py-2 max-h-48 overflow-y-auto disabled:opacity-50"
-                  style={{ minHeight: "40px" }}
-                />
-              </div>
-              <div className="flex items-center gap-3">
-                <AnimatedDropdownMenu options={commandOptions}>
-                  <span className="text-xl">➕</span>
-                </AnimatedDropdownMenu>
-                <div className="flex-1" />
-                <div
-                  className="relative flex-shrink-0"
-                  onMouseEnter={() => setIsSendButtonHovered(true)}
-                  onMouseLeave={() => setIsSendButtonHovered(false)}
-                >
-                  <button
-                    type="button"
-                    onClick={handleSend}
-                    disabled={isGenerating || !selectedCommand}
-                    className={`p-2 rounded-lg transition-all duration-200 ${
-                      !isGenerating && selectedCommand
-                        ? "text-black hover:bg-gray-100 cursor-pointer"
-                        : "text-gray-300 cursor-not-allowed"
-                    }`}
-                    aria-label="Send message"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
-                  {!selectedCommand && isSendButtonHovered && !isGenerating && (
-                    <div className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50">
-                      Please select a command first
-                      <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
