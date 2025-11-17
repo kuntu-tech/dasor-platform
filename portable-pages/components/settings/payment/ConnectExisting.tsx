@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ExternalLink, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { ExternalLink, AlertTriangle, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
@@ -97,6 +97,12 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
         return;
       }
       const data = resp.data!;
+      
+      // Show note if this is a new account created after disconnection
+      if (data.note?.previouslyDisconnected && data.note.message) {
+        alert(data.note.message);
+      }
+      
       if (data.requiresOnboarding && data.onboarding?.url) {
         window.location.href = data.onboarding.url;
         return;
@@ -151,6 +157,14 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
         alert(resp.error || "Bind failed");
         return;
       }
+      
+      const data = resp.data!;
+      
+      // Show note if this is a new account created after disconnection
+      if (data.note?.previouslyDisconnected && data.note.message) {
+        alert(data.note.message);
+      }
+      
       onConnect(accountId.trim());
     } finally {
       setLoading(false);
@@ -159,6 +173,14 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
 
   return (
     <div>
+      <button
+        onClick={onBack}
+        className="mb-6 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </button>
+
       {/* Black button for automatic onboarding / registration */}
       <div className="max-w-2xl rounded-xl border border-border bg-card p-8">
         <Button onClick={handleOAuthConnect} className="w-full gap-2 bg-black text-white" size="lg" disabled={loading}>

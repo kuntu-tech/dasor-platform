@@ -239,9 +239,24 @@ export default function SettingsPage() {
   }, [user?.id, avatarCacheKey, updateAvatar, getLatestAccessToken])
 
   useEffect(() => {
+    // Handle both openSettings and payoutTab parameters
+    const openSettings = searchParams?.get("openSettings")?.toLowerCase()
     const payoutTab = searchParams?.get("payoutTab")?.toLowerCase()
-    if (payoutTab === "payout") {
-      setActiveTab("payout")
+    
+    // openSettings takes priority over payoutTab
+    const tabToOpen = openSettings || payoutTab
+    
+    if (tabToOpen) {
+      const validTabs = ["account", "billing", "payout"]
+      if (validTabs.includes(tabToOpen)) {
+        setActiveTab(tabToOpen)
+        // Remove the parameter from URL to prevent reopening on refresh
+        if (openSettings) {
+          const newUrl = new URL(window.location.href)
+          newUrl.searchParams.delete("openSettings")
+          window.history.replaceState({}, "", newUrl.pathname + (newUrl.search || ""))
+        }
+      }
     }
   }, [searchParams])
 

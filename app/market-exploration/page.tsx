@@ -206,7 +206,7 @@ const COMMAND_LIST: CommandItem[] = [
     },
   },
   {
-    label: "Adjust market size.",
+    label: "Adjust market size",
     command: {
       intent: "analysis_edit",
       selector: "segments[segmentId=xxx].analysis.D1",
@@ -2097,7 +2097,8 @@ export default function MarketExplorationPage({
     if (
       QUESTION_SELECTOR_COMMANDS.has(selectedCommand) &&
       (!selectedQuestionOption ||
-        selectedCommandPayload.selector?.includes("id=xxx")) &&
+        (selectedCommandPayload.selector &&
+          /valueQuestions\[id=xxx\]/i.test(selectedCommandPayload.selector))) &&
       !(selectedCommandPayload as any).questionIds
     ) {
       if (!isQuestionModalOpen) {

@@ -1,21 +1,29 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../ui/dialog";
 import { Button } from "../../ui/button";
 
 interface DisconnectModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
-const DisconnectModal = ({ open, onOpenChange, onConfirm }: DisconnectModalProps) => {
-  const handleConfirm = () => {
-    onConfirm();
-    onOpenChange(false);
+const DisconnectModal = ({ open, onOpenChange, onConfirm, isLoading = false, error }: DisconnectModalProps) => {
+  const handleConfirm = async () => {
+    await onConfirm();
+    // Don't close modal here - let the parent component handle it after success
+  };
+
+  const handleClose = () => {
+    if (!isLoading) {
+      onOpenChange(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
@@ -23,15 +31,38 @@ const DisconnectModal = ({ open, onOpenChange, onConfirm }: DisconnectModalProps
           </div>
           <DialogTitle>Disconnect Payment Account?</DialogTitle>
           <DialogDescription>
-            You will stop receiving payments for your ChatAPP until a new account is connected. Are you sure you want to proceed?
+            Are you sure you want to disconnect your Stripe account? This will revoke access to your Stripe account. You can reconnect the same account later if needed.
           </DialogDescription>
         </DialogHeader>
+        
+        {error && (
+          <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button 
+            variant="outline" 
+            onClick={handleClose}
+            disabled={isLoading}
+          >
             Cancel
           </Button>
-          <Button variant="destructive" className="text-white" onClick={handleConfirm}>
-            Disconnect
+          <Button 
+            variant="destructive" 
+            className="text-white" 
+            onClick={handleConfirm}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Disconnecting...
+              </>
+            ) : (
+              "Disconnect"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

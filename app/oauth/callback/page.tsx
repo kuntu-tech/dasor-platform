@@ -458,6 +458,8 @@ export default function OAuthCallbackPage() {
                 if (typeof window !== "undefined") {
                   // Remember to show connected state once we return to settings
                   sessionStorage.setItem("payout_show_connected", "true");
+                  // Set timestamp to prevent false disconnect detection
+                  sessionStorage.setItem("oauth_callback_time", Date.now().toString());
                   sessionStorage.removeItem("oauth_return_path");
                 }
                 // Navigate back with query parameter to open the payout tab
