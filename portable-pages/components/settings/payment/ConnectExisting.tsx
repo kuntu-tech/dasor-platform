@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ExternalLink, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { ExternalLink, AlertTriangle, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
@@ -173,6 +173,14 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
 
   return (
     <div>
+      <button
+        onClick={onBack}
+        className="mb-6 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </button>
+
       {/* Black button for automatic onboarding / registration */}
       <div className="max-w-2xl rounded-xl border border-border bg-card p-8">
         <Button onClick={handleOAuthConnect} className="w-full gap-2 bg-black text-white" size="lg" disabled={loading}>

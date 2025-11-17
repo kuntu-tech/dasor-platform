@@ -1,17 +1,23 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import PathSelection from "./payment/PathSelection";
 import CreateAccount from "./payment/CreateAccount";
 import ConnectExisting from "./payment/ConnectExisting";
 import ConnectedState from "./payment/ConnectedState";
 import { useAuth } from "../../../components/AuthProvider";
-import { getVendorStatus } from "../../lib/connectApi";
+import { getVendorStatus, getLoginLink, type VendorStatusResponse } from "../../lib/connectApi";
 
 type PaymentStep = "selection" | "create" | "connect" | "connected";
+
+interface StatusAlertInfo {
+  message: string;
+  linkUrl: string | null;
+}
 
 const PaymentAccount = () => {
   const [currentStep, setCurrentStep] = useState<PaymentStep>("selection");
   const [connectedEmail, setConnectedEmail] = useState<string>("");
   const [checkingConnection, setCheckingConnection] = useState(false); // Start as false, will be set to true when checking
+  const [vendorStatus, setVendorStatus] = useState<VendorStatusResponse["data"] | null>(null);
   const { user, session, loading } = useAuth();
 
   // Track if we've already checked to prevent infinite loops
@@ -106,6 +112,11 @@ const PaymentAccount = () => {
     setConnectedEmail(email);
     setCurrentStep("connected");
     notifyStripeStatusChange();
+    // Force refresh status alert when reconnecting
+    // Add a small delay to ensure backend has updated
+    setTimeout(() => {
+      setRefreshKey(prev => prev + 1);
+    }, 500);
   };
 
   const handleDisconnect = async () => {
@@ -255,6 +266,10 @@ const PaymentAccount = () => {
             if (typeof window !== "undefined") {
               window.dispatchEvent(new Event("stripe-connection-updated"));
             }
+            // Force refresh status alert after OAuth callback to get latest account status
+            setTimeout(() => {
+              setRefreshKey(prev => prev + 1);
+            }, 1000);
           } else {
             // Not connected yet - might be a timing issue, retry if we haven't exceeded max retries
             if (retryCount < maxRetries) {
@@ -278,6 +293,10 @@ const PaymentAccount = () => {
                     if (typeof window !== "undefined") {
                       window.dispatchEvent(new Event("stripe-connection-updated"));
                     }
+                    // Force refresh status alert after OAuth callback to get latest account status
+                    setTimeout(() => {
+                      setRefreshKey(prev => prev + 1);
+                    }, 1000);
                   } else {
                     // Still not connected after all retries - show connected state anyway since OAuth callback succeeded
                     console.log("[PaymentAccount] OAuth succeeded but connection not confirmed after all retries, showing connected state anyway");
@@ -288,6 +307,10 @@ const PaymentAccount = () => {
                     if (typeof window !== "undefined") {
                       window.dispatchEvent(new Event("stripe-connection-updated"));
                     }
+                    // Force refresh status alert after OAuth callback to get latest account status
+                    setTimeout(() => {
+                      setRefreshKey(prev => prev + 1);
+                    }, 1000);
                   }
                 } catch (finalError) {
                   console.log("[PaymentAccount] Final check error, showing connected state anyway:", finalError);
@@ -298,6 +321,10 @@ const PaymentAccount = () => {
                   if (typeof window !== "undefined") {
                     window.dispatchEvent(new Event("stripe-connection-updated"));
                   }
+                  // Force refresh status alert after OAuth callback to get latest account status
+                  setTimeout(() => {
+                    setRefreshKey(prev => prev + 1);
+                  }, 1000);
                 }
               }, 3000);
             }
@@ -319,6 +346,10 @@ const PaymentAccount = () => {
             if (typeof window !== "undefined") {
               window.dispatchEvent(new Event("stripe-connection-updated"));
             }
+            // Force refresh status alert after OAuth callback to get latest account status
+            setTimeout(() => {
+              setRefreshKey(prev => prev + 1);
+            }, 1000);
           }
         }
       };
@@ -337,6 +368,7 @@ const PaymentAccount = () => {
   // Check if user already has a connected Stripe account when component mounts
   // This runs AFTER the OAuth callback check to avoid race conditions
   // IMPORTANT: This effect runs every time the component mounts (when dialog opens)
+  // ALWAYS fetch fresh data to ensure we have the latest vendor status
   useEffect(() => {
     // Skip if OAuth return was detected (handled by the previous useEffect)
     if (typeof window !== "undefined" && sessionStorage.getItem("payout_show_connected")) {
@@ -375,10 +407,15 @@ const PaymentAccount = () => {
 
     // Always check connection status when component mounts or user changes
     // This ensures that every time the payout tab is opened, we verify the connection status
-    console.log("[PaymentAccount] Starting connection check on mount/open...", {
+    // IMPORTANT: Always fetch fresh data, never rely on cached state
+    console.log("[PaymentAccount] Starting connection check on mount/open (fetching fresh data)...", {
       userId: user.id,
       hasCheckedRef: hasCheckedRef.current,
     });
+    
+    // Reset check flag to force fresh check every time component mounts
+    // This ensures we always get the latest vendor status, even if user changed it in another browser
+    hasCheckedRef.current = false;
     
     // Mark as checking to prevent duplicate checks
     setCheckingConnection(true);
@@ -393,11 +430,17 @@ const PaymentAccount = () => {
       }
 
       try {
+        // Always fetch fresh vendor status (no cache) to ensure we have latest data
+        // This is critical when user disconnected/reconnected in another browser
         const resp = await getVendorStatus(user.id);
-        console.log("[PaymentAccount] checkExistingConnection response:", {
+        console.log("[PaymentAccount] checkExistingConnection response (fresh data):", {
           success: resp.success,
           hasData: !!resp.data,
           stripeAccountId: resp.data?.stripe_account_id,
+          stripeAccountStatus: resp.data?.stripe_account_status,
+          isActive: resp.data?.is_active,
+          chargesEnabled: resp.data?.charges_enabled,
+          payoutsEnabled: resp.data?.payouts_enabled,
           email: resp.data?.email,
         });
         
@@ -406,9 +449,17 @@ const PaymentAccount = () => {
         if (resp.success && resp.data && (resp.data.stripe_account_id || resp.data.stripe_account_status === "onboarding")) {
           // User already has a connected Stripe account or account is in onboarding
           console.log("[PaymentAccount] Account is connected (or onboarding), showing connected state");
-          setConnectedEmail(resp.data.email || user.email || "");
+          const previousEmail = connectedEmail;
+          const newEmail = resp.data.email || user.email || "";
+          setConnectedEmail(newEmail);
           setCurrentStep("connected");
           hasCheckedRef.current = true; // Mark as checked only when successfully connected
+          // If email changed (reconnected), force refresh status alert
+          if (previousEmail !== newEmail || previousEmail === "") {
+            setTimeout(() => {
+              setRefreshKey(prev => prev + 1);
+            }, 500);
+          }
         } else {
           // User doesn't have a connected Stripe account (stripe_account_id is null/empty and not onboarding)
           console.log("[PaymentAccount] No connected account found, showing selection page");
@@ -446,6 +497,192 @@ const PaymentAccount = () => {
     }
   }, [checkingConnection, loading, user?.id]);
 
+  // State for status alert
+  const [statusAlert, setStatusAlert] = useState<StatusAlertInfo | null>(null);
+  const [loadingAlert, setLoadingAlert] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0); // Force refresh key
+
+  // Function to fetch vendor status and update alert
+  // This function ALWAYS fetches fresh data from the API, never uses cached data
+  const fetchVendorStatusAndAlert = useCallback(async () => {
+    if (!user?.id || loading) return;
+    
+    try {
+      // Always fetch fresh vendor status with cache: 'no-store' to ensure latest data
+      // This ensures that if user disconnected/reconnected in another browser,
+      // this browser will get the latest status
+      const resp = await getVendorStatus(user.id);
+      if (resp.success && resp.data) {
+        setVendorStatus(resp.data);
+        
+        // Generate alert info based on vendor status
+        const status = resp.data.stripe_account_status;
+        const isActive = resp.data.is_active === true;
+        const vendorId = resp.data.id;
+        
+        // For active accounts, if charges_enabled/payouts_enabled fields are missing or null,
+        // we assume they are enabled (since account is active and ready)
+        // Only show warning if explicitly set to false
+        const chargesEnabledValue = resp.data.charges_enabled;
+        const payoutsEnabledValue = resp.data.payouts_enabled;
+        
+        // If account is active and is_active is true, assume charges/payouts are enabled unless explicitly false
+        const chargesEnabled = chargesEnabledValue === false 
+          ? false 
+          : (status === "active" && isActive ? true : chargesEnabledValue === true);
+        
+        const payoutsEnabled = payoutsEnabledValue === false 
+          ? false 
+          : (status === "active" && isActive ? true : payoutsEnabledValue === true);
+
+        // If account is active and all features enabled (or assumed enabled), no alert needed
+        if (status === "active" && isActive && chargesEnabled && payoutsEnabled) {
+          setStatusAlert(null);
+          setLoadingAlert(false);
+          return;
+        }
+
+        // Helper function to get Stripe account link
+        const getStripeAccountLink = async (vendorId: number): Promise<string | null> => {
+          try {
+            const loginLinkResp = await getLoginLink(vendorId);
+            if (loginLinkResp.success && loginLinkResp.data) {
+              // Priority: onboardingUrl > url > dashboardUrl
+              return loginLinkResp.data.onboardingUrl || loginLinkResp.data.url || loginLinkResp.data.dashboardUrl || null;
+            }
+            return null;
+          } catch (error) {
+            console.log("Failed to get Stripe account link:", error);
+            return null;
+          }
+        };
+
+        // Determine alert message first (show immediately)
+        let alertMessage = "";
+        if (status === "onboarding") {
+          alertMessage = "Complete your Stripe account onboarding to receive payments from your users";
+        } else if (status === "active" && !isActive) {
+          alertMessage = "Your Stripe account is not ready to receive payments. Please finish onboarding in your Stripe dashboard";
+        } else if (status === "active" && !chargesEnabled) {
+          alertMessage = "Charges are not enabled for your Stripe account. Please enable charges in your Stripe dashboard";
+        } else if (status === "active" && !payoutsEnabled) {
+          alertMessage = "Payouts are not enabled for your Stripe account. Please enable payouts in your Stripe dashboard";
+        }
+
+        // Show alert immediately with message (link will be added asynchronously)
+        if (alertMessage) {
+          setStatusAlert({
+            message: alertMessage,
+            linkUrl: null, // Will be updated when link is fetched
+          });
+          setLoadingAlert(false);
+        }
+
+        // Fetch link asynchronously and update alert (if vendorId exists)
+        if (vendorId && alertMessage) {
+          getStripeAccountLink(vendorId)
+            .then((linkUrl) => {
+              // Update alert with link if it was successfully fetched
+              setStatusAlert({
+                message: alertMessage,
+                linkUrl: linkUrl,
+              });
+            })
+            .catch((error) => {
+              console.log("Failed to get Stripe account link:", error);
+              // Keep the alert without link if fetch fails
+            });
+        }
+      } else {
+        setVendorStatus(null);
+        setStatusAlert(null);
+        setLoadingAlert(false);
+      }
+    } catch (error) {
+      console.log("Failed to fetch vendor status for alert:", error);
+      setVendorStatus(null);
+      setStatusAlert(null);
+      setLoadingAlert(false);
+    }
+  }, [user?.id, loading]);
+
+  // Track when component becomes visible to force refresh
+  const lastVisibilityChangeRef = useRef<number>(0);
+  
+  // Listen for visibility changes (when user switches tabs or browser windows)
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    
+    const handleVisibilityChange = () => {
+      if (!document.hidden && currentStep === "connected") {
+        // Page became visible, force refresh vendor status
+        const now = Date.now();
+        // Throttle: only refresh if last refresh was more than 2 seconds ago
+        if (now - lastVisibilityChangeRef.current > 2000) {
+          console.log("[PaymentAccount] Page became visible, refreshing vendor status");
+          lastVisibilityChangeRef.current = now;
+          setRefreshKey(prev => prev + 1);
+        }
+      }
+    };
+    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [currentStep]);
+
+  // Fetch vendor status when connected to show status alert
+  // ALWAYS fetch fresh data when currentStep becomes "connected" to ensure latest status
+  useEffect(() => {
+    if (currentStep === "connected" && user?.id && !loading) {
+      // Always fetch fresh vendor status, don't rely on cached data
+      console.log("[PaymentAccount] Fetching fresh vendor status for status alert");
+      fetchVendorStatusAndAlert();
+    } else {
+      setVendorStatus(null);
+      setStatusAlert(null);
+      setLoadingAlert(false);
+    }
+  }, [currentStep, user?.id, loading, refreshKey, connectedEmail, fetchVendorStatusAndAlert]);
+
+  // Listen for Stripe connection updates
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const handleStripeUpdate = () => {
+      console.log("[PaymentAccount] Stripe connection updated event received");
+      if (currentStep === "connected") {
+        // Force refresh by updating refresh key
+        setRefreshKey(prev => prev + 1);
+      }
+    };
+
+    window.addEventListener("stripe-connection-updated", handleStripeUpdate);
+    return () => {
+      window.removeEventListener("stripe-connection-updated", handleStripeUpdate);
+    };
+  }, [currentStep]);
+
+  // Listen for window focus to refresh status when user returns from Stripe
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (currentStep !== "connected") return;
+
+    const handleFocus = () => {
+      console.log("[PaymentAccount] Window focused, refreshing Stripe status");
+      // Add a small delay to ensure Stripe has updated their backend
+      setTimeout(() => {
+        setRefreshKey(prev => prev + 1);
+      }, 500);
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [currentStep]);
+
   // Show loading state while checking connection status
   if (checkingConnection) {
     return (
@@ -468,6 +705,25 @@ const PaymentAccount = () => {
       {/* Payout Account Header */}
       <div>
         <h1 className="text-2xl font-bold">Payout Account</h1>
+        {/* Status Alert for connected accounts */}
+        {currentStep === "connected" && !loadingAlert && statusAlert && (
+          <p className="text-sm text-red-500 mt-2">
+            {statusAlert.linkUrl ? (
+              <a
+                href={statusAlert.linkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-red-600 cursor-pointer no-underline"
+              >
+                <span>❗️</span> {statusAlert.message}
+              </a>
+            ) : (
+              <span>
+                <span>❗️</span> {statusAlert.message}
+              </span>
+            )}
+          </p>
+        )}
       </div>
       {currentStep !== "connected" ? (
         <>

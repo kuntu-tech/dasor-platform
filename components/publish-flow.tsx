@@ -262,41 +262,52 @@ export function PublishFlow() {
     return () => controller.abort();
   }, [appId, fetchAppFromDatabase, applyMetadataDefaults]);
 
-  useEffect(() => {
+  // Load vendor status function - can be called from multiple places
+  const loadVendorStatus = useCallback(async () => {
     if (!user?.id) return;
 
-    let cancelled = false;
-    const loadVendorStatus = async () => {
-      setVendorStatusLoading(true);
-      try {
-        const response = await getVendorStatus(user.id);
-        if (cancelled) return;
-        if (response.success && response.data) {
-          setVendorStatus(response.data);
-          setVendorStatusError(null);
-        } else {
-          setVendorStatus(null);
-          setVendorStatusError(response.error ?? null);
-        }
-      } catch (error) {
-        console.log("Failed to fetch vendor status:", error);
-        if (!cancelled) {
-          setVendorStatus(null);
-          setVendorStatusError("Failed to load vendor status");
-        }
-      } finally {
-        if (!cancelled) {
-          setVendorStatusLoading(false);
-        }
+    setVendorStatusLoading(true);
+    try {
+      const response = await getVendorStatus(user.id);
+      if (response.success && response.data) {
+        setVendorStatus(response.data);
+        setVendorStatusError(null);
+      } else {
+        setVendorStatus(null);
+        setVendorStatusError(response.error ?? null);
       }
-    };
-
-    loadVendorStatus();
-
-    return () => {
-      cancelled = true;
-    };
+    } catch (error) {
+      console.log("Failed to fetch vendor status:", error);
+      setVendorStatus(null);
+      setVendorStatusError("Failed to load vendor status");
+    } finally {
+      setVendorStatusLoading(false);
+    }
   }, [user?.id]);
+
+  // Load vendor status when user changes
+  useEffect(() => {
+    if (!user?.id) return;
+    loadVendorStatus();
+  }, [user?.id, loadVendorStatus]);
+
+  // Listen for Stripe connection updates (when user disconnects/reconnects)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleStripeUpdate = () => {
+      console.log("[PublishFlow] Stripe connection updated event received, refreshing vendor status");
+      // Add a small delay to ensure backend has updated
+      setTimeout(() => {
+        loadVendorStatus();
+      }, 500);
+    };
+
+    window.addEventListener("stripe-connection-updated", handleStripeUpdate);
+    return () => {
+      window.removeEventListener("stripe-connection-updated", handleStripeUpdate);
+    };
+  }, [loadVendorStatus]);
 
   useEffect(() => {
     return () => {

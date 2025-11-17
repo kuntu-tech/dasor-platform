@@ -87,6 +87,7 @@ export async function getVendorStatus(userId: string): Promise<VendorStatusRespo
       headers: {
         "Content-Type": "application/json",
       },
+      cache: "no-store", // Always fetch fresh data, never use cache
       signal: controller.signal,
     });
 
