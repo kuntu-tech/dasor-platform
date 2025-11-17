@@ -35,6 +35,12 @@ const CreateAccount = ({ onBack, onConnect }: CreateAccountProps) => {
         return;
       }
       const data = resp.data!;
+      
+      // Show note if this is a new account created after disconnection
+      if (data.note?.previouslyDisconnected && data.note.message) {
+        alert(data.note.message);
+      }
+      
       if (data.requiresOnboarding && data.onboarding?.url) {
         window.location.href = data.onboarding.url;
         return;

@@ -41,6 +41,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Log the vendor data for debugging
+    console.log(`[API /connect/status] Vendor data for userId ${userId}:`, {
+      id: vendor.id,
+      email: vendor.email,
+      stripe_account_id: vendor.stripe_account_id,
+      stripe_account_status: vendor.stripe_account_status,
+      is_active: vendor.is_active,
+    });
+
     return NextResponse.json(
       {
         success: true,
