@@ -12,7 +12,11 @@ interface ConnectedStateProps {
 
 const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
-  const [vendorData, setVendorData] = useState<{ email: string; stripe_account_id: string } | null>(null);
+  const [vendorData, setVendorData] = useState<{ 
+    email: string; 
+    stripe_account_id: string;
+    livemode?: boolean | null;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -22,7 +26,11 @@ const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
         try {
           const resp = await getVendorStatus(user.id);
           if (resp.success && resp.data) {
-            setVendorData({ email: resp.data.email, stripe_account_id: resp.data.stripe_account_id });
+            setVendorData({ 
+              email: resp.data.email, 
+              stripe_account_id: resp.data.stripe_account_id,
+              livemode: resp.data.livemode ?? null
+            });
           }
         } catch (err) {
           console.log("Failed to fetch vendor:", err);
@@ -37,6 +45,14 @@ const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
 
   const displayEmail = vendorData?.email || email;
   const displayStripeAccountId = vendorData?.stripe_account_id;
+  const isLiveMode = vendorData?.livemode === true;
+
+  // Build Stripe Dashboard URL with the actual account ID and mode
+  // Default to 'test' if livemode is not available (backward compatibility)
+  const stripeMode = isLiveMode ? 'live' : 'test';
+  const stripeDashboardUrl = displayStripeAccountId
+    ? `https://dashboard.stripe.com/${displayStripeAccountId}/${stripeMode}/dashboard`
+    : "https://dashboard.stripe.com";
 
   return (
     <div>
@@ -57,7 +73,7 @@ const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
           </div>
           <div className="mt-8 flex gap-3">
             <Button variant="outline" className="gap-2" asChild>
-              <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer">
+              <a href={stripeDashboardUrl} target="_blank" rel="noopener noreferrer">
                 View Dashboard on Stripe
                 <ExternalLink className="h-4 w-4" />
               </a>

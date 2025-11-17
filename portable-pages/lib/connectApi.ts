@@ -51,6 +51,7 @@ export interface VendorStatusResponse {
     subscription_period_end?: string | null;
     charges_enabled?: boolean | null;
     payouts_enabled?: boolean | null;
+    livemode?: boolean | null; // Stripe account mode: true for live, false for test
   };
   error?: string;
 }
