@@ -44,15 +44,17 @@ type AnalysisStep =
   | "evaluating"
   | "complete";
 type StepVisualStatus = "waiting" | "in-progress" | "completed" | "error";
-const STEP_PROGRESS_RANGES: Record<AnalysisStep, { start: number; end: number }> =
-  {
-    connecting: { start: 0, end: 10 },
-    "reading-schema": { start: 10, end: 30 },
-    "validating-data": { start: 30, end: 40 },
-    "sampling-data": { start: 40, end: 85 },
-    evaluating: { start: 85, end: 100 },
-    complete: { start: 100, end: 100 },
-  };
+const STEP_PROGRESS_RANGES: Record<
+  AnalysisStep,
+  { start: number; end: number }
+> = {
+  connecting: { start: 0, end: 10 },
+  "reading-schema": { start: 10, end: 30 },
+  "validating-data": { start: 30, end: 40 },
+  "sampling-data": { start: 40, end: 100 },
+  evaluating: { start: 100, end: 100 },
+  complete: { start: 100, end: 100 },
+};
 import { useAuth } from "./AuthProvider";
 type AnalysisResultItem = {
   id: string;
@@ -357,7 +359,6 @@ export function ConnectFlow() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("connect");
   const [connectionUrl, setConnectionUrl] = useState("");
-  const [apiKey, setApiKey] = useState("");
   const [readOnly, setReadOnly] = useState(true);
   const [markets, setMarkets] = useState<
     { id: string; title: string; analysis: any }[]
@@ -385,69 +386,6 @@ export function ConnectFlow() {
   const [progress, setProgress] = useState(0); // percentage
   const [jobStatus, setJobStatus] = useState("init");
   // const [connectionId, setConnectionId] = useState("");
-  // Simplified database validation helper supporting test URLs and API keys
-  const performRealDatabaseValidation = async (
-    url: string,
-    key: string
-  ): Promise<void> => {
-    // Valid test combinations for demos
-    const validTestCombinations = [
-      { url: "https://demo.supabase.co", key: "demo-key-abcdefghijklmnop" },
-      {
-        url: "https://example.supabase.co",
-        key: "example-key-123456789012345",
-      },
-      {
-        url: "https://myproject.supabase.co",
-        key: "myproject-key-abcdefghijklmnopqrstuvwxyz",
-      },
-      { url: "https://localhost:3000", key: "localhost-key-123456789" },
-    ];
-
-    // Special combination: connection succeeds but data validation fails later
-    const dataValidationFailedCombination = {
-      url: "https://test.supabase.co",
-      key: "test-api-key-123456789",
-    };
-
-    // Check whether this matches the data-validation failure combination
-    if (
-      url === dataValidationFailedCombination.url &&
-      key === dataValidationFailedCombination.key
-    ) {
-      // Simulate latency for connection validation
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      // Connection succeeds; data validation will fail downstream
-      return;
-    }
-
-    // Evaluate other valid test combos
-    const isValidTest = validTestCombinations.some(
-      (combo) => url === combo.url && key === combo.key
-    );
-
-    if (isValidTest) {
-      // Simulate validation delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return; // Validation passed
-    }
-
-    // Perform basic format validation for all other inputs
-    if (!url.includes("supabase.co") && !url.includes("localhost")) {
-      throw new Error(
-        "Invalid Supabase URL format. Try: https://test.supabase.co"
-      );
-    }
-
-    if (!key || key.length < 10) {
-      throw new Error("Invalid API Key format. Try: test-api-key-123456789");
-    }
-
-    // Simulate failure (used for testing error handling)
-    throw new Error(
-      "Invalid Supabase URL format. Try: https://test.supabase.co"
-    );
-  };
 
   // Detect redirect from publish page and pre-populate markets defaults
   useEffect(() => {
@@ -950,16 +888,6 @@ export function ConnectFlow() {
       setConnectionError("Access token must be at least 8 characters long");
       return;
     }
-    if (!apiKey || apiKey.trim() === "") {
-      setConnectionError("API key cannot be empty");
-      return;
-    }
-
-    // Enforce minimum API key length (typically ≥ 8)
-    if (apiKey.length < 8) {
-      setConnectionError("API key must be at least 8 characters long");
-      return;
-    }
 
     // Begin the analysis flow
     setStep("analyzing");
@@ -991,9 +919,7 @@ export function ConnectFlow() {
           const errorText = await validateRes.text();
           errorMsg = errorText?.slice(0, 200) || errorMsg;
         }
-        setConnectionError(
-          "Please check your API Key, Project ID or Access Token"
-        );
+        setConnectionError("Please check your Project ID or Access Token");
         setDataValidationError(null);
         setAnalysisStep("connecting"); // Reset to connecting step (failure stage)
         setStep("analyzing");
@@ -1003,9 +929,7 @@ export function ConnectFlow() {
       const validateResData = await validateRes.json();
       console.log("Data validation successful:", validateResData);
       if (!validateResData.success) {
-        setConnectionError(
-          "Please check your API Key, Project ID or Access Token"
-        );
+        setConnectionError("Please check your Project ID or Access Token");
         setDataValidationError(null);
         setAnalysisStep("connecting"); // Reset to connecting step (failure stage)
         setStep("analyzing");
@@ -1022,7 +946,6 @@ export function ConnectFlow() {
             connectionInfo: {
               project_id: connectionUrl,
               access_token: accessToken,
-              api_key: apiKey,
             },
             connectionSource: "supabase",
             status: "active",
@@ -1094,6 +1017,22 @@ export function ConnectFlow() {
 
       const validateData = await validateResponse.json();
       console.log("Data validation successful:", validateData);
+
+      // Save database_note from data_structure to localStorage
+      if (validateData.data_structure?.database_note) {
+        try {
+          localStorage.setItem(
+            "database_note",
+            validateData.data_structure.database_note
+          );
+          console.log(
+            "Saved database_note:",
+            validateData.data_structure.database_note
+          );
+        } catch (e) {
+          console.warn("Failed to save database_note to localStorage:", e);
+        }
+      }
 
       // Midway through validation; transition to UI Step 3
       setAnalysisStep("validating-data"); // UI Step 3
@@ -1199,16 +1138,16 @@ export function ConnectFlow() {
       console.log("Pipeline run successful, job_id:", connectData.job_id);
 
       // Enter polling phase; update analysisStep based on progress
-      // Progress allocation: polling consumes 40-80%, standal_sql uses 80-100%
+      // Progress allocation: polling consumes 45-100% (standal_sql removed)
       setJobStatus("waiting");
       const pollingResult = await pollJobProgress(
         connectData.job_id,
         (progress, status, data) => {
           if (progress !== null) {
-            // Map polling progress (0-100) into 45-80 and keep analysisStep aligned
-            const mappedProgress = 45 + Math.floor((progress / 100) * 35); // 45-80%
+            // Map polling progress (0-100) into 45-100
+            const mappedProgress = 45 + Math.floor((progress / 100) * 55); // 45-100%
             setProgress(mappedProgress);
-            // Remain within sampling-data (UI Step 4)
+            // Remain within sampling-data (UI Step 4) until complete
           }
           if (status) setJobStatus(status);
         },
@@ -1217,7 +1156,7 @@ export function ConnectFlow() {
       );
       if (pollingResult.status === "completed") {
         setJobStatus("done");
-        setProgress(80); // Polling complete, progress at 80%
+        setProgress(100); // Polling complete, progress at 100%
         console.log("pollingResult:", pollingResult);
       } else {
         setJobStatus(pollingResult.status || "error");
@@ -1227,69 +1166,31 @@ export function ConnectFlow() {
         return;
       }
 
-      // Step 5: evaluating - call standal_sql endpoint
-      // During standal_sql, progress spans 80% to 100%
-      console.log("Step 5: Evaluating - calling standal_sql...");
+      // Step 5: evaluating - use data from polling result
+      console.log("Step 5: Evaluating - processing results...");
       setAnalysisStep("evaluating"); // UI Step 5
-      setProgress(85); // Initiate standal_sql at 85%
-      let standalJson: any = {};
-      try {
-        const run_results = pollingResult?.run_results;
-        if (!run_results) {
-          throw new Error("No run_result found in polling result");
-        }
 
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 600_000); // 10 minute timeout
-
-        setProgress(90); // standal_sql in progress, 90%
-        const standalRes = await fetch(
-          // "http://192.168.30.159:8900/api/v1/standal_sql",
-          "https://business-insight.datail.ai/api/v1/standal_sql",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ run_results }),
-            signal: controller.signal,
-          }
-        );
-
-        clearTimeout(timeout);
-        const standalText = await standalRes.text();
-        console.log(standalText, "standal_sql response");
-
-        try {
-          standalJson = JSON.parse(standalText);
-        } catch {}
-
-        if (!standalRes.ok) {
-          throw new Error(
-            typeof standalJson === "string"
-              ? standalJson.slice(0, 200)
-              : standalJson?.error || `standal_sql HTTP ${standalRes.status}`
-          );
-        }
-
-        console.log("standal_sql completed successfully:", standalJson);
-        localStorage.setItem(
-          "standalJson",
-          JSON.stringify({
-            anchIndex: standalJson.run_results?.run_result?.anchIndex,
-            segments: standalJson.run_results.run_result.segments,
-          })
-        );
-        setProgress(100); // standal_sql finished, progress 100%
-        // Success: continue to next steps
-      } catch (e) {
-        console.log("standal_sql call failed", e);
-        const errorMsg =
-          e instanceof Error ? e.message : "standal_sql request failed";
-        setRunError(errorMsg);
+      // Use pollingResult directly since it has the same structure as standal_sql response
+      const run_results = pollingResult?.run_results;
+      if (!run_results) {
+        setRunError("No run_result found in polling result");
         setAnalysisStep("evaluating");
         setStep("analyzing");
         setIsAnalyzing(false);
         return;
       }
+
+      // The pollingResult has the same structure as standal_sql response
+      const standalJson = pollingResult;
+      console.log("Results processing completed successfully:", standalJson);
+
+      localStorage.setItem(
+        "standalJson",
+        JSON.stringify({
+          anchIndex: standalJson.run_results?.run_result?.anchIndex,
+          segments: standalJson.run_results?.run_result?.segments,
+        })
+      );
 
       // Evaluating stage complete; mark as finished
       setAnalysisStep("complete");
@@ -1297,11 +1198,8 @@ export function ConnectFlow() {
 
       // Persist run_result ensuring task_id is present
       const runResultToSave = {
-        ...standalJson?.run_results.run_result,
-        task_id:
-          pollingResult?.run_results?.task_id ||
-          pollingResult?.task_id ||
-          standalJson?.run_results?.task_id,
+        ...standalJson?.run_results?.run_result,
+        task_id: pollingResult?.run_results?.task_id || pollingResult?.task_id,
       };
       localStorage.setItem("run_result", JSON.stringify(runResultToSave));
 
@@ -1328,7 +1226,6 @@ export function ConnectFlow() {
         "dbConnectionData",
         JSON.stringify({
           connectionUrl: connectionUrl,
-          apiKey: apiKey,
           accessToken: accessToken,
           id: connectionId,
           connectionId: connectionId,
@@ -1353,7 +1250,7 @@ export function ConnectFlow() {
         setRunError(errorMessage);
         setDataValidationError(null);
       } else if (analysisStep === "evaluating") {
-        // standal_sql failure
+        // Results processing failure
         setRunError(errorMessage);
         setDataValidationError(null);
       } else {
@@ -1432,14 +1329,14 @@ export function ConnectFlow() {
   };
 
   const getStepStatus = (stepName: AnalysisStep): StepVisualStatus => {
-    // API order: connecting -> validating-data (UI Steps 2 & 3) -> pipeline/run (UI Step 4) -> standal_sql (UI Step 5)
+    // API order: connecting -> validating-data (UI Steps 2 & 3) -> pipeline/run (UI Step 4) -> results processing (UI Step 5)
     // UI order: connecting -> reading-schema (Step 2) -> validating-data (Step 3) -> sampling-data (Step 4) -> evaluating (Step 5)
     const steps: AnalysisStep[] = [
       "connecting",
       "reading-schema", // UI Step 2 executing validating-data API
       "validating-data", // UI Step 3 continuing validating-data API
       "sampling-data", // UI Step 4 running pipeline/polling
-      "evaluating", // UI Step 5 executing standal_sql
+      "evaluating", // UI Step 5 processing results
       "complete",
     ];
     const currentIndex = steps.indexOf(analysisStep);
@@ -1514,7 +1411,7 @@ export function ConnectFlow() {
     // }
 
     // Normal flow: determine status based on position in step order
-    // API order: validating-data (UI Steps 2 & 3) -> pipeline/run (UI Step 4) -> standal_sql (UI Step 5)
+    // API order: validating-data (UI Steps 2 & 3) -> pipeline/run (UI Step 4) -> results processing (UI Step 5)
     // UI order: reading-schema (Step 2) -> validating-data (Step 3) -> sampling-data (Step 4) -> evaluating (Step 5)
 
     // If analysisStep is reading-schema, the validating-data API (UI Step 2) is active
@@ -1648,12 +1545,11 @@ export function ConnectFlow() {
   const stepStatuses = {
     connecting: getStepStatus("connecting"),
     reading: getStepStatus("reading-schema"),
-    validating:
-      dataValidationError
-        ? ("error" as StepVisualStatus)
-        : runError
-        ? ("waiting" as StepVisualStatus)
-        : getStepStatus("validating-data"),
+    validating: dataValidationError
+      ? ("error" as StepVisualStatus)
+      : runError
+      ? ("waiting" as StepVisualStatus)
+      : getStepStatus("validating-data"),
     sampling:
       connectionError || dataValidationError
         ? ("error" as StepVisualStatus)
@@ -1712,10 +1608,10 @@ export function ConnectFlow() {
                 </div>
               </div>
 
-              {/* Supabase API Key */}
+              {/* Access Token */}
               <div className="space-y-3">
                 <Label
-                  htmlFor="api-key"
+                  htmlFor="access-token"
                   className="text-base font-semibold text-foreground"
                 >
                   Access Token
@@ -1746,48 +1642,13 @@ export function ConnectFlow() {
                   </span>
                 </div>
               </div>
-              <div className="space-y-3">
-                <Label
-                  htmlFor="api-key"
-                  className="text-base font-semibold text-foreground"
-                >
-                  API Key
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="api-key"
-                    placeholder="Please input API Key"
-                    value={apiKey}
-                    onChange={(e) => {
-                      setApiKey(e.target.value);
-                      setShowInputError(false);
-                    }}
-                    className={`h-12 pr-12 text-base ${
-                      showInputError
-                        ? "border-red-500 text-red-600 focus:border-red-500 focus:ring-red-500"
-                        : ""
-                    }`}
-                    type="password"
-                  />
-                  <Database className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
-                </div>
-                <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <Info className="size-4 mt-0.5 shrink-0" />
-                  <span>
-                    APl Key can be found in "Project Settings → API Keys →
-                    Publishable key"
-                  </span>
-                </div>
-              </div>
 
               {/* Action Button */}
               <Button
                 className="w-full h-14 text-base"
                 size="lg"
                 onClick={handleConnectAPI}
-                disabled={
-                  !connectionUrl || !apiKey || !accessToken || isAnalyzing
-                }
+                disabled={!connectionUrl || !accessToken || isAnalyzing}
               >
                 {isAnalyzing ? (
                   <>
@@ -1823,51 +1684,6 @@ export function ConnectFlow() {
                   </div>
                 </div>
               </div>
-
-              {/* Test URL and API key hints */}
-              {/* <div className="bg-green-50 border border-green-200 rounded-lg p-6 space-y-3">
-                <div className="flex items-start gap-3">
-                  <Info className="size-5 text-green-600 mt-0.5 shrink-0" />
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-green-900">
-                      🧪 Test with Demo Data
-                    </h4>
-                    <p className="text-sm text-green-800 leading-relaxed mb-3">
-                      You can use these test combinations to try the full
-                      analysis flow:
-                    </p>
-                    <div className="space-y-2 text-sm text-green-800">
-                      <div className="font-mono bg-red-100 p-2 rounded border border-red-200">
-                        <div>
-                          <strong>URL:</strong> https://test.supabase.co
-                        </div>
-                        <div>
-                          <strong>API Key:</strong> test-api-key-123456789
-                        </div>
-                        <div className="text-red-600 text-xs mt-1">
-                          ⚠️ Connection succeeded but data validation failed
-                        </div>
-                      </div>
-                      <div className="font-mono bg-green-100 p-2 rounded">
-                        <div>
-                          <strong>URL:</strong> https://demo.supabase.co
-                        </div>
-                        <div>
-                          <strong>API Key:</strong> demo-key-abcdefghijklmnop
-                        </div>
-                      </div>
-                      <div className="font-mono bg-green-100 p-2 rounded">
-                        <div>
-                          <strong>URL:</strong> https://example.supabase.co
-                        </div>
-                        <div>
-                          <strong>API Key:</strong> example-key-123456789012345
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div> */}
             </CardContent>
           </Card>
         )}
@@ -1929,7 +1745,7 @@ export function ConnectFlow() {
                               Invalid Supabase URL format or project not found
                             </li>
                             <li>
-                              Incorrect API Key or insufficient permissions
+                              Incorrect Access Token or insufficient permissions
                             </li>
                             <li>
                               Network connectivity issues or firewall blocking
@@ -1954,12 +1770,12 @@ export function ConnectFlow() {
                               exists
                             </li>
                             <li>
-                              Check that the API Key is valid and has proper
+                              Check that the Access Token is valid and has proper
                               permissions
                             </li>
                             <li>Ensure your network connection is stable</li>
                             <li>
-                              Try using a different API Key or creating a new
+                              Try using a different Access Token or creating a new
                               one
                             </li>
                             <li>
@@ -2137,43 +1953,6 @@ export function ConnectFlow() {
                             <p className="text-sm text-muted-foreground">
                               Read small samples to understand data content and
                               patterns
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-4">
-                          <div className="mt-1">
-                            <StepProgressIndicator
-                              step="evaluating"
-                              status={stepStatuses.evaluating}
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium">
-                                Evaluate Business Value and Generate
-                                Recommendations
-                              </span>
-                              {/* {getStepStatus("evaluating") === "completed" && (
-                            <span className="text-xs text-green-600 font-medium">
-                              [✓]
-                            </span>
-                          )}
-                              {getStepStatus("evaluating") ===
-                                "in-progress" && (
-                            <span className="text-xs text-primary font-medium">
-                              [In Progress...]
-                            </span>
-                          )}
-                          {getStepStatus("evaluating") === "waiting" && (
-                            <span className="text-xs text-muted-foreground font-medium">
-                              [Waiting...]
-                            </span>
-                              )} */}
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              AI analyzes data value and recommends best ChatApp
-                              templates
                             </p>
                           </div>
                         </div>

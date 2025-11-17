@@ -190,10 +190,12 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
         yearly: 35 * 12,
       },
       features: [
-        { text: "Unlimited generating ChatAPP" },
-        { text: "Unlimited import dasebase" },
-        { text: "Unlimited times business analyst" },
-        { text: "Unlock McKinsey-level AI analytics" },
+        { text: "Unlimited datasets and apps" },
+        { text: "AI-powered market analysis" },
+        { text: "ChatGPT Store publishing" },
+        { text: "Advanced analytics dashboard" },
+        { text: "Priority support" },
+        { text: "Keep 100% of your revenue" },
       ],
       btn: {
         text: "Subscribe",
