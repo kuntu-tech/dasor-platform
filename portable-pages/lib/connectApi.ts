@@ -29,6 +29,11 @@ export interface BindResponse {
       url: string;
       expiresAt: number;
     };
+    note?: {
+      previouslyDisconnected: boolean;
+      previousAccountId?: string;
+      message: string;
+    };
   };
   error?: string;
 }
@@ -407,6 +412,170 @@ export async function createAppPayment(
     return json;
   } catch (error) {
     console.log("createAppPayment error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+// Login link interfaces
+export interface GetLoginLinkResponse {
+  success: boolean;
+  data?: {
+    url: string; // Temporary login link (when onboarding complete) or direct Dashboard URL (when onboarding incomplete)
+    dashboardUrl: string; // Direct dashboard URL (for reference)
+    accountType: string; // 'standard', 'express', 'custom'
+    livemode: boolean; // true for live, false for test
+    requiresOnboarding?: boolean; // true if account needs to complete onboarding
+    onboardingUrl?: string; // Onboarding link to complete account setup
+    message?: string; // Message when onboarding is required
+    warning?: string; // Warning message when login link creation fails
+    note?: string; // Additional note about the response
+  };
+  message?: string; // Top-level message (when onboarding is required)
+  error?: string;
+}
+
+// Disconnect account interfaces
+export interface DisconnectAccountResponse {
+  success: boolean;
+  data?: {
+    vendorId: number;
+    message: string;
+    disconnectedAt: string;
+    canReconnect: boolean;
+    warning?: {
+      hasActiveSubscription: boolean;
+      subscriptionStatus: string;
+      message: string;
+    };
+  };
+  error?: string;
+}
+
+/**
+ * Get Stripe Dashboard login link for a vendor
+ * @param vendorId Vendor ID (required)
+ * @returns Login link response with temporary login URL and dashboard URL
+ */
+export async function getLoginLink(
+  vendorId: number
+): Promise<GetLoginLinkResponse> {
+  try {
+    const url = `${CONNECT_API_BASE}/api/connect/${vendorId}/login-link`;
+    console.log("Calling getLoginLink:", url, { vendorId });
+
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+        ...(SERVICE_API_TOKEN ? { Authorization: `Bearer ${SERVICE_API_TOKEN}` } : {}),
+      },
+    });
+
+    console.log("getLoginLink response status:", res.status);
+
+    // Attempt to parse the response
+    let json: GetLoginLinkResponse;
+    try {
+      json = (await res.json()) as GetLoginLinkResponse;
+    } catch (error) {
+      console.log("Failed to parse JSON response:", error);
+      return {
+        success: false,
+        error: `Failed to parse response: ${res.status}`,
+      };
+    }
+
+    // Validate response status
+    if (!res.ok) {
+      console.log("Login link API HTTP error:", res.status, json);
+      return {
+        success: false,
+        error: json.error || `HTTP error: ${res.status}`,
+      };
+    }
+
+    // Ensure the response indicates success
+    if (json.success === false) {
+      console.log("Login link API error:", res.status, json);
+      return {
+        success: false,
+        error: json.error || "Failed to get login link",
+      };
+    }
+
+    return json;
+  } catch (error) {
+    console.log("getLoginLink error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+/**
+ * Disconnect a Stripe Connect account
+ * @param vendorId Vendor ID (required)
+ * @param userId User ID (optional, for logging purposes)
+ * @returns Disconnect result with optional subscription warning
+ */
+export async function disconnectAccount(
+  vendorId: number,
+  userId?: string
+): Promise<DisconnectAccountResponse> {
+  try {
+    const url = `${CONNECT_API_BASE}/api/connect/${vendorId}/disconnect`;
+    console.log("Calling disconnectAccount:", url, { vendorId, userId });
+
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+        ...(SERVICE_API_TOKEN ? { Authorization: `Bearer ${SERVICE_API_TOKEN}` } : {}),
+      },
+      body: userId ? JSON.stringify({ userId }) : undefined,
+    });
+
+    console.log("disconnectAccount response status:", res.status);
+
+    // Attempt to parse the response
+    let json: DisconnectAccountResponse;
+    try {
+      json = (await res.json()) as DisconnectAccountResponse;
+    } catch (error) {
+      console.log("Failed to parse JSON response:", error);
+      return {
+        success: false,
+        error: `Failed to parse response: ${res.status}`,
+      };
+    }
+
+    // Validate response status
+    if (!res.ok) {
+      console.log("Disconnect API HTTP error:", res.status, json);
+      return {
+        success: false,
+        error: json.error || `HTTP error: ${res.status}`,
+      };
+    }
+
+    // Ensure the response indicates success
+    if (json.success === false) {
+      console.log("Disconnect API error:", res.status, json);
+      return {
+        success: false,
+        error: json.error || "Failed to disconnect account",
+      };
+    }
+
+    return json;
+  } catch (error) {
+    console.log("disconnectAccount error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Network error",

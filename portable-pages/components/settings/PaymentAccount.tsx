@@ -74,29 +74,99 @@ const PaymentAccount = () => {
     notifyStripeStatusChange();
   };
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
+    // Reset UI state immediately
     setConnectedEmail("");
     setCurrentStep("selection");
     notifyStripeStatusChange();
+    
+    // Re-check connection status to ensure UI is in sync with backend
+    if (user?.id) {
+      try {
+        const resp = await getVendorStatus(user.id);
+        if (resp.success && resp.data && resp.data.stripe_account_id) {
+          // If still connected (shouldn't happen, but handle edge case)
+          setConnectedEmail(resp.data.email || user.email || "");
+          setCurrentStep("connected");
+        } else {
+          // Confirmed disconnected - show selection page
+          setCurrentStep("selection");
+        }
+      } catch (error) {
+        console.log("Failed to re-check connection status after disconnect:", error);
+        // On error, ensure we're on selection page
+        setCurrentStep("selection");
+      }
+    }
   };
 
   // When returning from OAuth success, show the connected state once (priority check)
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (loading) return;
+    if (!user?.id) return;
 
     const shouldShowConnected = sessionStorage.getItem("payout_show_connected");
     if (shouldShowConnected) {
+      // Remove the flag immediately to prevent other useEffects from running
       sessionStorage.removeItem("payout_show_connected");
-      setConnectedEmail(user?.email || "");
-      setCurrentStep("connected");
-      setCheckingConnection(false);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("stripe-connection-updated"));
-      }
-      return; // Skip the connection check if OAuth return is detected
+      
+      // Verify connection status from backend to ensure it's actually connected
+      // Add retry mechanism to handle backend processing delay
+      const verifyConnection = async (retryCount = 0) => {
+        const maxRetries = 3;
+        const retryDelay = 1000; // 1 second
+
+        try {
+          const resp = await getVendorStatus(user.id);
+          if (resp.success && resp.data && resp.data.stripe_account_id) {
+            // Confirmed connected - show connected state
+            setConnectedEmail(resp.data.email || user.email || "");
+            setCurrentStep("connected");
+            setCheckingConnection(false);
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new Event("stripe-connection-updated"));
+            }
+          } else {
+            // Not connected yet - might be a timing issue, retry if we haven't exceeded max retries
+            if (retryCount < maxRetries) {
+              console.log(`OAuth callback detected but account not yet connected, retrying (${retryCount + 1}/${maxRetries})...`);
+              setTimeout(() => {
+                verifyConnection(retryCount + 1);
+              }, retryDelay);
+            } else {
+              // After max retries, show connected state anyway since OAuth callback succeeded
+              console.log("OAuth callback succeeded but connection status not confirmed after retries, showing connected state");
+              setConnectedEmail(user.email || "");
+              setCurrentStep("connected");
+              setCheckingConnection(false);
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new Event("stripe-connection-updated"));
+              }
+            }
+          }
+        } catch (error) {
+          console.log("Failed to verify connection after OAuth:", error);
+          // On error, retry if we haven't exceeded max retries
+          if (retryCount < maxRetries) {
+            setTimeout(() => {
+              verifyConnection(retryCount + 1);
+            }, retryDelay);
+          } else {
+            // After max retries, show connected state anyway since OAuth callback succeeded
+            setConnectedEmail(user.email || "");
+            setCurrentStep("connected");
+            setCheckingConnection(false);
+          }
+        }
+      };
+
+      // Add a small delay before first check to allow backend to process
+      setTimeout(() => {
+        verifyConnection();
+      }, 500);
     }
-  }, [loading, user?.email]);
+  }, [loading, user?.id, user?.email]);
 
   // Check if user already has a connected Stripe account when component mounts
   useEffect(() => {

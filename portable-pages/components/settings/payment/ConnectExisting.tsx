@@ -97,6 +97,12 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
         return;
       }
       const data = resp.data!;
+      
+      // Show note if this is a new account created after disconnection
+      if (data.note?.previouslyDisconnected && data.note.message) {
+        alert(data.note.message);
+      }
+      
       if (data.requiresOnboarding && data.onboarding?.url) {
         window.location.href = data.onboarding.url;
         return;
@@ -151,6 +157,14 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
         alert(resp.error || "Bind failed");
         return;
       }
+      
+      const data = resp.data!;
+      
+      // Show note if this is a new account created after disconnection
+      if (data.note?.previouslyDisconnected && data.note.message) {
+        alert(data.note.message);
+      }
+      
       onConnect(accountId.trim());
     } finally {
       setLoading(false);
