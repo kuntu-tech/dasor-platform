@@ -77,13 +77,20 @@ export async function bindVendor(body: BindRequestBody): Promise<BindResponse> {
 }
 
 export async function getVendorStatus(userId: string): Promise<VendorStatusResponse> {
+  // Add timeout to prevent long waits
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 seconds timeout
+
   try {
     const res = await fetch(`/api/connect/status?userId=${userId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     const rawText = await res.text();
     let json: VendorStatusResponse | undefined;
@@ -113,10 +120,14 @@ export async function getVendorStatus(userId: string): Promise<VendorStatusRespo
 
     return json;
   } catch (error) {
+    clearTimeout(timeoutId);
     console.warn("getVendorStatus request error:", error);
+    const errorMessage = error instanceof Error && error.name === "AbortError"
+      ? "Request timeout"
+      : error instanceof Error ? error.message : "Network error";
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Network error",
+      error: errorMessage,
     };
   }
 }
