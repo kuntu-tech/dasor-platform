@@ -254,11 +254,11 @@ const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
         // Handle error - only show if backend returns error message
         if (result.error) {
           setDashboardError(result.error);
-          console.error("Failed to get dashboard link:", result.error);
+          console.log("Failed to get dashboard link:", result.error);
         }
       }
     } catch (err) {
-      console.error("Error fetching dashboard link:", err);
+      console.log("Error fetching dashboard link:", err);
       // Only show error message if it's a meaningful error
       if (err instanceof Error && err.message) {
         setDashboardError(err.message);

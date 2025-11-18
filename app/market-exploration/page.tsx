@@ -31,6 +31,7 @@ import {
 import { AnimatedDropdownMenu } from "@/components/ui/animated-dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { GenerateModal } from "@/components/generate-modal";
 interface MarketSegment {
   id: string;
   title: string;
@@ -613,6 +614,7 @@ export default function MarketExplorationPage({
   const [inputValue, setInputValue] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState("");
   const [isVersionDropdownOpen, setIsVersionDropdownOpen] = useState(false);
   const [refreshType, setRefreshType] = useState<RefreshType>("none");
@@ -2523,7 +2525,7 @@ export default function MarketExplorationPage({
   };
   const handleGenerateApp = () => {
     console.log("Generating ChatApp");
-    router.push("/generate");
+    setIsGenerateModalOpen(true);
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -2563,7 +2565,7 @@ export default function MarketExplorationPage({
             >
               {/* <ArrowRight className="w-4 h-4" /> */}
               <span className="whitespace-nowrap flex items-center gap-1">
-                Preview
+                Generate
                 {/* <AnimatePresence mode="wait">
                   <motion.span
                     key={displayedSegmentName}
@@ -2727,6 +2729,10 @@ export default function MarketExplorationPage({
           </motion.div>
         )}
       </AnimatePresence>
+      <GenerateModal
+        open={isGenerateModalOpen}
+        onOpenChange={setIsGenerateModalOpen}
+      />
     </div>
   );
 }

@@ -101,6 +101,11 @@ const PaymentAccount = () => {
   };
 
   const handleSelection = (hasAccount: boolean) => {
+    // Clear disconnect_time flag when user actively chooses a path
+    // This prevents the disconnect check from interfering with user's selection
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("disconnect_time");
+    }
     setCurrentStep(hasAccount ? "connect" : "create");
   };
 
@@ -376,21 +381,38 @@ const PaymentAccount = () => {
       return;
     }
     
+    // IMPORTANT: Skip check if user has actively chosen a path (connect/create)
+    // This prevents the check from interfering with user's selection
+    if (currentStep === ("connect" as PaymentStep) || currentStep === ("create" as PaymentStep)) {
+      console.log("[PaymentAccount] Skipping regular check - user has chosen a path");
+      setCheckingConnection(false); // Clear loading state
+      return;
+    }
+    
     // Skip if we recently disconnected (within last 10 seconds)
+    // BUT only if we're still on selection page - don't interfere if user has chosen a path
     const disconnectTime = sessionStorage.getItem("disconnect_time");
     const isRecentDisconnect = disconnectTime 
       ? (Date.now() - parseInt(disconnectTime)) < 10000 // 10 seconds
       : false;
     
-    if (isRecentDisconnect) {
-      console.log("[PaymentAccount] Skipping regular check - recent disconnect");
+    if (isRecentDisconnect && currentStep === "selection") {
+      console.log("[PaymentAccount] Skipping regular check - recent disconnect, staying on selection page");
       setCheckingConnection(false); // Clear loading state
       hasCheckedRef.current = false; // Reset check flag after disconnect
       oauthProcessedRef.current = false; // Reset OAuth processed flag
-      // Ensure we're showing selection page after disconnect
+      // Only ensure selection page if we're already on it - don't force it if user chose a path
       setCurrentStep("selection");
       setConnectedEmail("");
       return;
+    }
+    
+    // If user has chosen a path (connect/create), clear disconnect_time to allow normal flow
+    if (isRecentDisconnect && (currentStep === ("connect" as PaymentStep) || currentStep === ("create" as PaymentStep))) {
+      console.log("[PaymentAccount] User chose a path after disconnect, clearing disconnect flag");
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("disconnect_time");
+      }
     }
     
     // Skip if already checking
@@ -429,6 +451,10 @@ const PaymentAccount = () => {
         return;
       }
 
+      // IMPORTANT: Don't reset currentStep if user has actively chosen a path
+      // Capture the current step before async operation
+      const currentStepBeforeCheck: PaymentStep = currentStep;
+      
       try {
         // Always fetch fresh vendor status (no cache) to ensure we have latest data
         // This is critical when user disconnected/reconnected in another browser
@@ -462,16 +488,28 @@ const PaymentAccount = () => {
           }
         } else {
           // User doesn't have a connected Stripe account (stripe_account_id is null/empty and not onboarding)
-          console.log("[PaymentAccount] No connected account found, showing selection page");
-          setConnectedEmail(""); // Clear any previous email
-          setCurrentStep("selection");
+          // BUT: Don't reset currentStep if user has actively chosen a path (connect/create)
+          if (currentStepBeforeCheck === ("connect" as PaymentStep) || currentStepBeforeCheck === ("create" as PaymentStep)) {
+            console.log("[PaymentAccount] No connected account found, but user has chosen a path - keeping current step");
+            // Keep the current step, don't reset to selection
+          } else {
+            console.log("[PaymentAccount] No connected account found, showing selection page");
+            setConnectedEmail(""); // Clear any previous email
+            setCurrentStep("selection");
+          }
           hasCheckedRef.current = true; // Mark as checked even if not connected
         }
       } catch (error) {
         console.log("Failed to check Stripe connection status:", error);
         // On error, don't mark as checked to allow retry
-        setConnectedEmail(""); // Clear any previous email
-        setCurrentStep("selection");
+        // BUT: Don't reset currentStep if user has actively chosen a path
+        if (currentStepBeforeCheck === ("connect" as PaymentStep) || currentStepBeforeCheck === ("create" as PaymentStep)) {
+          console.log("[PaymentAccount] Error checking connection, but user has chosen a path - keeping current step");
+          // Keep the current step, don't reset to selection
+        } else {
+          setConnectedEmail(""); // Clear any previous email
+          setCurrentStep("selection");
+        }
         hasCheckedRef.current = false; // Reset to allow retry on next render
       } finally {
         setCheckingConnection(false);
@@ -479,7 +517,7 @@ const PaymentAccount = () => {
     };
 
     checkExistingConnection();
-  }, [user?.id, loading]);
+  }, [user?.id, loading, currentStep]);
 
   // Fallback: Ensure checkingConnection is cleared if it's stuck
   useEffect(() => {
@@ -520,13 +558,39 @@ const PaymentAccount = () => {
         const isActive = resp.data.is_active === true;
         const vendorId = resp.data.id;
         
-        // For active accounts, if charges_enabled/payouts_enabled fields are missing or null,
-        // we assume they are enabled (since account is active and ready)
-        // Only show warning if explicitly set to false
+        // IMPORTANT: For active accounts with is_active=true, check if we should show alert
+        // If account is active and is_active is true, we assume everything is working unless explicitly disabled
+        if (status === "active" && isActive) {
+          // For active accounts, only show alert if charges_enabled or payouts_enabled are explicitly false
+          // If they are null/undefined/true, we assume they are enabled (account is active and ready)
+          const chargesEnabledValue = resp.data.charges_enabled;
+          const payoutsEnabledValue = resp.data.payouts_enabled;
+          
+          // Only show alert if explicitly disabled (false)
+          // If null/undefined/true, assume enabled for active accounts
+          const chargesDisabled = chargesEnabledValue === false;
+          const payoutsDisabled = payoutsEnabledValue === false;
+          
+          // If account is active and neither charges nor payouts are explicitly disabled, no alert needed
+          if (!chargesDisabled && !payoutsDisabled) {
+            console.log("[PaymentAccount] Account is active and ready, no alert needed", {
+              status,
+              isActive,
+              chargesEnabled: chargesEnabledValue,
+              payoutsEnabled: payoutsEnabledValue,
+            });
+            setStatusAlert(null);
+            setLoadingAlert(false);
+            return;
+          }
+        }
+        
+        // For non-active accounts or accounts with disabled features, determine what alert to show
         const chargesEnabledValue = resp.data.charges_enabled;
         const payoutsEnabledValue = resp.data.payouts_enabled;
         
-        // If account is active and is_active is true, assume charges/payouts are enabled unless explicitly false
+        // Determine enabled status for alert messages
+        // If account is active and is_active is true, assume enabled unless explicitly false
         const chargesEnabled = chargesEnabledValue === false 
           ? false 
           : (status === "active" && isActive ? true : chargesEnabledValue === true);
@@ -534,13 +598,6 @@ const PaymentAccount = () => {
         const payoutsEnabled = payoutsEnabledValue === false 
           ? false 
           : (status === "active" && isActive ? true : payoutsEnabledValue === true);
-
-        // If account is active and all features enabled (or assumed enabled), no alert needed
-        if (status === "active" && isActive && chargesEnabled && payoutsEnabled) {
-          setStatusAlert(null);
-          setLoadingAlert(false);
-          return;
-        }
 
         // Helper function to get Stripe account link
         const getStripeAccountLink = async (vendorId: number): Promise<string | null> => {
