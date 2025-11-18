@@ -3,11 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -85,7 +81,7 @@ export function GenerateModal({ open, onOpenChange }: GenerateModalProps) {
   const [selectedProblems, setSelectedProblems] = useState<SelectedProblem[]>(
     []
   );
-  
+
   const getQuestionsFromProblems = (
     problems: SelectedProblem[]
   ): QuestionItem[] => {
@@ -95,7 +91,7 @@ export function GenerateModal({ open, onOpenChange }: GenerateModalProps) {
       status: "pending" as QuestionStatus,
     }));
   };
-  
+
   const [allQuestions, setAllQuestions] = useState<QuestionItem[]>([]);
   const [jobState, setJobState] = useState<GenerationState>("idle");
   const jobStateRef = useRef<GenerationState>("idle");
@@ -281,6 +277,26 @@ export function GenerateModal({ open, onOpenChange }: GenerateModalProps) {
       }
 
       cachedMetadataRef.current = parsed;
+
+      // 保存 value_question 到 localStorage，供 preview 页面使用
+      if (parsed?.value_question && Array.isArray(parsed.value_question)) {
+        try {
+          localStorage.setItem(
+            "metadata_value_questions",
+            JSON.stringify(parsed.value_question)
+          );
+          // 设置标志，表示数据是从 generate 流程保存的，可以直接使用
+          sessionStorage.setItem("value_questions_from_generate", "true");
+          console.log(
+            "Saved value_questions to localStorage:",
+            parsed.value_question.length,
+            "items"
+          );
+        } catch (e) {
+          console.warn("Failed to save value_questions to localStorage:", e);
+        }
+      }
+
       return parsed;
     },
     [buildMetadataPayload]
@@ -563,201 +579,207 @@ export function GenerateModal({ open, onOpenChange }: GenerateModalProps) {
     };
   }, [clearStatusTimer]);
 
-  const generateBatchData = useCallback(async (problemsOverride?: SelectedProblem[]) => {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    setJobState("preparing");
-    setErrorMessage("");
-    setBatchStatus(null);
-    setJobAppId(null);
-    clearStatusTimer();
-    updateQuestionStatuses(null);
+  const generateBatchData = useCallback(
+    async (problemsOverride?: SelectedProblem[]) => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      setJobState("preparing");
+      setErrorMessage("");
+      setBatchStatus(null);
+      setJobAppId(null);
+      clearStatusTimer();
+      updateQuestionStatuses(null);
 
-    let extractedQueries: any[] = [];
-    const currentProblems =
-      problemsOverride && problemsOverride.length > 0
-        ? problemsOverride
-        : selectedProblems;
+      let extractedQueries: any[] = [];
+      const currentProblems =
+        problemsOverride && problemsOverride.length > 0
+          ? problemsOverride
+          : selectedProblems;
 
-    let anchIndexNum: any = null;
-    const selectedQuestionsWithSql = localStorage.getItem(
-      "selectedQuestionsWithSql"
-    );
-    if (selectedQuestionsWithSql) {
-      const parsed = JSON.parse(selectedQuestionsWithSql);
-      extractedQueries = parsed?.questionsWithSql || extractedQueries;
-      anchIndexNum =
-        parsed?.anchIndex ??
-        parsed?.anchorIndex ??
-        parsed?.anchor_index ??
-        null;
-    }
-    try {
-      let appMetaFromService: any | null = null;
-      try {
-        appMetaFromService = await fetchMetadataFromService(undefined, true);
-      } catch (err) {
-        console.warn("Failed to fetch app metadata", err);
+      let anchIndexNum: any = null;
+      const selectedQuestionsWithSql = localStorage.getItem(
+        "selectedQuestionsWithSql"
+      );
+      if (selectedQuestionsWithSql) {
+        const parsed = JSON.parse(selectedQuestionsWithSql);
+        extractedQueries = parsed?.questionsWithSql || extractedQueries;
+        anchIndexNum =
+          parsed?.anchIndex ??
+          parsed?.anchorIndex ??
+          parsed?.anchor_index ??
+          null;
       }
-
-      if (!appMetaFromService || typeof appMetaFromService !== "object") {
-        appMetaFromService = {};
-      }
-
-      const chatMeta =
-        appMetaFromService.chatAppMeta ||
-        appMetaFromService.chatappmeta ||
-        appMetaFromService.chat_app_meta ||
-        {};
-
-      const appName =
-        (typeof chatMeta.name === "string" && chatMeta.name.trim()
-          ? chatMeta.name.trim()
-          : null) ||
-        currentProblems[0]?.problem ||
-        "Generated App";
-
-      const appDescription =
-        (typeof chatMeta.description === "string" && chatMeta.description.trim()
-          ? chatMeta.description.trim()
-          : null) || "Batch generated app";
-
-      chatMeta.name = appName;
-      chatMeta.description = appDescription;
-      appMetaFromService.chatAppMeta = chatMeta;
-
       try {
-        const storedPublish = localStorage.getItem("run_result_publish");
-        if (storedPublish) {
-          const parsedPublish = JSON.parse(storedPublish);
-          if (parsedPublish && typeof parsedPublish === "object") {
-            anchIndexNum =
-              parsedPublish?.anchIndex ??
-              parsedPublish?.anchorIndex ??
-              parsedPublish?.anchor_index ??
-              null;
-          }
+        let appMetaFromService: any | null = null;
+        try {
+          appMetaFromService = await fetchMetadataFromService(undefined, true);
+        } catch (err) {
+          console.warn("Failed to fetch app metadata", err);
         }
-      } catch (err) {
-        console.warn("Failed to parse run_result_publish", err);
-      }
-      const batchData = {
-        user_id: user?.id || "",
-        connection_id:
-          dbConnectionDataObj.connectionId ||
-          dbConnectionDataObj.connection_id ||
-          undefined,
-        database_note: (() => {
-          if (typeof window !== "undefined") {
-            try {
-              const savedNote = localStorage.getItem("database_note");
-              if (savedNote) {
-                return savedNote;
-              }
-            } catch (e) {
-              console.warn(
-                "Failed to read database_note from localStorage:",
-                e
-              );
+
+        if (!appMetaFromService || typeof appMetaFromService !== "object") {
+          appMetaFromService = {};
+        }
+
+        const chatMeta =
+          appMetaFromService.chatAppMeta ||
+          appMetaFromService.chatappmeta ||
+          appMetaFromService.chat_app_meta ||
+          {};
+
+        const appName =
+          (typeof chatMeta.name === "string" && chatMeta.name.trim()
+            ? chatMeta.name.trim()
+            : null) ||
+          currentProblems[0]?.problem ||
+          "Generated App";
+
+        const appDescription =
+          (typeof chatMeta.description === "string" &&
+          chatMeta.description.trim()
+            ? chatMeta.description.trim()
+            : null) || "Batch generated app";
+
+        chatMeta.name = appName;
+        chatMeta.description = appDescription;
+        appMetaFromService.chatAppMeta = chatMeta;
+
+        try {
+          const storedPublish = localStorage.getItem("run_result_publish");
+          if (storedPublish) {
+            const parsedPublish = JSON.parse(storedPublish);
+            if (parsedPublish && typeof parsedPublish === "object") {
+              anchIndexNum =
+                parsedPublish?.anchIndex ??
+                parsedPublish?.anchorIndex ??
+                parsedPublish?.anchor_index ??
+                null;
             }
           }
-          return undefined;
-        })(),
-        app: {
-          name: appName,
-          description: appDescription,
+        } catch (err) {
+          console.warn("Failed to parse run_result_publish", err);
+        }
+        const batchData = {
+          user_id: user?.id || "",
           connection_id:
             dbConnectionDataObj.connectionId ||
             dbConnectionDataObj.connection_id ||
             undefined,
-          app_meta_info: appMetaFromService,
-        },
-      };
+          database_note: (() => {
+            if (typeof window !== "undefined") {
+              try {
+                const savedNote = localStorage.getItem("database_note");
+                if (savedNote) {
+                  return savedNote;
+                }
+              } catch (e) {
+                console.warn(
+                  "Failed to read database_note from localStorage:",
+                  e
+                );
+              }
+            }
+            return undefined;
+          })(),
+          app: {
+            name: appName,
+            description: appDescription,
+            connection_id:
+              dbConnectionDataObj.connectionId ||
+              dbConnectionDataObj.connection_id ||
+              undefined,
+            app_meta_info: appMetaFromService,
+          },
+        };
 
-      setJobState("submitting");
-      const response = await fetch("/api/generate-batch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(batchData),
-      });
+        setJobState("submitting");
+        const response = await fetch("/api/generate-batch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(batchData),
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!response.ok) {
-        const rawError =
-          data?.error || data?.message || `HTTP ${response.status}`;
-        const friendlyError = formatErrorMessage(rawError);
-        throw new Error(friendlyError);
+        if (!response.ok) {
+          const rawError =
+            data?.error || data?.message || `HTTP ${response.status}`;
+          const friendlyError = formatErrorMessage(rawError);
+          throw new Error(friendlyError);
+        }
+
+        const nextAppId = data?.appId || data?.data?.appId || data?.data?.id;
+        if (!nextAppId) {
+          throw new Error(
+            formatErrorMessage("Batch generation service did not return appId")
+          );
+        }
+
+        const initialStatus: BatchJobStatus = {
+          jobId: data?.jobId,
+          appId: nextAppId,
+          status: (data?.status as BatchJobStatus["status"]) || "pending",
+          currentQueryIndex:
+            typeof data?.currentQueryIndex === "number"
+              ? data.currentQueryIndex
+              : null,
+          totalQueries:
+            typeof data?.totalQueries === "number"
+              ? data.totalQueries
+              : extractedQueries.length,
+          currentToolName: data?.currentToolName ?? null,
+          currentToolIndex: data?.currentToolIndex ?? null,
+          totalToolsInCurrentQuery: data?.totalToolsInCurrentQuery ?? null,
+          completedToolsInCurrentQuery:
+            data?.completedToolsInCurrentQuery ?? null,
+          totalTools: data?.totalTools ?? null,
+          totalToolsCompleted: data?.totalToolsCompleted ?? null,
+          activeToolNames: data?.activeToolNames ?? null,
+          activeTools: Array.isArray(data?.activeTools)
+            ? data.activeTools
+            : null,
+          lastCompletedToolName: data?.lastCompletedToolName ?? null,
+          progressPercentage:
+            typeof data?.progressPercentage === "number"
+              ? data.progressPercentage
+              : null,
+          currentQueryProgressPercentage:
+            typeof data?.currentQueryProgressPercentage === "number"
+              ? data.currentQueryProgressPercentage
+              : null,
+          message:
+            data?.message ||
+            "Batch generation task submitted, please check the progress later",
+          error: data?.error ?? null,
+          startedAt: data?.startedAt ?? null,
+          completedAt: data?.completedAt ?? null,
+          lastUpdatedAt: data?.lastUpdatedAt ?? null,
+        };
+
+        setBatchStatus(initialStatus);
+        updateQuestionStatuses(initialStatus);
+        setJobAppId(nextAppId);
+        setJobState("running");
+      } catch (err) {
+        console.log("Error generating batch", err);
+        setJobState("failed");
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        setErrorMessage(formatErrorMessage(errorMsg));
+      } finally {
+        inFlightRef.current = false;
       }
-
-      const nextAppId = data?.appId || data?.data?.appId || data?.data?.id;
-      if (!nextAppId) {
-        throw new Error(
-          formatErrorMessage("Batch generation service did not return appId")
-        );
-      }
-
-      const initialStatus: BatchJobStatus = {
-        jobId: data?.jobId,
-        appId: nextAppId,
-        status: (data?.status as BatchJobStatus["status"]) || "pending",
-        currentQueryIndex:
-          typeof data?.currentQueryIndex === "number"
-            ? data.currentQueryIndex
-            : null,
-        totalQueries:
-          typeof data?.totalQueries === "number"
-            ? data.totalQueries
-            : extractedQueries.length,
-        currentToolName: data?.currentToolName ?? null,
-        currentToolIndex: data?.currentToolIndex ?? null,
-        totalToolsInCurrentQuery: data?.totalToolsInCurrentQuery ?? null,
-        completedToolsInCurrentQuery:
-          data?.completedToolsInCurrentQuery ?? null,
-        totalTools: data?.totalTools ?? null,
-        totalToolsCompleted: data?.totalToolsCompleted ?? null,
-        activeToolNames: data?.activeToolNames ?? null,
-        activeTools: Array.isArray(data?.activeTools) ? data.activeTools : null,
-        lastCompletedToolName: data?.lastCompletedToolName ?? null,
-        progressPercentage:
-          typeof data?.progressPercentage === "number"
-            ? data.progressPercentage
-            : null,
-        currentQueryProgressPercentage:
-          typeof data?.currentQueryProgressPercentage === "number"
-            ? data.currentQueryProgressPercentage
-            : null,
-        message:
-          data?.message ||
-          "Batch generation task submitted, please check the progress later",
-        error: data?.error ?? null,
-        startedAt: data?.startedAt ?? null,
-        completedAt: data?.completedAt ?? null,
-        lastUpdatedAt: data?.lastUpdatedAt ?? null,
-      };
-
-      setBatchStatus(initialStatus);
-      updateQuestionStatuses(initialStatus);
-      setJobAppId(nextAppId);
-      setJobState("running");
-    } catch (err) {
-      console.log("Error generating batch", err);
-      setJobState("failed");
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      setErrorMessage(formatErrorMessage(errorMsg));
-    } finally {
-      inFlightRef.current = false;
-    }
-  }, [
-    user?.id,
-    dbConnectionDataObj,
-    formatErrorMessage,
-    fetchMetadataFromService,
-    updateQuestionStatuses,
-    clearStatusTimer,
-  ]);
+    },
+    [
+      user?.id,
+      dbConnectionDataObj,
+      formatErrorMessage,
+      fetchMetadataFromService,
+      updateQuestionStatuses,
+      clearStatusTimer,
+    ]
+  );
 
   // 当弹窗打开时，初始化生成流程
   useEffect(() => {
@@ -799,8 +821,8 @@ export function GenerateModal({ open, onOpenChange }: GenerateModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent 
-        className="max-w-2xl max-h-[90vh] overflow-y-auto" 
+      <DialogContent
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
         showCloseButton={!isProcessing}
         onInteractOutside={(e) => {
           // 阻止点击外部关闭弹窗
@@ -817,14 +839,6 @@ export function GenerateModal({ open, onOpenChange }: GenerateModalProps) {
           </DialogTitle>
         </DialogHeader>
         <div className="flex flex-col items-center justify-center py-8">
-          {isFailed ? (
-            <XCircle className="size-12 text-red-500 mb-6" />
-          ) : isSucceeded ? (
-            <CheckCircle2 className="size-12 text-green-600 mb-6" />
-          ) : (
-            <Loader2 className="size-12 text-gray-600 animate-spin mb-6" />
-          )}
-
           <CardDescription className="text-center max-w-md mb-8">
             {isFailed
               ? "Batch generation failed, please try again."
@@ -834,16 +848,22 @@ export function GenerateModal({ open, onOpenChange }: GenerateModalProps) {
                   const allToolsCompleted =
                     typeof batchStatus?.totalToolsCompleted === "number" &&
                     typeof batchStatus?.totalTools === "number" &&
-                    batchStatus.totalToolsCompleted >=
-                      batchStatus.totalTools &&
+                    batchStatus.totalToolsCompleted >= batchStatus.totalTools &&
                     batchStatus.totalTools > 0 &&
                     batchStatus?.status === "generating";
 
                   return allToolsCompleted
                     ? "Great! All your tools are ready. We're starting them up now so you can preview everything in just a moment!"
-                    : "Batch generation process may take several minutes, we will continue to synchronize the progress.";
+                    : "Your chatAPP is generating and it  may take a few minutes. You can continue with other tasks, and we’ll notify you as soon as it’s completed.";
                 })()}
           </CardDescription>
+          {isFailed ? (
+            <XCircle className="size-12 text-red-500 mb-6" />
+          ) : isSucceeded ? (
+            <CheckCircle2 className="size-12 text-green-600 mb-6" />
+          ) : (
+            <Loader2 className="size-12 text-gray-600 animate-spin mb-6" />
+          )}
 
           <div className="w-full max-w-md space-y-4">
             {isFailed ? (
@@ -871,10 +891,7 @@ export function GenerateModal({ open, onOpenChange }: GenerateModalProps) {
                   >
                     Try Again
                   </Button>
-                  <Button
-                    onClick={() => onOpenChange(false)}
-                    variant="outline"
-                  >
+                  <Button onClick={() => onOpenChange(false)} variant="outline">
                     Close
                   </Button>
                 </div>
@@ -895,4 +912,3 @@ export function GenerateModal({ open, onOpenChange }: GenerateModalProps) {
     </Dialog>
   );
 }
-

@@ -109,6 +109,13 @@ export function PreviewEditor() {
   const [panelLayout, setPanelLayout] = useState<number[] | null>(null);
   const [previewMcpParam, setPreviewMcpParam] = useState<string | null>(null);
 
+  // Value questions from metadata
+  const [valueQuestions, setValueQuestions] = useState<
+    Array<{ question: string; frequencyScore: number }>
+  >([]);
+  const [showValueQuestions, setShowValueQuestions] = useState(true);
+  const valueQuestionsFetchedRef = useRef<boolean>(false);
+
   // Save dialog states
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [saveFormData, setSaveFormData] = useState({
@@ -279,6 +286,207 @@ export function PreviewEditor() {
       controller.abort();
     };
   }, [appId, resolveMcpParam]);
+
+  // Load value questions from localStorage or fetch from API
+  useEffect(() => {
+    if (!appId) {
+      setValueQuestions([]);
+      valueQuestionsFetchedRef.current = false;
+      return;
+    }
+
+    // 防止重复读取或请求
+    if (valueQuestionsFetchedRef.current || valueQuestions.length > 0) {
+      return;
+    }
+
+    valueQuestionsFetchedRef.current = true;
+
+    // 检查是否从 generate 流程进入（有 sessionStorage 标志）
+    const fromGenerate =
+      sessionStorage.getItem("value_questions_from_generate") === "true";
+
+    // 如果从 generate 流程进入，尝试从 localStorage 读取
+    if (fromGenerate) {
+      try {
+        const storedValueQuestions = localStorage.getItem(
+          "metadata_value_questions"
+        );
+        if (storedValueQuestions) {
+          const valueQuestionArray = JSON.parse(storedValueQuestions);
+          console.log(
+            "Loaded value_questions from localStorage (from generate flow):",
+            valueQuestionArray?.length,
+            "items"
+          );
+
+          if (
+            Array.isArray(valueQuestionArray) &&
+            valueQuestionArray.length > 0
+          ) {
+            // Sort by frequencyScore descending and take top 5
+            const sortedQuestions = valueQuestionArray
+              .filter(
+                (q: any) => q.question && typeof q.frequencyScore === "number"
+              )
+              .sort((a: any, b: any) => b.frequencyScore - a.frequencyScore)
+              .slice(0, 5)
+              .map((q: any) => ({
+                question: q.question,
+                frequencyScore: q.frequencyScore,
+              }));
+
+            console.log("sortedQuestions (top 5):", sortedQuestions);
+            if (sortedQuestions.length > 0) {
+              setValueQuestions(sortedQuestions);
+              setShowValueQuestions(true);
+              // 清除标志，下次从首页进入时会重新请求
+              sessionStorage.removeItem("value_questions_from_generate");
+              return; // 如果从 localStorage 成功加载，直接返回
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(
+          "Failed to load value questions from localStorage:",
+          error
+        );
+      }
+      // 清除标志，即使读取失败也要清除
+      sessionStorage.removeItem("value_questions_from_generate");
+    }
+
+    // 如果从首页 MyApps 列表进入，或者 localStorage 中没有数据，从 API 请求
+    console.log(
+      "Fetching value_questions from API (from homepage or no localStorage data)"
+    );
+    let cancelled = false;
+    const controller = new AbortController();
+    const currentAppId = appId;
+
+    const fetchValueQuestions = async () => {
+      try {
+        // Build metadata payload similar to generate-flow.tsx
+        const taskId =
+          (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
+        let segmentsPayload: any[] = [];
+        try {
+          const marketsRaw = localStorage.getItem("marketsData");
+          if (marketsRaw) {
+            const markets = JSON.parse(marketsRaw);
+            if (Array.isArray(markets)) {
+              segmentsPayload = markets.map((seg: any) => ({
+                name: seg.name || seg.title,
+                analysis: seg.analysis || undefined,
+                valueQuestions: seg.valueQuestions || undefined,
+              }));
+            }
+          }
+        } catch {}
+
+        let runResult: any = {};
+        try {
+          runResult = JSON.parse(localStorage.getItem("run_result") || "{}");
+        } catch {}
+
+        const payload = {
+          run_result: runResult,
+          domain: { primaryDomain: "Hospitality Management" },
+          ingest: { schemaHash: "sha256-3c7459f15975eae5" },
+          run_id: "r_1",
+          status: "complete",
+          task_id: taskId,
+          segments: segmentsPayload,
+        };
+
+        const response = await fetch(
+          "https://business-insight.datail.ai/api/v1/apps/metadata",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+            cache: "no-store",
+            signal: controller.signal,
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const text = await response.text();
+        let parsed: any = text;
+        try {
+          parsed = JSON.parse(text);
+        } catch {}
+
+        // 检查是否已被取消或 appId 已变化
+        if (cancelled || currentAppId !== appId) {
+          return;
+        }
+
+        // Extract value_question array
+        const valueQuestionArray = parsed?.value_question || [];
+        console.log(
+          "Fetched value_questions from API:",
+          valueQuestionArray?.length,
+          "items"
+        );
+
+        if (
+          Array.isArray(valueQuestionArray) &&
+          valueQuestionArray.length > 0
+        ) {
+          // Sort by frequencyScore descending and take top 5
+          const sortedQuestions = valueQuestionArray
+            .filter(
+              (q: any) => q.question && typeof q.frequencyScore === "number"
+            )
+            .sort((a: any, b: any) => b.frequencyScore - a.frequencyScore)
+            .slice(0, 5)
+            .map((q: any) => ({
+              question: q.question,
+              frequencyScore: q.frequencyScore,
+            }));
+
+          console.log("sortedQuestions (top 5):", sortedQuestions);
+
+          // 再次检查 appId 是否变化
+          // if (currentAppId === appId && sortedQuestions.length > 0) {
+          setValueQuestions(sortedQuestions);
+          setShowValueQuestions(true);
+          // 保存到 localStorage 供下次使用
+          try {
+            localStorage.setItem(
+              "metadata_value_questions",
+              JSON.stringify(valueQuestionArray)
+            );
+          } catch (e) {
+            console.warn("Failed to save value_questions to localStorage:", e);
+          }
+          // }
+        } else {
+          console.warn("No value_question array found or array is empty");
+        }
+      } catch (error) {
+        if (cancelled || (error as Error).name === "AbortError") {
+          return;
+        }
+        console.warn("Failed to fetch value questions from API:", error);
+        valueQuestionsFetchedRef.current = false;
+      }
+    };
+
+    fetchValueQuestions();
+
+    return () => {
+      cancelled = true;
+      // 只有在 appId 变化时才取消请求
+      if (currentAppId !== appId) {
+        controller.abort();
+      }
+    };
+  }, [appId, valueQuestions.length]);
 
   // Load selectedProblems from localStorage
   useEffect(() => {
@@ -879,21 +1087,45 @@ export function PreviewEditor() {
             >
               <div
                 ref={rightPanelRef}
-                className="h-full bg-muted/30 overflow-hidden relative"
+                className="h-full bg-muted/30 overflow-hidden relative flex flex-col"
                 style={{
                   width: "calc(100% - 20px)",
                 }}
               >
-                <iframe
-                  ref={iframeRef}
-                  src={iframeSrc}
-                  // "https://app-preview.datail.ai/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
-                  // src="http://192.168.30.153:5174/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
-                  className="w-full h-full border-0"
-                  title="Embedded Chat Interface"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-                  loading="lazy"
-                />
+                {/* Value Questions Section */}
+                {showValueQuestions && valueQuestions.length > 0 && (
+                  <div className="p-4 bg-background border-b">
+                    <p className="text-sm font-semibold mb-3 text-gray-700">
+                      You can ask things like:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {valueQuestions.map((item, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            sendMessageToIframe(item.question);
+                            setShowValueQuestions(false);
+                          }}
+                          className="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors text-gray-700"
+                        >
+                          {item.question}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex-1 overflow-hidden">
+                  <iframe
+                    ref={iframeRef}
+                    src={iframeSrc}
+                    // "https://app-preview.datail.ai/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
+                    // src="http://192.168.30.153:5174/?embed=1&mcp=https://temple-unstrenuous-milena.ngrok-free.dev/mcp"
+                    className="w-full h-full border-0"
+                    title="Embedded Chat Interface"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                    loading="lazy"
+                  />
+                </div>
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
