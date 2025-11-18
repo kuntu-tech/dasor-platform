@@ -9,7 +9,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
 import type { SubscriptionCheckResponse } from "@/lib/subscription/client";
 
-type NativeButtonProps = React.ComponentProps<"button"> & {
+type NativeButtonProps = React.ComponentProps<typeof Button> & {
   successHref?: string;
   onRequireSubscription?: () => void;
 };
