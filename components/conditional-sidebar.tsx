@@ -47,32 +47,117 @@ export function ConditionalSidebar({
   const router = useRouter();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasConnectedStripeAccount, setHasConnectedStripeAccount] = useState<boolean | null>(null);
-  const fetchStripeStatus = useCallback(async () => {
+  const fetchStripeStatus = useCallback(async (retryCount = 0, isRetry = false) => {
     if (!user?.id) {
       setHasConnectedStripeAccount(null);
       return;
+    }
+
+    // Add delay for retry attempts to allow backend to update
+    // Only delay if this is a retry (not the first attempt)
+    if (isRetry && retryCount > 0) {
+      const delay = Math.min(1000 * retryCount, 3000); // Max 3 seconds delay
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
 
     try {
       const status = await getVendorStatus(user.id);
       if (status.success && status.data) {
         const stripeStatus = status.data.stripe_account_status;
-        const chargesEnabled = status.data.charges_enabled;
-        const payoutsEnabled = status.data.payouts_enabled;
+        const isActive = status.data.is_active;
+        const stripeAccountId = status.data.stripe_account_id;
 
-        const isStripeReady =
-          stripeStatus === "active" ||
-          (chargesEnabled === true && payoutsEnabled === true);
+        // Determine if Stripe account is ready
+        // Account is ready if BOTH conditions are met:
+        // 1. stripe_account_status is "active" (account is fully set up and ready)
+        // 2. is_active is true (account is active and can receive payments)
+        // This matches the logic in publish-flow.tsx for consistency
+        // Note: charges_enabled and payouts_enabled are not stored in database,
+        // so we rely on stripe_account_status and is_active fields
+        const isStripeReady: boolean =
+          stripeStatus === "active" && isActive === true;
 
+        // If account is ready, update state immediately
+        if (isStripeReady) {
+          console.log("[ConditionalSidebar] Stripe account is ready:", {
+            stripeStatus,
+            isActive,
+            stripeAccountId,
+            retryCount,
+          });
+          setHasConnectedStripeAccount(true);
+          return;
+        }
+
+        // If account is not ready but we have stripe_account_id, it might be in onboarding
+        // Retry a few times to check if status updates (only when triggered by event)
+        if (stripeAccountId && retryCount < 3 && isRetry) {
+          console.log(`[ConditionalSidebar] Stripe account exists but not ready, retrying (${retryCount + 1}/3)...`, {
+            stripeStatus,
+            isActive,
+            stripeAccountId,
+          });
+          // Schedule next retry - delay is handled at the start of the function
+          setTimeout(() => {
+            fetchStripeStatus(retryCount + 1, true);
+          }, 0); // Use 0 delay, actual delay is handled at function start
+          return;
+        }
+
+        // Account exists but not ready after retries, or no retry needed
+        console.log("[ConditionalSidebar] Stripe account not ready:", {
+          stripeStatus,
+          isActive,
+          hasAccountId: !!stripeAccountId,
+          retryCount,
+          isRetry,
+        });
         setHasConnectedStripeAccount(isStripeReady);
       } else if (status.success === false) {
+        // API returned an error
+        // Don't retry if account doesn't exist (404) - this is not a temporary error
+        const isAccountNotFound = status.error?.includes("not found") || status.error?.includes("No vendor");
+        
+        if (!isAccountNotFound && isRetry && retryCount < 3) {
+          // Retry for temporary errors (server errors, network issues, etc.)
+          console.log(`[ConditionalSidebar] Failed to get vendor status (temporary error), retrying (${retryCount + 1}/3)...`, {
+            error: status.error,
+          });
+          setTimeout(() => {
+            fetchStripeStatus(retryCount + 1, true);
+          }, 0);
+          return;
+        }
+        
+        // Account doesn't exist or no retries left - set to false
+        console.log("[ConditionalSidebar] Failed to get vendor status:", {
+          error: status.error,
+          isAccountNotFound,
+          retryCount,
+        });
         setHasConnectedStripeAccount(false);
       } else {
+        // Invalid response - only retry if we're in retry mode
+        if (isRetry && retryCount < 3) {
+          console.log(`[ConditionalSidebar] Invalid vendor status response, retrying (${retryCount + 1}/3)...`);
+          setTimeout(() => {
+            fetchStripeStatus(retryCount + 1, true);
+          }, 0);
+          return;
+        }
         setHasConnectedStripeAccount(null);
       }
     } catch (error) {
-      setHasConnectedStripeAccount(null);
+      // Network or other errors - only retry if we're in retry mode
+      if (isRetry && retryCount < 3) {
+        console.log(`[ConditionalSidebar] Error retrieving Stripe status, retrying (${retryCount + 1}/3)...`, error);
+        setTimeout(() => {
+          fetchStripeStatus(retryCount + 1, true);
+        }, 0);
+        return;
+      }
       console.log("Failed to retrieve Stripe connection status:", error);
+      setHasConnectedStripeAccount(null);
     }
   }, [user?.id]);
 
@@ -258,7 +343,12 @@ export function ConditionalSidebar({
 
   useEffect(() => {
     const handleStripeStatusUpdated = () => {
-      fetchStripeStatus();
+      console.log("[ConditionalSidebar] Stripe connection updated event received, fetching status with retry...");
+      // Add initial delay to allow backend to process the update
+      // Then retry up to 3 times to ensure we get the latest status
+      setTimeout(() => {
+        fetchStripeStatus(0, true);
+      }, 500);
     };
 
     window.addEventListener("stripe-connection-updated", handleStripeStatusUpdated);
