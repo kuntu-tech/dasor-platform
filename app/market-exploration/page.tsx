@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
 import {
   Send,
   RotateCcw,
@@ -31,6 +32,7 @@ import {
 import { AnimatedDropdownMenu } from "@/components/ui/animated-dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { GenerateModal } from "@/components/generate-modal";
 interface MarketSegment {
   id: string;
   title: string;
@@ -258,6 +260,7 @@ export default function MarketExplorationPage({
 }: MarketExplorationPageProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [segmentsData, setSegmentsData] = useState<any[] | undefined>(
     marketsData
   );
@@ -613,6 +616,7 @@ export default function MarketExplorationPage({
   const [inputValue, setInputValue] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState("");
   const [isVersionDropdownOpen, setIsVersionDropdownOpen] = useState(false);
   const [refreshType, setRefreshType] = useState<RefreshType>("none");
@@ -1404,7 +1408,11 @@ export default function MarketExplorationPage({
       if (!response.ok) {
         const errorText = await response.text();
         console.log("Clarify your prompt so the system can continue");
-        alert("Clarify your prompt so the system can continue");
+        toast({
+          variant: "warning",
+          title: "Prompt clarification needed",
+          description: "Clarify your prompt so the system can continue",
+        });
         console.log("feedback-mrf/process error payload:", errorText);
       }
 
@@ -1414,7 +1422,11 @@ export default function MarketExplorationPage({
 
       if (result.status === "ignored") {
         console.warn("Feedback ignored:", result?.message);
-        alert("Clarify your prompt so the system can continue");
+        toast({
+          variant: "warning",
+          title: "Prompt clarification needed",
+          description: "Clarify your prompt so the system can continue",
+        });
         setIsGenerating(false);
         setGenerationProgress(0);
         setSelectedCommand("");
@@ -1441,7 +1453,11 @@ export default function MarketExplorationPage({
           "No run_results available for standal_sql request",
           result
         );
-        alert("Clarify your prompt so the system can continue");
+        toast({
+          variant: "warning",
+          title: "Prompt clarification needed",
+          description: "Clarify your prompt so the system can continue",
+        });
         setIsGenerating(false);
         setGenerationProgress(0);
         setSelectedCommand("");
@@ -1760,7 +1776,11 @@ export default function MarketExplorationPage({
           return;
         }
         if (value.length >= totalSegments) {
-          alert("至少需要保留1个segment，无法删除所有segments");
+          toast({
+            variant: "warning",
+            title: "Cannot delete all segments",
+            description: "至少需要保留1个segment，无法删除所有segments",
+          });
           return;
         }
       } else {
@@ -2270,10 +2290,11 @@ export default function MarketExplorationPage({
 
       if (!response.ok) {
         console.log("[Command Submit] API error", response.status, text);
-        alert(
-          json?.message ||
-            "Failed to submit feedback. Please review your instruction."
-        );
+        toast({
+          variant: "error",
+          title: "Failed to submit feedback",
+          description: json?.message || "Please review your instruction.",
+        });
         setIsGenerating(false);
         setGenerationProgress(0);
         return;
@@ -2515,7 +2536,11 @@ export default function MarketExplorationPage({
       resetQuestionSelection();
     } catch (error) {
       console.log("[Command Submit] Request failed", error);
-      alert("Request failed. Please try again later.");
+      toast({
+        variant: "error",
+        title: "Request failed",
+        description: "Please try again later.",
+      });
     } finally {
       setIsGenerating(false);
       setGenerationProgress(0);
@@ -2523,7 +2548,7 @@ export default function MarketExplorationPage({
   };
   const handleGenerateApp = () => {
     console.log("Generating ChatApp");
-    router.push("/generate");
+    setIsGenerateModalOpen(true);
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -2563,7 +2588,7 @@ export default function MarketExplorationPage({
             >
               {/* <ArrowRight className="w-4 h-4" /> */}
               <span className="whitespace-nowrap flex items-center gap-1">
-                Preview
+                Generate
                 {/* <AnimatePresence mode="wait">
                   <motion.span
                     key={displayedSegmentName}
@@ -2727,6 +2752,10 @@ export default function MarketExplorationPage({
           </motion.div>
         )}
       </AnimatePresence>
+      <GenerateModal
+        open={isGenerateModalOpen}
+        onOpenChange={setIsGenerateModalOpen}
+      />
     </div>
   );
 }

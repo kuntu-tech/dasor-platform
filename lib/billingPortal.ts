@@ -56,16 +56,24 @@ export async function getBillingPortalUrl(
  * @param userId Customer identifier (required)
  * @param returnUrl URL to navigate back to after completion (optional)
  * @param sessionId Checkout session ID to quickly resolve the customer (optional)
+ * @param onError Optional error callback function
  */
 export async function openBillingPortal(
   userId: string,
   returnUrl?: string,
-  sessionId?: string
+  sessionId?: string,
+  onError?: (message: string) => void
 ) {
   const url = await getBillingPortalUrl(userId, returnUrl, sessionId);
   if (url) {
     window.open(url, "_blank");
   } else {
-    alert("Failed to load customer portal, please try again later");
+    const errorMessage = "Failed to load customer portal, please try again later";
+    if (onError) {
+      onError(errorMessage);
+    } else {
+      // Fallback to console error if no callback provided
+      console.error(errorMessage);
+    }
   }
 }

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import DisconnectModal from "./DisconnectModal";
 import { getVendorStatus, disconnectAccount, getLoginLink } from "../../../lib/connectApi";
 import { useAuth } from "../../../../components/AuthProvider";
+import { useToast } from "../../../hooks/use-toast";
 
 interface ConnectedStateProps {
   email: string;
@@ -26,6 +27,7 @@ const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
   const [hasCheckedOnce, setHasCheckedOnce] = useState(false);
   const hasNotifiedDisconnect = useRef(false);
   const { user } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchVendor = async () => {
@@ -222,7 +224,11 @@ const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
           if (message) {
             setDashboardError(message);
             console.warn("Account requires onboarding:", message);
-            alert(message);
+            toast({
+              variant: "warning",
+              title: "Account requires onboarding",
+              description: message,
+            });
           }
           
           // Still try to open Dashboard URL (user may need to login first)
@@ -285,11 +291,19 @@ const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
       if (result.success) {
         // Show warning if there's an active subscription
         if (result.data?.warning) {
-          alert(result.data.warning.message);
+          toast({
+            variant: "warning",
+            title: "Subscription active",
+            description: result.data.warning.message,
+          });
         }
 
         // Show success message
-        alert("Account disconnected successfully");
+        toast({
+          variant: "success",
+          title: "Account disconnected successfully",
+          description: "",
+        });
 
         // Clear local vendor data
         setVendorData(null);
@@ -316,18 +330,30 @@ const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
           onDisconnect();
           
           // Show info message instead of error
-          alert("Account is already disconnected");
+          toast({
+            variant: "info",
+            title: "Account is already disconnected",
+            description: "",
+          });
         } else {
           // For other errors, show error message but don't update UI
           setDisconnectError(errorMessage);
-          alert(`Error: ${errorMessage}`);
+          toast({
+            variant: "error",
+            title: "Error",
+            description: errorMessage,
+          });
         }
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to disconnect account";
       console.log("[ConnectedState] Disconnect error:", errorMessage);
       setDisconnectError(errorMessage);
-      alert(`Error: ${errorMessage}`);
+      toast({
+        variant: "error",
+        title: "Error",
+        description: errorMessage,
+      });
     } finally {
       setDisconnecting(false);
     }

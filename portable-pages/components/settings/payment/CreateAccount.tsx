@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "../../ui/button";
 import { bindVendor } from "../../../lib/connectApi";
 import { useAuth } from "../../../../components/AuthProvider";
+import { useToast } from "../../../hooks/use-toast";
 
 interface CreateAccountProps {
   onBack: () => void;
@@ -12,6 +13,7 @@ interface CreateAccountProps {
 const CreateAccount = ({ onBack, onConnect }: CreateAccountProps) => {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
+  const { toast } = useToast();
   const loginEmail = user?.email || "";
   const userId = user?.id || "";
   const returnUrl = useMemo(() => `${window.location.origin}/oauth/callback`, []);
@@ -19,7 +21,11 @@ const CreateAccount = ({ onBack, onConnect }: CreateAccountProps) => {
 
   const handleOpenStripe = async () => {
     if (!loginEmail) {
-      alert("Login required: missing email");
+      toast({
+        variant: "warning",
+        title: "Login required",
+        description: "Missing email",
+      });
       return;
     }
     try {
@@ -31,14 +37,22 @@ const CreateAccount = ({ onBack, onConnect }: CreateAccountProps) => {
         refreshUrl: refreshUrl,
       });
       if (!resp.success) {
-        alert(resp.error || "Failed to create account");
+        toast({
+          variant: "error",
+          title: "Failed to create account",
+          description: resp.error || "Please try again",
+        });
         return;
       }
       const data = resp.data!;
       
       // Show note if this is a new account created after disconnection
       if (data.note?.previouslyDisconnected && data.note.message) {
-        alert(data.note.message);
+        toast({
+          variant: "info",
+          title: "Account reconnected",
+          description: data.note.message,
+        });
       }
       
       if (data.requiresOnboarding && data.onboarding?.url) {
@@ -48,7 +62,11 @@ const CreateAccount = ({ onBack, onConnect }: CreateAccountProps) => {
       onConnect(loginEmail);
     } catch (err) {
       console.log("Bind vendor error:", err);
-      alert("Failed to create account. Please try again.");
+      toast({
+        variant: "error",
+        title: "Failed to create account",
+        description: "Please try again.",
+      });
     } finally {
       setLoading(false);
     }

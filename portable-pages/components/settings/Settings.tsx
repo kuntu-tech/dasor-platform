@@ -35,7 +35,15 @@ const Settings = ({ open, onOpenChange }: SettingsProps) => {
                 <User className="h-4 w-4" />
                 Account
               </button>
-
+              <button
+                onClick={() => setActiveSection("payment")}
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                  activeSection === "payment" ? "bg-muted font-medium" : "hover:bg-muted/50"
+                }`}
+              >
+                <Wallet className="h-4 w-4" />
+                Payout
+              </button>
               <button
                 onClick={() => setActiveSection("usage")}
                 className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
@@ -46,15 +54,7 @@ const Settings = ({ open, onOpenChange }: SettingsProps) => {
                 Billing
               </button>
 
-              <button
-                onClick={() => setActiveSection("payment")}
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                  activeSection === "payment" ? "bg-muted font-medium" : "hover:bg-muted/50"
-                }`}
-              >
-                <Wallet className="h-4 w-4" />
-                Payout Account
-              </button>
+           
             </nav>
           </div>
 
