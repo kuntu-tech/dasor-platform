@@ -69,7 +69,7 @@ export function AnalysisCard({
         <h2 className="text-xl font-semibold text-gray-900">{dimensionName}</h2>
       </div>
       {/* Main Content: Split into left (score) and right (details) */}
-      <div className="flex items-center gap-6 mb-4">
+      <div className="flex items-center gap-6 mb-4 min-w-0">
         {/* Left: Main Score Circle */}
         <div className="flex-shrink-0">
           <div className="relative">
@@ -87,7 +87,7 @@ export function AnalysisCard({
           </div>
         </div>
         {/* Right: Dimension-specific content */}
-        <div className="flex-1 flex flex-col gap-3">
+        <div className="flex-1 flex flex-col gap-3 min-w-0">
           {/* D1: Supporting Indicators */}
           {id === 'D1' && supportingIndicators && <div className="rounded-xl p-3 h-32 flex flex-col" style={{ backgroundColor: '#F5F6F8' }}>
               <h3 className="text-sm font-semibold text-gray-700 mb-2 flex-shrink-0">
@@ -118,11 +118,11 @@ export function AnalysisCard({
                     Pain Points
                   </h3>
                   <div className="space-y-1 overflow-y-auto">
-                    {userPersona.painPoints.map((point, index) => <div key={index} className="flex items-start gap-2">
+                    {userPersona.painPoints.map((point, index) => <div key={index} className="flex items-start gap-2 min-w-0">
                         <span className="text-gray-600 mt-0.5 font-bold flex-shrink-0">
                           ✓
                         </span>
-                        <span className="text-sm text-gray-700 leading-relaxed line-clamp-2">
+                        <span className="text-sm text-gray-700 leading-relaxed line-clamp-1 flex-1 min-w-0 truncate">
                           {point}
                         </span>
                       </div>)}
@@ -131,8 +131,8 @@ export function AnalysisCard({
               </div>
             </div>}
           {/* D3: Conversion & Revenue Metrics */}
-          {id === 'D3' && <div className="rounded-xl p-3 h-32 flex flex-col overflow-hidden" style={{ backgroundColor: '#F5F6F8' }}>
-              <div className="space-y-2 flex-1 flex flex-col justify-between min-w-0">
+          {id === 'D3' && <div className="rounded-xl p-3 h-32 flex flex-col overflow-hidden w-full min-w-0" style={{ backgroundColor: '#F5F6F8' }}>
+              <div className="space-y-2 flex-1 flex flex-col justify-between min-w-0 w-full">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <h3 className="text-xs font-semibold text-gray-500 uppercase flex-shrink-0">
                     Revenue Band
@@ -145,7 +145,7 @@ export function AnalysisCard({
                   <h3 className="text-xs font-semibold text-gray-500 uppercase flex-shrink-0">
                     Retention Signal
                   </h3>
-                  <p className="text-sm text-gray-700 font-medium truncate">
+                  <p className="text-sm text-gray-700 font-medium truncate flex-1 min-w-0" title={retention_signal}>
                     {retention_signal}
                   </p>
                 </div>
@@ -153,7 +153,7 @@ export function AnalysisCard({
                   <h3 className="text-xs font-semibold text-gray-500 uppercase flex-shrink-0">
                     Conversion Rate
                   </h3>
-                  <p className="text-sm text-gray-700 font-medium truncate">
+                  <p className="text-sm text-gray-700 font-medium truncate flex-1 min-w-0">
                     {conversion_rate_est && `${(conversion_rate_est * 100).toFixed(0)}%`}
                   </p>
                 </div>

@@ -29,24 +29,33 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    
+
     // Add timeout handling for Supabase getUser call to handle cold start
     const getUserPromise = supabaseAdmin.auth.getUser(token);
-    const timeoutPromise = new Promise<{ data: { user: null }; error: { message: string } }>((_, reject) => {
-      setTimeout(() => reject(new Error("Supabase getUser timeout after 30 seconds")), 30000);
+    const timeoutPromise = new Promise<{
+      data: { user: null };
+      error: { message: string };
+    }>((_, reject) => {
+      setTimeout(
+        () => reject(new Error("Supabase getUser timeout after 30 seconds")),
+        30000
+      );
     });
-    
+
     let getUserResult;
     try {
       getUserResult = await Promise.race([getUserPromise, timeoutPromise]);
     } catch (timeoutError: any) {
-      console.error("❌ [users/self] Supabase getUser timeout:", timeoutError.message);
+      console.log(
+        "❌ [users/self] Supabase getUser timeout:",
+        timeoutError.message
+      );
       return jsonResponse(
         { error: "Authentication service timeout. Please try again." },
         { status: 504 }
       );
     }
-    
+
     const {
       data: { user },
       error: authError,
@@ -111,4 +120,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -72,6 +72,7 @@ const CLEAR_CACHE_KEYS_BASE = [
   "selectedQuestionsWithSql",
   "dbConnectionData",
   "originalTaskId",
+  "apps_cache_anonymous",
 ];
 
 function resolveAuthStorageKey() {
@@ -95,7 +96,10 @@ function clearLocalAuthArtifacts(userId?: string) {
   if (typeof window === "undefined") return;
   try {
     const keysToRemove = [...CLEAR_CACHE_KEYS_BASE];
-    if (userId) keysToRemove.push(`cached_avatar_${userId}`);
+    if (userId) {
+      keysToRemove.push(`cached_avatar_${userId}`);
+      keysToRemove.push(`apps_cache_${userId}`);
+    }
     keysToRemove.forEach((k) => localStorage.removeItem(k));
   } catch (e) {
     console.warn("Failed to clear local cache", e);
@@ -252,7 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("🔥 Warming up Supabase connection...");
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-      
+
       const response = await fetch("/api/users/self", {
         method: "POST",
         headers: {
@@ -262,13 +266,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signal: controller.signal,
         body: JSON.stringify({}),
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         console.log("✅ Supabase connection warmed up successfully");
       } else {
-        console.log("⚠️ Supabase warmup returned non-OK status:", response.status);
+        console.log(
+          "⚠️ Supabase warmup returned non-OK status:",
+          response.status
+        );
       }
     } catch (error: any) {
       if (error.name === "AbortError") {
@@ -305,43 +312,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         console.log("🔄 [AuthProvider] Starting initial session fetch...");
         const startTime = Date.now();
-        
+
         // Add timeout wrapper for getSession to handle VPN/proxy delays
         const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<{ data: { session: null }; error: Error }>((_, reject) =>
+        const timeoutPromise = new Promise<{
+          data: { session: null };
+          error: Error;
+        }>((_, reject) =>
           setTimeout(() => reject(new Error("getSession timeout")), 25000)
         );
-        
+
         let sessionResult;
         try {
-          sessionResult = await Promise.race([sessionPromise, timeoutPromise]) as any;
+          sessionResult = (await Promise.race([
+            sessionPromise,
+            timeoutPromise,
+          ])) as any;
         } catch (timeoutError: any) {
           if (timeoutError.message === "getSession timeout") {
             console.warn("⚠️ [AuthProvider] getSession timeout, retrying...");
             // Retry once with a fresh attempt
             try {
-              sessionResult = await Promise.race([
+              sessionResult = (await Promise.race([
                 supabase.auth.getSession(),
-                new Promise<{ data: { session: null }; error: Error }>((_, reject) =>
-                  setTimeout(() => reject(new Error("getSession retry timeout")), 25000)
-                )
-              ]) as any;
+                new Promise<{ data: { session: null }; error: Error }>(
+                  (_, reject) =>
+                    setTimeout(
+                      () => reject(new Error("getSession retry timeout")),
+                      25000
+                    )
+                ),
+              ])) as any;
             } catch (retryError) {
-              console.error("❌ [AuthProvider] getSession retry also failed:", retryError);
+              console.log(
+                "❌ [AuthProvider] getSession retry also failed:",
+                retryError
+              );
               throw retryError;
             }
           } else {
             throw timeoutError;
           }
         }
-        
+
         const elapsed = Date.now() - startTime;
         console.log(`📊 [AuthProvider] getSession completed in ${elapsed}ms`);
-        
-        const { data: { session } } = sessionResult;
-        
+
+        const {
+          data: { session },
+        } = sessionResult;
+
         if (!session) {
-          console.log("⚠️ [AuthProvider] No session on first attempt, retrying after delay...");
+          console.log(
+            "⚠️ [AuthProvider] No session on first attempt, retrying after delay..."
+          );
           await new Promise((r) => setTimeout(r, 1000)); // Increased delay to 1 second
           const {
             data: { session: retry },
@@ -393,10 +417,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, 30000);
 
-    getInitialSession().then(() => {
-      loadingFinished = true;
-      clearTimeout(timeoutId);
-    });
+    // getInitialSession().then(() => {
+    //   loadingFinished = true;
+    //   clearTimeout(timeoutId);
+    // });
 
     const {
       data: { subscription },
@@ -417,12 +441,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await checkAndSaveNewUser(nextSession.user, "Sign In Success");
         processedUsers.add(nextSession.user.id);
         checkSubscriptionStatus(nextSession.user.id).catch(console.log);
-        
+
         // Warm up Supabase connection to prevent first-time timeout
         warmupSupabaseConnection(nextSession.access_token).catch((err) => {
           console.log("⚠️ Supabase warmup failed (non-critical):", err);
         });
-        
+
         return;
       }
 
@@ -460,10 +484,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (nextSession?.user) processedUsers.add(nextSession.user.id);
     });
 
-    window.addEventListener("storage", (e) => {
-      const authKey = resolveAuthStorageKey();
-      if (e.key === authKey) getInitialSession();
-    });
+    // window.addEventListener("storage", (e) => {
+    //   const authKey = resolveAuthStorageKey();
+    //   if (e.key === authKey) getInitialSession();
+    // });
 
     return () => {
       clearTimeout(timeoutId);
