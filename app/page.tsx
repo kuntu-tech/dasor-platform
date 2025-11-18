@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -83,6 +84,7 @@ export default function DashboardPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const { user, session } = useAuth();
+  const { toast } = useToast();
 
   // Handle subscription_required parameter - only show popup once per session
   useEffect(() => {
@@ -335,11 +337,11 @@ export default function DashboardPage() {
       console.log("App deleted successfully");
     } catch (error) {
       console.log("Failed to delete app:", error);
-      alert(
-        `Delete failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      toast({
+        variant: "error",
+        title: "Delete failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     } finally {
       setDeletingId(null);
     }

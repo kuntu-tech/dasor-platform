@@ -235,7 +235,18 @@ export function AnalyzeModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" showCloseButton={!isAnalyzing}>
+      <DialogContent 
+        className="max-w-2xl max-h-[90vh] overflow-y-auto" 
+        showCloseButton={!isAnalyzing}
+        onInteractOutside={(e) => {
+          // 阻止点击外部关闭弹窗
+          e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          // 阻止 ESC 键关闭弹窗
+          e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">
             Analyzing Your Database
