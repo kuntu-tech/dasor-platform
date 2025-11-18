@@ -31,6 +31,7 @@ import {
 import { AnimatedDropdownMenu } from "@/components/ui/animated-dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { GenerateModal } from "@/components/generate-modal";
 interface MarketSegment {
   id: string;
   title: string;
@@ -122,23 +123,51 @@ const RENAME_SEGMENT_FLOW_COMMANDS = new Set<string>(["rename segment"]);
 
 const deriveCommandKey = (item: CommandItem): string | null => {
   const normalized = item.label.toLowerCase();
-  if (normalized.includes("correct segment"))
-    return "Correct Segment";
-  if (normalized.includes("add segments") || normalized.includes("add new segment manually")) return "add segment";
+  if (normalized.includes("correct segment")) return "Correct Segment";
+  if (
+    normalized.includes("add segments") ||
+    normalized.includes("add new segment manually")
+  )
+    return "add segment";
   if (normalized.includes("merge segments")) return "merge segments";
   if (normalized.includes("delete segments")) return "delete segments";
-  if (normalized.includes("market size") || normalized.includes("adjust market size")) return "edit d1";
-  if (normalized.includes("persona") || normalized.includes("adjust persona")) return "edit d2";
-  if (normalized.includes("conversion") || normalized.includes("adjust conversion rhythm")) return "edit d3";
-  if (normalized.includes("competitive") || normalized.includes("adjust competitive moat")) return "edit d4";
-  if (normalized.includes("add new value question") || normalized.includes("add value questions")) return "add question";
-  if (normalized.includes("delete value question")) return "delete question";
-  if (normalized.includes("adjust value question")) return "edit question";
+  if (
+    normalized.includes("market size") ||
+    normalized.includes("adjust market size")
+  )
+    return "edit d1";
+  if (normalized.includes("persona") || normalized.includes("adjust persona"))
+    return "edit d2";
+  if (
+    normalized.includes("conversion") ||
+    normalized.includes("adjust conversion rhythm")
+  )
+    return "edit d3";
+  if (
+    normalized.includes("competitive") ||
+    normalized.includes("adjust competitive moat")
+  )
+    return "edit d4";
   if (normalized.includes("rename segment")) return "rename segment";
+  if (
+    normalized.includes("reanalyse") ||
+    normalized.includes("re-analyse") ||
+    normalized.includes("reanalyze")
+  )
+    return "reanalyse";
   return null;
 };
 
 const COMMAND_LIST: CommandItem[] = [
+  {
+    label: "Reanalyse",
+    command: {
+      intent: "domain_correction",
+      target: "domain",
+      selector: "domain",
+      user_prompt: "",
+    },
+  },
   {
     label: "Correct Segment",
     command: {
@@ -178,7 +207,7 @@ const COMMAND_LIST: CommandItem[] = [
     },
   },
   {
-    label: "Adjust market size.",
+    label: "Adjust market size",
     command: {
       intent: "analysis_edit",
       selector: "segments[segmentId=xxx].analysis.D1",
@@ -210,33 +239,6 @@ const COMMAND_LIST: CommandItem[] = [
       intent: "analysis_edit",
       target: "analysis",
       selector: "segments[segmentId=xxx].analysis.D4",
-      user_prompt: "",
-    },
-  },
-  {
-    label: "Add value questions",
-    command: {
-      intent: "value_question_add",
-      target: "valueQuestions",
-      selector: "segments[segmentId=xxx].valueQuestions",
-      user_prompt: "",
-    },
-  },
-  {
-    label: "Delete value question",
-    command: {
-      intent: "value_question_remove",
-      target: "valueQuestions",
-      selector: "segments[segmentId=xxx].valueQuestions[questionId=xxx]",
-      user_prompt: "",
-    },
-  },
-  {
-    label: "Adjust value question",
-    command: {
-      intent: "value_question_edit",
-      target: "valueQuestions",
-      selector: "segments[segmentId=xxx].valueQuestions[questionId=xxx]",
       user_prompt: "",
     },
   },
@@ -391,7 +393,7 @@ export default function MarketExplorationPage({
           console.log("Failed to parse run_result:", e);
         }
       }
-      
+
       if (taskId && user?.id) {
         const apiUrl = `/api/run-results?user_id=${user.id}&task_id=${taskId}`;
         const response = await fetch(apiUrl, {
@@ -399,7 +401,7 @@ export default function MarketExplorationPage({
           headers: { "Content-Type": "application/json" },
           cache: "no-store",
         });
-        
+
         if (response.ok) {
           const result = await response.json();
           const runResults = result.data || [];
@@ -410,22 +412,28 @@ export default function MarketExplorationPage({
               const numB = parseInt(b.run_id?.match(/r_(\d+)/)?.[1] || "0");
               return numB - numA;
             });
-            
+
             const latestRunId = runResults[0].run_id;
             const match = latestRunId.match(/r_(\d+)/);
             const number = match ? match[1] : "";
             const latestVersionDisplay = number ? `v${number}` : latestRunId;
-            
+
             // Switch to the latest version and load data
             setSelectedVersion(latestVersionDisplay);
             await loadVersionData(latestRunId);
-            console.log("[Switch Version] Switched to latest version:", latestVersionDisplay);
+            console.log(
+              "[Switch Version] Switched to latest version:",
+              latestVersionDisplay
+            );
             return true;
           }
         }
       }
     } catch (error) {
-      console.warn("[Switch Version] Failed to switch to latest version:", error);
+      console.warn(
+        "[Switch Version] Failed to switch to latest version:",
+        error
+      );
     }
     return false;
   };
@@ -567,7 +575,9 @@ export default function MarketExplorationPage({
 
     // If data already exists, treat as first-time entry and skip API call
     if (runResultStr && marketsDataStr) {
-      console.log("First-time generation entry detected, skip version list API call");
+      console.log(
+        "First-time generation entry detected, skip version list API call"
+      );
 
       // Pull version info from localStorage when possible
       try {
@@ -604,6 +614,7 @@ export default function MarketExplorationPage({
   const [inputValue, setInputValue] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState("");
   const [isVersionDropdownOpen, setIsVersionDropdownOpen] = useState(false);
   const [refreshType, setRefreshType] = useState<RefreshType>("none");
@@ -614,17 +625,21 @@ export default function MarketExplorationPage({
   const [versionMap, setVersionMap] = useState<Map<string, string>>(new Map()); // display -> runId mapping
   // task_id is only read from run_result, not saved in state, not updated
   const [selectedSegmentName, setSelectedSegmentName] = useState("");
-  const [targetSegmentNameForCarousel, setTargetSegmentNameForCarousel] = useState<string | undefined>(undefined);
+  const [targetSegmentNameForCarousel, setTargetSegmentNameForCarousel] =
+    useState<string | undefined>(undefined);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isSegmentModalOpen, setIsSegmentModalOpen] = useState(false);
-  const [segmentModalMode, setSegmentModalMode] =
-    useState<"select" | "input" | "multiSelect">("select");
+  const [segmentModalMode, setSegmentModalMode] = useState<
+    "select" | "input" | "multiSelect"
+  >("select");
   const [segmentModalCommand, setSegmentModalCommand] = useState("");
   const [selectedCommand, setSelectedCommand] = useState("");
   const [selectedCommandPayload, setSelectedCommandPayload] =
     useState<CommandPayload | null>(null);
   const [selectedSegmentTag, setSelectedSegmentTag] = useState("");
-  const [selectedMergeSegments, setSelectedMergeSegments] = useState<string[]>([]);
+  const [selectedMergeSegments, setSelectedMergeSegments] = useState<string[]>(
+    []
+  );
   const [isMergeSegmentsExpanded, setIsMergeSegmentsExpanded] = useState(false);
   const [isSegmentDropdownOpen, setIsSegmentDropdownOpen] = useState(false);
   const [segmentSearchQuery, setSegmentSearchQuery] = useState("");
@@ -654,6 +669,7 @@ export default function MarketExplorationPage({
       "delete question": <Trash2 className="h-4 w-4" />,
       "edit question": <Edit className="h-4 w-4" />,
       "rename segment": <Tag className="h-4 w-4" />,
+      reanalyse: <RotateCcw className="h-4 w-4" />,
     } as Record<string, React.ReactNode>;
   }, []);
 
@@ -665,7 +681,11 @@ export default function MarketExplorationPage({
 
       const target = segmentsData.find((seg: any) => {
         const id =
-          seg?.segmentId || seg?.segment_id || seg?.id || seg?.name || seg?.title;
+          seg?.segmentId ||
+          seg?.segment_id ||
+          seg?.id ||
+          seg?.name ||
+          seg?.title;
         const name = seg?.name || seg?.title;
         return (
           (segmentId && id === segmentId) ||
@@ -684,7 +704,9 @@ export default function MarketExplorationPage({
             q?.id ??
             q?.questionId ??
             q?.question_id ??
-            (q?.question ? `${segmentId || segmentName || "segment"}-${index}` : null);
+            (q?.question
+              ? `${segmentId || segmentName || "segment"}-${index}`
+              : null);
           const text = q?.question ?? q?.text ?? "";
           if (!rawId || !text) return null;
 
@@ -770,11 +792,7 @@ export default function MarketExplorationPage({
       questionModalSegmentName
     );
     setQuestionOptions(options);
-  }, [
-    buildQuestionOptions,
-    questionModalSegmentId,
-    questionModalSegmentName,
-  ]);
+  }, [buildQuestionOptions, questionModalSegmentId, questionModalSegmentName]);
 
   const sanitizeUserPrompt = useCallback((value: string) => {
     return value
@@ -784,14 +802,16 @@ export default function MarketExplorationPage({
       .trim();
   }, []);
 
-  const resolveTargetFromSelector = useCallback((selector: string) => {
-    if (!selector) return selectedCommand || "general";
-    if (selector.includes(".analysis")) return "analysis";
-    if (selector.includes("valueQuestions")) return "valueQuestions";
-    if (selector.includes("domain")) return "domain";
-    if (selector.includes("segments")) return "segment";
-    return selectedCommand || "general";
-  }, [selectedCommand]);
+  const resolveTargetFromSelector = useCallback(
+    (selector: string) => {
+      if (!selector) return selectedCommand || "general";
+      if (selector.includes(".analysis")) return "analysis";
+      if (selector.includes("domain")) return "domain";
+      if (selector.includes("segments")) return "segment";
+      return selectedCommand || "general";
+    },
+    [selectedCommand]
+  );
 
   useEffect(() => {
     if (segmentsData && segmentsData.length > 0 && !selectedSegmentName) {
@@ -869,30 +889,11 @@ export default function MarketExplorationPage({
     setSelectedMergeSegments([]);
     setIsMergeSegmentsExpanded(false);
     setTargetSegmentNameForCarousel(undefined);
-    setSelectedCommandPayload((prev) => {
-      if (!prev) return prev;
-      if (!SEGMENT_SELECTION_COMMANDS.has(selectedCommand as SegmentSelectionCommand)) return prev;
-
-      const templatePayload =
-        COMMAND_LIST.find(
-          (item) => deriveCommandKey(item) === selectedCommand
-        )?.command;
-
-      if (templatePayload) {
-        return { ...templatePayload };
-      }
-
-      const fallbackSelector = prev.selector
-        ? prev.selector.replace(/segmentId=[^\]\s]*/i, "segmentId=xxx")
-        : prev.selector;
-
-      return {
-        ...prev,
-        selector: fallbackSelector ?? "segments[segmentId=xxx]",
-      };
-    });
+    // Clear the command when segment tag is removed
+    setSelectedCommand("");
+    setSelectedCommandPayload(null);
     setInputValue((prev) => sanitizeUserPrompt(prev));
-  }, [resetQuestionSelection, selectedCommand, sanitizeUserPrompt]);
+  }, [resetQuestionSelection, sanitizeUserPrompt]);
 
   const handleInputChange = (value: string) => {
     setInputValue(value);
@@ -912,7 +913,10 @@ export default function MarketExplorationPage({
 
   const handleSegmentSelect = (segment: string) => {
     setSelectedSegmentTag(segment);
-    
+    // Sync with 3D carousel: update selectedSegmentName and targetSegmentNameForCarousel
+    setSelectedSegmentName(segment);
+    setTargetSegmentNameForCarousel(segment);
+
     // If no command is selected, set "Correct Segment" command
     if (!selectedCommand) {
       const correctSegmentCommand = COMMAND_LIST.find(
@@ -923,12 +927,12 @@ export default function MarketExplorationPage({
         setSelectedCommandPayload({ ...correctSegmentCommand.command });
       }
     }
-    
+
     // Remove @ symbol and everything after it from input, since segment is shown as a tag
     setInputValue((prev) => {
       const sanitized = sanitizeUserPrompt(prev);
       const lastAtIndex = sanitized?.lastIndexOf("@") ?? -1;
-      
+
       if (lastAtIndex >= 0) {
         // Remove @ and everything after it
         const beforeAt = sanitized.substring(0, lastAtIndex).trim();
@@ -947,9 +951,7 @@ export default function MarketExplorationPage({
           (item) => deriveCommandKey(item) === command
         );
         if (!segmentCommand) {
-          console.warn(
-            `[Command] ${command} configuration missing`
-          );
+          console.warn(`[Command] ${command} configuration missing`);
           return;
         }
         resetQuestionSelection();
@@ -998,14 +1000,16 @@ export default function MarketExplorationPage({
         return;
       }
       resetQuestionSelection();
-      
+
       // Handle merge segments command with multi-select
       if (commandKey === "merge segments") {
         const mergeCommand = COMMAND_LIST.find(
           (item) => deriveCommandKey(item) === "merge segments"
         );
         if (!mergeCommand) {
-          console.warn("[Command] Merge segments command configuration missing");
+          console.warn(
+            "[Command] Merge segments command configuration missing"
+          );
           return;
         }
         setSelectedCommand("merge segments");
@@ -1019,14 +1023,16 @@ export default function MarketExplorationPage({
         setIsSegmentModalOpen(true);
         return;
       }
-      
+
       // Handle delete segments command with multi-select
       if (commandKey === "delete segments") {
         const deleteCommand = COMMAND_LIST.find(
           (item) => deriveCommandKey(item) === "delete segments"
         );
         if (!deleteCommand) {
-          console.warn("[Command] Delete segments command configuration missing");
+          console.warn(
+            "[Command] Delete segments command configuration missing"
+          );
           return;
         }
         setSelectedCommand("delete segments");
@@ -1040,8 +1046,10 @@ export default function MarketExplorationPage({
         setIsSegmentModalOpen(true);
         return;
       }
-      
-      if (SEGMENT_SELECTION_COMMANDS.has(commandKey as SegmentSelectionCommand)) {
+
+      if (
+        SEGMENT_SELECTION_COMMANDS.has(commandKey as SegmentSelectionCommand)
+      ) {
         handleSpecialCommand(commandKey as SegmentSelectionCommand);
         return;
       }
@@ -1303,8 +1311,28 @@ export default function MarketExplorationPage({
       }
 
       // Determine run_id based on the selected version
-      const baseRunId =
-        versionMap.get(selectedVersion) || runResult?.run_id || "r_1";
+      let baseRunId = versionMap.get(selectedVersion) || "";
+
+      // If not found in versionMap, try to find it in versions array
+      if (!baseRunId && selectedVersion) {
+        const matchedVersion = versions.find(
+          (v) => v.display === selectedVersion
+        );
+        if (matchedVersion) {
+          baseRunId = matchedVersion.runId;
+        } else {
+          // If still not found, try to convert selectedVersion format (v1 -> r_1, v2 -> r_2, etc.)
+          const versionMatch = selectedVersion.match(/^v(\d+)$/);
+          if (versionMatch) {
+            baseRunId = `r_${versionMatch[1]}`;
+          }
+        }
+      }
+
+      // If still empty, use runResult or default
+      if (!baseRunId) {
+        baseRunId = runResult?.run_id || "r_1";
+      }
 
       // Read task_id from run_result only; do not overwrite it
       const taskId = runResult?.task_id || "";
@@ -1584,7 +1612,7 @@ export default function MarketExplorationPage({
       } else {
         setGenerationProgress(100);
       }
-      
+
       // Don't clear targetSegmentNameForCarousel immediately
       // Keep it so the carousel maintains the selected segment after re-render
       // It will be cleared when a new segment is selected from the modal
@@ -1685,7 +1713,9 @@ export default function MarketExplorationPage({
         handleSpecialCommand("add-segment");
         return;
       }
-      if (SEGMENT_SELECTION_COMMANDS.has(normalized as SegmentSelectionCommand)) {
+      if (
+        SEGMENT_SELECTION_COMMANDS.has(normalized as SegmentSelectionCommand)
+      ) {
         handleSpecialCommand(normalized as SegmentSelectionCommand);
         return;
       }
@@ -1724,7 +1754,7 @@ export default function MarketExplorationPage({
       // For delete segments, need at least 1 segment and must leave at least 1 segment
       const isDeleteCommand = segmentModalCommand === "delete segments";
       const totalSegments = availableSegments.length;
-      
+
       if (isDeleteCommand) {
         // For delete: must select at least 1, and must leave at least 1
         if (value.length < 1) {
@@ -1745,10 +1775,16 @@ export default function MarketExplorationPage({
 
       // Convert segment names to segment IDs
       const segmentIds = value.map((segmentName) => {
-        return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
+        return (
+          segmentIdMap.get(segmentName) ||
+          segmentIdMap.get(segmentName.trim()) ||
+          segmentName
+        );
       });
 
-      const currentCommandKey = isDeleteCommand ? "delete segments" : "merge segments";
+      const currentCommandKey = isDeleteCommand
+        ? "delete segments"
+        : "merge segments";
       const templatePayload =
         selectedCommandPayload ??
         COMMAND_LIST.find(
@@ -1769,13 +1805,18 @@ export default function MarketExplorationPage({
         } else {
           setSelectedMergeSegments(value); // Store selected segments for display
         }
-        console.log(`[Command Segments Selected for ${isDeleteCommand ? 'Delete' : 'Merge'}]`, {
-          command: currentCommandKey,
-          segmentNames: value,
-          segmentIds,
-          payload: updatedPayload,
-        });
-        
+        console.log(
+          `[Command Segments Selected for ${
+            isDeleteCommand ? "Delete" : "Merge"
+          }]`,
+          {
+            command: currentCommandKey,
+            segmentNames: value,
+            segmentIds,
+            payload: updatedPayload,
+          }
+        );
+
         // Close modal but don't auto-send, wait for user to click submit button
         setIsSegmentModalOpen(false);
         // Don't clear input field, allow user to add additional text
@@ -1791,7 +1832,7 @@ export default function MarketExplorationPage({
       return;
     }
 
-    const trimmedValue = typeof value === 'string' ? value.trim() : '';
+    const trimmedValue = typeof value === "string" ? value.trim() : "";
     if (!trimmedValue) {
       setIsSegmentModalOpen(false);
       return;
@@ -1800,14 +1841,18 @@ export default function MarketExplorationPage({
     if (segmentModalMode === "select") {
       const segmentName = trimmedValue;
       const segmentId =
-        segmentIdMap.get(segmentName) || segmentIdMap.get(trimmedValue) || segmentName;
+        segmentIdMap.get(segmentName) ||
+        segmentIdMap.get(trimmedValue) ||
+        segmentName;
 
       setSelectedSegmentName(segmentName);
       setSelectedSegmentTag(segmentName);
       // Save segment name to select in carousel after API response
       setTargetSegmentNameForCarousel(segmentName);
 
-      const currentCommandKey = SEGMENT_SELECTION_COMMANDS.has(selectedCommand as SegmentSelectionCommand)
+      const currentCommandKey = SEGMENT_SELECTION_COMMANDS.has(
+        selectedCommand as SegmentSelectionCommand
+      )
         ? selectedCommand
         : "Correct Segment";
 
@@ -1902,9 +1947,8 @@ export default function MarketExplorationPage({
 
     const basePayload =
       selectedCommandPayload ??
-      COMMAND_LIST.find(
-        (item) => deriveCommandKey(item) === "rename segment"
-      )?.command;
+      COMMAND_LIST.find((item) => deriveCommandKey(item) === "rename segment")
+        ?.command;
 
     const updatedPayload = basePayload
       ? { ...basePayload, new_name: trimmed }
@@ -1942,29 +1986,32 @@ export default function MarketExplorationPage({
   };
 
   const handleQuestionModalConfirm = useCallback(
-    (question: QuestionOption) => {
-      setSelectedQuestionOption(question);
-      setIsQuestionModalOpen(false);
-      setSelectedCommandPayload((prev) => {
-        if (!prev) return prev;
-        const selectorWithFallback =
-          prev.selector && /valueQuestions/.test(prev.selector)
-            ? prev.selector
-            : `segments[segmentId=${
-                questionModalSegmentId || "xxx"
-              }].valueQuestions[questionId=${question.id}]`;
-        const updatedSelector = selectorWithFallback.replace(
-          /questionId=[^\]\s]*/i,
-          `questionId=${question.id}`
-        );
-        return {
-          ...prev,
-          selector: updatedSelector,
-          user_prompt: question.text || prev.user_prompt,
-        };
-      });
+    (question: QuestionOption | QuestionOption[]) => {
+      const questions = Array.isArray(question) ? question : [question];
+      if (questions.length === 0) return;
+
+      // For delete question command, always set questionIds (even for single selection)
+      if (selectedCommand === "delete question") {
+        // Store question IDs for deletion (single or multiple)
+        setSelectedQuestionOption(questions[0]); // Keep first one for compatibility
+        setIsQuestionModalOpen(false);
+        // Store all question IDs for deletion
+        setSelectedCommandPayload((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            questionIds: questions.map((q) => q.id),
+            user_prompt: prev.user_prompt,
+          };
+        });
+      } else {
+        // Single selection (edit question)
+        setSelectedQuestionOption(questions[0]);
+        setIsQuestionModalOpen(false);
+        // Question selection logic removed (Value Questions feature disabled)
+      }
     },
-    [questionModalSegmentId]
+    [questionModalSegmentId, selectedCommand]
   );
 
   const handleQuestionModalCancel = useCallback(() => {
@@ -1980,7 +2027,11 @@ export default function MarketExplorationPage({
     if (!QUESTION_SELECTOR_COMMANDS.has(selectedCommand)) {
       return;
     }
-    if (!questionModalSegmentId && !questionModalSegmentName && !selectedSegmentTag) {
+    if (
+      !questionModalSegmentId &&
+      !questionModalSegmentName &&
+      !selectedSegmentTag
+    ) {
       return;
     }
     const commandKey = selectedCommand || "delete question";
@@ -1998,25 +2049,42 @@ export default function MarketExplorationPage({
       setSelectedQuestionOption(null);
       return;
     }
-    setSelectedQuestionOption(null);
-    setSelectedCommandPayload((prev) => {
-      if (!prev) return prev;
-      const withPlaceholder = prev.selector
-        ? prev.selector.replace(/questionId=[^\]\s]*/i, "questionId=xxx")
-        : prev.selector;
-      return {
-        ...prev,
-        selector:
-          withPlaceholder ??
-          (questionModalSegmentId
-            ? `segments[segmentId=${questionModalSegmentId}].valueQuestions[questionId=xxx]`
-            : prev.selector),
-      };
-    });
-    const commandKey = selectedCommand || "delete question";
-    setQuestionModalCommand(commandKey);
-    setIsQuestionModalOpen(true);
-  }, [questionModalSegmentId, selectedCommand]);
+
+    // Check if there are multiple questions selected
+    const questionIds = (selectedCommandPayload as any)?.questionIds;
+    if (questionIds && Array.isArray(questionIds) && questionIds.length > 1) {
+      // Remove the last question from the array
+      const updatedQuestionIds = questionIds.slice(0, -1);
+      setSelectedCommandPayload((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          questionIds: updatedQuestionIds,
+        };
+      });
+      // Update selectedQuestionOption to the first question in the remaining list
+      const remainingQuestion = questionOptions.find(
+        (q) => q.id === updatedQuestionIds[0]
+      );
+      if (remainingQuestion) {
+        setSelectedQuestionOption(remainingQuestion);
+      } else {
+        // If question not found, clear everything
+        setSelectedQuestionOption(null);
+        setSelectedCommand("");
+        setSelectedCommandPayload(null);
+        setSelectedSegmentTag("");
+        setInputValue("");
+      }
+    } else {
+      // Only one question or no questionIds, clear everything
+      setSelectedQuestionOption(null);
+      setSelectedCommand("");
+      setSelectedCommandPayload(null);
+      setSelectedSegmentTag("");
+      setInputValue("");
+    }
+  }, [selectedCommand, selectedCommandPayload, questionOptions]);
 
   const handleSend = async () => {
     if (isGenerating) return;
@@ -2031,7 +2099,9 @@ export default function MarketExplorationPage({
     if (
       QUESTION_SELECTOR_COMMANDS.has(selectedCommand) &&
       (!selectedQuestionOption ||
-        selectedCommandPayload.selector?.includes("questionId=xxx"))
+        (selectedCommandPayload.selector &&
+          /valueQuestions\[id=xxx\]/i.test(selectedCommandPayload.selector))) &&
+      !(selectedCommandPayload as any).questionIds
     ) {
       if (!isQuestionModalOpen) {
         openQuestionModal();
@@ -2057,16 +2127,32 @@ export default function MarketExplorationPage({
 
       const runResultStr = localStorage.getItem("run_result");
       let runResult: any = null;
-      let baseRunId =
-        versionMap.get(selectedVersion) ||
-        selectedVersion ||
-        "";
+      // Get baseRunId from versionMap first
+      let baseRunId = versionMap.get(selectedVersion) || "";
+
+      // If not found in versionMap, try to find it in versions array
+      if (!baseRunId && selectedVersion) {
+        const matchedVersion = versions.find(
+          (v) => v.display === selectedVersion
+        );
+        if (matchedVersion) {
+          baseRunId = matchedVersion.runId;
+        } else {
+          // If still not found, try to convert selectedVersion format (v1 -> r_1, v2 -> r_2, etc.)
+          const versionMatch = selectedVersion.match(/^v(\d+)$/);
+          if (versionMatch) {
+            baseRunId = `r_${versionMatch[1]}`;
+          }
+        }
+      }
+
       let taskId = "";
       let storedUserId = "";
 
       if (runResultStr) {
         try {
           runResult = JSON.parse(runResultStr);
+          // If baseRunId is still empty after all attempts, use runResult
           if (!baseRunId) {
             baseRunId = runResult?.run_id || "r_1";
           }
@@ -2077,6 +2163,7 @@ export default function MarketExplorationPage({
         }
       }
 
+      // Final fallback
       if (!baseRunId) {
         baseRunId = "r_1";
       }
@@ -2084,7 +2171,12 @@ export default function MarketExplorationPage({
       const userId = user?.id || storedUserId || "";
 
       // Handle delete segments: generate one changeEntry per segment
-      if (updatedPayload.intent === "segment_remove" && updatedPayload.segments && Array.isArray(updatedPayload.segments) && updatedPayload.segments.length > 0) {
+      if (
+        updatedPayload.intent === "segment_remove" &&
+        updatedPayload.segments &&
+        Array.isArray(updatedPayload.segments) &&
+        updatedPayload.segments.length > 0
+      ) {
         const changeset = updatedPayload.segments.map((segmentId: string) => {
           return {
             intent: "segment_remove",
@@ -2108,6 +2200,8 @@ export default function MarketExplorationPage({
         };
       }
 
+      // Value question remove handling removed (Value Questions feature disabled)
+
       // Handle other commands (merge, edit, etc.)
       const changeEntry: Record<string, any> = {
         intent: updatedPayload.intent,
@@ -2125,7 +2219,10 @@ export default function MarketExplorationPage({
       if (updatedPayload.new_name) {
         changeEntry.new_name = updatedPayload.new_name;
       }
-      if (updatedPayload.intent === "segment_merge" && updatedPayload.segments) {
+      if (
+        updatedPayload.intent === "segment_merge" &&
+        updatedPayload.segments
+      ) {
         changeEntry.segments = updatedPayload.segments;
       }
 
@@ -2174,7 +2271,7 @@ export default function MarketExplorationPage({
       }
 
       if (!response.ok) {
-        console.error("[Command Submit] API error", response.status, text);
+        console.log("[Command Submit] API error", response.status, text);
         alert(
           json?.message ||
             "Failed to submit feedback. Please review your instruction."
@@ -2187,8 +2284,13 @@ export default function MarketExplorationPage({
       console.log("[Command Submit] Response:", json ?? text);
       setGenerationProgress(50);
 
-      // delete-question, rename segment, and delete segments commands don't need to call standal_sql
-      const shouldSkipStandalSql = selectedCommand === "delete question" || selectedCommand === "rename segment" || selectedCommand === "delete segments";
+      // delete-question, rename segment, delete segments, and segment_merge commands don't need to call standal_sql
+      const shouldSkipStandalSql =
+        selectedCommand === "delete question" ||
+        selectedCommand === "rename segment" ||
+        selectedCommand === "delete segments" ||
+        selectedCommand === "merge segments" ||
+        updatedPayload.intent === "segment_merge";
 
       // After changeset execution completes, update version list
       // If standal_sql is not needed, immediately update version list and switch version
@@ -2197,19 +2299,26 @@ export default function MarketExplorationPage({
         try {
           await fetchVersions(false); // Update version list
           await switchToLatestVersion(); // Switch to latest version
-          console.log("[Command Submit] Version list updated and switched after changeset (no standal_sql)");
+          console.log(
+            "[Command Submit] Version list updated and switched after changeset (no standal_sql)"
+          );
         } catch (error) {
-          console.warn("[Command Submit] Failed to update version list:", error);
+          console.warn(
+            "[Command Submit] Failed to update version list:",
+            error
+          );
           // Version list update failure doesn't affect main flow, only log warning
         }
       } else {
         // Commands that need standal_sql, don't call run-results, wait until standal_sql completes
-        console.log("[Command Submit] Changeset completed, will update version list after standal_sql");
+        console.log(
+          "[Command Submit] Changeset completed, will update version list after standal_sql"
+        );
       }
-      
+
       // After changeset API execution completes, call standal_sql API (except for certain commands)
       let runResultsPayload = json?.run_results;
-      
+
       // Only build runResultsPayload for commands that need to call standal_sql
       if (!shouldSkipStandalSql) {
         // Get basic info from localStorage to supplement run_results
@@ -2219,16 +2328,20 @@ export default function MarketExplorationPage({
           try {
             runResult = JSON.parse(runResultStr);
           } catch (error) {
-            console.warn("[Command Submit] Failed to parse run_result from localStorage:", error);
+            console.warn(
+              "[Command Submit] Failed to parse run_result from localStorage:",
+              error
+            );
           }
         }
-        
+
         const connectionId = localStorage.getItem("connection_id") || "";
         const userId = user?.id || runResult?.user_id || "";
         const taskId = runResult?.task_id || requestBody?.task_id || "";
-        const baseRunId = requestBody?.base_run_id || runResult?.run_id || "r_1";
+        const baseRunId =
+          requestBody?.base_run_id || runResult?.run_id || "r_1";
         const runId = runResult?.run_id || baseRunId;
-        
+
         // If run_results not obtained from changeset response or incomplete, build from localStorage
         if (!runResultsPayload || !runResultsPayload.run_result) {
           if (runResult) {
@@ -2238,20 +2351,27 @@ export default function MarketExplorationPage({
               connection_id: runResultsPayload?.connection_id || connectionId,
               task_id: runResultsPayload?.task_id || taskId,
               run_id: runResultsPayload?.run_id || runId,
-              parent_run_id: runResultsPayload?.parent_run_id || runResult?.parent_run_id || null,
+              parent_run_id:
+                runResultsPayload?.parent_run_id ||
+                runResult?.parent_run_id ||
+                null,
               run_result: runResultsPayload?.run_result || runResult,
               run_status: runResultsPayload?.run_status || "completed",
-              created_at: runResultsPayload?.created_at || new Date().toISOString(),
+              created_at:
+                runResultsPayload?.created_at || new Date().toISOString(),
             };
           }
         } else {
           // If changeset returned run_results but missing required fields, supplement them
           if (!runResultsPayload.user_id) runResultsPayload.user_id = userId;
-          if (!runResultsPayload.connection_id) runResultsPayload.connection_id = connectionId;
+          if (!runResultsPayload.connection_id)
+            runResultsPayload.connection_id = connectionId;
           if (!runResultsPayload.task_id) runResultsPayload.task_id = taskId;
           if (!runResultsPayload.run_id) runResultsPayload.run_id = runId;
-          if (!runResultsPayload.run_status) runResultsPayload.run_status = "completed";
-          if (!runResultsPayload.created_at) runResultsPayload.created_at = new Date().toISOString();
+          if (!runResultsPayload.run_status)
+            runResultsPayload.run_status = "completed";
+          if (!runResultsPayload.created_at)
+            runResultsPayload.created_at = new Date().toISOString();
         }
       }
 
@@ -2259,7 +2379,7 @@ export default function MarketExplorationPage({
       if (runResultsPayload && !shouldSkipStandalSql) {
         console.log("[Command Submit] Calling standal_sql with run_results...");
         setGenerationProgress(60);
-        
+
         try {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 600_000); // 10 minute timeout
@@ -2283,7 +2403,10 @@ export default function MarketExplorationPage({
           try {
             standalJson = JSON.parse(standalText);
           } catch (e) {
-            console.log("[Command Submit] Failed to parse standal_sql response:", e);
+            console.log(
+              "[Command Submit] Failed to parse standal_sql response:",
+              e
+            );
             throw new Error("Invalid JSON response from standal_sql");
           }
 
@@ -2295,7 +2418,10 @@ export default function MarketExplorationPage({
             );
           }
 
-          console.log("[Command Submit] standal_sql completed successfully:", standalJson);
+          console.log(
+            "[Command Submit] standal_sql completed successfully:",
+            standalJson
+          );
 
           // Process data returned from standal_sql
           if (standalJson?.run_results?.run_result) {
@@ -2308,7 +2434,10 @@ export default function MarketExplorationPage({
             );
 
             const updatedRunResult = standalJson.run_results.run_result;
-            localStorage.setItem("run_result", JSON.stringify(updatedRunResult));
+            localStorage.setItem(
+              "run_result",
+              JSON.stringify(updatedRunResult)
+            );
 
             // Update segments data
             const segments = updatedRunResult.segments || [];
@@ -2321,24 +2450,58 @@ export default function MarketExplorationPage({
             }));
 
             setSegmentsData(mapped);
-            
-            // After standal_sql execution completes, update version list and switch to latest version
+
+            // Preserve selected segment after data update
+            if (mapped.length > 0 && targetSegmentNameForCarousel) {
+              // Keep the selected segment name if targetSegmentNameForCarousel is set
+              const targetSegment = mapped.find(
+                (seg: any) => seg.name === targetSegmentNameForCarousel
+              );
+              if (targetSegment) {
+                setSelectedSegmentName(targetSegmentNameForCarousel);
+              } else if (!selectedSegmentName) {
+                // If target segment not found, fallback to first segment
+                setSelectedSegmentName(mapped[0]?.name || "");
+              }
+            } else if (
+              mapped.length > 0 &&
+              !targetSegmentNameForCarousel &&
+              !selectedSegmentName
+            ) {
+              // If no target set, use first segment
+              setSelectedSegmentName(mapped[0]?.name || "");
+            }
+
+            // After standal_sql execution completes, switch to latest version
+            // switchToLatestVersion already calls /api/run-results internally, no need to call fetchVersions separately
             try {
-              await fetchVersions(false); // Update version list first
-              await switchToLatestVersion(); // Switch to latest version
-              console.log("[Command Submit] Version list updated after standal_sql");
+              await switchToLatestVersion(); // Switch to latest version (this will fetch version list and load data)
+              console.log(
+                "[Command Submit] Version list updated after standal_sql"
+              );
             } catch (error) {
-              console.warn("[Command Submit] Failed to update version list after standal_sql:", error);
+              console.warn(
+                "[Command Submit] Failed to update version list after standal_sql:",
+                error
+              );
             }
           }
         } catch (standalError) {
-          console.error("[Command Submit] standal_sql request failed", standalError);
+          console.log(
+            "[Command Submit] standal_sql request failed",
+            standalError
+          );
           // standal_sql failure doesn't affect changeset success, only log error
         }
       } else if (!shouldSkipStandalSql) {
-        console.warn("[Command Submit] No run_results available for standal_sql");
+        console.warn(
+          "[Command Submit] No run_results available for standal_sql"
+        );
       } else {
-        console.log("[Command Submit] Skipping standal_sql for command:", selectedCommand);
+        console.log(
+          "[Command Submit] Skipping standal_sql for command:",
+          selectedCommand
+        );
       }
 
       setGenerationProgress(100);
@@ -2353,7 +2516,7 @@ export default function MarketExplorationPage({
       setInputValue("");
       resetQuestionSelection();
     } catch (error) {
-      console.error("[Command Submit] Request failed", error);
+      console.log("[Command Submit] Request failed", error);
       alert("Request failed. Please try again later.");
     } finally {
       setIsGenerating(false);
@@ -2362,8 +2525,7 @@ export default function MarketExplorationPage({
   };
   const handleGenerateApp = () => {
     console.log("Generating ChatApp");
-    // Preserve selectedProblems saved by ValueQuestionsSection (current tab only)
-    router.push("/generate");
+    setIsGenerateModalOpen(true);
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -2389,117 +2551,39 @@ export default function MarketExplorationPage({
     }
   };
   return (
-    <div className="w-full min-h-screen bg-white pb-32">
+    <div className="w-full min-h-screen bg-white">
       <div className="max-w-7xl mx-auto p-8">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-900">Business Insight</h1>
           {/* Right side controls */}
           <div className="flex items-center gap-4">
-            {/* Version Selector */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  // Disable dropdown while generation is running
-                  if (isGenerating) {
-                    return;
-                  }
-                  setIsVersionDropdownOpen(!isVersionDropdownOpen);
-                }}
-                disabled={isGenerating}
-                className={`flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg transition-colors ${
-                  isGenerating
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-gray-50 cursor-pointer"
-                }`}
-              >
-                <RotateCcw className="w-4 h-4 text-gray-600" />
-                <span className="text-sm font-medium text-gray-700">
-                  {selectedVersion ||
-                    (versions.length > 0 ? versions[0].display : "v1")}
-                </span>
-                <ChevronDown className="w-4 h-4 text-gray-600" />
-              </button>
-              {/* Dropdown Menu */}
-              {isVersionDropdownOpen && !isGenerating && (
-                <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                  {versions.length > 0 ? (
-                    versions.map((version) => (
-                      <button
-                        key={version.display}
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-
-                          // Double-check: disallow version switching while generating
-                          if (isGenerating) {
-                            console.warn(
-                              "Cannot switch version while generating"
-                            );
-                            setIsVersionDropdownOpen(false);
-                            return;
-                          }
-
-                          // Skip reload if user selects the current version
-                          if (version.display === selectedVersion) {
-                            setIsVersionDropdownOpen(false);
-                            return;
-                          }
-
-                          console.log("Version switch clicked:", {
-                            display: version.display,
-                            runId: version.runId,
-                          });
-
-                          setSelectedVersion(version.display);
-                          setIsVersionDropdownOpen(false);
-                          setIsGenerating(true);
-                          setGenerationProgress(0);
-
-                          await loadVersionData(version.runId);
-                        }}
-                        className={`w-full text-left px-4 py-2 text-sm cursor-pointer ${
-                          selectedVersion === version.display
-                            ? "bg-gray-100 font-medium text-gray-900 hover:bg-gray-100"
-                            : "text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        {version.display}
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-4 py-2 text-sm text-gray-500">
-                      No versions available
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
             {/* Generate ChatApp Button */}
             <button
               onClick={handleGenerateApp}
               disabled={isGenerating}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white relative overflow-hidden"
+              className="flex items-center gap-1.5 px-4 py-2 bg-black border-2 border-black rounded-lg font-medium text-white transition-all duration-200 hover:bg-white hover:text-black hover:scale-105 hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-black disabled:hover:text-white relative overflow-hidden"
             >
-              <ArrowRight className="w-4 h-4" />
+              {/* <ArrowRight className="w-4 h-4" /> */}
               <span className="whitespace-nowrap flex items-center gap-1">
-                Generate{" "}
-                <AnimatePresence mode="wait">
+                Generate
+                {/* <AnimatePresence mode="wait">
                   <motion.span
                     key={displayedSegmentName}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="text-green-400 inline-block"
+                    className="text-green-400 inline-block max-w-[50vw] truncate"
+                    title={displayedSegmentName}
                   >
                     {displayedSegmentName}
                   </motion.span>
-                </AnimatePresence>
+                </AnimatePresence> */}
               </span>
             </button>
           </div>
         </div>
-        {/* ValueQuestionsSection with version-based animation */}
+        {/* Business Insight Cards Section */}
         <AnimatePresence mode="wait">
           <motion.div
             key={selectedVersion}
@@ -2538,9 +2622,7 @@ export default function MarketExplorationPage({
         </AnimatePresence>
       </div>
       <div className="hidden">
-        <FloatingCommandButton
-          onClick={() => setIsCommandPaletteOpen(true)}
-        />
+        <FloatingCommandButton onClick={() => setIsCommandPaletteOpen(true)} />
       </div>
       <CommandPalette
         isOpen={isCommandPaletteOpen}
@@ -2567,11 +2649,19 @@ export default function MarketExplorationPage({
         onConfirm={handleQuestionModalConfirm}
         questions={questionOptions}
         segmentName={
-          questionModalSegmentName || selectedSegmentTag || questionModalSegmentId
+          questionModalSegmentName ||
+          selectedSegmentTag ||
+          questionModalSegmentId
         }
         commandText={questionModalCommand || selectedCommand}
         defaultSelectedQuestionId={selectedQuestionOption?.id}
       />
+      {selectedAnalysis && (
+        <DetailModal
+          analysis={selectedAnalysis}
+          onClose={() => setSelectedAnalysis(null)}
+        />
+      )}
       <AnimatePresence>
         {isRenameModalOpen && (
           <motion.div
@@ -2639,286 +2729,10 @@ export default function MarketExplorationPage({
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Bottom Input Box */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-6 pb-6 z-50">
-        <div className="max-w-7xl mx-auto px-8 relative">
-          <AnimatePresence>
-            {isSegmentDropdownOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.2 }}
-                className="absolute bottom-full mb-2 left-4 bg-white border border-gray-300 rounded-2xl shadow-xl overflow-hidden"
-                style={{ width: "auto", minWidth: "300px", maxWidth: "400px" }}
-              >
-                <div className="p-2">
-                  <div className="mb-2">
-                    <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase">
-                      Quick Select
-                    </div>
-                    {topSegments.map((segment) => (
-                      <button
-                        key={segment}
-                        onClick={() => handleSegmentSelect(segment)}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-900 font-medium text-sm cursor-pointer"
-                      >
-                        {segment}
-                      </button>
-                    ))}
-                  </div>
-                  {hasMoreSegments && (
-                    <div className="border-t border-gray-200 pt-2">
-                      <button
-                        onClick={() => {
-                          setIsSegmentDropdownOpen(false);
-                          setSegmentModalMode("select");
-                          setSegmentModalCommand("clipboard");
-                          setIsSegmentModalOpen(true);
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600 font-medium text-sm flex items-center justify-between cursor-pointer"
-                      >
-                        <span>View all segments</span>
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <div className="bg-white border border-gray-300 rounded-3xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-visible">
-            <div className="flex flex-col gap-3 p-4">
-              <div className="flex flex-wrap items-start gap-2">
-                <AnimatePresence>
-                  {selectedCommand && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium"
-                      style={{ marginTop: "10px" }}
-                    >
-                      <span>{getCommandLabel(selectedCommand)}</span>
-                      <button
-                        onClick={() => {
-                          setSelectedCommand("");
-                          setSelectedCommandPayload(null);
-                          setSelectedSegmentTag("");
-                          setInputValue("");
-                        }}
-                        className="hover:bg-gray-200 rounded p-0.5 transition-colors cursor-pointer"
-                        aria-label="Clear command"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <AnimatePresence>
-                  {selectedSegmentTag && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium"
-                      style={{ marginTop: "10px" }}
-                    >
-                      <span>{selectedSegmentTag}</span>
-                      <button
-                        onClick={clearSelectedSegment}
-                        className="hover:bg-emerald-100 rounded p-0.5 transition-colors cursor-pointer"
-                        aria-label="Clear selected segment"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <AnimatePresence>
-                  {selectedMergeSegments.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="flex-shrink-0 flex flex-wrap items-center gap-2"
-                      style={{ marginTop: "10px" }}
-                    >
-                      {/* First segment with count */}
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium flex-shrink-0 cursor-pointer hover:bg-emerald-100 transition-colors"
-                        onClick={() => {
-                          if (selectedMergeSegments.length > 1) {
-                            setIsMergeSegmentsExpanded(!isMergeSegmentsExpanded);
-                          }
-                        }}
-                      >
-                        <span className="truncate max-w-[180px]" title={selectedMergeSegments[0]}>
-                          {selectedMergeSegments[0]}
-                        </span>
-                        {selectedMergeSegments.length > 1 && (
-                          <span className="text-emerald-600 font-semibold">
-                            (+{selectedMergeSegments.length - 1})
-                          </span>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const updated = selectedMergeSegments.filter((_, i) => i !== 0);
-                            setSelectedMergeSegments(updated);
-                            if (updated.length === 0) {
-                              setSelectedCommand("");
-                              setSelectedCommandPayload(null);
-                              setIsMergeSegmentsExpanded(false);
-                            } else {
-                              const segmentIds = updated.map((segmentName) => {
-                                return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
-                              });
-                              setSelectedCommandPayload((prev) => {
-                                if (!prev) return prev;
-                                return {
-                                  ...prev,
-                                  segments: segmentIds,
-                                };
-                              });
-                            }
-                          }}
-                          className="hover:bg-emerald-200 rounded p-0.5 transition-colors cursor-pointer"
-                          aria-label="Remove segment"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </motion.div>
-                      {/* Additional segments (shown when expanded) */}
-                      {isMergeSegmentsExpanded && selectedMergeSegments.slice(1).map((segment, index) => (
-                        <motion.div
-                          key={segment}
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ duration: 0.2, delay: index * 0.05 }}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium flex-shrink-0"
-                        >
-                          <span className="truncate max-w-[180px]" title={segment}>{segment}</span>
-                          <button
-                            onClick={() => {
-                              const updated = selectedMergeSegments.filter(s => s !== segment);
-                              setSelectedMergeSegments(updated);
-                              if (updated.length === 0) {
-                                setSelectedCommand("");
-                                setSelectedCommandPayload(null);
-                                setIsMergeSegmentsExpanded(false);
-                              } else if (updated.length === 1) {
-                                setIsMergeSegmentsExpanded(false);
-                                const segmentIds = updated.map((segmentName) => {
-                                  return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
-                                });
-                                setSelectedCommandPayload((prev) => {
-                                  if (!prev) return prev;
-                                  return {
-                                    ...prev,
-                                    segments: segmentIds,
-                                  };
-                                });
-                              } else {
-                                const segmentIds = updated.map((segmentName) => {
-                                  return segmentIdMap.get(segmentName) || segmentIdMap.get(segmentName.trim()) || segmentName;
-                                });
-                                setSelectedCommandPayload((prev) => {
-                                  if (!prev) return prev;
-                                  return {
-                                    ...prev,
-                                    segments: segmentIds,
-                                  };
-                                });
-                              }
-                            }}
-                            className="hover:bg-emerald-100 rounded p-0.5 transition-colors cursor-pointer"
-                            aria-label="Remove segment"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <AnimatePresence>
-                  {selectedQuestionOption && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium"
-                      style={{ marginTop: "10px" }}
-                    >
-                      <span className="max-w-[220px] truncate">
-                        {selectedQuestionOption.text}
-                      </span>
-                      <button
-                        onClick={clearSelectedQuestion}
-                        className="hover:bg-blue-100 rounded p-0.5 transition-colors cursor-pointer"
-                        aria-label="Change selected question"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <textarea
-                  value={inputValue}
-                  onChange={(e) => handleInputChange(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  disabled={isGenerating}
-                  placeholder=""
-                  rows={1}
-                  className="flex-1 resize-none bg-transparent border-none outline-none text-gray-900 placeholder-gray-400 text-base px-2 py-2 max-h-48 overflow-y-auto disabled:opacity-50"
-                  style={{ minHeight: "40px" }}
-                />
-              </div>
-              <div className="flex items-center gap-3">
-                <AnimatedDropdownMenu options={commandOptions}>
-                  <span className="text-xl cursor-pointer hover:bg-gray-100 rounded-lg px-2 py-1 transition-all duration-200 text-gray-700 hover:text-gray-900 flex items-center justify-center">@</span>
-                </AnimatedDropdownMenu>
-                <div className="flex-1" />
-                <div
-                  className="relative flex-shrink-0"
-                  onMouseEnter={() => setIsSendButtonHovered(true)}
-                  onMouseLeave={() => setIsSendButtonHovered(false)}
-                >
-                  <button
-                    type="button"
-                    onClick={handleSend}
-                    disabled={isGenerating || !selectedCommand}
-                    className={`p-2 rounded-lg transition-all duration-200 ${
-                      !isGenerating && selectedCommand
-                        ? "text-black hover:bg-gray-100 cursor-pointer"
-                        : "text-gray-300 cursor-not-allowed"
-                    }`}
-                    aria-label="Send message"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
-                  {!selectedCommand && isSendButtonHovered && !isGenerating && (
-                    <div className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-gray-400 text-white text-xs rounded-lg whitespace-nowrap z-50">
-                      Select a command
-                      <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-600"></div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <GenerateModal
+        open={isGenerateModalOpen}
+        onOpenChange={setIsGenerateModalOpen}
+      />
     </div>
   );
 }

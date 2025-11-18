@@ -2,22 +2,30 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle } from "lucide-react";
-import { Loader2 } from "@/components/ui/loader-2";
-import { CircleProgress } from "@/components/ui/circle-progress";
+import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { FlowButton } from "@/components/ui/flow-button";
+
+type SelectedProblem = {
+  id: string;
+  userProfile: string;
+  problem: string;
+  marketValue: string;
+  implementationMethod: string;
+  implementationDifficulty: number;
+};
 
 type QuestionStatus = "pending" | "generating" | "done";
 
@@ -68,20 +76,33 @@ type GenerationState =
   | "failed";
 
 interface GenerateModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  appId?: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function GenerateModal({ isOpen, onClose, appId }: GenerateModalProps) {
+export function GenerateModal({ open, onOpenChange }: GenerateModalProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const [selectedProblems, setSelectedProblems] = useState<SelectedProblem[]>(
+    []
+  );
+  
+  const getQuestionsFromProblems = (
+    problems: SelectedProblem[]
+  ): QuestionItem[] => {
+    return problems.map((problem, index) => ({
+      id: problem.id || `problem-${index}`,
+      text: problem.problem || problem.toString(),
+      status: "pending" as QuestionStatus,
+    }));
+  };
+  
   const [allQuestions, setAllQuestions] = useState<QuestionItem[]>([]);
   const [jobState, setJobState] = useState<GenerationState>("idle");
   const jobStateRef = useRef<GenerationState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [batchStatus, setBatchStatus] = useState<BatchJobStatus | null>(null);
-  const [jobAppId, setJobAppId] = useState<string | null>(appId || null);
+  const [jobAppId, setJobAppId] = useState<string | null>(null);
+  const { user } = useAuth();
   const [dbConnectionDataObj, setDbConnectionDataObj] = useState<any>({});
   const [dbConnectionReady, setDbConnectionReady] = useState(false);
   const inFlightRef = useRef(false);
@@ -94,6 +115,7 @@ export function GenerateModal({ isOpen, onClose, appId }: GenerateModalProps) {
     jobStateRef.current = jobState;
   }, [jobState]);
 
+  // Fetch dbConnectionData on the client
   useEffect(() => {
     if (typeof window !== "undefined") {
       const dbConnectionData = localStorage.getItem("dbConnectionData");
@@ -108,6 +130,14 @@ export function GenerateModal({ isOpen, onClose, appId }: GenerateModalProps) {
       setDbConnectionReady(true);
     }
   }, []);
+
+  // Update allQuestions whenever selectedProblems changes
+  useEffect(() => {
+    if (selectedProblems.length > 0) {
+      const questions = getQuestionsFromProblems(selectedProblems);
+      setAllQuestions(questions);
+    }
+  }, [selectedProblems]);
 
   const clearStatusTimer = useCallback(() => {
     if (statusUpdateIntervalRef.current) {
@@ -471,10 +501,9 @@ export function GenerateModal({ isOpen, onClose, appId }: GenerateModalProps) {
         if (payload?.status === "succeeded") {
           setJobState("succeeded");
           await hydrateAppRecord(payload.appId || appId);
-          setTimeout(() => {
-            onClose();
-            router.push(`/preview?id=${payload.appId || appId}`);
-          }, 500);
+          // 关闭弹窗并跳转到预览页面
+          onOpenChange(false);
+          router.push(`/preview?id=${payload.appId || appId}`);
           return;
         }
 
@@ -519,7 +548,7 @@ export function GenerateModal({ isOpen, onClose, appId }: GenerateModalProps) {
       updateQuestionStatuses,
       router,
       formatErrorMessage,
-      onClose,
+      onOpenChange,
     ]
   );
 
@@ -534,26 +563,7 @@ export function GenerateModal({ isOpen, onClose, appId }: GenerateModalProps) {
     };
   }, [clearStatusTimer]);
 
-  useEffect(() => {
-    if (!dbConnectionReady || !isOpen) {
-      return;
-    }
-
-    if (!mountedCalledRef.current) {
-      mountedCalledRef.current = true;
-      if (appId) {
-        updateQuestionStatuses(null);
-        setBatchStatus(null);
-        setJobState("running");
-        setJobAppId(appId);
-      } else {
-        generateBatchData();
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, appId, dbConnectionReady]);
-
-  const generateBatchData = async () => {
+  const generateBatchData = useCallback(async (problemsOverride?: SelectedProblem[]) => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
     setJobState("preparing");
@@ -564,6 +574,11 @@ export function GenerateModal({ isOpen, onClose, appId }: GenerateModalProps) {
     updateQuestionStatuses(null);
 
     let extractedQueries: any[] = [];
+    const currentProblems =
+      problemsOverride && problemsOverride.length > 0
+        ? problemsOverride
+        : selectedProblems;
+
     let anchIndexNum: any = null;
     const selectedQuestionsWithSql = localStorage.getItem(
       "selectedQuestionsWithSql"
@@ -577,7 +592,6 @@ export function GenerateModal({ isOpen, onClose, appId }: GenerateModalProps) {
         parsed?.anchor_index ??
         null;
     }
-
     try {
       let appMetaFromService: any | null = null;
       try {
@@ -596,14 +610,11 @@ export function GenerateModal({ isOpen, onClose, appId }: GenerateModalProps) {
         appMetaFromService.chat_app_meta ||
         {};
 
-      const selectedProblems = JSON.parse(
-        localStorage.getItem("selectedProblems") || "[]"
-      );
       const appName =
         (typeof chatMeta.name === "string" && chatMeta.name.trim()
           ? chatMeta.name.trim()
           : null) ||
-        selectedProblems[0]?.problem ||
+        currentProblems[0]?.problem ||
         "Generated App";
 
       const appDescription =
@@ -630,7 +641,6 @@ export function GenerateModal({ isOpen, onClose, appId }: GenerateModalProps) {
       } catch (err) {
         console.warn("Failed to parse run_result_publish", err);
       }
-
       const batchData = {
         user_id: user?.id || "",
         connection_id:
@@ -704,7 +714,8 @@ export function GenerateModal({ isOpen, onClose, appId }: GenerateModalProps) {
         currentToolName: data?.currentToolName ?? null,
         currentToolIndex: data?.currentToolIndex ?? null,
         totalToolsInCurrentQuery: data?.totalToolsInCurrentQuery ?? null,
-        completedToolsInCurrentQuery: data?.completedToolsInCurrentQuery ?? null,
+        completedToolsInCurrentQuery:
+          data?.completedToolsInCurrentQuery ?? null,
         totalTools: data?.totalTools ?? null,
         totalToolsCompleted: data?.totalToolsCompleted ?? null,
         activeToolNames: data?.activeToolNames ?? null,
@@ -739,7 +750,43 @@ export function GenerateModal({ isOpen, onClose, appId }: GenerateModalProps) {
     } finally {
       inFlightRef.current = false;
     }
-  };
+  }, [
+    user?.id,
+    dbConnectionDataObj,
+    formatErrorMessage,
+    fetchMetadataFromService,
+    updateQuestionStatuses,
+    clearStatusTimer,
+  ]);
+
+  // 当弹窗打开时，初始化生成流程
+  useEffect(() => {
+    if (!open || !dbConnectionReady) {
+      return;
+    }
+
+    // 重置状态
+    setJobState("idle");
+    setErrorMessage("");
+    setBatchStatus(null);
+    setJobAppId(null);
+    setAllQuestions([]);
+    setSelectedProblems([]);
+    mountedCalledRef.current = false;
+
+    let problemsFromStorage: SelectedProblem[] | null = null;
+    const stored = localStorage.getItem("selectedProblems");
+    if (stored) {
+      try {
+        const problems = JSON.parse(stored);
+        problemsFromStorage = problems;
+        setSelectedProblems(problems);
+        generateBatchData(problems);
+      } catch (e) {
+        console.log("Failed to parse selected problems", e);
+      }
+    }
+  }, [open, dbConnectionReady, generateBatchData]);
 
   const isFailed = jobState === "failed";
   const isSucceeded = jobState === "succeeded";
@@ -750,204 +797,89 @@ export function GenerateModal({ isOpen, onClose, appId }: GenerateModalProps) {
       ? "Batch generation task completed"
       : "Batch generation task is in progress, please wait");
 
-  // 计算进度百分比 - 使用和数据库分析弹窗相同的方式
-  const getProgressPercentage = () => {
-    if (isSucceeded) {
-      return 100;
-    }
-    if (isFailed) {
-      return 0;
-    }
-    // 优先使用 progressPercentage
-    if (typeof batchStatus?.progressPercentage === "number") {
-      const progress = Math.max(0, Math.min(100, Math.round(batchStatus.progressPercentage)));
-      return progress;
-    }
-    // 如果没有 progressPercentage，尝试根据 totalTools 和 totalToolsCompleted 计算
-    if (
-      typeof batchStatus?.totalTools === "number" &&
-      typeof batchStatus?.totalToolsCompleted === "number" &&
-      batchStatus.totalTools > 0
-    ) {
-      const progress = Math.round(
-        (batchStatus.totalToolsCompleted / batchStatus.totalTools) * 100
-      );
-      return Math.max(0, Math.min(100, progress));
-    }
-    // 如果正在处理中但没有进度信息，显示一个小的进度值表示正在开始
-    if (isProcessing && jobState === "running") {
-      return 1;
-    }
-    return 0;
-  };
-
-  const displayProgress = getProgressPercentage();
-  
-  // 调试日志（开发时使用）
-  useEffect(() => {
-    if (isProcessing && batchStatus) {
-      console.log("Progress update:", {
-        progressPercentage: batchStatus.progressPercentage,
-        totalTools: batchStatus.totalTools,
-        totalToolsCompleted: batchStatus.totalToolsCompleted,
-        displayProgress,
-        status: batchStatus.status,
-      });
-    }
-  }, [batchStatus, displayProgress, isProcessing]);
-
-  const handleClose = () => {
-    // 只有在没有正在生成或者有错误/成功时才允许关闭
-    if (!isProcessing || isFailed || isSucceeded) {
-      onClose();
-    }
-  };
-
-  // 当弹窗关闭时重置状态
-  useEffect(() => {
-    if (!isOpen) {
-      setJobState("idle");
-      setErrorMessage("");
-      setBatchStatus(null);
-      setJobAppId(null);
-      setAllQuestions([]);
-      inFlightRef.current = false;
-      mountedCalledRef.current = false;
-      clearStatusTimer();
-    }
-  }, [isOpen, clearStatusTimer]);
-
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent
-        className="max-w-lg w-full max-h-[90vh] overflow-y-auto duration-300 ease-out data-[state=open]:zoom-in-100 data-[state=open]:slide-in-from-bottom-4"
-        showCloseButton={!isProcessing || isFailed || isSucceeded}
-      >
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" showCloseButton={!isProcessing}>
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">
             Generating Your ChatAPP
           </DialogTitle>
         </DialogHeader>
+        <div className="flex flex-col items-center justify-center py-8">
+          {isFailed ? (
+            <XCircle className="size-12 text-red-500 mb-6" />
+          ) : isSucceeded ? (
+            <CheckCircle2 className="size-12 text-green-600 mb-6" />
+          ) : (
+            <Loader2 className="size-12 text-gray-600 animate-spin mb-6" />
+          )}
 
-        <Card className="border-0 shadow-none">
-          <CardContent className="flex flex-col items-center justify-center py-8">
+          <CardDescription className="text-center max-w-md mb-8">
+            {isFailed
+              ? "Batch generation failed, please try again."
+              : isSucceeded
+              ? "Batch generation completed, you can jump to the preview to view the application details."
+              : (() => {
+                  const allToolsCompleted =
+                    typeof batchStatus?.totalToolsCompleted === "number" &&
+                    typeof batchStatus?.totalTools === "number" &&
+                    batchStatus.totalToolsCompleted >=
+                      batchStatus.totalTools &&
+                    batchStatus.totalTools > 0 &&
+                    batchStatus?.status === "generating";
+
+                  return allToolsCompleted
+                    ? "Great! All your tools are ready. We're starting them up now so you can preview everything in just a moment!"
+                    : "Batch generation process may take several minutes, we will continue to synchronize the progress.";
+                })()}
+          </CardDescription>
+
+          <div className="w-full max-w-md space-y-4">
             {isFailed ? (
-              <XCircle className="size-12 text-red-500 mb-6" />
-            ) : isSucceeded ? (
-              <CheckCircle2 className="size-12 text-green-600 mb-6" />
-            ) : (
-              <div className="relative mb-6 flex items-center justify-center">
-                <div className="relative flex h-16 w-16 items-center justify-center">
-                  {isProcessing ? (
-                    <div className="relative">
-                      <div className="animate-spin">
-                        <CircleProgress
-                          value={displayProgress}
-                          maxValue={100}
-                          size={64}
-                          strokeWidth={3}
-                          getColor={() => "stroke-primary"}
-                          disableAnimation={true}
-                          className="text-primary"
-                        />
-                      </div>
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <span className="text-sm font-semibold text-primary">
-                          {displayProgress}%
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="relative flex h-16 w-16 items-center justify-center">
-                      <span className="text-sm font-semibold text-muted-foreground">
-                        {displayProgress}%
-                      </span>
+              <div className="text-center space-y-4">
+                <div className="space-y-2">
+                  {errorMessage && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-sm text-red-800 font-medium mb-2">
+                        Generation Failed
+                      </p>
+                      <p className="text-sm text-red-700 leading-relaxed">
+                        {errorMessage}
+                      </p>
                     </div>
                   )}
                 </div>
-              </div>
-            )}
-
-            <CardDescription className="text-center max-w-md mb-8">
-              {isFailed
-                ? "Batch generation failed, please try again."
-                : isSucceeded
-                ? "Batch generation completed, you can jump to the preview to view the application details."
-                : (() => {
-                    const allToolsCompleted =
-                      typeof batchStatus?.totalToolsCompleted === "number" &&
-                      typeof batchStatus?.totalTools === "number" &&
-                      batchStatus.totalToolsCompleted >=
-                        batchStatus.totalTools &&
-                      batchStatus.totalTools > 0 &&
-                      batchStatus?.status === "generating";
-
-                    return allToolsCompleted
-                      ? "Great! All your tools are ready. We're starting them up now so you can preview everything in just a moment!"
-                      : "Batch generation process may take several minutes, we will continue to synchronize the progress.";
-                  })()}
-            </CardDescription>
-
-            <div className="w-full max-w-md space-y-4">
-              {isFailed ? (
-                <div className="text-center space-y-4">
-                  <div className="space-y-2">
-                    {errorMessage && (
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <p className="text-sm text-red-800 font-medium mb-2">
-                          Generation Failed
-                        </p>
-                        <p className="text-sm text-red-700 leading-relaxed">
-                          {errorMessage}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-3 justify-center">
-                    {appId ? (
-                      <Button
-                        disabled={!jobAppId}
-                        onClick={() => {
-                          if (jobAppId) {
-                            setErrorMessage("");
-                            setJobState("running");
-                            requestStatus(jobAppId);
-                          }
-                        }}
-                        variant="default"
-                      >
-                        Refresh Status
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={() => {
-                          setErrorMessage("");
-                          setJobState("idle");
-                          mountedCalledRef.current = false;
-                          generateBatchData();
-                        }}
-                        variant="default"
-                      >
-                        Try Again
-                      </Button>
-                    )}
-                  </div>
+                <div className="flex gap-3 justify-center">
+                  <Button
+                    onClick={() => {
+                      setErrorMessage("");
+                      setJobState("idle");
+                      generateBatchData();
+                    }}
+                    variant="default"
+                  >
+                    Try Again
+                  </Button>
+                  <Button
+                    onClick={() => onOpenChange(false)}
+                    variant="outline"
+                  >
+                    Close
+                  </Button>
                 </div>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
+          </div>
 
-            <Button
-              className="mt-4"
-              variant="outline"
-              onClick={() => {
-                onClose();
-                router.push("/");
-              }}
-            >
-              Back to Home
-            </Button>
-          </CardContent>
-        </Card>
+          {!isFailed && !isSucceeded && (
+            <div className="mt-4">
+              <FlowButton
+                text="Back to Home"
+                onClick={() => onOpenChange(false)}
+              />
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
