@@ -19,6 +19,7 @@ import { CheckCircle2, Copy, Check, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/AuthProvider";
 import { triggerConfettiFireworks } from "@/components/ui/confetti-fireworks";
+import { useToast } from "@/hooks/use-toast";
 import {
   getVendorStatus,
   type VendorStatusResponse,
@@ -126,6 +127,7 @@ export function PublishFlow() {
   const router = useRouter();
   const appId = searchParams.get("id");
   const { session, user } = useAuth();
+  const { toast } = useToast();
   const [appName, setAppName] = useState("");
   const [description, setDescription] = useState("");
   const [monetization, setMonetization] = useState("free");
@@ -460,9 +462,11 @@ export function PublishFlow() {
       if (!response.ok) {
         if (response.status === 409) {
           // Surface duplicate-name errors with specific messaging
-          alert(
-            data.error || "App name already exists. Please use a different name"
-          );
+          toast({
+            variant: "error",
+            title: "App name already exists",
+            description: data.error || "Please use a different name",
+          });
           return;
         }
         throw new Error(data.error || "Save failed");
@@ -480,7 +484,11 @@ export function PublishFlow() {
         error instanceof Error && error.message
           ? error.message
           : "Failed to publish the app. Please try again.";
-      alert(message);
+      toast({
+        variant: "error",
+        title: "Failed to publish",
+        description: message,
+      });
     }
   };
 
@@ -555,9 +563,11 @@ export function PublishFlow() {
       // }
 
       if (!taskId) {
-        alert(
-          "Cannot find task_id. Please ensure the app has been generated from a valid connection."
-        );
+        toast({
+          variant: "error",
+          title: "Cannot find task_id",
+          description: "Please ensure the app has been generated from a valid connection.",
+        });
         return;
       }
 
@@ -680,7 +690,11 @@ export function PublishFlow() {
       router.push("/connect");
     } catch (error) {
       console.log("Failed to continue to generate:", error);
-      alert("Failed to load data. Please try again.");
+      toast({
+        variant: "error",
+        title: "Failed to load data",
+        description: "Please try again.",
+      });
     }
   };
 

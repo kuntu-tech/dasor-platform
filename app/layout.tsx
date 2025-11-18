@@ -30,6 +30,7 @@ import { ConditionalBreadcrumb } from "@/components/conditional-breadcrumb";
 import { ConditionalSidebar } from "@/components/conditional-sidebar";
 import { AuthProvider } from "@/components/AuthProvider";
 import { AuthGuard } from "@/components/AuthGuard";
+import { Toaster } from "@/components/ui/toaster";
 
 import {
   Geist as V0_Font_Geist,
@@ -78,6 +79,7 @@ export default function RootLayout({
                 </Suspense>
                 <Suspense fallback={null}>{children}</Suspense>
                 <Analytics />
+                <Toaster />
               </ConditionalSidebar>
             </Suspense>
           </AuthGuard>

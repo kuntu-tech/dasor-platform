@@ -1,0 +1,90 @@
+"use client"
+
+import * as React from "react"
+
+import {
+  Header as AriaHeader,
+  ListBox as AriaListBox,
+  ListBoxItem as AriaListBoxItem,
+  ListBoxSection as AriaListBoxSection,
+  Separator as AriaSeparator,
+  type ListBoxProps as AriaListBoxProps,
+  type ListBoxItemProps,
+  type SeparatorProps,
+  type ListBoxSectionProps,
+} from "react-aria-components"
+
+import { cn } from "@/lib/utils"
+
+const ListBox = React.forwardRef<HTMLUListElement, AriaListBoxProps>(
+  ({ className, ...props }, ref) => (
+    <AriaListBox
+      ref={ref}
+      className={cn(
+        "max-h-72 min-h-20 space-y-2 overflow-auto bg-background p-1 text-sm shadow-sm shadow-black/5 transition-shadow",
+        className,
+      )}
+      {...props}
+    />
+  ),
+)
+
+ListBox.displayName = "ListBox"
+
+const ListBoxItem = React.forwardRef<HTMLLIElement, ListBoxItemProps>(
+  ({ className, ...props }, ref) => (
+    <AriaListBoxItem
+      ref={ref}
+      className={cn(
+        "relative rounded-md px-2 py-1.5 outline-none data-[disabled]:cursor-not-allowed data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[disabled]:opacity-50",
+        className,
+      )}
+      {...props}
+    />
+  ),
+)
+
+ListBoxItem.displayName = "ListBoxItem"
+
+const ListBoxSection = React.forwardRef<HTMLDivElement, ListBoxSectionProps>(
+  ({ className, ...props }, ref) => (
+    <AriaListBoxSection
+      ref={ref}
+      className={cn("space-y-1", className)}
+      {...props}
+    />
+  ),
+)
+
+ListBoxSection.displayName = "ListBoxSection"
+
+const ListBoxHeader = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <AriaHeader
+    ref={ref}
+    className={cn(
+      "px-2 py-1.5 text-xs font-medium text-muted-foreground",
+      className,
+    )}
+    {...props}
+  />
+))
+
+ListBoxHeader.displayName = "ListBoxHeader"
+
+const ListBoxSeparator = React.forwardRef<HTMLDivElement, SeparatorProps>(
+  ({ className, ...props }, ref) => (
+    <AriaSeparator
+      ref={ref}
+      className={cn("-mx-1 my-1 h-px bg-border", className)}
+      {...props}
+    />
+  ),
+)
+
+ListBoxSeparator.displayName = "ListBoxSeparator"
+
+export { ListBox, ListBoxItem, ListBoxSection, ListBoxHeader, ListBoxSeparator }
+
