@@ -246,6 +246,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await checkSubscriptionStatus(user.id, false);
   }, [user?.id, checkSubscriptionStatus]);
 
+  // Warm up Supabase connection to prevent first-time timeout
+  const warmupSupabaseConnection = useCallback(async (accessToken: string) => {
+    try {
+      console.log("🔥 Warming up Supabase connection...");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch("/api/users/self", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({}),
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        console.log("✅ Supabase connection warmed up successfully");
+      } else {
+        console.log("⚠️ Supabase warmup returned non-OK status:", response.status);
+      }
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        console.log("⚠️ Supabase warmup timeout (non-critical)");
+      } else {
+        console.log("⚠️ Supabase warmup error (non-critical):", error.message);
+      }
+      // Don't throw - this is a non-critical optimization
+    }
+  }, []);
+
   const latestUserIdRef = useRef<string | undefined>(undefined);
   const syncGuardRef = useRef<"idle" | "syncing" | "signing-out">("idle");
   const signOutVerifyTimerRef = useRef<number | null>(null);
@@ -269,11 +303,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const getInitialSession = async () => {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        console.log("🔄 [AuthProvider] Starting initial session fetch...");
+        const startTime = Date.now();
+        
+        // Add timeout wrapper for getSession to handle VPN/proxy delays
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<{ data: { session: null }; error: Error }>((_, reject) =>
+          setTimeout(() => reject(new Error("getSession timeout")), 25000)
+        );
+        
+        let sessionResult;
+        try {
+          sessionResult = await Promise.race([sessionPromise, timeoutPromise]) as any;
+        } catch (timeoutError: any) {
+          if (timeoutError.message === "getSession timeout") {
+            console.warn("⚠️ [AuthProvider] getSession timeout, retrying...");
+            // Retry once with a fresh attempt
+            try {
+              sessionResult = await Promise.race([
+                supabase.auth.getSession(),
+                new Promise<{ data: { session: null }; error: Error }>((_, reject) =>
+                  setTimeout(() => reject(new Error("getSession retry timeout")), 25000)
+                )
+              ]) as any;
+            } catch (retryError) {
+              console.error("❌ [AuthProvider] getSession retry also failed:", retryError);
+              throw retryError;
+            }
+          } else {
+            throw timeoutError;
+          }
+        }
+        
+        const elapsed = Date.now() - startTime;
+        console.log(`📊 [AuthProvider] getSession completed in ${elapsed}ms`);
+        
+        const { data: { session } } = sessionResult;
+        
         if (!session) {
-          await new Promise((r) => setTimeout(r, 700));
+          console.log("⚠️ [AuthProvider] No session on first attempt, retrying after delay...");
+          await new Promise((r) => setTimeout(r, 1000)); // Increased delay to 1 second
           const {
             data: { session: retry },
           } = await supabase.auth.getSession();
@@ -297,7 +366,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           void checkSubscriptionStatus(session.user.id);
         }
       } catch (e) {
-        console.log("Error initializing session:", e);
+        console.log("❌ [AuthProvider] Error initializing session:", e);
         setLoading(false);
         console.log("🔄 Initial auth state loaded:", { session: null });
       }
@@ -316,12 +385,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     let loadingFinished = false;
+    // Increased timeout to 30 seconds to handle VPN/proxy delays and cold starts
     const timeoutId = setTimeout(() => {
       if (!loadingFinished) {
         console.warn("Session fetch timeout, forcing loading to false");
         setLoading(false);
       }
-    }, 10000);
+    }, 30000);
 
     getInitialSession().then(() => {
       loadingFinished = true;
@@ -347,6 +417,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await checkAndSaveNewUser(nextSession.user, "Sign In Success");
         processedUsers.add(nextSession.user.id);
         checkSubscriptionStatus(nextSession.user.id).catch(console.log);
+        
+        // Warm up Supabase connection to prevent first-time timeout
+        warmupSupabaseConnection(nextSession.access_token).catch((err) => {
+          console.log("⚠️ Supabase warmup failed (non-critical):", err);
+        });
+        
         return;
       }
 

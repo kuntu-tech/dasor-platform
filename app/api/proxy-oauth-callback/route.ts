@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { warmupSupabase } from "@/lib/supabase-warmup";
 
-const CONNECT_API_BASE = process.env.NEXT_PUBLIC_CONNECT_API_BASE?.replace(/\/$/, "") || "https://test-payment-1j3d.onrender.com";
+const CONNECT_API_BASE = process.env.NEXT_PUBLIC_CONNECT_API_BASE?.replace(/\/$/, "") || "https://unfrequentable-sceptical-vince.ngrok-free.dev";
 
 export async function GET(request: NextRequest) {
   try {
+    // Warm up Supabase connection early to prevent cold start timeout
+    // This helps ensure subsequent Supabase calls in the OAuth flow are fast
+    warmupSupabase().catch(() => {
+      // Ignore warmup errors, continue with request
+    });
+
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
     const state = searchParams.get("state");
@@ -21,14 +28,36 @@ export async function GET(request: NextRequest) {
       "ngrok-skip-browser-warning": "any",
     });
     
-    const response = await fetch(targetUrl, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-        "User-Agent": "curl/7.68.0",
-        "ngrok-skip-browser-warning": "any",
-      },
-    });
+    // Add timeout for external API call (40 seconds to handle cold starts)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn("⏱️ Proxy fetch timeout after 40 seconds");
+      controller.abort();
+    }, 40000);
+    
+    let response: Response;
+    try {
+      response = await fetch(targetUrl, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "curl/7.68.0",
+          "ngrok-skip-browser-warning": "any",
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === "AbortError") {
+        console.error("❌ Proxy fetch timeout");
+        return NextResponse.json(
+          { success: false, error: "Request timeout. The service may be starting up. Please try again." },
+          { status: 504 }
+        );
+      }
+      throw fetchError;
+    }
 
     console.log("Proxy response status:", response.status, response.headers.get("content-type"));
 

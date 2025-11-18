@@ -16,6 +16,42 @@ const PaymentAccount = () => {
     console.log("[PaymentAccount] useAuth", { user, session, loading });
   }, [user, session, loading]);
 
+  // Warm up Supabase connection when component mounts and user is available
+  useEffect(() => {
+    if (session?.access_token && !loading) {
+      console.log("🔥 [PaymentAccount] Warming up Supabase connection...");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      fetch("/api/users/self", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({}),
+      })
+        .then((response) => {
+          clearTimeout(timeoutId);
+          if (response.ok) {
+            console.log("✅ [PaymentAccount] Supabase connection warmed up");
+          }
+        })
+        .catch((error: any) => {
+          clearTimeout(timeoutId);
+          if (error.name !== "AbortError") {
+            console.log("⚠️ [PaymentAccount] Warmup error (non-critical):", error.message);
+          }
+        });
+      
+      return () => {
+        clearTimeout(timeoutId);
+        controller.abort();
+      };
+    }
+  }, [session?.access_token, loading]);
+
   const notifyStripeStatusChange = () => {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("stripe-connection-updated"));
@@ -43,11 +79,14 @@ const PaymentAccount = () => {
   };
 
   return (
-    <div>
+    <div className="space-y-6">
+      {/* Payout Account Header */}
+      <div>
+        <h1 className="text-2xl font-bold">Payout Account</h1>
+      </div>
       {currentStep !== "connected" ? (
         <>
-          <h2 className="mb-2 text-3xl font-semibold">Payout Account</h2>
-          <p className="mb-8 text-sm text-red-500">❗️Connect your Stripe account for receive payment from your users</p>
+          <p className="text-sm text-red-500">❗️Connect your Stripe account for receive payment from your users</p>
           {currentStep === "selection" && <PathSelection onSelect={handleSelection} />}
 
           {currentStep === "create" && <CreateAccount onBack={handleBack} onConnect={handleConnect} />}

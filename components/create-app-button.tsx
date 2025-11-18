@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
 
@@ -22,20 +22,26 @@ export function CreateAppButton({
   ...rest
 }: NativeButtonProps) {
   const router = useRouter();
-  const {
-    user,
-    subscriptionStatus,
-    subscriptionLoading,
-    refreshSubscriptionStatus,
-  } = useAuth();
+  const { user, subscriptionStatus, subscriptionLoading } = useAuth();
   const [checking, setChecking] = useState(false);
-  const [currentSubscriptionStatus, setCurrentSubscriptionStatus] =
-    useState<SubscriptionCheckResponse | null>(subscriptionStatus);
 
-  // Synchronize subscription status
-  useEffect(() => {
-    setCurrentSubscriptionStatus(subscriptionStatus);
-  }, [subscriptionStatus]);
+  // Helper function to get cached subscription status without API call
+  const getCachedSubscriptionStatus = (): SubscriptionCheckResponse | null => {
+    if (typeof window === "undefined" || !user?.id) return null;
+    try {
+      const cacheKey = `subscription_status_${user.id}`;
+      const raw = localStorage.getItem(cacheKey);
+      if (!raw) return null;
+      const { data, timestamp } = JSON.parse(raw);
+      const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 1 day
+      if (Date.now() - timestamp > CACHE_EXPIRY) {
+        return null;
+      }
+      return data;
+    } catch {
+      return null;
+    }
+  };
 
   const handleClick = async (event: MouseEvent<HTMLButtonElement>) => {
     if (typeof onClick === "function") {
@@ -56,43 +62,21 @@ export function CreateAppButton({
     try {
       setChecking(true);
 
-      // Check if subscription has already been checked in this session
-      const subscriptionCheckedKey = `subscription_checked_${user.id}`;
-      const hasCheckedInSession =
-        typeof window !== "undefined" &&
-        sessionStorage.getItem(subscriptionCheckedKey) === "true";
+      // First, try to use subscriptionStatus from AuthProvider (may be cached)
+      let statusToCheck = subscriptionStatus;
 
-      // Wait for subscription status to load if it's currently loading
-      // This ensures we have the latest status before making decisions
-      if (subscriptionLoading) {
-        let waitCount = 0;
-        const maxWait = 50; // Wait up to 5 seconds
-        while (subscriptionLoading && waitCount < maxWait) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          waitCount++;
-        }
-        // Re-sync status after waiting
-        const latestStatus = subscriptionStatus;
-        if (latestStatus) {
-          setCurrentSubscriptionStatus(latestStatus);
-        }
-        // If still loading after max wait, don't show popup, just return
-        if (subscriptionLoading) {
-          console.log(
-            "Subscription check is taking too long, please try again later"
-          );
-          return;
-        }
+      // If not available, try to read from cache directly (no API call)
+      if (!statusToCheck) {
+        statusToCheck = getCachedSubscriptionStatus();
       }
 
-      // Use cached subscription status when available (check both current and subscriptionStatus)
-      const statusToCheck = currentSubscriptionStatus || subscriptionStatus;
+      // If status is available (from state or cache), use it immediately
       if (statusToCheck) {
         if (statusToCheck.hasActiveSubscription) {
           router.push(successHref);
           return;
         } else {
-          // No active subscription - show popup every time button is clicked
+          // No active subscription - show popup (no API call needed)
           if (typeof onRequireSubscription === "function") {
             onRequireSubscription();
           } else {
@@ -102,27 +86,21 @@ export function CreateAppButton({
         }
       }
 
-      // If subscription was already checked in this session, use cached status from AuthProvider
-      // Don't make another API call
-      if (hasCheckedInSession) {
-        // Wait a bit for status to be available if it's still loading
-        if (subscriptionLoading) {
-          let waitCount = 0;
-          const maxWait = 30;
-          while (subscriptionLoading && waitCount < maxWait) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            waitCount++;
-          }
+      // If status is loading, wait briefly (max 1 second)
+      if (subscriptionLoading) {
+        let waitCount = 0;
+        const maxWait = 10; // 1 second
+        while (subscriptionLoading && waitCount < maxWait) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          waitCount++;
         }
-        // Check status again after waiting
-        const finalStatusAfterWait = (currentSubscriptionStatus ||
-          subscriptionStatus) as SubscriptionCheckResponse | null;
-        if (finalStatusAfterWait) {
-          if (finalStatusAfterWait.hasActiveSubscription) {
+        // Check status after waiting
+        statusToCheck = subscriptionStatus || getCachedSubscriptionStatus();
+        if (statusToCheck) {
+          if (statusToCheck.hasActiveSubscription) {
             router.push(successHref);
             return;
           } else {
-            // No active subscription - show popup
             if (typeof onRequireSubscription === "function") {
               onRequireSubscription();
             } else {
@@ -131,66 +109,10 @@ export function CreateAppButton({
             return;
           }
         }
-        // If status is still not available after waiting, don't show popup
-        // User should wait for the check to complete
-        return;
       }
 
-      // Wait for subscription status to load when missing (only if not checked in session)
-      if (!hasCheckedInSession && subscriptionLoading) {
-        // Await up to 5 seconds for subscription status resolution
-        let waitCount = 0;
-        const maxWait = 50;
-        while (subscriptionLoading && waitCount < maxWait) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          waitCount++;
-        }
-        // If still loading after max wait, don't show popup, just return
-        if (subscriptionLoading) {
-          console.log(
-            "Subscription check is taking too long, please try again later"
-          );
-          return;
-        }
-      }
-
-      // Only call API if status is still unavailable and not checked in session
-      if (
-        !hasCheckedInSession &&
-        !currentSubscriptionStatus &&
-        !subscriptionStatus &&
-        !subscriptionLoading
-      ) {
-        await refreshSubscriptionStatus();
-        // Allow time for React state updates and useEffect execution
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        // Re-sync status after refresh
-        const refreshedStatus = subscriptionStatus;
-        if (refreshedStatus) {
-          setCurrentSubscriptionStatus(refreshedStatus);
-        }
-      }
-
-      // Final check after all loading and refreshing
-      // Prioritize currentSubscriptionStatus because it auto-syncs via useEffect
-      const finalStatus = (currentSubscriptionStatus ||
-        subscriptionStatus) as SubscriptionCheckResponse | null;
-      if (finalStatus) {
-        if (finalStatus.hasActiveSubscription) {
-          router.push(successHref);
-          return;
-        } else {
-          // No active subscription - show popup every time button is clicked
-          if (typeof onRequireSubscription === "function") {
-            onRequireSubscription();
-          } else {
-            alert("You need an active subscription to continue.");
-          }
-          return;
-        }
-      }
-
-      // If status is still null after all attempts, show popup
+      // If still no status and not loading, show popup (don't call API)
+      // The AuthProvider will refresh in background if needed
       if (typeof onRequireSubscription === "function") {
         onRequireSubscription();
       } else {
@@ -198,7 +120,6 @@ export function CreateAppButton({
       }
     } catch (error) {
       console.log("Subscription check failed:", error);
-      // Show popup every time on error
       if (typeof onRequireSubscription === "function") {
         onRequireSubscription();
       } else {
