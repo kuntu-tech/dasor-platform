@@ -215,8 +215,8 @@ const ConnectedState = ({ email, onDisconnect }: ConnectedStateProps) => {
           
           // If onboarding URL is provided, redirect to onboarding page
           if (result.data.onboardingUrl) {
-            // Redirect to onboarding page to complete account setup
-            window.location.href = result.data.onboardingUrl;
+            // Open onboarding page in a new tab to complete account setup
+            window.open(result.data.onboardingUrl, "_blank");
             return;
           }
           
