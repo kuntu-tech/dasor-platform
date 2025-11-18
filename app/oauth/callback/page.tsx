@@ -13,6 +13,7 @@ export default function OAuthCallbackPage() {
     "loading" | "success" | "error" | "no-payment"
   >("loading");
   const [message, setMessage] = useState("");
+  const [loadingTime, setLoadingTime] = useState(0);
   const hasProcessed = useRef(false);
   const abortControllers = useRef<{
     payment?: AbortController;
@@ -20,6 +21,8 @@ export default function OAuthCallbackPage() {
   }>({});
   const warmupDone = useRef(false);
   const warmupPromiseRef = useRef<Promise<void> | null>(null);
+  const startTimeRef = useRef(Date.now());
+  const loadingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Immediate warmup when page loads to prevent cold start timeout
   // Wait for AuthProvider to finish initializing first (especially important in incognito mode)
@@ -503,6 +506,30 @@ export default function OAuthCallbackPage() {
     };
   }, [searchParams, router, authLoading, authSession]);
 
+  // Update loading time display
+  useEffect(() => {
+    if (status !== "loading") {
+      if (loadingIntervalRef.current) {
+        clearInterval(loadingIntervalRef.current);
+        loadingIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Update loading time every second
+    loadingIntervalRef.current = setInterval(() => {
+      setLoadingTime(Math.floor((Date.now() - startTimeRef.current) / 1000));
+    }, 1000);
+
+    return () => {
+      if (loadingIntervalRef.current) {
+        clearInterval(loadingIntervalRef.current);
+        loadingIntervalRef.current = null;
+      }
+    };
+  }, [status]);
+
+  // Global timeout handler
   useEffect(() => {
     if (status !== "loading") return;
 
@@ -519,13 +546,78 @@ export default function OAuthCallbackPage() {
     };
   }, [status]);
 
+  // Page visibility detection - retry when page becomes visible again
+  useEffect(() => {
+    if (status !== "loading") return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        // If page has been loading for more than 15 seconds and becomes visible again
+        // and we haven't processed yet, suggest reload
+        const elapsed = Date.now() - startTimeRef.current;
+        if (elapsed > 15000 && !hasProcessed.current) {
+          console.log("🔄 Page became visible after long loading, user may want to retry");
+          // Don't auto-reload, but log for debugging
+          // User can manually click refresh button if needed
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [status]);
+
+  // Manual retry function
+  const handleRetry = () => {
+    // Reset state
+    hasProcessed.current = false;
+    startTimeRef.current = Date.now();
+    setLoadingTime(0);
+    setStatus("loading");
+    setMessage("");
+    
+    // Abort any ongoing requests
+    abortControllers.current.payment?.abort();
+    abortControllers.current.callback?.abort();
+    abortControllers.current = {};
+    
+    // Reload the page to restart the OAuth flow
+    window.location.reload();
+  };
+
   return (
     <div className="min-h-screen bg-white flex items-center justify-center">
       <div className="text-center max-w-md px-4">
         {status === "loading" && (
           <>
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Processing authorization...</p>
+            <p className="text-gray-600 mb-2">Processing authorization...</p>
+            {loadingTime > 5 && (
+              <>
+                <p className="text-sm text-gray-500 mb-4">
+                  This is taking longer than usual ({loadingTime}s)...
+                </p>
+                <button
+                  onClick={handleRetry}
+                  className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                >
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                  </svg>
+                  Refresh Page
+                </button>
+              </>
+            )}
           </>
         )}
 
@@ -610,26 +702,45 @@ export default function OAuthCallbackPage() {
                 <path d="M6 18L18 6M6 6l12 12"></path>
               </svg>
             </div>
-            <p className="text-lg font-semibold text-gray-900">{message}</p>
-            <button
-              onClick={() => {
-                const returnPath =
-                  typeof window !== "undefined"
-                    ? sessionStorage.getItem("oauth_return_path") || "/"
-                    : "/";
-                if (typeof window !== "undefined") {
-                  sessionStorage.removeItem("oauth_return_path");
-                }
-                router.push(
-                  `${returnPath}${
-                    returnPath === "/" ? "?" : "&"
-                  }openSettings=payout`
-                );
-              }}
-              className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              Return to Settings
-            </button>
+            <p className="text-lg font-semibold text-gray-900 mb-4">{message}</p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <button
+                onClick={handleRetry}
+                className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Try Again
+              </button>
+              <button
+                onClick={() => {
+                  const returnPath =
+                    typeof window !== "undefined"
+                      ? sessionStorage.getItem("oauth_return_path") || "/"
+                      : "/";
+                  if (typeof window !== "undefined") {
+                    sessionStorage.removeItem("oauth_return_path");
+                  }
+                  router.push(
+                    `${returnPath}${
+                      returnPath === "/" ? "?" : "&"
+                    }openSettings=payout`
+                  );
+                }}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                Return to Settings
+              </button>
+            </div>
           </>
         )}
       </div>
