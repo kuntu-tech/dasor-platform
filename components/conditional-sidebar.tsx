@@ -379,7 +379,7 @@ export function ConditionalSidebar({
                 }}
               >
                 <Wallet className="size-4" />
-                <span className="flex-1 text-left">Payout Account</span>
+                <span className="flex-1 text-left">Payout</span>
                 {hasConnectedStripeAccount === false && (
                   <span className="text-base leading-none text-red-500" aria-hidden="true">❗️</span>
                 )}

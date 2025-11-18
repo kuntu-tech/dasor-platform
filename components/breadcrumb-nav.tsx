@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ export function BreadcrumbNav() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, session } = useAuth();
+  const { toast } = useToast();
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [appName, setAppName] = useState("");
   const [appDescription, setAppDescription] = useState("");
@@ -195,12 +197,20 @@ export function BreadcrumbNav() {
     console.log(user);
 
     if (!appName.trim()) {
-      alert("Please enter the application name.");
+      toast({
+        variant: "warning",
+        title: "Name required",
+        description: "Please enter the application name.",
+      });
       return;
     }
 
     if (!user || !session) {
-      alert("Please log in first.");
+      toast({
+        variant: "warning",
+        title: "Login required",
+        description: "Please log in first.",
+      });
       return;
     }
 
@@ -243,9 +253,11 @@ export function BreadcrumbNav() {
       navigateToPublish();
     } catch (error) {
       console.log("Failed to save application:", error);
-      alert(
-        `Save failed: ${error instanceof Error ? error.message : "Unknown error"}`
-      );
+      toast({
+        variant: "error",
+        title: "Save failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     } finally {
       setIsSaving(false);
     }

@@ -27,6 +27,7 @@ import { useAuth } from "@/components/AuthProvider"
 import { getBillingPortalUrl } from "@/lib/billingPortal"
 import { supabase } from "@/lib/supabase"
 import { useSearchParams } from "next/navigation"
+import { Toaster as PortableToaster } from "@/portable-pages/components/ui/toaster"
 
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
@@ -591,18 +592,7 @@ export default function SettingsPage() {
               placeholder="Enter your email"
               disabled={!useCustomUsername || profileLoading}
             />
-            <div className="flex items-center gap-2">
-              <input 
-                type="checkbox" 
-                id="custom-username" 
-                checked={useCustomUsername}
-                onChange={(event) => setUseCustomUsername(event.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label htmlFor="custom-username" className="text-sm text-gray-700">
-                Use custom email
-              </label>
-            </div>
+          
           </div>
 
       
@@ -827,6 +817,7 @@ export default function SettingsPage() {
           {activeTab === "payout" && <PaymentAccount />}
         </div>
       </div>
+      <PortableToaster />
     </div>
   )
 }

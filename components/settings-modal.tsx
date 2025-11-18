@@ -30,7 +30,7 @@ import { supabase } from "@/lib/supabase"
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
   { id: "billing", label: "Billing", icon: CreditCard },
-  { id: "payout", label: "Payout Account", icon: Wallet },
+  { id: "payout", label: "Payout", icon: Wallet },
 ]
 
 interface SettingsModalProps {
@@ -584,18 +584,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
               placeholder="Enter your email"
               disabled={!useCustomUsername || profileLoading}
             />
-            <div className="flex items-center gap-2">
-              <input 
-                type="checkbox" 
-                id="custom-username" 
-                checked={useCustomUsername}
-                onChange={(event) => setUseCustomUsername(event.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label htmlFor="custom-username" className="text-sm text-gray-700">
-                Use custom email
-              </label>
-            </div>
+          
           </div>
 
           

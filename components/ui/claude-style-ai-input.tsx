@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useToast } from "@/hooks/use-toast";
 import {
   Plus,
   SlidersHorizontal,
@@ -501,6 +502,7 @@ const ClaudeChatInput: React.FC<ChatInputProps> = ({
   defaultModel,
   onModelChange,
 }) => {
+  const { toast } = useToast();
   const [message, setMessage] = useState("");
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [pastedContent, setPastedContent] = useState<PastedContent[]>([]);
@@ -531,9 +533,11 @@ const ClaudeChatInput: React.FC<ChatInputProps> = ({
 
       const currentFileCount = files.length;
       if (currentFileCount >= maxFiles) {
-        alert(
-          `Maximum ${maxFiles} files allowed. Please remove some files to add new ones.`
-        );
+        toast({
+          variant: "warning",
+          title: "Maximum files reached",
+          description: `Maximum ${maxFiles} files allowed. Please remove some files to add new ones.`,
+        });
         return;
       }
 
@@ -541,21 +545,25 @@ const ClaudeChatInput: React.FC<ChatInputProps> = ({
       const filesToAdd = Array.from(selectedFiles).slice(0, availableSlots);
 
       if (selectedFiles.length > availableSlots) {
-        alert(
-          `You can only add ${availableSlots} more file(s). ${
+        toast({
+          variant: "warning",
+          title: "Too many files",
+          description: `You can only add ${availableSlots} more file(s). ${
             selectedFiles.length - availableSlots
-          } file(s) were not added.`
-        );
+          } file(s) were not added.`,
+        });
       }
 
       const newFiles = filesToAdd
         .filter((file) => {
           if (file.size > maxFileSize) {
-            alert(
-              `File ${file.name} (${formatFileSize(
+            toast({
+              variant: "warning",
+              title: "File too large",
+              description: `File ${file.name} (${formatFileSize(
                 file.size
-              )}) exceeds size limit of ${formatFileSize(maxFileSize)}.`
-            );
+              )}) exceeds size limit of ${formatFileSize(maxFileSize)}.`,
+            });
             return false;
           }
           if (
@@ -565,11 +573,13 @@ const ClaudeChatInput: React.FC<ChatInputProps> = ({
                 file.type.includes(type) || type === file.name.split(".").pop()
             )
           ) {
-            alert(
-              `File type for ${
+            toast({
+              variant: "warning",
+              title: "File type not supported",
+              description: `File type for ${
                 file.name
-              } not supported. Accepted types: ${acceptedFileTypes.join(", ")}`
-            );
+              } not supported. Accepted types: ${acceptedFileTypes.join(", ")}`,
+            });
             return false;
           }
           return true;
@@ -723,7 +733,11 @@ const ClaudeChatInput: React.FC<ChatInputProps> = ({
     )
       return;
     if (files.some((f) => f.uploadStatus === "uploading")) {
-      alert("Please wait for all files to finish uploading.");
+      toast({
+        variant: "warning",
+        title: "Please wait",
+        description: "Please wait for all files to finish uploading.",
+      });
       return;
     }
 
