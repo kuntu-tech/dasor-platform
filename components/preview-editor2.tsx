@@ -1365,5 +1365,6 @@ export function PreviewEditor() {
         </DialogContent>
       </Dialog>
     </div>
+    </div>
   );
 }

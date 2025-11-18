@@ -11,13 +11,13 @@ const supabaseServiceKey =
 // Custom fetch with increased timeout for VPN/proxy scenarios
 // Default timeout is usually 10 seconds, we increase it to 30 seconds
 const createFetchWithTimeout = (timeoutMs: number = 30000) => {
-  return async (url: string, options?: RequestInit) => {
+  return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
     try {
-      const response = await fetch(url, {
-        ...options,
+      const response = await fetch(input, {
+        ...init,
         signal: controller.signal,
       });
       clearTimeout(timeoutId);

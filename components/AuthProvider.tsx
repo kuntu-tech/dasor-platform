@@ -344,7 +344,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 ),
               ])) as any;
             } catch (retryError) {
-              console.error(
+              console.log(
                 "❌ [AuthProvider] getSession retry also failed:",
                 retryError
               );

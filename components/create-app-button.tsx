@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/AuthProvider";
 import type { SubscriptionCheckResponse } from "@/lib/subscription/client";
 
-type NativeButtonProps = React.ComponentProps<"button"> & {
+type NativeButtonProps = React.ComponentProps<typeof Button> & {
   successHref?: string;
   onRequireSubscription?: () => void;
 };
