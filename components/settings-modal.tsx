@@ -30,7 +30,7 @@ import { supabase } from "@/lib/supabase"
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
   { id: "billing", label: "Billing", icon: CreditCard },
-  { id: "payout", label: "Payout Account", icon: Wallet },
+  { id: "payout", label: "Payout", icon: Wallet },
 ]
 
 interface SettingsModalProps {
@@ -584,9 +584,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
               placeholder="Enter your email"
               disabled={!useCustomUsername || profileLoading}
             />
-            <div className="flex items-center gap-2">
-           
-            </div>
+          
           </div>
 
           

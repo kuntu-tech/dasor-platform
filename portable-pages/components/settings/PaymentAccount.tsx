@@ -745,7 +745,7 @@ const PaymentAccount = () => {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Payout Account</h1>
+          <h1 className="text-2xl font-bold">Payout</h1>
         </div>
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
@@ -761,7 +761,7 @@ const PaymentAccount = () => {
     <div className="space-y-6">
       {/* Payout Account Header */}
       <div>
-        <h1 className="text-2xl font-bold">Payout Account</h1>
+        <h1 className="text-2xl font-bold">Payout</h1>
         {/* Status Alert for connected accounts */}
         {currentStep === "connected" && !loadingAlert && statusAlert && (
           <p className="text-sm text-red-500 mt-2">

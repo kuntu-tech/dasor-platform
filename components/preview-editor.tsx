@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -62,6 +63,7 @@ type App = {
 };
 
 export function PreviewEditor() {
+  const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const appId = searchParams.get("id");
@@ -316,7 +318,11 @@ export function PreviewEditor() {
 
   const handleDeleteFeature = (featureId: string) => {
     if (selectedProblems.length <= 1) {
-      alert("Application must retain at least one question");
+      toast({
+        variant: "warning",
+        title: "Cannot delete",
+        description: "Application must retain at least one question",
+      });
       return;
     }
 
@@ -334,11 +340,19 @@ export function PreviewEditor() {
 
   const handleSaveSubmit = () => {
     if (!saveFormData.name.trim()) {
-      alert("Please enter a name for your app");
+      toast({
+        variant: "warning",
+        title: "Name required",
+        description: "Please enter a name for your app",
+      });
       return;
     }
     if (!saveFormData.description.trim()) {
-      alert("Please enter a description for your app");
+      toast({
+        variant: "warning",
+        title: "Description required",
+        description: "Please enter a description for your app",
+      });
       return;
     }
 

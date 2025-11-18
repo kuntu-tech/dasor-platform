@@ -52,6 +52,12 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --warning: 48 96% 59%;
+  --warning-foreground: 48 96% 5%;
+  --success: 142.1 76.2% 36.3%;
+  --success-foreground: 142.1 76.2% 95%;
+  --info: 215 91% 54%;
+  --info-foreground: 215 91% 95%;
 }
 
 .dark {
@@ -87,6 +93,12 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+  --warning: 48 96% 59%;
+  --warning-foreground: 48 96% 5%;
+  --success: 142.1 76.2% 36.3%;
+  --success-foreground: 142.1 76.2% 95%;
+  --info: 215 91% 54%;
+  --info-foreground: 215 91% 95%;
 }
 
 @theme inline {
@@ -128,6 +140,12 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
 }
 
 @layer base {

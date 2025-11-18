@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,7 @@ export function PreviewEditor() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const appId = searchParams.get("id");
+  const { toast } = useToast();
 
   const [searchMessage, setSearchMessage] = useState("");
   const [isSearchProcessing, setIsSearchProcessing] = useState(false);
@@ -625,7 +627,11 @@ export function PreviewEditor() {
     if (!currentApp) return;
 
     if (currentApp.features.length <= 1) {
-      alert("Application must retain at least one feature");
+      toast({
+        variant: "warning",
+        title: "Cannot delete",
+        description: "Application must retain at least one feature",
+      });
       return;
     }
 
@@ -648,11 +654,19 @@ export function PreviewEditor() {
 
   const handleSaveSubmit = () => {
     if (!saveFormData.name.trim()) {
-      alert("Please enter a name for your app");
+      toast({
+        variant: "warning",
+        title: "Name required",
+        description: "Please enter a name for your app",
+      });
       return;
     }
     if (!saveFormData.description.trim()) {
-      alert("Please enter a description for your app");
+      toast({
+        variant: "warning",
+        title: "Description required",
+        description: "Please enter a description for your app",
+      });
       return;
     }
 

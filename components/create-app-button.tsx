@@ -6,6 +6,7 @@ import type { MouseEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/AuthProvider";
+import { useToast } from "@/hooks/use-toast";
 import type { SubscriptionCheckResponse } from "@/lib/subscription/client";
 
 type NativeButtonProps = React.ComponentProps<"button"> & {
@@ -23,6 +24,7 @@ export function CreateAppButton({
 }: NativeButtonProps) {
   const router = useRouter();
   const { user, subscriptionStatus, subscriptionLoading } = useAuth();
+  const { toast } = useToast();
   const [checking, setChecking] = useState(false);
 
   // Helper function to get cached subscription status without API call
@@ -55,7 +57,11 @@ export function CreateAppButton({
     event.preventDefault();
 
     if (!user?.id) {
-      alert("Please log in first");
+      toast({
+        variant: "warning",
+        title: "Login required",
+        description: "Please log in first",
+      });
       return;
     }
 
@@ -80,7 +86,11 @@ export function CreateAppButton({
           if (typeof onRequireSubscription === "function") {
             onRequireSubscription();
           } else {
-            alert("You need an active subscription to continue.");
+            toast({
+              variant: "warning",
+              title: "Subscription required",
+              description: "You need an active subscription to continue.",
+            });
           }
           return;
         }
@@ -104,7 +114,11 @@ export function CreateAppButton({
             if (typeof onRequireSubscription === "function") {
               onRequireSubscription();
             } else {
-              alert("You need an active subscription to continue.");
+              toast({
+                variant: "warning",
+                title: "Subscription required",
+                description: "You need an active subscription to continue.",
+              });
             }
             return;
           }
@@ -116,14 +130,22 @@ export function CreateAppButton({
       if (typeof onRequireSubscription === "function") {
         onRequireSubscription();
       } else {
-        alert("Unable to verify your subscription. Please try again later.");
+        toast({
+          variant: "error",
+          title: "Verification failed",
+          description: "Unable to verify your subscription. Please try again later.",
+        });
       }
     } catch (error) {
       console.log("Subscription check failed:", error);
       if (typeof onRequireSubscription === "function") {
         onRequireSubscription();
       } else {
-        alert("Unable to verify your subscription. Please try again later.");
+        toast({
+          variant: "error",
+          title: "Verification failed",
+          description: "Unable to verify your subscription. Please try again later.",
+        });
       }
     } finally {
       setChecking(false);

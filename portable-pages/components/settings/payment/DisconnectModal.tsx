@@ -29,10 +29,10 @@ const DisconnectModal = ({ open, onOpenChange, onConfirm, isLoading = false, err
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
             <AlertTriangle className="h-6 w-6 text-destructive" />
           </div>
-          <DialogTitle>Disconnect Payment Account?</DialogTitle>
+          <DialogTitle>Disconnect Payout Account?</DialogTitle>
           <DialogDescription>
-            Are you sure you want to disconnect your Stripe account? This will revoke access to your Stripe account. You can reconnect the same account later if needed.
-          </DialogDescription>
+          Are you sure you want to disconnect your Stripe receiving account? This will revoke access to your Stripe receiving account. You can reconnect the same account later if needed.      
+           </DialogDescription>
         </DialogHeader>
         
         {error && (
