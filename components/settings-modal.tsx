@@ -669,12 +669,12 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Prompt when no payment history exists
     if (paymentStatus === "no_payment_history") {
       return (
-        <div className="space-y-6">
+        <div className="flex h-full flex-col">
           {/* Billing Header */}
-          <div>
+          <div className="mb-6">
             <h1 className="text-2xl font-bold">Billing</h1>
           </div>
-          <div className="flex items-center justify-center h-full">
+          <div className="flex-1 flex items-center justify-center">
             <div className="text-center max-w-md px-6">
               <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <svg
@@ -704,12 +704,12 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     // Render loading state while data is fetching
     if (billingPortalLoading) {
       return (
-        <div className="space-y-6">
+        <div className="flex h-full flex-col">
           {/* Billing Header */}
-          <div>
+          <div className="mb-6">
             <h1 className="text-2xl font-bold">Billing</h1>
           </div>
-          <div className="flex items-center justify-center h-full">
+          <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
               <p className="text-muted-foreground">Loading billing portal...</p>

@@ -41,10 +41,10 @@ export async function getSubscriptionStatus(
   }
 
   const { data, error } = await supabaseAdmin
-    .from<SubscriptionRecord>("dataset_vendors")
+    .from("dataset_vendors")
     .select("subscription_status, subscription_period_end")
     .eq("user_id", userId)
-    .single();
+    .single<SubscriptionRecord>();
 
   if (error) {
     if (error.code === "PGRST116") {
@@ -78,5 +78,3 @@ export async function getSubscriptionStatus(
     subscriptionPeriodEnd: data.subscription_period_end,
   };
 }
-
-

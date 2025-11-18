@@ -14,6 +14,12 @@ interface DetailModalProps {
       painPoints: string[];
       goals: string[];
     };
+    revenue_band?: string;
+    retention_signal?: string;
+    conversion_rate_est?: number;
+    moat_score?: number;
+    scalability_score?: number;
+    competitive_advantage?: string[];
     fullDetails: string;
   };
   onClose: () => void;
@@ -46,21 +52,19 @@ export function DetailModal({
     if (score >= 7.0) return '#8F56BE';
     return '#c57d56';
   };
-  return <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  return <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[120] flex items-center justify-center p-4" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div ref={modalRef} onClick={e => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 flex items-center justify-between rounded-t-3xl">
           <div className="flex items-center gap-4">
-            <span className="text-4xl font-semibold" style={{
-            color: getScoreColor(analysis.score)
-          }} aria-label={`Score: ${analysis.score} out of 10`}>
+            <span className="text-4xl font-semibold" style={{ color: 'rgb(16, 185, 129)' }} aria-label={`Score: ${analysis.score} out of 10`}>
               {analysis.score}
             </span>
             <h2 id="modal-title" className="text-2xl font-semibold text-gray-900">
               {analysis.dimensionName}
             </h2>
           </div>
-          <button ref={closeButtonRef} onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer" aria-label="Close modal">
+          <button ref={closeButtonRef} onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 cursor-pointer" aria-label="Close modal">
             <XIcon className="w-6 h-6 text-gray-600" />
           </button>
         </div>
@@ -79,15 +83,102 @@ export function DetailModal({
             </h3>
             <p className="text-gray-700 leading-relaxed">{analysis.summary}</p>
           </div>
-          {/* Full Details */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">
-              Detailed Analysis
-            </h3>
-            <p className="text-gray-700 leading-relaxed">
-              {analysis.fullDetails}
-            </p>
-          </div>
+          {/* D3: Revenue Metrics */}
+          {analysis.id === "D3" && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                Revenue Metrics
+              </h3>
+              <div className="space-y-2">
+                {analysis.revenue_band && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700">
+                      Revenue Band:
+                    </span>
+                    <span className="text-gray-700">{analysis.revenue_band}</span>
+                  </div>
+                )}
+                {analysis.retention_signal && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700">
+                      Retention Signal:
+                    </span>
+                    <span className="text-gray-700">{analysis.retention_signal}</span>
+                  </div>
+                )}
+                {analysis.conversion_rate_est !== undefined && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700">
+                      Conversion Rate:
+                    </span>
+                    <span className="font-medium" style={{ color: 'rgb(16, 185, 129)' }}>
+                      {(analysis.conversion_rate_est * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {/* D4: Competitive Metrics */}
+          {analysis.id === "D4" && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                Competitive Metrics
+              </h3>
+              <div className="space-y-2 mb-4">
+                {analysis.moat_score !== undefined && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700">
+                      Moat:
+                    </span>
+                    <span className="font-medium" style={{ color: 'rgb(16, 185, 129)' }}>
+                      {analysis.moat_score}
+                    </span>
+                  </div>
+                )}
+                {analysis.scalability_score !== undefined && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700">
+                      Scalability:
+                    </span>
+                    <span className="font-medium" style={{ color: 'rgb(16, 185, 129)' }}>
+                      {analysis.scalability_score}
+                    </span>
+                  </div>
+                )}
+              </div>
+              {analysis.competitive_advantage && analysis.competitive_advantage.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                    Competitive Advantages:
+                  </h4>
+                  <ul className="space-y-2">
+                    {analysis.competitive_advantage.map((advantage, index) => (
+                      <li key={index} className="flex items-start gap-3 text-gray-700">
+                        <span className="mt-1.5" style={{
+                          color: '#8F56BE'
+                        }}>
+                          •
+                        </span>
+                        <span>{advantage}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          {/* Full Details - Only show if different from summary */}
+          {analysis.fullDetails && analysis.fullDetails !== analysis.summary && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                Detailed Analysis
+              </h3>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                {analysis.fullDetails}
+              </p>
+            </div>
+          )}
           {/* Supporting Indicators */}
           {analysis.supportingIndicators && <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-3">

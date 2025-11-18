@@ -47,7 +47,13 @@ export const AnimatedDropdownMenu = ({
     <div className="relative" ref={dropdownRef}>
       <Button
         onClick={toggleDropdown}
-        className="px-4 py-2 bg-transparent hover:bg-transparent shadow-none border-none rounded-xl backdrop-blur-sm"
+        className="px-4 py-2 bg-transparent hover:bg-transparent shadow-none border-none rounded-xl backdrop-blur-sm transition-all duration-200 hover:scale-110"
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
       >
         {children ?? "Menu"}
       </Button>

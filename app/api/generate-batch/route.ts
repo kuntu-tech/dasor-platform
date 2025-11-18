@@ -31,17 +31,15 @@ const requiredFieldError = (payload: BatchPayload): string | null => {
   if (!payload.user_id) {
     return "user_id is required";
   }
-  if (
-    !payload.connection_id
-  ) {
+  if (!payload.connection_id) {
     return "connection_id is required";
   }
-  if (!Array.isArray(payload.queries) || payload.queries.length === 0) {
-    return "queries array cannot be empty";
-  }
-  if (!payload.anchorIndex) {
-    return "anchorIndex is required";
-  }
+  // if (!Array.isArray(payload.queries) || payload.queries.length === 0) {
+  //   return "queries array cannot be empty";
+  // }
+  // if (!payload.anchorIndex) {
+  //   return "anchorIndex is required";
+  // }
   return null;
 };
 
@@ -68,7 +66,10 @@ export async function POST(request: NextRequest) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-    const externalApiUrl = `${BATCH_SERVICE_BASE_URL.replace(/\/$/, "")}/generate-batch`;
+    const externalApiUrl = `${BATCH_SERVICE_BASE_URL.replace(
+      /\/$/,
+      ""
+    )}/generate-batch`;
     let response: Response;
     try {
       response = await fetch(externalApiUrl, {
@@ -90,7 +91,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (!response.ok) {
-      console.log("External batch service call failed:", response.status, parsed);
+      console.log(
+        "External batch service call failed:",
+        response.status,
+        parsed
+      );
       return NextResponse.json(
         {
           error: parsed?.error || "Generate batch service call failed",

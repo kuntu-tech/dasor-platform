@@ -28,6 +28,14 @@ interface QuestionItem {
   status: QuestionStatus;
 }
 
+type ActiveTool = {
+  toolName: string;
+  queryIndex: number;
+  toolIndex: number;
+  globalToolIndex: number;
+  totalToolsInQuery: number;
+};
+
 type BatchJobStatus = {
   jobId?: string;
   appId?: string;
@@ -41,7 +49,10 @@ type BatchJobStatus = {
   totalTools?: number | null;
   totalToolsCompleted?: number | null;
   activeToolNames?: string[] | null;
+  activeTools?: ActiveTool[] | null;
   lastCompletedToolName?: string | null;
+  progressPercentage?: number | null;
+  currentQueryProgressPercentage?: number | null;
   message?: string | null;
   error?: string | null;
   startedAt?: string | null;
@@ -97,6 +108,8 @@ export function GenerateFlow() {
   const inFlightRef = useRef(false);
   const mountedCalledRef = useRef(false);
   const statusUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // 缓存 metadata，避免重复调用接口
+  const cachedMetadataRef = useRef<any | null>(null);
   const POLL_INTERVAL_MS = 4000;
 
   useEffect(() => {
@@ -135,6 +148,66 @@ export function GenerateFlow() {
     }
   }, []);
 
+  // Convert raw errors to user-friendly error messages
+  const formatErrorMessage = useCallback(
+    (error: string | null | undefined): string => {
+      if (!error) {
+        return "An issue occurred during generation. Please try again later.";
+      }
+
+      const errorLower = error.toLowerCase();
+
+      // Network-related errors
+      if (errorLower.includes("timeout") || errorLower.includes("aborted")) {
+        return "Request timeout. The network connection may be unstable. Please check your network and try again.";
+      }
+
+      // Server errors
+      if (
+        errorLower.includes("500") ||
+        errorLower.includes("internal server error")
+      ) {
+        return "The server is temporarily unable to process your request. Please try again later.";
+      }
+
+      // Authentication-related errors
+      if (
+        errorLower.includes("401") ||
+        errorLower.includes("unauthorized") ||
+        errorLower.includes("403") ||
+        errorLower.includes("forbidden")
+      ) {
+        return "Authentication failed. Please refresh the page and try again.";
+      }
+
+      // Resource not found
+      if (errorLower.includes("404") || errorLower.includes("not found")) {
+        return "The requested resource does not exist. Please go back and restart the generation process.";
+      }
+
+      // Database connection related
+      if (
+        errorLower.includes("connection") ||
+        errorLower.includes("database") ||
+        errorLower.includes("sql")
+      ) {
+        return "Database connection issue. Please check your connection configuration and try again.";
+      }
+
+      // Generation failed (without showing specific technical errors)
+      if (
+        errorLower.includes("generation failed") ||
+        errorLower.includes("generate")
+      ) {
+        return "Generation task failed. This may be due to data or configuration issues. Please check your input data and try again.";
+      }
+
+      // Default friendly message
+      return "An issue occurred during generation. Please try again later.";
+    },
+    []
+  );
+
   const buildMetadataPayload = useCallback(() => {
     const taskId =
       (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
@@ -170,7 +243,13 @@ export function GenerateFlow() {
   }, []);
 
   const fetchMetadataFromService = useCallback(
-    async (signal?: AbortSignal) => {
+    async (signal?: AbortSignal, useCache: boolean = true) => {
+      // 如果使用缓存且已有缓存数据，直接返回
+      if (useCache && cachedMetadataRef.current !== null) {
+        console.log("Using cached metadata");
+        return cachedMetadataRef.current;
+      }
+
       const metadataPayload = buildMetadataPayload();
       let payloadToSend: any = metadataPayload;
       try {
@@ -212,6 +291,11 @@ export function GenerateFlow() {
         (err as any).meta = parsed;
         throw err;
       }
+
+      // 缓存成功获取的 metadata
+      cachedMetadataRef.current = parsed;
+      console.log("Metadata cached for future use");
+
       return parsed;
     },
     [buildMetadataPayload]
@@ -232,55 +316,156 @@ export function GenerateFlow() {
           return prev.map((item) => ({ ...item, status: "done" }));
         }
 
+        // 如果状态是 pending，所有查询都应该是 pending，不应该提前标记为 done
+        if (statusPayload.status === "pending") {
+          return prev.map((item) => ({ ...item, status: "pending" }));
+        }
+
         const total = prev.length;
-        const rawIndex =
+
+        // 根据 activeTools 来判断哪些查询正在生成
+        const activeTools = Array.isArray(statusPayload.activeTools)
+          ? statusPayload.activeTools
+          : [];
+
+        // 获取所有正在生成的查询索引（queryIndex 从 1 开始，转换为 0-based）
+        const activeQueryIndices = new Set(
+          activeTools.map((tool) => tool.queryIndex - 1)
+        );
+
+        // 如果 activeTools 为空，且所有工具都已完成，则所有查询都标记为 done
+        if (
+          activeTools.length === 0 &&
+          typeof statusPayload.totalToolsCompleted === "number" &&
+          typeof statusPayload.totalTools === "number" &&
+          statusPayload.totalToolsCompleted >= statusPayload.totalTools &&
+          statusPayload.totalTools > 0
+        ) {
+          return prev.map((item) => ({ ...item, status: "done" }));
+        }
+
+        // 根据 currentQueryIndex 和 activeTools 来判断完成状态
+        const currentQueryIndex =
           typeof statusPayload.currentQueryIndex === "number"
             ? statusPayload.currentQueryIndex
             : null;
-        const assumedOneBased =
-          rawIndex !== null && rawIndex > 0 ? rawIndex - 1 : rawIndex ?? 0;
-        const normalizedIndex =
-          rawIndex === null
-            ? null
-            : Math.min(total - 1, Math.max(0, assumedOneBased));
-        const completedCount = Math.max(
-          0,
-          Math.min(
-            total,
-            statusPayload.status === "failed"
-              ? assumedOneBased
-              : assumedOneBased
-          )
-        );
+
+        // 检查数据是否已经准备好（避免初始状态时数据不完整导致的误判）
+        const hasValidToolData =
+          (typeof statusPayload.totalTools === "number" &&
+            statusPayload.totalTools > 0) ||
+          activeTools.length > 0 ||
+          (typeof statusPayload.totalToolsCompleted === "number" &&
+            statusPayload.totalToolsCompleted > 0);
 
         return prev.map((item, index) => {
+          // queryIndex 从 1 开始，转换为 0-based 索引
+          const queryIndex = index + 1;
+
           if (statusPayload.status === "failed") {
-            if (index < completedCount) {
+            // 失败时，根据 currentQueryIndex 判断已完成的数量
+            if (currentQueryIndex !== null && queryIndex < currentQueryIndex) {
               return { ...item, status: "done" };
             }
             return { ...item, status: "pending" };
           }
 
-          if (index < completedCount) {
-            return { ...item, status: "done" };
-          }
-
-          if (
-            normalizedIndex !== null &&
-            index === normalizedIndex &&
-            (statusPayload.status === "generating" ||
-              statusPayload.status === "pending")
-          ) {
+          // 如果该查询在 activeTools 中，标记为 generating
+          if (activeQueryIndices.has(index)) {
             return { ...item, status: "generating" };
           }
 
+          // 如果数据还没准备好（totalTools 为 0 且没有 activeTools），但状态是 generating
+          // 让所有查询显示转圈效果，表示正在准备中
+          if (!hasValidToolData) {
+            if (
+              statusPayload.status === "generating" ||
+              statusPayload.status === "pending"
+            ) {
+              return { ...item, status: "generating" };
+            }
+            return { ...item, status: "pending" };
+          }
+
+          // 如果 currentQueryIndex 存在且数据已准备好，判断查询是否已完成
+          if (currentQueryIndex !== null && hasValidToolData) {
+            // 只有当 currentQueryIndex 已经移动到下一个查询时，才认为前一个查询完成
+            // queryIndex < currentQueryIndex 表示已完成（严格判断：必须小于，不能等于）
+            if (queryIndex < currentQueryIndex) {
+              return { ...item, status: "done" };
+            }
+
+            // queryIndex === currentQueryIndex 表示当前正在处理的查询
+            if (queryIndex === currentQueryIndex) {
+              // 如果该查询在 activeTools 中，一定标记为 generating
+              if (activeQueryIndices.has(index)) {
+                return { ...item, status: "generating" };
+              }
+
+              // 检查该查询的所有工具是否都已完成
+              const currentQueryToolsCompleted =
+                typeof statusPayload.completedToolsInCurrentQuery === "number"
+                  ? statusPayload.completedToolsInCurrentQuery
+                  : 0;
+              const currentQueryTotalTools =
+                typeof statusPayload.totalToolsInCurrentQuery === "number"
+                  ? statusPayload.totalToolsInCurrentQuery
+                  : 0;
+
+              // 只有当该查询的所有工具都已完成，且不在 activeTools 中，且有明确的工具总数时，才标记为 done
+              // 注意：必须确保工具总数大于0，且已完成数等于总数，避免初始状态误判
+              if (
+                currentQueryTotalTools > 0 &&
+                currentQueryToolsCompleted >= currentQueryTotalTools &&
+                currentQueryToolsCompleted > 0 && // 确保至少完成了一个工具
+                !activeQueryIndices.has(index)
+              ) {
+                return { ...item, status: "done" };
+              }
+
+              // 如果工具总数未知或为0，或者已完成数为0，标记为 generating（正在生成中）
+              // 这样可以避免在初始状态时误判为完成
+              return { ...item, status: "generating" };
+            }
+
+            // queryIndex > currentQueryIndex 表示还未开始
+            return { ...item, status: "pending" };
+          }
+
+          // 如果没有 currentQueryIndex，但有 activeTools，根据 activeTools 判断
+          if (activeTools.length > 0) {
+            const minActiveQueryIndex = Math.min(
+              ...activeTools.map((tool) => tool.queryIndex)
+            );
+            // 只有当查询索引严格小于最小活跃查询索引时，才认为已完成
+            if (queryIndex < minActiveQueryIndex) {
+              return { ...item, status: "done" };
+            }
+            if (queryIndex === minActiveQueryIndex) {
+              return { ...item, status: "generating" };
+            }
+            return { ...item, status: "pending" };
+          }
+
+          // 默认状态：如果没有其他信息，根据 status 判断
           if (
-            normalizedIndex === null &&
-            index === 0 &&
-            (statusPayload.status === "pending" ||
-              statusPayload.status === "generating")
+            statusPayload.status === "generating" ||
+            statusPayload.status === "pending"
           ) {
-            return { ...item, status: "generating" };
+            // 只有当所有工具都已完成，且 activeTools 为空时，才标记为 done
+            if (
+              typeof statusPayload.totalToolsCompleted === "number" &&
+              typeof statusPayload.totalTools === "number" &&
+              statusPayload.totalToolsCompleted >= statusPayload.totalTools &&
+              statusPayload.totalTools > 0 &&
+              activeTools.length === 0
+            ) {
+              return { ...item, status: "done" };
+            }
+            // 否则根据索引判断（第一个查询可能正在生成）
+            if (index === 0) {
+              return { ...item, status: "generating" };
+            }
           }
 
           return { ...item, status: "pending" };
@@ -349,7 +534,9 @@ export function GenerateFlow() {
         });
         const payload: BatchJobStatus = await response.json();
         if (!response.ok) {
-          throw new Error(payload?.error || `HTTP ${response.status}`);
+          // 使用友好的错误消息，不直接显示接口返回的技术错误
+          const rawError = payload?.error || `HTTP ${response.status}`;
+          throw new Error(formatErrorMessage(rawError));
         }
 
         // Update status, including all fields defined in documentation
@@ -366,12 +553,9 @@ export function GenerateFlow() {
 
         if (payload?.status === "failed") {
           setJobState("failed");
-          // According to documentation: Check error field on failure
-          setErrorMessage(
-            payload?.error ||
-              payload?.message ||
-              "Generation failed, please try again"
-          );
+          // 使用友好的错误消息，不直接显示接口返回的技术错误
+          const rawError = payload?.error || payload?.message || null;
+          setErrorMessage(formatErrorMessage(rawError));
           return;
         }
 
@@ -382,15 +566,29 @@ export function GenerateFlow() {
         }, POLL_INTERVAL_MS);
       } catch (error) {
         console.log("Failed to query job status", error);
-        // Only continue polling if task is not completed
+        // 如果是网络错误，继续轮询；如果是其他错误，设置友好的错误消息
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        const errorLower = errorMsg.toLowerCase();
+
+        // 网络错误或超时，继续轮询
         if (
-          jobStateRef.current !== "failed" &&
-          jobStateRef.current !== "succeeded"
+          errorLower.includes("timeout") ||
+          errorLower.includes("network") ||
+          errorLower.includes("fetch")
         ) {
-          // Continue polling even on error to avoid losing status due to temporary network issues
-          statusUpdateIntervalRef.current = setTimeout(() => {
-            requestStatus(appId);
-          }, POLL_INTERVAL_MS);
+          if (
+            jobStateRef.current !== "failed" &&
+            jobStateRef.current !== "succeeded"
+          ) {
+            // Continue polling even on error to avoid losing status due to temporary network issues
+            statusUpdateIntervalRef.current = setTimeout(() => {
+              requestStatus(appId);
+            }, POLL_INTERVAL_MS);
+          }
+        } else {
+          // 其他错误，设置友好的错误消息
+          setJobState("failed");
+          setErrorMessage(formatErrorMessage(errorMsg));
         }
       }
     },
@@ -400,6 +598,7 @@ export function GenerateFlow() {
       hydrateAppRecord,
       updateQuestionStatuses,
       router,
+      formatErrorMessage,
     ]
   );
 
@@ -475,9 +674,10 @@ export function GenerateFlow() {
     }
     try {
       // Call the metadata service first to retrieve app_meta_info
+      // 使用缓存，避免重试时重复调用接口
       let appMetaFromService: any | null = null;
       try {
-        appMetaFromService = await fetchMetadataFromService();
+        appMetaFromService = await fetchMetadataFromService(undefined, true);
       } catch (err) {
         console.warn("Failed to fetch app metadata", err);
       }
@@ -526,8 +726,8 @@ export function GenerateFlow() {
         console.warn("Failed to parse run_result_publish", err);
       }
       const batchData = {
-        queries: extractedQueries,
-        anchorIndex: anchIndexNum,
+        // queries: extractedQueries,
+        // anchorIndex: anchIndexNum,
         user_id: user?.id || "",
         // supabase_config: {
         //   supabase_url: dbConnectionDataObj.connectionUrl,
@@ -538,6 +738,22 @@ export function GenerateFlow() {
           dbConnectionDataObj.connectionId ||
           dbConnectionDataObj.connection_id ||
           undefined,
+        database_note: (() => {
+          if (typeof window !== "undefined") {
+            try {
+              const savedNote = localStorage.getItem("database_note");
+              if (savedNote) {
+                return savedNote;
+              }
+            } catch (e) {
+              console.warn(
+                "Failed to read database_note from localStorage:",
+                e
+              );
+            }
+          }
+          return undefined;
+        })(),
         app: {
           name: appName,
           description: appDescription,
@@ -561,12 +777,19 @@ export function GenerateFlow() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || `HTTP ${response.status}`);
+        // 使用友好的错误消息，不直接显示接口返回的技术错误
+        const rawError =
+          data?.error || data?.message || `HTTP ${response.status}`;
+        const friendlyError = formatErrorMessage(rawError);
+        throw new Error(friendlyError);
       }
 
       const nextAppId = data?.appId || data?.data?.appId || data?.data?.id;
       if (!nextAppId) {
-        throw new Error("Batch generation service did not return appId");
+        // 使用友好的错误消息
+        throw new Error(
+          formatErrorMessage("Batch generation service did not return appId")
+        );
       }
 
       // According to documentation: Keep all returned fields to ensure complete status information
@@ -574,11 +797,11 @@ export function GenerateFlow() {
         jobId: data?.jobId,
         appId: nextAppId,
         status: (data?.status as BatchJobStatus["status"]) || "pending",
+        // 初始状态时，如果 currentQueryIndex 未定义，不设置默认值，保持为 null
+        // 这样可以避免误判第一个查询的状态
         currentQueryIndex:
           typeof data?.currentQueryIndex === "number"
             ? data.currentQueryIndex
-            : typeof data?.currentQueryIndex === "undefined"
-            ? 1
             : null,
         totalQueries:
           typeof data?.totalQueries === "number"
@@ -587,11 +810,21 @@ export function GenerateFlow() {
         currentToolName: data?.currentToolName ?? null,
         currentToolIndex: data?.currentToolIndex ?? null,
         totalToolsInCurrentQuery: data?.totalToolsInCurrentQuery ?? null,
-        completedToolsInCurrentQuery: data?.completedToolsInCurrentQuery ?? null,
+        completedToolsInCurrentQuery:
+          data?.completedToolsInCurrentQuery ?? null,
         totalTools: data?.totalTools ?? null,
         totalToolsCompleted: data?.totalToolsCompleted ?? null,
         activeToolNames: data?.activeToolNames ?? null,
+        activeTools: Array.isArray(data?.activeTools) ? data.activeTools : null,
         lastCompletedToolName: data?.lastCompletedToolName ?? null,
+        progressPercentage:
+          typeof data?.progressPercentage === "number"
+            ? data.progressPercentage
+            : null,
+        currentQueryProgressPercentage:
+          typeof data?.currentQueryProgressPercentage === "number"
+            ? data.currentQueryProgressPercentage
+            : null,
         message:
           data?.message ||
           "Batch generation task submitted, please check the progress later",
@@ -608,11 +841,9 @@ export function GenerateFlow() {
     } catch (err) {
       console.log("Error generating batch", err);
       setJobState("failed");
-      setErrorMessage(
-        err instanceof Error
-          ? err.message
-          : "Batch generation failed, please try again"
-      );
+      // 使用友好的错误消息，不直接显示技术错误
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      setErrorMessage(formatErrorMessage(errorMsg));
     } finally {
       inFlightRef.current = false;
     }
@@ -692,22 +923,31 @@ export function GenerateFlow() {
     (isSucceeded
       ? "Batch generation task completed"
       : "Batch generation task is in progress, please wait");
-  const progressText =
-    typeof batchStatus?.currentQueryIndex === "number"
-      ? `${Math.max(1, batchStatus.currentQueryIndex)} / ${
-          (batchStatus?.totalQueries ?? allQuestions.length) || 1
-        }`
+
+  // 根据文档：使用 progressPercentage 显示整体进度
+  const overallProgress =
+    typeof batchStatus?.progressPercentage === "number"
+      ? batchStatus.progressPercentage
       : null;
-  const toolProgress =
-    typeof batchStatus?.currentToolIndex === "number" &&
-    typeof batchStatus?.totalToolsInCurrentQuery === "number"
-      ? `(${Math.max(1, batchStatus.currentToolIndex + 1)} / ${
-          batchStatus.totalToolsInCurrentQuery || 1
-        })`
-      : "";
-  const currentToolText = batchStatus?.currentToolName
-    ? `${batchStatus.currentToolName}`.trim()
-    : null;
+
+  // 根据文档：使用 currentQueryProgressPercentage 显示当前查询进度
+  const currentQueryProgress =
+    typeof batchStatus?.currentQueryProgressPercentage === "number"
+      ? batchStatus.currentQueryProgressPercentage
+      : null;
+
+  // 根据文档：使用 activeTools 获取正在生成的工具详细信息（推荐方法）
+  const activeTools = Array.isArray(batchStatus?.activeTools)
+    ? batchStatus.activeTools
+    : [];
+
+  // 根据文档：如果没有 activeTools，使用 currentToolName 作为后备
+  const currentToolText =
+    activeTools.length > 0
+      ? activeTools.map((tool) => tool.toolName).join(", ")
+      : batchStatus?.currentToolName
+      ? `${batchStatus.currentToolName}`.trim()
+      : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -731,7 +971,20 @@ export function GenerateFlow() {
                 ? "Batch generation failed, please try again."
                 : isSucceeded
                 ? "Batch generation completed, you can jump to the preview to view the application details."
-                : "Batch generation process may take several minutes, we will continue to synchronize the progress."}
+                : (() => {
+                    // 判断所有工具是否已完成但状态还是 generating
+                    const allToolsCompleted =
+                      typeof batchStatus?.totalToolsCompleted === "number" &&
+                      typeof batchStatus?.totalTools === "number" &&
+                      batchStatus.totalToolsCompleted >=
+                        batchStatus.totalTools &&
+                      batchStatus.totalTools > 0 &&
+                      batchStatus?.status === "generating";
+
+                    return allToolsCompleted
+                      ? "Great! All your tools are ready. We're starting them up now so you can preview everything in just a moment!"
+                      : "Batch generation process may take several minutes, we will continue to synchronize the progress.";
+                  })()}
             </CardDescription>
 
             {/* <CardTitle className="mb-4 text-xl">
@@ -744,51 +997,53 @@ export function GenerateFlow() {
 
             <div className="w-full max-w-md space-y-4">
               {isFailed ? (
-                <div className="text-center space-y-3">
-                  {errorMessage && (
-                    <p className="text-sm text-red-600">{errorMessage}</p>
-                  )}
-                  {isStatusTrackingOnly ? (
-                    <Button
-                      disabled={!jobAppId}
-                      onClick={() => {
-                        if (jobAppId) {
-                          requestStatus(jobAppId);
-                        }
-                      }}
-                    >
-                      Refresh Status
-                    </Button>
-                  ) : (
-                    <Button onClick={() => generateBatchData()}>
-                      Try Again
-                    </Button>
-                  )}
+                <div className="text-center space-y-4">
+                  <div className="space-y-2">
+                    {errorMessage && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <p className="text-sm text-red-800 font-medium mb-2">
+                          Generation Failed
+                        </p>
+                        <p className="text-sm text-red-700 leading-relaxed">
+                          {errorMessage}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-3 justify-center">
+                    {isStatusTrackingOnly ? (
+                      <Button
+                        disabled={!jobAppId}
+                        onClick={() => {
+                          if (jobAppId) {
+                            setErrorMessage("");
+                            setJobState("running");
+                            requestStatus(jobAppId);
+                          }
+                        }}
+                        variant="default"
+                      >
+                        Refresh Status
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => {
+                          setErrorMessage("");
+                          setJobState("idle");
+                          generateBatchData();
+                        }}
+                        variant="default"
+                      >
+                        Try Again
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <div className="text-center text-sm text-muted-foreground space-y-2">
-                  {/* <p>{statusMessage}</p>
-                  {progressText && (
-                    <p>
-                      Queries: <span className="font-medium">{progressText}</span>
-                    </p>
-                  )}
-                  {currentToolText && (
-                    <p>
-                      Current Tool:{" "}
-                      <span className="font-medium">{currentToolText}</span>
-                    </p>
-                  )}
-                  {batchStatus?.status && (
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground/80">
-                      Status: {batchStatus.status}
-                    </p>
-                  )} */}
-                </div>
-              )}
+              ) : // 进度详情已隐藏，不显示详细进度信息
+              null}
             </div>
 
-            <div className="mt-8 w-full max-w-2xl">
+            {/* <div className="mt-8 w-full max-w-2xl">
               <h2 className="text-lg font-medium text-muted-foreground mb-3">
                 Selected Features:
               </h2>
@@ -796,8 +1051,7 @@ export function GenerateFlow() {
                 {allQuestions.length === 0 ? (
                   <div className="text-center text-muted-foreground py-8">
                     <p>
-                      No features selected. Please go back and select
-                      features.
+                      No features selected. Please go back and select features.
                     </p>
                   </div>
                 ) : (
@@ -836,9 +1090,7 @@ export function GenerateFlow() {
                             className={`size-5 ${config.color} shrink-0 animate-spin`}
                           />
                         ) : (
-                          <Icon
-                            className={`size-5 ${config.color} shrink-0`}
-                          />
+                          <Icon className={`size-5 ${config.color} shrink-0`} />
                         )}
                         <span className="text-foreground flex-1">
                           {index + 1}. {question.text}
@@ -848,7 +1100,7 @@ export function GenerateFlow() {
                   })
                 )}
               </div>
-            </div>
+            </div> */}
             <Button
               className="mt-4"
               variant="outline"

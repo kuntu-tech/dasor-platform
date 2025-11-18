@@ -71,6 +71,7 @@ const CLEAR_CACHE_KEYS_BASE = [
   "selectedQuestionsWithSql",
   "dbConnectionData",
   "originalTaskId",
+  "apps_cache_anonymous",
 ];
 
 function resolveAuthStorageKey() {
@@ -95,7 +96,10 @@ function clearLocalAuthArtifacts(userId?: string) {
   if (typeof window === "undefined") return;
   try {
     const keysToRemove = [...CLEAR_CACHE_KEYS_BASE];
-    if (userId) keysToRemove.push(`cached_avatar_${userId}`);
+    if (userId) {
+      keysToRemove.push(`cached_avatar_${userId}`);
+      keysToRemove.push(`apps_cache_${userId}`);
+    }
     keysToRemove.forEach((k) => localStorage.removeItem(k));
   } catch (e) {
     console.warn("Failed to clear local cache", e);

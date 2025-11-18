@@ -752,7 +752,7 @@ export function PreviewEditor() {
             }}
             className="w-full h-full"
           >
-            <ResizablePanel
+            {/* <ResizablePanel
               defaultSize={(panelLayout && panelLayout[0]) || 24}
               minSize={16}
               maxSize={40}
@@ -773,7 +773,6 @@ export function PreviewEditor() {
                 </div>
               </div>
               <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
-                {/* Debug info */}
                 {selectedProblems.length === 0 && (
                   <div className="p-4 text-center text-gray-500">
                     <p>No questions found in localStorage</p>
@@ -788,7 +787,6 @@ export function PreviewEditor() {
                       <button
                         onClick={() => {
                           setSelectedFeatureId(problem);
-                          // Send the question text to the iframe
                           sendMessageToIframe(problem);
                         }}
                         onContextMenu={(e) => {
@@ -832,7 +830,6 @@ export function PreviewEditor() {
                             size="sm"
                             className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={() => {
-                              // Remove the question from selectedProblems
                               const updatedProblems = selectedProblems.filter(
                                 (p) => p !== problem
                               );
@@ -842,8 +839,6 @@ export function PreviewEditor() {
                                 JSON.stringify(updatedProblems)
                               );
                               setContextMenuFeatureId(null);
-
-                              // If the removed item was selected, move selection to the next
                               if (problem === selectedFeatureId) {
                                 setSelectedFeatureId(updatedProblems[0] || "");
                               }
@@ -858,7 +853,7 @@ export function PreviewEditor() {
                   );
                 })}
               </nav>
-            </ResizablePanel>
+            </ResizablePanel> */}
             <ResizableHandle
               withHandle
               className="bg-transparent after:bg-transparent hover:after:bg-transparent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 opacity-0"
