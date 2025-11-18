@@ -42,7 +42,7 @@ const CreateAccount = ({ onBack, onConnect }: CreateAccountProps) => {
       }
       
       if (data.requiresOnboarding && data.onboarding?.url) {
-        window.location.href = data.onboarding.url;
+        window.open(data.onboarding.url, '_blank');
         return;
       }
       onConnect(loginEmail);
