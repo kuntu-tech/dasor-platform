@@ -27,6 +27,7 @@ import { useAuth } from "@/components/AuthProvider"
 import { getBillingPortalUrl } from "@/lib/billingPortal"
 import { supabase } from "@/lib/supabase"
 import { useSearchParams } from "next/navigation"
+import { Toaster as PortableToaster } from "@/portable-pages/components/ui/toaster"
 
 const settingsMenu = [
   { id: "account", label: "Account", icon: User },
@@ -591,9 +592,7 @@ export default function SettingsPage() {
               placeholder="Enter your email"
               disabled={!useCustomUsername || profileLoading}
             />
-            <div className="flex items-center gap-2">
-           
-            </div>
+          
           </div>
 
       
@@ -818,6 +817,7 @@ export default function SettingsPage() {
           {activeTab === "payout" && <PaymentAccount />}
         </div>
       </div>
+      <PortableToaster />
     </div>
   )
 }

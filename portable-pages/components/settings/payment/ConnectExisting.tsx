@@ -5,6 +5,7 @@ import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { bindVendor, startOAuth, linkVendorAccount } from "../../../lib/connectApi";
 import { useAuth } from "../../../../components/AuthProvider";
+import { useToast } from "../../../hooks/use-toast";
 
 interface ConnectExistingProps {
   onBack: () => void;
@@ -19,6 +20,7 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
   const [errors, setErrors] = useState<{ publishable?: string; secret?: string; accountId?: string }>({});
   const [loading, setLoading] = useState(false);
   const { user, session } = useAuth();
+  const { toast } = useToast();
   const loginEmail = user?.email || "";
   const userId = user?.id || "";
   const returnUrl = useMemo(() => `${window.location.origin}/oauth/callback`, []);
@@ -29,7 +31,11 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
   const handleOAuthConnect = async () => {
     if (!loginEmail) {
       console.log(user,'user')
-      alert("Login required: missing email");
+      toast({
+        variant: "warning",
+        title: "Login required",
+        description: "Missing email",
+      });
       return;
     }
     try {
@@ -69,14 +75,22 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
         redirectUri: redirectUri,
       });
       if (!resp.success) {
-        alert(resp.error || "Failed to start OAuth");
+        toast({
+          variant: "error",
+          title: "Failed to start OAuth",
+          description: resp.error || "Please try again",
+        });
         return;
       }
       // Redirect to Stripe OAuth page
       window.location.href = resp.data!.authUrl;
     } catch (err) {
       console.log("OAuth start error:", err);
-      alert("Failed to start OAuth. Please try again.");
+      toast({
+        variant: "error",
+        title: "Failed to start OAuth",
+        description: "Please try again.",
+      });
     } finally {
       setLoading(false);
     }
@@ -85,7 +99,11 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
   // Black button: auto onboarding, always sends real email and users.id
   const handleStartOnboarding = async () => {
     if (!loginEmail) {
-      alert("Login required: missing email");
+      toast({
+        variant: "warning",
+        title: "Login required",
+        description: "Missing email",
+      });
       return;
     }
     try {
@@ -93,21 +111,33 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
       const body = { returnUrl, refreshUrl, email: loginEmail, userId };
       const resp = await bindVendor(body as any);
       if (!resp.success) {
-        alert(resp.error || "Bind failed");
+        toast({
+          variant: "error",
+          title: "Bind failed",
+          description: resp.error || "Please try again",
+        });
         return;
       }
       const data = resp.data!;
       
       // Show note if this is a new account created after disconnection
       if (data.note?.previouslyDisconnected && data.note.message) {
-        alert(data.note.message);
+        toast({
+          variant: "info",
+          title: "Account reconnected",
+          description: data.note.message,
+        });
       }
       
       if (data.requiresOnboarding && data.onboarding?.url) {
         window.location.href = data.onboarding.url;
         return;
       }
-      alert("No onboarding required. You may already be connected.");
+      toast({
+        variant: "info",
+        title: "No onboarding required",
+        description: "You may already be connected.",
+      });
     } finally {
       setLoading(false);
     }
@@ -127,13 +157,21 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
         userId: userId,
       });
       if (!resp.success) {
-        alert(resp.error || "Failed to link account");
+        toast({
+          variant: "error",
+          title: "Failed to link account",
+          description: resp.error || "Please try again",
+        });
         return;
       }
       onConnect(resp.data!.stripeAccountId);
     } catch (err) {
       console.log("Link account error:", err);
-      alert("Failed to link account. Please try again.");
+      toast({
+        variant: "error",
+        title: "Failed to link account",
+        description: "Please try again.",
+      });
     } finally {
       setLoading(false);
     }
@@ -146,7 +184,11 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
       return;
     }
     if (!loginEmail) {
-      alert("Login required: missing email");
+      toast({
+        variant: "warning",
+        title: "Login required",
+        description: "Missing email",
+      });
       return;
     }
     try {
@@ -154,7 +196,11 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
       const body = { stripeAccountId: accountId.trim(), returnUrl, refreshUrl, email: loginEmail, userId };
       const resp = await bindVendor(body as any);
       if (!resp.success) {
-        alert(resp.error || "Bind failed");
+        toast({
+          variant: "error",
+          title: "Bind failed",
+          description: resp.error || "Please try again",
+        });
         return;
       }
       
@@ -162,7 +208,11 @@ const ConnectExisting = ({ onBack, onConnect }: ConnectExistingProps) => {
       
       // Show note if this is a new account created after disconnection
       if (data.note?.previouslyDisconnected && data.note.message) {
-        alert(data.note.message);
+        toast({
+          variant: "info",
+          title: "Account reconnected",
+          description: data.note.message,
+        });
       }
       
       onConnect(accountId.trim());

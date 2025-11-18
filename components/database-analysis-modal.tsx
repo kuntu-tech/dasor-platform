@@ -599,6 +599,14 @@ export function DatabaseAnalysisModal({
       <DialogContent
         className="max-w-2xl w-full max-h-[90vh] overflow-y-auto duration-300 ease-out data-[state=open]:zoom-in-100 data-[state=open]:slide-in-from-bottom-4"
         showCloseButton={!isAnalyzing || !!connectionError || !!dataValidationError || !!runError}
+        onInteractOutside={(e) => {
+          // 阻止点击外部关闭弹窗
+          e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          // 阻止 ESC 键关闭弹窗
+          e.preventDefault();
+        }}
       >
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">
