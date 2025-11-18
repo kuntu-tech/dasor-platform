@@ -13,7 +13,11 @@ interface StatusAlertInfo {
   linkUrl: string | null;
 }
 
-const PaymentAccount = () => {
+interface PaymentAccountProps {
+  onLoadingChange?: (isLoading: boolean) => void;
+}
+
+const PaymentAccount = ({ onLoadingChange }: PaymentAccountProps = {}) => {
   const [currentStep, setCurrentStep] = useState<PaymentStep>("selection");
   const [connectedEmail, setConnectedEmail] = useState<string>("");
   const [checkingConnection, setCheckingConnection] = useState(false); // Start as false, will be set to true when checking
@@ -29,6 +33,13 @@ const PaymentAccount = () => {
   useEffect(() => {
     console.log("[PaymentAccount] useAuth", { user, session, loading });
   }, [user, session, loading]);
+
+  // Notify parent component about loading state changes
+  useEffect(() => {
+    if (onLoadingChange) {
+      onLoadingChange(checkingConnection);
+    }
+  }, [checkingConnection, onLoadingChange]);
 
   // Clear checking state if no user or still loading
   useEffect(() => {

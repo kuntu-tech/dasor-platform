@@ -43,8 +43,11 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
   // Handle ESC key closure and reset error state when opening
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      // 加载中时阻止 ESC 关闭
+      if (e.key === "Escape" && !isLoading) {
         onClose();
+      } else if (e.key === "Escape" && isLoading) {
+        e.preventDefault();
       }
     };
 
@@ -60,7 +63,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isLoading]);
 
   // Handle subscription flow
   const handleSubscribe = async () => {
@@ -212,12 +215,19 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
 
   if (!isOpen) return null;
 
+  const handleOverlayClick = () => {
+    // 加载中时阻止点击遮罩关闭
+    if (!isLoading) {
+      onClose();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
       {/* Overlay */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={handleOverlayClick}
       />
 
       {/* Dialog */}

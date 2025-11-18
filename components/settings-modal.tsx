@@ -49,6 +49,9 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
   const [checkingPaymentHistory, setCheckingPaymentHistory] = useState(false)
   const [paymentStatus, setPaymentStatus] = useState<"no_vendor" | "no_payment_history" | "has_payment_history" | null>(null)
   
+  // Track if PaymentAccount is loading
+  const [paymentAccountLoading, setPaymentAccountLoading] = useState(false)
+  
   // Avatar upload states
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarLoading, setAvatarLoading] = useState(false)
@@ -813,14 +816,52 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
     )
   }
 
+  // Handle ESC key to close modal (only if no operation in progress)
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        const isAnyOperationInProgress = 
+          paymentAccountLoading || 
+          avatarLoading || 
+          billingPortalLoading || 
+          checkingPaymentHistory
+        if (!isAnyOperationInProgress) {
+          onClose()
+        }
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape)
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [isOpen, paymentAccountLoading, avatarLoading, billingPortalLoading, checkingPaymentHistory, onClose])
+
   if (!isOpen) return null
+
+  // Check if any operation is in progress
+  const isAnyOperationInProgress = 
+    paymentAccountLoading || 
+    avatarLoading || 
+    billingPortalLoading || 
+    checkingPaymentHistory
+
+  const handleBackdropClick = () => {
+    // Only allow closing if no operation is in progress
+    if (!isAnyOperationInProgress) {
+      onClose()
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={handleBackdropClick}
       />
       
       {/* Modal window */}
@@ -828,7 +869,8 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
         <Button
           variant="ghost"
           size="icon"
-          onClick={onClose}
+          onClick={handleBackdropClick}
+          disabled={isAnyOperationInProgress}
           className="absolute right-4 top-4 rounded-full"
         >
           <X className="size-4" />
@@ -864,7 +906,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = "account" }: Setti
           <div className={activeTab === "billing" ? "flex-1 flex flex-col p-8" : "p-8"}>
             {activeTab === "account" && renderAccountContent()}
             {activeTab === "billing" && renderBillingContent()}
-            {activeTab === "payout" && <PaymentAccount />}
+            {activeTab === "payout" && <PaymentAccount onLoadingChange={setPaymentAccountLoading} />}
           </div>
         </div>
       </div>

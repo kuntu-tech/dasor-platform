@@ -799,7 +799,18 @@ export function GenerateModal({ open, onOpenChange }: GenerateModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" showCloseButton={!isProcessing}>
+      <DialogContent 
+        className="max-w-2xl max-h-[90vh] overflow-y-auto" 
+        showCloseButton={!isProcessing}
+        onInteractOutside={(e) => {
+          // 阻止点击外部关闭弹窗
+          e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          // 阻止 ESC 键关闭弹窗
+          e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">
             Generating Your ChatAPP
