@@ -34,6 +34,7 @@ import {
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { CircleProgress } from "@/components/ui/circle-progress";
+import { AnalyzeModal } from "@/components/analyze-modal";
 import aaaa from "@/formatted_analysis_result.json";
 type Step = "connect" | "analyzing" | "results";
 type AnalysisStep =
@@ -385,6 +386,7 @@ export function ConnectFlow() {
   const { user } = useAuth();
   const [progress, setProgress] = useState(0); // percentage
   const [jobStatus, setJobStatus] = useState("init");
+  const [isAnalyzeModalOpen, setIsAnalyzeModalOpen] = useState(false);
   // const [connectionId, setConnectionId] = useState("");
 
   // Detect redirect from publish page and pre-populate markets defaults
@@ -889,8 +891,8 @@ export function ConnectFlow() {
       return;
     }
 
-    // Begin the analysis flow
-    setStep("analyzing");
+    // Begin the analysis flow - open modal instead of changing step
+    setIsAnalyzeModalOpen(true);
     setAnalysisStep("connecting");
     setProgress(0); // Initialize progress
     setIsAnalyzing(true);
@@ -922,7 +924,6 @@ export function ConnectFlow() {
         setConnectionError("Please check your Project ID or Access Token");
         setDataValidationError(null);
         setAnalysisStep("connecting"); // Reset to connecting step (failure stage)
-        setStep("analyzing");
         setIsAnalyzing(false);
         return; // Exit early, skip subsequent steps
       }
@@ -932,7 +933,6 @@ export function ConnectFlow() {
         setConnectionError("Please check your Project ID or Access Token");
         setDataValidationError(null);
         setAnalysisStep("connecting"); // Reset to connecting step (failure stage)
-        setStep("analyzing");
         setIsAnalyzing(false);
         return; // Exit early, skip subsequent steps
       }
@@ -1010,7 +1010,6 @@ export function ConnectFlow() {
           `Data validation failed: ${validateResponse.status}`;
         setDataValidationError(errorMsg);
         setAnalysisStep("validating-data"); // Surface UI Step 3
-        setStep("analyzing");
         setIsAnalyzing(false);
         return;
       }
@@ -1044,7 +1043,6 @@ export function ConnectFlow() {
             "Data validation failed"
         );
         setAnalysisStep("validating-data"); // Keep UI Step 3 active
-        setStep("analyzing");
         setIsAnalyzing(false);
         return;
       }
@@ -1129,7 +1127,6 @@ export function ConnectFlow() {
         }
         setRunError(errorMsg);
         setAnalysisStep("sampling-data"); // Flag sampling-data step as failure point
-        setStep("analyzing");
         setIsAnalyzing(false);
         return;
       }
@@ -1161,7 +1158,6 @@ export function ConnectFlow() {
       } else {
         setJobStatus(pollingResult.status || "error");
         setRunError(pollingResult.error || "Pipeline run failed");
-        setStep("analyzing");
         setIsAnalyzing(false);
         return;
       }
@@ -1175,7 +1171,6 @@ export function ConnectFlow() {
       if (!run_results) {
         setRunError("No run_result found in polling result");
         setAnalysisStep("evaluating");
-        setStep("analyzing");
         setIsAnalyzing(false);
         return;
       }
@@ -1220,8 +1215,9 @@ export function ConnectFlow() {
 
       // Populate analysis results (page rendered via markets; demo data deprecated)
       setAnalysisResults(testAnalysisData);
-      setStep("results");
       setIsAnalyzing(false);
+      setIsAnalyzeModalOpen(false); // Close modal when analysis completes
+      setStep("results");
       localStorage.setItem(
         "dbConnectionData",
         JSON.stringify({
@@ -1259,8 +1255,7 @@ export function ConnectFlow() {
         setDataValidationError(null);
       }
 
-      // Keep UI on analyzing step to display the error
-      setStep("analyzing");
+      // Keep modal open to display the error
       setIsAnalyzing(false);
     }
   };
@@ -1273,7 +1268,7 @@ export function ConnectFlow() {
     setChatInput("");
 
     // Show the analysis progress window
-    setStep("analyzing");
+    setIsAnalyzeModalOpen(true);
     setAnalysisStep("connecting");
 
     setTimeout(() => {
@@ -1688,7 +1683,7 @@ export function ConnectFlow() {
           </Card>
         )}
 
-        {step === "analyzing" && (
+        {false && step === "analyzing" && (
           <div className="flex flex-col items-center justify-center min-h-[60vh]">
             <h1 className="text-3xl font-bold mb-6 text-center">
               Analyzing Your Database
@@ -2007,6 +2002,25 @@ export function ConnectFlow() {
             </div>
           )}
       </main>
+      <AnalyzeModal
+        open={isAnalyzeModalOpen}
+        onOpenChange={setIsAnalyzeModalOpen}
+        analysisStep={analysisStep}
+        progress={progress}
+        connectionError={connectionError}
+        dataValidationError={dataValidationError}
+        runError={runError}
+        isAnalyzing={isAnalyzing}
+        onReconnect={() => {
+          setStep("connect");
+          setConnectionError(null);
+          setDataValidationError(null);
+          setRunError(null);
+          setHasValidated(false);
+          setShowInputError(true);
+          setIsAnalyzeModalOpen(false);
+        }}
+      />
     </div>
   );
 }
