@@ -109,6 +109,13 @@ export default function DashboardPage() {
 
   // Extract queries from generator_meta and store them in localStorage
   const extractAndSaveQueries = (app: AppItem) => {
+    // 保存完整的 app 数据到 localStorage，供 preview 页使用
+    try {
+      localStorage.setItem(`app_data_for_preview`, JSON.stringify(app));
+      console.log("Saved app data to localStorage for preview page:", app.id);
+    } catch (e) {
+      console.warn("Failed to save app data to localStorage:", e);
+    }
     try {
       if (
         app.generator_meta?.queries &&
@@ -455,6 +462,8 @@ export default function DashboardPage() {
                       router.push(`/generate?appId=${app.id}`);
                     } else {
                       extractAndSaveQueries(app);
+                      console.log("app", app);
+
                       router.push(`/preview?id=${app.id}`);
                     }
                   }}

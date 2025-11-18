@@ -903,7 +903,10 @@ export function GenerateModal({ open, onOpenChange }: GenerateModalProps) {
             <div className="mt-4">
               <FlowButton
                 text="Back to Home"
-                onClick={() => onOpenChange(false)}
+                onClick={() => {
+                  onOpenChange(false);
+                  router.push("/");
+                }}
               />
             </div>
           )}
