@@ -366,38 +366,159 @@ export function PreviewEditor() {
 
     const fetchValueQuestions = async () => {
       try {
-        // Build metadata payload similar to generate-flow.tsx
-        const taskId =
-          (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
-        let segmentsPayload: any[] = [];
+        // 优先从 localStorage 读取 app 数据（从首页点击进入时保存的）
+        let appData: any = null;
         try {
-          const marketsRaw = localStorage.getItem("marketsData");
-          if (marketsRaw) {
-            const markets = JSON.parse(marketsRaw);
-            if (Array.isArray(markets)) {
-              segmentsPayload = markets.map((seg: any) => ({
-                name: seg.name || seg.title,
-                analysis: seg.analysis || undefined,
-                valueQuestions: seg.valueQuestions || undefined,
-              }));
-            }
+          const storedAppData = localStorage.getItem(`app_data_for_preview`);
+          if (storedAppData) {
+            appData = JSON.parse(storedAppData);
+            console.log(
+              "Loaded app data from localStorage for metadata payload:",
+              appData
+            );
+            // 读取后清除，避免下次使用旧数据
+            localStorage.removeItem(`app_data_for_preview`);
           }
-        } catch {}
+        } catch (err) {
+          console.warn("Failed to parse app data from localStorage:", err);
+        }
 
-        let runResult: any = {};
-        try {
-          runResult = JSON.parse(localStorage.getItem("run_result") || "{}");
-        } catch {}
+        // 如果 localStorage 中没有，才请求 API
+        if (!appData) {
+          try {
+            const appResponse = await fetch(`/api/apps/${currentAppId}`);
+            if (appResponse.ok) {
+              const appResult = await appResponse.json();
+              if (appResult.success && appResult.data) {
+                appData = appResult.data;
+                console.log(
+                  "Fetched app data from API for metadata payload:",
+                  appData
+                );
+              }
+            }
+          } catch (err) {
+            console.warn("Failed to fetch app data from API:", err);
+          }
+        }
 
-        const payload = {
-          run_result: runResult,
-          domain: { primaryDomain: "Hospitality Management" },
-          ingest: { schemaHash: "sha256-3c7459f15975eae5" },
-          run_id: "r_1",
-          status: "complete",
-          task_id: taskId,
-          segments: segmentsPayload,
-        };
+        // 优先使用 app_meta_info 中的数据构建 payload
+        let payload: any = null;
+
+        // 尝试从 app_meta_info 中获取或构建 payload
+        if (appData?.app_meta_info) {
+          try {
+            const appMetaInfo =
+              typeof appData.app_meta_info === "string"
+                ? JSON.parse(appData.app_meta_info)
+                : appData.app_meta_info;
+
+            // 如果 app_meta_info 中有 run_result_publish，直接使用
+            if (appMetaInfo?.run_result_publish) {
+              payload = appMetaInfo.run_result_publish;
+              console.log("Using run_result_publish from app_meta_info");
+            } else if (appMetaInfo) {
+              // 根据 app_meta_info 构建 payload
+              const taskId =
+                appMetaInfo.task_id ||
+                (globalThis as any).crypto?.randomUUID?.() ||
+                `task_${Date.now()}`;
+              const runId = appMetaInfo.run_id || "r_1";
+
+              // 尝试从 localStorage 获取 segments 和 run_result
+              let segmentsPayload: any[] = [];
+              try {
+                const marketsRaw = localStorage.getItem("marketsData");
+                if (marketsRaw) {
+                  const markets = JSON.parse(marketsRaw);
+                  if (Array.isArray(markets)) {
+                    segmentsPayload = markets.map((seg: any) => ({
+                      name: seg.name || seg.title,
+                      analysis: seg.analysis || undefined,
+                      valueQuestions: seg.valueQuestions || undefined,
+                    }));
+                  }
+                }
+              } catch {}
+
+              let runResult: any = {};
+              try {
+                runResult = JSON.parse(
+                  localStorage.getItem("run_result") || "{}"
+                );
+              } catch {}
+
+              // 构建 payload
+              payload = {
+                run_result: runResult,
+                domain: { primaryDomain: "Hospitality Management" },
+                ingest: { schemaHash: "sha256-3c7459f15975eae5" },
+                run_id: runId,
+                status: "complete",
+                task_id: taskId,
+                segments: segmentsPayload,
+              };
+              console.log("Built payload from app_meta_info:", payload);
+            }
+          } catch (err) {
+            console.warn("Failed to parse app_meta_info:", err);
+          }
+        }
+
+        // 如果没有从 app_meta_info 获取到，尝试从 localStorage 获取
+        if (!payload) {
+          try {
+            const storedPublish = localStorage.getItem("run_result_publish");
+            if (storedPublish) {
+              const parsedPublish = JSON.parse(storedPublish);
+              if (parsedPublish && typeof parsedPublish === "object") {
+                payload = parsedPublish;
+                console.log("Using run_result_publish from localStorage");
+              }
+            }
+          } catch (err) {
+            console.warn(
+              "Failed to parse run_result_publish from localStorage:",
+              err
+            );
+          }
+        }
+
+        // 如果还是没有，使用默认方式构建 payload
+        if (!payload) {
+          const taskId =
+            (globalThis as any).crypto?.randomUUID?.() || `task_${Date.now()}`;
+          let segmentsPayload: any[] = [];
+          try {
+            const marketsRaw = localStorage.getItem("marketsData");
+            if (marketsRaw) {
+              const markets = JSON.parse(marketsRaw);
+              if (Array.isArray(markets)) {
+                segmentsPayload = markets.map((seg: any) => ({
+                  name: seg.name || seg.title,
+                  analysis: seg.analysis || undefined,
+                  valueQuestions: seg.valueQuestions || undefined,
+                }));
+              }
+            }
+          } catch {}
+
+          let runResult: any = {};
+          try {
+            runResult = JSON.parse(localStorage.getItem("run_result") || "{}");
+          } catch {}
+
+          payload = {
+            run_result: runResult,
+            domain: { primaryDomain: "Hospitality Management" },
+            ingest: { schemaHash: "sha256-3c7459f15975eae5" },
+            run_id: "r_1",
+            status: "complete",
+            task_id: taskId,
+            segments: segmentsPayload,
+          };
+          console.log("Using default payload");
+        }
 
         const response = await fetch(
           "https://business-insight.datail.ai/api/v1/apps/metadata",
@@ -421,9 +542,9 @@ export function PreviewEditor() {
         } catch {}
 
         // 检查是否已被取消或 appId 已变化
-        if (cancelled || currentAppId !== appId) {
-          return;
-        }
+        // if (cancelled || currentAppId !== appId) {
+        //   return;
+        // }
 
         // Extract value_question array
         const valueQuestionArray = parsed?.value_question || [];
@@ -1095,7 +1216,7 @@ export function PreviewEditor() {
                 {/* Value Questions Section */}
                 {showValueQuestions && valueQuestions.length > 0 && (
                   <div className="p-4 bg-background border-b">
-                    <p className="text-sm font-semibold mb-3 text-gray-700">
+                    <p className="text-sm font-semibold mb-3 text-gray-700 text-left">
                       You can ask things like:
                     </p>
                     <div className="flex flex-wrap gap-2">
